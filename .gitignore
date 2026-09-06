@@ -27,7 +27,6 @@ build/
 dist/
 
 # ---- 运行时生成的数据（含隐私，勿上传） ----
-douyin_cookies.txt
 ai_chart_key.txt
 *.log
 logs/

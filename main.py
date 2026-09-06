@@ -42,7 +42,7 @@ FastAPI 入门 Demo —— 边写接口边学 Python
 import asyncio  # Python 标准库：异步编程支持
 from typing import Annotated, Optional  # typing：类型注解工具
 
-from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Path, Query
 from pydantic import BaseModel, Field  # pydantic：数据校验库
 from fastapi.responses import HTMLResponse  # 用于返回主页 HTML
 
@@ -86,63 +86,30 @@ app.include_router(ai_chart_router)
 # 知识点 4（类型注解）：函数签名 -> str 表示返回字符串（HTML）。
 # =========================================================
 _HOME_TEMPLATE = Path(__file__).resolve().parent / 'templates' / 'home.html'
-_AI_CHART_URL = 'http://127.0.0.1:8000/ai-chart'
-_DOUYIN_URL = 'http://127.0.0.1:8000/douyin-download'
 
 _HOME_FALLBACK = (
     '<!DOCTYPE html><html lang="zh-CN"><meta charset="utf-8">'
     '<body style="background:#0a0f1e;color:#e8edf7;font-family:system-ui">'
     '<h2>Toolbox</h2>'
-    '<p><a href="' + _AI_CHART_URL + '">AI Chart</a></p>'
-    '<p><a href="' + _DOUYIN_URL + '">Douyin</a></p>'
+    '<p><a href="/ai-chart">AI Chart</a></p>'
+    '<p><a href="/douyin-download">Douyin</a></p>'
     '</body></html>'
 )
 
 
-def _serves(path: str) -> bool:
-    # 判断当前这个 FastAPI 应用里是否挂了某个页面路由。
-    # include_router 的路由可能被包装成 _IncludedRouter，因此需要递归查找其内部 routes。
-    def _walk(routes) -> bool:
-        for route in routes:
-            if getattr(route, 'path', None) == path:
-                return True
-            inner = getattr(route, 'routes', None)
-            if inner and _walk(inner):
-                return True
-            original = getattr(route, 'original_router', None)
-            if original is not None:
-                orig_routes = getattr(original, 'routes', None)
-                if orig_routes and _walk(orig_routes):
-                    return True
-        return False
-    return _walk(app.routes)
-
-
-def _home_html(own_base: str) -> str:
-    # own_base：用户实际访问的主机地址，形如 http://127.0.0.1:8000
-    tpl = _HOME_TEMPLATE.read_text(encoding='utf-8') if _HOME_TEMPLATE.exists() else _HOME_FALLBACK
-    self_parts = []
-    ai_self = own_base + '/ai-chart' if _serves('/ai-chart') else ''
-    dy_self = own_base + '/douyin-download' if _serves('/douyin-download') else ''
-    if ai_self and ai_self != _AI_CHART_URL:
-        self_parts.append('<a href="' + ai_self + '">' + ai_self + '</a>')
-    if dy_self and dy_self != _DOUYIN_URL:
-        self_parts.append('<a href="' + dy_self + '">' + dy_self + '</a>')
-    if self_parts:
-        self_html = ('<span class="hl">当前服务自带备用入口：</span>' + '&nbsp;·&nbsp;'.join(self_parts) + '<br>')
-    else:
-        self_html = ''
-    self_html += '提示：地址端口号以实际启动的服务为准；若点开无反应，请先确认对应服务已启动。'
-    return (tpl.replace('@@AI_URL@@', _AI_CHART_URL)
-               .replace('@@DY_URL@@', _DOUYIN_URL)
-               .replace('@@SELF_HTML@@', self_html))
+def _home_html() -> str:
+    # 工具与本主页部署在同一个 FastAPI 应用里，链接统一用相对路径：
+    # 本地运行是 http://127.0.0.1:8000/...，部署到 Vercel / 其它域名后会自动跟随当前域名，
+    # 不再写死 127.0.0.1，因此换环境也不需要改代码。
+    if _HOME_TEMPLATE.exists():
+        return _HOME_TEMPLATE.read_text(encoding='utf-8')
+    return _HOME_FALLBACK
 
 
 @app.get("/", response_class=HTMLResponse)
-def home(request: Request) -> str:
-    # request.base_url 形如 http://127.0.0.1:8000/，去掉末尾斜杠得到当前服务地址
-    own = str(request.base_url).rstrip('/')
-    return _home_html(own)
+def home() -> str:
+    # 返回工具箱主页 HTML（页面里的工具卡片地址由浏览器按当前域名动态补全）
+    return _home_html()
 
 
 # =========================================================
