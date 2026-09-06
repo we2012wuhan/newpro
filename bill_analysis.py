@@ -220,6 +220,7 @@ def parse_bill(filename: str, data: bytes):
     method_missing = method_i is None
 
     out = []
+    neutral = []
     skipped = 0
     for row in data_rows:
         dstr = _parse_date(cell(row, di))
@@ -233,6 +234,7 @@ def parse_bill(filename: str, data: bytes):
             method = method[:30]
 
         amt = None
+        is_neutral = False
         direction = _clean(cell(row, direction_i)) if direction_i is not None else ''
         # 1) 专用支出列
         if expense_i is not None:
@@ -241,11 +243,17 @@ def parse_bill(filename: str, data: bytes):
                 amt = None  # 负的支出列一般是退款/冲正，忽略
         # 2) 有“收/支”指示列 + 通用金额列（微信/支付宝导出格式）
         elif direction_i is not None and amount_i is not None:
-            if '收' in direction and '支' not in direction:
+            raw_amt = _to_float(cell(row, amount_i))
+            if (not direction) or direction == '/' or '不计' in direction:
+                # “不计收支”（转账/理财/退款等）：单独统计，不计入消费
+                amt = abs(raw_amt) if raw_amt is not None else None
+                is_neutral = True
+            elif '收' in direction and '支' not in direction:
+                # 收入行：不计入支出分析
                 skipped += 1
                 continue
-            if '支' in direction:
-                amt = abs(_to_float(cell(row, amount_i)) or 0) or None
+            elif '支' in direction:
+                amt = abs(raw_amt) if raw_amt is not None else None
             else:
                 # 状态列也可能是 “支出”“收入”文字；无法判断则跳过
                 skipped += 1
@@ -274,15 +282,24 @@ def parse_bill(filename: str, data: bytes):
         if not dstr:
             skipped += 1
             continue
-        out.append({'date': dstr, 'desc': desc or '未命名消费', 'amount': round(amt, 2), 'method': method})
+        rec = {'date': dstr, 'desc': desc or ('未命名记录' if is_neutral else '未命名消费'),
+               'amount': round(amt, 2), 'method': method}
+        if is_neutral:
+            neutral.append(rec)
+        else:
+            out.append(rec)
 
     if not out:
+        if neutral:
+            raise ValueError('只识别到 %d 笔「不计收支」记录，没有可分析的消费支出流水，无法生成消费分析。' % len(neutral))
         raise ValueError('没有识别到任何支出流水：请检查是否只包含收入、或列名不含「日期/金额/支出/收/支」。')
 
+    if neutral:
+        notes.append('另有 %d 笔「不计收支」记录（转账/理财/退款等）已单独统计，不计入总消费与每日图表。' % len(neutral))
     if method_missing:
         notes.append('表格里没有「支付方式」列，支付方式将由 AI 按消费摘要推断，可能不够准确。')
 
-    return out, notes
+    return out, neutral, notes
 
 
 # ---------------- 大模型：消费分类 ----------------
@@ -407,8 +424,23 @@ def _classify_with_llm(rows, key, base, model):
 
 
 # ---------------- 本地汇总 ----------------
-def build_result(rows, categories, methods, suggestions, notes=None, meta_extra=None):
+def build_result(rows, categories, methods, suggestions, notes=None, meta_extra=None, neutral_rows=None):
     notes = list(notes or [])
+    neutral_rows = list(neutral_rows or [])
+    neutral_total = 0.0
+    for r in neutral_rows:
+        neutral_total += float(r['amount'])
+    neutral_top = sorted(neutral_rows, key=lambda r: -float(r['amount']))[:6]
+    neutral = {
+        'total': round(neutral_total, 2),
+        'count': len(neutral_rows),
+        'items': [{
+            'date': r['date'],
+            'desc': r['desc'],
+            'amount': round(float(r['amount']), 2),
+            'method': r.get('method', ''),
+        } for r in neutral_top],
+    }
     total = 0.0
     cat_sum = {}
     method_sum = {}
@@ -491,6 +523,7 @@ def build_result(rows, categories, methods, suggestions, notes=None, meta_extra=
     return {
         'ok': True,
         'meta': meta,
+        'neutral': neutral,
         'category_total': category_total,
         'method_total': method_total,
         'daily_totals': daily_totals,
@@ -504,7 +537,7 @@ def build_result(rows, categories, methods, suggestions, notes=None, meta_extra=
 def run_analyze(filename: str, data: bytes, key: str, base: str = '', model: str = ''):
     base = (base or _DEFAULT_BASE).strip() or _DEFAULT_BASE
     model = (model or _DEFAULT_MODEL).strip() or _DEFAULT_MODEL
-    rows, notes = parse_bill(filename, data)
+    rows, neutral, notes = parse_bill(filename, data)
     if len(rows) > _MAX_ROWS:
         raise ValueError('检测到 %d 笔支出，单次最多分析 %d 笔。请把账单按月拆分后再上传。' % (len(rows), _MAX_ROWS))
     key = _api_key(key)
@@ -512,7 +545,7 @@ def run_analyze(filename: str, data: bytes, key: str, base: str = '', model: str
         raise ValueError('缺少 API Key：请在页面「模型设置」填写，或设置环境变量 DEEPSEEK_API_KEY')
     started = time.time()
     categories, methods, suggestions = _classify_with_llm(rows, key, base, model)
-    result = build_result(rows, categories, methods, suggestions, notes=notes)
+    result = build_result(rows, categories, methods, suggestions, notes=notes, neutral_rows=neutral)
     result['meta']['elapsed'] = round(time.time() - started, 1)
     result['meta']['model'] = model
     result['method_estimated'] = any('推断' in n for n in notes)

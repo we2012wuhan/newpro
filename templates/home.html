@@ -28,7 +28,7 @@ body{
   background-attachment:fixed;
 }
 .wrap{max-width:1020px;margin:0 auto;padding:56px 22px 80px}
-.hero{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:34px}
+.hero{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:30px}
 .brand{display:flex;align-items:center;gap:16px}
 .mark{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;font-size:32px;
   background:linear-gradient(135deg,#6d7cff,#2dd4bf);box-shadow:0 14px 34px rgba(109,124,255,.4)}
@@ -58,6 +58,17 @@ h2.sec{font-size:15px;color:#b8c4da;letter-spacing:3px;margin:0 0 14px;font-weig
 .tool.t-bill:hover{border-color:rgba(45,212,191,.55);box-shadow:0 24px 52px rgba(45,212,191,.2)}
 .t-bill .go{background:linear-gradient(135deg,#34d399,#2dd4bf);box-shadow:0 8px 20px rgba(45,212,191,.3)}
 .t-buy .go{background:linear-gradient(135deg,#ff7a59,#ffb454);box-shadow:0 8px 20px rgba(255,122,89,.35)}
+.search-col{display:flex;flex-direction:column;align-items:stretch;gap:7px;flex:1;max-width:480px;min-width:260px;margin-left:auto}
+.search-box{position:relative;width:100%}
+.search-box .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none;font-size:15px}
+#toolSearch{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--text);
+  border-radius:14px;padding:12px 14px 12px 40px;font-size:15px;outline:none;
+  transition:border-color .2s,box-shadow .2s}
+#toolSearch:focus{border-color:rgba(109,124,255,.65);box-shadow:0 0 0 3px rgba(109,124,255,.18)}
+#toolSearch::placeholder{color:#71809f}
+.no-result{display:block;text-align:center;color:#71809f;font-size:14px;border:1px dashed var(--line);
+  border-radius:16px;padding:42px 16px;margin-top:8px;line-height:1.9}
+.hide{display:none!important}
 @media(max-width:760px){.grid{grid-template-columns:1fr}.wrap{padding:34px 16px 60px}}
 </style>
 </head>
@@ -68,6 +79,12 @@ h2.sec{font-size:15px;color:#b8c4da;letter-spacing:3px;margin:0 0 14px;font-weig
       <div class="mark">🧰</div>
       <div>
         <h1>我的工具箱</h1>
+      </div>
+    </div>
+    <div class="search-col">
+      <div class="search-box">
+        <span class="ico">🔍</span>
+        <input id="toolSearch" type="search" placeholder="搜索工具名称，试试：图表 / 抖音 / 比价 / 账单…" autocomplete="off">
       </div>
     </div>
   </div>
@@ -116,6 +133,29 @@ h2.sec{font-size:15px;color:#b8c4da;letter-spacing:3px;margin:0 0 14px;font-weig
     </a>
   </div>
 
+  <div id="noResult" class="no-result hide">没有找到匹配的工具，换个关键词试试吧～</div>
+
 </div>
+<script>
+(function(){
+  'use strict';
+  var input = document.getElementById('toolSearch');
+  var cards = Array.prototype.slice.call(document.querySelectorAll('.tool'));
+  var noResult = document.getElementById('noResult');
+  function apply(){
+    var q = (input.value || '').trim().toLowerCase();
+    var matched = 0;
+    cards.forEach(function(card){
+      var text = (card.textContent || '').toLowerCase();
+      var hit = !q || text.indexOf(q) >= 0;
+      card.classList.toggle('hide', !hit);
+      if (hit){ matched++; }
+    });
+    noResult.classList.toggle('hide', !q || matched > 0);
+  }
+  input.addEventListener('input', apply);
+  apply();
+})();
+</script>
 </body>
 </html>

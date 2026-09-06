@@ -110,17 +110,43 @@ details.settings[open] .arr{transform:rotate(90deg)}
 .cat-row .bar i{display:block;height:100%;border-radius:99px}
 .cat-row .amt{text-align:right;color:#dfe6f5;font-weight:700}
 .cat-row .pct{text-align:right;color:var(--muted)}
+.stat.hl3 .v{color:#fcd34d}
+.summary-grid.with-neutral{grid-template-columns:repeat(5,1fr)}
+.neutral-box{display:none;background:rgba(252,211,77,.06);border:1px solid rgba(252,211,77,.35);
+  border-radius:14px;padding:14px 16px;margin-bottom:16px}
+.neutral-box.show{display:block}
+.neutral-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;
+  font-size:13.5px;font-weight:800;color:#fcd34d;margin-bottom:6px}
+.neutral-head .nh{font-size:12.5px;color:#fde68a}
+.neutral-sub{font-size:11.5px;color:var(--muted);line-height:1.7;margin-bottom:8px}
+.neutral-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:6px 18px}
+.neutral-list li{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:12.5px;color:#e7eefc;
+  background:rgba(255,255,255,.03);border-radius:9px;padding:7px 11px;line-height:1.6}
+.neutral-list .nd{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.neutral-list .na{flex:none;color:#fde68a;font-weight:700}
+.neutral-more{font-size:11.5px;color:#a99455;margin-top:8px}
+@media(max-width:700px){.neutral-list{grid-template-columns:1fr}}
+@media(max-width:900px){.summary-grid.with-neutral{grid-template-columns:1fr 1fr}}
 @media(max-width:1180px){.span-4,.span-5,.span-6,.span-7,.span-8{grid-column:span 12}}
 @media(max-width:900px){.summary-grid{grid-template-columns:1fr 1fr}.settings-body{grid-template-columns:1fr}}
 @media(max-width:560px){.summary-grid{grid-template-columns:1fr}}
+@media(max-width:560px){.summary-grid.with-neutral{grid-template-columns:1fr}}
 .layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
 .left-col{min-width:0}
-.history-panel{padding:14px;position:sticky;top:14px;max-height:calc(100vh - 40px);overflow:auto}
+.history-panel{padding:14px;position:sticky;top:14px;max-height:calc(100vh - 40px);overflow:auto;width:100%;min-width:0;justify-self:end;transition:width .22s ease,padding .22s ease,opacity .18s ease}
 .history-panel h3{margin:0;font-size:15px;display:flex;align-items:center;gap:8px}
 .h-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
 .h-clear{border:1px solid rgba(251,113,133,.35);background:rgba(251,113,133,.08);color:#fda4af;border-radius:8px;
   padding:4px 10px;font-size:11.5px;cursor:pointer}
 .h-clear:hover{background:rgba(251,113,133,.16)}
+.h-actions{display:flex;align-items:center;gap:6px}
+.h-toggle{border:1px solid rgba(148,163,184,.4);background:rgba(148,163,184,.1);color:#cbd5e1;border-radius:8px;padding:4px 8px;font-size:11.5px;cursor:pointer;white-space:nowrap}
+.h-toggle:hover{background:rgba(148,163,184,.22);color:#eef2f8}
+.hist-pill{display:none;grid-column:2;grid-row:1;justify-self:end;align-self:start;position:sticky;top:14px;z-index:5;align-items:center;gap:6px;border:1px solid rgba(148,163,184,.45);background:linear-gradient(180deg,#2b3561,#1b2345);color:#e2e9f8;border-radius:999px;padding:9px 16px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;box-shadow:0 8px 22px rgba(0,0,0,.3);white-space:nowrap}
+.hist-pill:hover{border-color:rgba(165,180,252,.85);color:#fff}
+.layout.collapsed .hist-pill{display:inline-flex;animation:histPillIn .18s ease .12s both}
+.layout.collapsed .history-panel{width:0;height:0;padding:0;overflow:hidden;opacity:.4}
+@keyframes histPillIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
 .h-tip{font-size:12px;color:var(--muted);line-height:1.7;margin:0 0 10px}
 .h-empty{font-size:12.5px;color:#7e8cac;line-height:1.8;border:1px dashed rgba(255,255,255,.12);
   border-radius:10px;padding:12px;margin:0}
@@ -135,7 +161,7 @@ details.settings[open] .arr{transform:rotate(90deg)}
   -webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .h-sub{font-size:11.5px;color:#8ea0c0;margin-top:3px;line-height:1.6;display:-webkit-box;-webkit-line-clamp:1;
   -webkit-box-orient:vertical;overflow:hidden}
-@media(max-width:1200px){.layout{grid-template-columns:1fr}.history-panel{position:static;max-height:none}}
+@media(max-width:1200px){.layout{grid-template-columns:1fr}.history-panel{position:static;max-height:none}.hist-pill{grid-column:1;justify-self:auto;position:fixed;right:12px;top:12px}}
 </style>
 </head>
 <body>
@@ -184,6 +210,7 @@ details.settings[open] .arr{transform:rotate(90deg)}
 
   <div id="resultWrap">
     <div class="summary-grid" id="statGrid"></div>
+    <div id="neutralBox" class="neutral-box"></div>
     <div class="charts">
       <div class="chart-card span-4">
         <div class="chart-title"><span class="ic" style="background:#2dd4bf"></span>消费分类占比<span class="why">饼图 · 各类别支出占总支出比例</span></div>
@@ -215,11 +242,16 @@ details.settings[open] .arr{transform:rotate(90deg)}
     <aside class="card history-panel" id="historyPanel">
       <div class="h-head">
         <h3>🕘 历史记录</h3>
-        <button type="button" id="btnClearHistory" class="h-clear" title="清空全部历史">清空</button>
+        <span class="h-actions">
+          <button type="button" id="btnHistToggle" class="h-toggle" title="展开 / 收起历史列表">收起 ▾</button>
+          <button type="button" id="btnClearHistory" class="h-clear" title="清空全部历史">清空</button>
+        </span>
       </div>
       <p class="h-tip">自动保留最近 10 次上传的分析结果，点击即可在左侧重新查看，无需重复上传、无需再次调用大模型。</p>
       <div id="historyList"></div>
+
     </aside>
+    <button type="button" id="btnHistOpen" class="hist-pill" title="展开历史记录">🕘 历史记录 ▸</button>
   </div>
 </div>
 
@@ -307,6 +339,8 @@ function renderMeta(data){
     { k: '单笔最高', v: fmtMoney(m.max_single ? m.max_single.amount : 0), s: m.max_single ? (m.max_single.desc + ' · ' + m.max_single.date) : '—' },
     { k: '最大支出类别', v: (m.top_categories || ['—'])[0], s: (m.top_categories || []).slice(0, 3).join(' / '), hl: 'hl2' }
   ];
+  var neutral = data.neutral || {};
+  host.classList.toggle('with-neutral', !!(neutral.count));
   cells.forEach(function(c){
     var d = document.createElement('div');
     d.className = 'stat' + (c.hl ? ' ' + c.hl : '');
@@ -316,6 +350,16 @@ function renderMeta(data){
     d.appendChild(k); d.appendChild(v); d.appendChild(s);
     host.appendChild(d);
   });
+  if (neutral.count){
+    var d = document.createElement('div');
+    d.className = 'stat hl3';
+    var k = document.createElement('div'); k.className = 'k'; k.textContent = '不计收支（单独统计）';
+    var v = document.createElement('div'); v.className = 'v'; v.textContent = fmtMoney(neutral.total);
+    var s = document.createElement('div'); s.className = 's';
+    s.textContent = '共 ' + neutral.count + ' 笔 · 未计入消费';
+    d.appendChild(k); d.appendChild(v); d.appendChild(s);
+    host.appendChild(d);
+  }
 }
 
 function renderCategory(data, catColors){
@@ -522,6 +566,48 @@ function renderAdvice(data){
   });
 }
 
+function renderNeutral(data){
+  var box = $('neutralBox');
+  var n = data.neutral || {};
+  box.innerHTML = '';
+  if (!n.count){
+    box.className = 'neutral-box';
+    return;
+  }
+  box.className = 'neutral-box show';
+  var head = document.createElement('div');
+  head.className = 'neutral-head';
+  var t1 = document.createElement('span'); t1.textContent = '⇄ 不计收支 · 单独统计';
+  var t2 = document.createElement('span'); t2.className = 'nh';
+  t2.textContent = fmtMoney(n.total) + ' · ' + n.count + ' 笔';
+  head.appendChild(t1); head.appendChild(t2);
+  box.appendChild(head);
+  var sub = document.createElement('div');
+  sub.className = 'neutral-sub';
+  sub.textContent = '转账 / 理财 / 退款等「不计收支」记录单独列在这里，不参与分类占比、每日消费与排行统计。';
+  box.appendChild(sub);
+  if ((n.items || []).length){
+    var ul = document.createElement('ul');
+    ul.className = 'neutral-list';
+    (n.items || []).forEach(function(it){
+      var li = document.createElement('li');
+      var nd = document.createElement('span'); nd.className = 'nd';
+      nd.textContent = it.date + ' · ' + it.desc;
+      var na = document.createElement('span'); na.className = 'na';
+      na.textContent = fmtMoney(it.amount);
+      li.appendChild(nd); li.appendChild(na);
+      ul.appendChild(li);
+    });
+    box.appendChild(ul);
+  }
+  if (n.count > (n.items || []).length){
+    var more = document.createElement('div');
+    more.className = 'neutral-more';
+    more.textContent = '其余 ' + (n.count - (n.items || []).length) + ' 笔未在上方展开';
+    box.appendChild(more);
+  }
+}
+
 function render(data){
   state.data = data;
   $('resultWrap').className = 'show';
@@ -536,6 +622,7 @@ function render(data){
     notes.className = 'notes';
   }
   renderMeta(data);
+  renderNeutral(data);
   renderCategory(data, catColors);
   renderDaily(data, catColors);
   renderMethod(data);
@@ -695,6 +782,11 @@ function init(){
   $('cfgKey').addEventListener('input', persistCfg);
   $('btnAnalyze').addEventListener('click', analyze);
   $('btnClearHistory').addEventListener('click', clearHistory);
+  function setHistCollapsed(collapsed){
+    document.querySelector('.layout').classList.toggle('collapsed', collapsed);
+  }
+  $('btnHistToggle').addEventListener('click', function(){ setHistCollapsed(true); });
+  $('btnHistOpen').addEventListener('click', function(){ setHistCollapsed(false); });
   $('fileBox').addEventListener('click', function(){ $('billFile').click(); });
   renderHistoryList();
   $('billFile').addEventListener('change', function(){
