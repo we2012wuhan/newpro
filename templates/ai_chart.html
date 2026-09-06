@@ -34,7 +34,7 @@ body{
     linear-gradient(160deg,#0a0f1e 0%,#0c1427 55%,#0a0f1e 100%);
   background-attachment:fixed;
 }
-.wrap{max-width:1180px;margin:0 auto;padding:26px 20px 70px}
+.wrap{max-width:1420px;margin:0 auto;padding:26px 20px 70px}
 header.top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:22px}
 .logo{display:flex;align-items:center;gap:13px}
 .mark{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-weight:800;font-size:20px;color:#fff;
@@ -150,6 +150,27 @@ table.data tr:hover td{background:rgba(109,124,255,.06)}
 .src-hint{color:#9db0d0;font-size:12px;line-height:1.9;margin-top:10px}
 .charts-note{font-size:12.5px;color:#a9b8d4;margin:14px 0 0;padding:10px 13px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px;line-height:1.9}
 @media(max-width:900px){.span-radar,.span-scatter,.span-rank{grid-column:span 12}}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 312px;gap:18px;align-items:start;margin-top:18px}
+.left-col{min-width:0}
+.history-panel{padding:14px;position:sticky;top:14px;max-height:calc(100vh - 40px);overflow:auto}
+.history-panel h3{margin:0;font-size:15px;display:flex;align-items:center;gap:8px}
+.h-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.h-clear{border:1px solid rgba(251,113,133,.35);background:rgba(251,113,133,.08);color:#fda4af;border-radius:8px;
+  padding:4px 10px;font-size:11.5px;cursor:pointer}
+.h-clear:hover{background:rgba(251,113,133,.16)}
+.h-tip{font-size:12px;color:var(--muted);line-height:1.7;margin:0 0 10px}
+.h-empty{font-size:12.5px;color:#7e8cac;line-height:1.8;border:1px dashed rgba(255,255,255,.12);
+  border-radius:10px;padding:12px;margin:0}
+.h-item{display:block;width:100%;text-align:left;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);
+  border-radius:11px;padding:9px 11px;margin-bottom:8px;cursor:pointer;color:var(--text);font-family:inherit}
+.h-item:hover{border-color:rgba(109,124,255,.5);background:rgba(109,124,255,.08)}
+.h-item.active{border-color:rgba(45,212,191,.6);background:rgba(45,212,191,.08)}
+.h-item-top{display:flex;align-items:center;gap:8px;justify-content:space-between;margin-bottom:3px}
+.h-time{font-size:11px;color:#8ea0c0}
+.h-new{font-size:10px;color:#052e16;background:#34d399;border-radius:999px;padding:1px 7px;font-weight:800}
+.h-line{font-size:13px;font-weight:700;line-height:1.6;color:#e2e9f8;word-break:break-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.h-title{font-size:11.5px;color:#8ea0c0;margin-top:3px;line-height:1.6;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+@media(max-width:1080px){.layout{grid-template-columns:1fr}.history-panel{position:static;max-height:none}}
 </style>
 </head><body>
 <div class="wrap">
@@ -164,6 +185,8 @@ table.data tr:hover td{background:rgba(109,124,255,.06)}
     <div class="badge"><span class="dot"></span>DeepSeek · OpenAI 兼容接口</div>
   </header>
 
+  <div class="layout">
+    <div class="left-col">
   <div class="card">
     <label class="field" for="prompt">你想分析什么？可输入主题，也可直接粘贴一段数据描述</label>
     <textarea id="prompt" placeholder="例如：比较 2024 年国内主要手机品牌的市场份额；或粘贴你手里的销售明细并说明想看的维度。"></textarea>
@@ -263,6 +286,16 @@ table.data tr:hover td{background:rgba(109,124,255,.06)}
       <div class="table-scroll" id="tableWrap"></div>
     </div>
   </div>
+    </div>
+    <aside class="card history-panel" id="historyPanel">
+      <div class="h-head">
+        <h3>🕘 历史记录</h3>
+        <button type="button" id="btnClearHistory" class="h-clear" title="清空全部历史">清空</button>
+      </div>
+      <p class="h-tip">自动保留最近 10 次查询，点击记录即可在左侧重新查看结果，无需再次调用大模型。</p>
+      <div id="historyList"></div>
+    </aside>
+  </div>
 </div><script>
 (function(){
 'use strict';
@@ -272,6 +305,10 @@ var SPLIT_LINE = 'rgba(255,255,255,.07)';
 var state = { data: null };
 var chartMap = { bar:null, pie:null, line:null, radar:null, scatter:null, rank:null };
 var CFG_KEY = 'aiChartCfg_v1';
+var HIST_KEY = 'aiChartHist_v1';
+var HIST_MAX = 10;
+var histList = [];
+var histActiveId = null;
 
 function $(id){ return document.getElementById(id); }
 
@@ -928,6 +965,7 @@ async function runQuery(){
     var data = await resp.json();
     if(!data.ok){ throw new Error(data.message || '未知错误'); }
     render(data, true);
+    addHistory({ prompt: promptText, title: data.title || '数据分析结果', time: Date.now(), data: data });
   }catch(e){
     $('resultWrap').className = '';
     setStatus('调用失败：' + e.message, 'err');
@@ -937,13 +975,117 @@ async function runQuery(){
 }
 
 
+// =========================================================
+// 历史记录：自动保留最近 10 次成功查询（localStorage）
+// 点击记录可直接在左侧重新查看结果，无需再次调用大模型。
+// =========================================================
+function fmtHistTime(ts){
+  var d = new Date(ts);
+  function p2(n){ return (n < 10 ? '0' : '') + n; }
+  return (d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+}
+
+function loadHistory(){
+  try {
+    var arr = JSON.parse(localStorage.getItem(HIST_KEY) || '[]');
+    return Array.isArray(arr) ? arr : [];
+  }catch(e){ return []; }
+}
+
+function saveHistory(list){
+  var attempt = list.slice(0, HIST_MAX);
+  if(!attempt.length){
+    try { localStorage.setItem(HIST_KEY, '[]'); }catch(e){}
+    return [];
+  }
+  while(attempt.length){
+    try {
+      localStorage.setItem(HIST_KEY, JSON.stringify(attempt));
+      return attempt;
+    }catch(e){ attempt.pop(); }
+  }
+  return [];
+}
+
+function addHistory(item){
+  item.id = 'h' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  histList.unshift(item);
+  histList = histList.slice(0, HIST_MAX);
+  histList = saveHistory(histList);
+  histActiveId = item.id;
+  renderHistoryList();
+}
+
+function clearHistory(){
+  if(!histList.length){ return; }
+  histList = [];
+  histActiveId = null;
+  saveHistory(histList);
+  renderHistoryList();
+  setStatus('已清空全部历史记录。', 'info');
+}
+
+function renderHistoryList(){
+  var host = $('historyList');
+  host.innerHTML = '';
+  if(!histList.length){
+    var empty = document.createElement('div');
+    empty.className = 'h-empty';
+    empty.textContent = '还没有查询记录。完成一次成功查询后，可在这里点击一键回看，无需再次调用大模型。';
+    host.appendChild(empty);
+    return;
+  }
+  histList.forEach(function(item){
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'h-item' + (item.id === histActiveId ? ' active' : '');
+    btn.title = '点击在左侧重新查看本次结果';
+    var top = document.createElement('div');
+    top.className = 'h-item-top';
+    var time = document.createElement('span');
+    time.className = 'h-time';
+    time.textContent = fmtHistTime(item.time);
+    top.appendChild(time);
+    if(item.id === histActiveId){
+      var flag = document.createElement('span');
+      flag.className = 'h-new';
+      flag.textContent = '当前';
+      top.appendChild(flag);
+    }
+    var line = document.createElement('div');
+    line.className = 'h-line';
+    line.textContent = item.prompt || '(未记录查询语句)';
+    btn.appendChild(top);
+    btn.appendChild(line);
+    if(item.title){
+      var sub = document.createElement('div');
+      sub.className = 'h-title';
+      sub.textContent = item.title;
+      btn.appendChild(sub);
+    }
+    btn.addEventListener('click', function(){ restoreRecord(item); });
+    host.appendChild(btn);
+  });
+}
+
+function restoreRecord(item){
+  histActiveId = item.id;
+  $('prompt').value = item.prompt || '';
+  render(item.data, false);
+  setStatus('已从历史记录恢复「' + (item.title || item.prompt || '该次查询') + '」的图表结果（未重复调用大模型）。', 'ok');
+  renderHistoryList();
+}
+
 function init(){
+  histList = loadHistory().slice(0, HIST_MAX);
   applyCfgToInputs(loadCfg());
   $('btnRun').addEventListener('click', runQuery);
   $('btnExport').addEventListener('click', exportExcel);
+  $('btnClearHistory').addEventListener('click', clearHistory);
   $('cfgBase').addEventListener('input', persistCfg);
   $('cfgModel').addEventListener('input', persistCfg);
   $('cfgKey').addEventListener('input', persistCfg);
+  renderHistoryList();
   window.addEventListener('resize', function(){
     Object.keys(chartMap).forEach(function(k){ if(chartMap[k]){ chartMap[k].resize(); } });
   });

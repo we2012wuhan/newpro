@@ -81,6 +81,11 @@ app.include_router(ai_chart_router)
 from buy_helper import router as buy_helper_router  # noqa: E402
 app.include_router(buy_helper_router)
 
+# 附加功能：账单分析（上传 Excel/CSV -> DeepSeek 消费分类 -> 图表汇总 + 省钱建议）
+# 浏览器访问 http://127.0.0.1:8000/bill-analysis 即可使用。
+from bill_analysis import router as bill_router  # noqa: E402
+app.include_router(bill_router)
+
 
 
 # =========================================================
