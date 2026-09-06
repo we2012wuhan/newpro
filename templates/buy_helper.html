@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>购物比价助手</title>
+<link rel="icon" href="data:,">
+<style>
+:root{
+  --bg:#0e0a18;
+  --panel:rgba(255,255,255,.055);
+  --line:rgba(255,255,255,.09);
+  --text:#efeaf7;
+  --muted:#a197b8;
+  --acc:#ff7a59;
+  --gold:#ffb454;
+  --ok:#34d399;
+  --tb:#ff9500;
+  --jd:#e4393c;
+  --err:#fb7185;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  color:var(--text);font-family:"Segoe UI","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+  min-height:100vh;
+  background:
+    radial-gradient(1100px 520px at 10% -10%, rgba(255,122,89,.22), transparent 60%),
+    radial-gradient(900px 480px at 105% 0%, rgba(255,180,84,.13), transparent 55%),
+    radial-gradient(700px 600px at 50% 120%, rgba(167,139,250,.12), transparent 60%),
+    linear-gradient(160deg,#0e0a18 0%,#150f24 55%,#0e0a18 100%);
+  background-attachment:fixed;
+}
+.wrap{max-width:1120px;margin:0 auto;padding:28px 20px 70px}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:22px}
+.logo{display:flex;align-items:center;gap:13px}
+.mark{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:22px;color:#fff;
+  background:linear-gradient(135deg,#ff7a59,#ffb454);box-shadow:0 10px 26px rgba(255,122,89,.4)}
+h1{margin:0;font-size:22px}
+.sub{color:var(--muted);font-size:13px;margin-top:3px}
+.badge{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#fcd9c9;background:rgba(255,122,89,.13);
+  border:1px solid rgba(255,122,89,.32);padding:6px 12px;border-radius:999px}
+.badge .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok)}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.03));
+  border:1px solid var(--line);border-radius:18px;padding:18px;backdrop-filter:blur(8px);box-shadow:0 20px 46px rgba(0,0,0,.28)}
+.card + .card{margin-top:16px}
+label.field{display:block;font-size:13px;color:#c9bdda;margin:0 0 8px;font-weight:600}
+input#product,textarea#needs{width:100%;padding:13px 14px;font-size:15px;color:var(--text);
+  background:rgba(8,6,16,.6);border:1px solid rgba(255,255,255,.12);border-radius:12px;outline:none;font-family:inherit}
+textarea#needs{min-height:56px;resize:vertical;margin-top:10px;line-height:1.7}
+input:focus,textarea:focus{border-color:rgba(255,122,89,.6);box-shadow:0 0 0 3px rgba(255,122,89,.14)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.btn{border:0;border-radius:11px;padding:11px 20px;font-size:14.5px;cursor:pointer;font-weight:700;display:inline-flex;
+  align-items:center;gap:8px;transition:transform .12s ease,box-shadow .15s ease;text-decoration:none}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.btn-main{color:#fff;background:linear-gradient(135deg,#ff7a59,#ffb454);box-shadow:0 10px 24px rgba(255,122,89,.35)}
+.btn-tb{color:#fff;background:linear-gradient(135deg,#ff9500,#ff6a00);box-shadow:0 8px 20px rgba(255,149,0,.3)}
+.btn-jd{color:#fff;background:linear-gradient(135deg,#e4393c,#c9252f);box-shadow:0 8px 20px rgba(228,57,60,.3)}
+.btn-ghost{color:#d6cbe6;background:rgba(255,255,255,.06);border:1px solid var(--line)}
+.btn-ghost:hover{background:rgba(255,255,255,.1)}
+.btn.warn{color:#ffd9a8;background:rgba(255,180,84,.12);border:1px solid rgba(255,180,84,.4)}
+.btn.mini{padding:8px 13px;font-size:12.5px;border-radius:9px}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;
+  animation:spin .8s linear infinite;display:none}
+.spinner.on{display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+#status{margin-top:12px;font-size:13.5px;line-height:1.8;display:none}
+#status.show{display:block}
+#status.err{color:var(--err);background:rgba(251,113,133,.08);border:1px solid rgba(251,113,133,.25);padding:10px 14px;border-radius:10px}
+#status.info{color:#d9e2ff;background:rgba(109,124,255,.08);border:1px solid rgba(109,124,255,.25);padding:10px 14px;border-radius:10px}
+#status.ok{color:#86efac;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);padding:10px 14px;border-radius:10px}
+.hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.8}
+details.settings{margin-top:16px}
+summary.settings-sum{list-style:none;cursor:pointer;font-weight:700;font-size:14.5px;display:flex;align-items:center;gap:10px}
+summary.settings-sum::-webkit-details-marker{display:none}
+.settings-body{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.settings-body .full{grid-column:1/-1}
+.settings-body label{display:block;font-size:12.5px;color:#a99cc2;margin-bottom:6px}
+.settings-body input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);
+  background:rgba(8,6,16,.55);color:var(--text);outline:none;font-size:14px}
+#resultWrap{display:none}
+#resultWrap.show{display:block}
+.ribbon{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h2.rtitle{margin:0 0 6px;font-size:21px}
+.meta-tags{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.tag{font-size:11.5px;color:#c9bdda;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  padding:3px 10px;border-radius:999px}
+.summary{display:flex;gap:12px;padding:13px 15px;border-radius:13px;margin-top:4px;
+  background:linear-gradient(90deg,rgba(255,122,89,.13),rgba(255,180,84,.07));border:1px solid rgba(255,122,89,.25)}
+.summary .icon{font-size:19px;line-height:1.4}
+.summary p{margin:0;line-height:1.9;font-size:14px}
+.warnbox{margin-top:14px;padding:12px 15px;border-radius:12px;font-size:13px;line-height:1.9;color:#ffd9a8;
+  background:rgba(255,180,84,.08);border:1px solid rgba(255,180,84,.25)}
+.group{margin-top:18px}
+.group h3{display:flex;align-items:center;gap:10px;margin:0 0 10px;font-size:16px}
+.plate{width:9px;height:9px;border-radius:3px}
+.list{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pcard{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.p-top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.pf{font-size:11px;font-weight:800;color:#fff;padding:3px 9px;border-radius:999px}
+.pf.tb{background:#ff9500}.pf.tmall{background:#ff0036}.pf.jd{background:#e4393c}
+.store{font-size:12px;color:var(--muted)}
+.pname{margin:0;font-size:14.5px;font-weight:700;line-height:1.6;color:#f2ecf9}
+.pmeta{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.price{font-size:21px;font-weight:800;color:#ffb454}
+.price small{font-size:12px;color:var(--muted);font-weight:400}
+.sales{font-size:12px;color:#9fefce}
+.score{font-size:12px;color:#ffd9a8}
+.pros{font-size:13px;color:#d6cbe6;line-height:1.7;background:rgba(255,255,255,.04);border-radius:10px;padding:8px 11px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+.note-line{font-size:12px;color:var(--muted);line-height:1.7}
+.reason{margin-top:6px}
+.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:820px){.row2,.settings-body,.kgrid,.list{grid-template-columns:1fr}.list{grid-template-columns:1fr}}
+</style>
+</head><body>
+<div class="wrap">
+  <header class="top">
+    <div class="logo">
+      <div class="mark">🛒</div>
+      <div>
+        <h1>购物比价助手</h1>
+        <div class="sub">输入想买的商品与需求，按销量与价格对比淘宝 / 京东，并给出购买建议</div>
+      </div>
+    </div>
+    <span class="badge"><span class="dot"></span>AI 比价 · 参考数据</span>
+  </header>
+
+  <div class="card">
+    <label class="field" for="product">你想买什么？</label>
+    <input id="product" type="text" placeholder="例如：500 元以内的空气炸锅">
+    <textarea id="needs" placeholder="你的需求 / 预算 / 偏好（可选）&#10;例如：家里 2 人用，最好 5L 大容量、炸东西不沾、声音小，预算 300-500 元"></textarea>
+    <div class="actions">
+      <button id="btnRun" class="btn btn-main"><span class="spinner" id="runSpin"></span><span id="btnRunText">AI 比价分析</span></button>
+      <button id="btnTb" class="btn btn-tb">打开淘宝搜索</button>
+      <button id="btnJd" class="btn btn-jd">打开京东搜索</button>
+    </div>
+    <div id="status"></div>
+  </div>
+
+  <details class="card settings">
+    <summary class="settings-sum"><span class="arr">▶</span>&nbsp;模型设置（API Key 只保存在本机浏览器）</summary>
+    <div class="settings-body">
+      <div><label>API Base URL</label><input id="cfgBase" type="text" autocomplete="off"></div>
+      <div><label>模型名称</label><input id="cfgModel" type="text" autocomplete="off"></div>
+      <div class="full"><label>API Key</label><input id="cfgKey" type="password" autocomplete="off" placeholder="粘贴你的 DeepSeek API Key"></div>
+    </div>
+    <div class="hint">默认调用 DeepSeek 官方接口（https://api.deepseek.com，deepseek-chat）。也可设置环境变量 DEEPSEEK_API_KEY 或在程序目录放 ai_chart_key.txt。
+    没有 Key 也不影响“打开淘宝 / 京东搜索”按钮：输入商品后可直接跳去平台看实时销量与价格。</div>
+  </details>
+
+  <div id="resultWrap">
+    <div class="card">
+      <div class="ribbon">
+        <div style="flex:1;min-width:0">
+          <h2 class="rtitle" id="metaTitle">比价分析结果</h2>
+          <div class="meta-tags" id="metaTags"></div>
+        </div>
+      </div>
+      <div class="summary"><div class="icon">💡</div><p id="metaSummary"></p></div>
+      <div class="warnbox">⚠️ 页面里的价格、销量、评分均为<b>参考估算值</b>，不是平台实时数据。下单前请点击每个商品下方的「在淘宝/京东搜索实时结果」，按“销量/评论”排序核对最新价格与库存。</div>
+      <div class="reason summary" style="background:linear-gradient(90deg,rgba(52,211,153,.13),rgba(45,212,191,.06));border-color:rgba(52,211,153,.3)">
+        <div class="icon">✅</div><p id="metaReason"></p>
+      </div>
+
+      <div class="kgrid">
+        <div class="group" id="groupTb">
+          <h3><span class="plate" style="background:#ff9500"></span>淘宝 / 天猫</h3>
+          <div class="list" id="listTb"></div>
+        </div>
+        <div class="group" id="groupJd">
+          <h3><span class="plate" style="background:#e4393c"></span>京东</h3>
+          <div class="list" id="listJd"></div>
+        </div>
+      </div>
+      <div class="note-line" id="footNote"></div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+'use strict';
+var state = { data:null };
+var CFG_KEY = 'buyHelperCfg_v1';
+function $(id){ return document.getElementById(id); }
+
+function loadCfg(){ try { return JSON.parse(localStorage.getItem(CFG_KEY) || '{}') || {}; } catch(e){ return {}; } }
+function saveCfg(c){ try { localStorage.setItem(CFG_KEY, JSON.stringify(c)); } catch(e){} }
+function currentCfg(){
+  return { base: $('cfgBase').value.trim() || 'https://api.deepseek.com',
+           model: $('cfgModel').value.trim() || 'deepseek-chat',
+           key: $('cfgKey').value.trim() };
+}
+function applyCfg(c){
+  $('cfgBase').value = c.base || 'https://api.deepseek.com';
+  $('cfgModel').value = c.model || 'deepseek-chat';
+  $('cfgKey').value = c.key || '';
+}
+function persistCfg(){ saveCfg(currentCfg()); }
+function setStatus(html, type){ var el=$('status'); el.className='show'+(type?' '+type:''); el.innerHTML=html; }
+function clearStatus(){ $('status').className=''; $('status').innerHTML=''; }
+function setBusy(b){ $('btnRun').disabled=b; $('runSpin').className='spinner'+(b?' on':''); $('btnRunText').textContent=b?'分析中，约 10~60 秒…':'AI 比价分析'; }
+function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+function fmtPrice(p){ return Number(p).toLocaleString('zh-CN',{maximumFractionDigits:2}); }
+function searchUrl(platform, kw){
+  var q = encodeURIComponent((kw||'').trim());
+  if(!q) return '';
+  return /京东/.test(platform)
+    ? 'https://search.jd.com/Search?keyword=' + q + '&enc=utf-8'
+    : 'https://s.taobao.com/search?q=' + q;
+}
+
+function addCard(item, listEl){
+  var div=document.createElement('div');
+  div.className='pcard';
+  var cls = item.platform==='淘宝' ? 'tb' : (item.platform==='天猫' ? 'tmall' : 'jd');
+  var pTop='<div class="p-top"><span class="pf '+cls+'">'+esc(item.platform)+'</span>'+(item.store?'<span class="store">'+esc(item.store)+'</span>':'')+'</div>';
+  var scoreHtml = item.score ? '<span class="score">⭐ '+Number(item.score).toFixed(1)+'</span>' : '';
+  var meta='<div class="pmeta"><span class="price">¥'+fmtPrice(item.price)+'</span>'+(item.sales_note?'<span class="sales">'+esc(item.sales_note)+'</span>':'')+scoreHtml+'</div>';
+  var prosHtml = item.pros ? '<div class="pros">'+esc(item.pros)+'</div>' : '';
+  var liveUrl = searchUrl(item.platform, item.name);
+  var btns = '<div class="btns">';
+  if(liveUrl){ btns += '<a class="btn btn-ghost mini" href="'+liveUrl+'" target="_blank" rel="noopener noreferrer">在'+esc(item.platform)+'搜此款 · 看实时销量价格</a>'; }
+  if(item.link){ btns += '<a class="btn warn mini" href="'+esc(item.link)+'" target="_blank" rel="noopener noreferrer">直达链接(模型提供·未核实)</a>'; }
+  btns += '</div>';
+  div.innerHTML = pTop + '<p class="pname">'+esc(item.name)+'</p>' + meta + prosHtml + btns;
+  listEl.appendChild(div);
+}
+
+function render(data){
+  state.data=data;
+  $('resultWrap').className='show';
+  var tags=[];
+  tags.push('对比 ' + data.products.length + ' 款');
+  tags.push('关键词：' + (data.keyword || '-'));
+  if(data.model){ tags.push('模型 ' + data.model); }
+  if(typeof data.elapsed==='number'){ tags.push('耗时 '+data.elapsed+'s'); }
+  var host=$('metaTags'); host.innerHTML='';
+  tags.forEach(function(t){ var s=document.createElement('span'); s.className='tag'; s.textContent=t; host.appendChild(s); });
+  $('metaSummary').textContent = data.summary || '（模型未返回结论）';
+  $('metaReason').textContent = '推荐理由：' + (data.reason || '');
+  var tb=[] , jd=[];
+  data.products.forEach(function(p){ if(/京东/.test(p.platform)){ jd.push(p); } else { tb.push(p); } });
+  $('listTb').innerHTML=''; $('listJd').innerHTML='';
+  tb.forEach(function(p){ addCard(p,$('listTb')); });
+  jd.forEach(function(p){ addCard(p,$('listJd')); });
+  $('groupTb').style.display = tb.length?'':'none';
+  $('groupJd').style.display = jd.length?'':'none';
+  var dl = data.estimated ? '以上为估算参考数据，请以平台实时为准。' : '';
+  $('footNote').textContent = dl + '链接规则：每个商品都配有平台实时搜索入口（保证可点开核对）；只有模型能确定时才提供商品直达链接并明确标注“未核实”。';
+}
+
+function openPlatform(platform){
+  var kw = $('product').value.trim();
+  if(!kw){ setStatus('请先在上方输入想买的商品，再点平台搜索。','err'); return; }
+  var url = searchUrl(platform, kw);
+  if(url){ window.open(url, '_blank', 'noopener'); }
+}
+
+async function runAnalyze(){
+  var product = $('product').value.trim();
+  if(!product){ setStatus('请先输入你想买的商品。','err'); return; }
+  var cfg = currentCfg();
+  if(!cfg.key){ setStatus('缺少 API Key：请展开「模型设置」粘贴你的 Key；没有 Key 可直接点上方“打开淘宝/京东搜索”看实时结果。','err'); return; }
+  setBusy(true);
+  setStatus('<span class="spinner on"></span> AI 正在比价分析，请稍候…','info');
+  try{
+    var resp = await fetch('/buy-helper/api/analyze',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ product: product, needs: $('needs').value.trim(), base: cfg.base, model: cfg.model, key: cfg.key })
+    });
+    var data = await resp.json();
+    if(!data.ok){ throw new Error(data.message || '未知错误'); }
+    render(data);
+    setStatus('分析完成。下单前请点商品卡片里的“实时搜索”核对最新价格与销量。','ok');
+  }catch(e){
+    $('resultWrap').className='';
+    setStatus('调用失败：' + e.message, 'err');
+  }finally{ setBusy(false); }
+}
+
+function init(){
+  applyCfg(loadCfg());
+  $('btnRun').addEventListener('click', runAnalyze);
+  $('btnTb').addEventListener('click', function(){ openPlatform('淘宝'); });
+  $('btnJd').addEventListener('click', function(){ openPlatform('京东'); });
+  ['cfgBase','cfgModel','cfgKey'].forEach(function(id){ $(id).addEventListener('input', persistCfg); });
+  $('product').addEventListener('keydown', function(e){ if(e.key==='Enter'){ runAnalyze(); } });
+}
+if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', init); } else { init(); }
+})();
+</script>
+</body>
+</html>
