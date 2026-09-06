@@ -14,7 +14,8 @@
 | `douyin_downloader.py` | 抖音视频下载网页工具（页面在 `/douyin-download`） |
 | `launcher.py` | EXE 启动入口：启动服务并自动打开浏览器 |
 | `ai_chart.py` | AI 数据图表分析（页面在 `/ai-chart`，需 API Key） |
-| `templates/` 与 `static/` | AI 页面模板、本地 ECharts / SheetJS 资源 |
+| `buy_helper.py` | 购物比价助手（页面在 `/buy-helper`，需 API Key；无 Key 也可直接跳平台搜索） |
+| `templates/` 与 `static/` | 工具箱主页 / AI 图表 / 比价助手 页面模板与本地静态资源 |
 | `requirements.txt` | 项目依赖（fastapi + uvicorn + requests + yt-dlp + playwright） |
 
 ## 怎么运行
@@ -56,6 +57,7 @@ python video_downloader.py
 - `http://127.0.0.1:8000/docs` **重点**：FastAPI 自动生成的接口文档
 - `http://127.0.0.1:8000/douyin-download` **抖音下载**：粘贴抖音分享链接即可下载视频
 - `http://127.0.0.1:8000/ai-chart` **AI 数据图表**：输入主题，大模型自动整理数据并生成图表，支持导出 Excel
+- `http://127.0.0.1:8000/buy-helper` **购物比价助手**：输入商品与需求，对比淘宝 / 京东销量价格并给出建议与购买入口
 
 ## 抖音视频下载工具
 
@@ -107,7 +109,7 @@ python video_downloader.py
 ## 打包成 EXE（可选）
 
 项目支持一键打包成单文件 exe：在项目根目录执行下面命令后，生成 `dist\DouYinDownloader.exe`。
-双击 exe 即可启动本地服务并自动打开「工具箱」主页（里面可进入 AI 生成图表、抖音下载器、NEXT DRAW IO）；关闭黑色控制台窗口即退出。
+双击 exe 即可启动本地服务并自动打开「工具箱」主页（里面可进入 AI 生成图表、抖音下载器、NEXT DRAW IO、购物比价助手）；关闭黑色控制台窗口即退出。
 
 ```bash
 pip install pyinstaller

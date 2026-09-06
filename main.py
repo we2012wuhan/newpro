@@ -76,6 +76,11 @@ app.mount('/static', StaticFiles(directory=str(_static_dir), check_dir=False), n
 from ai_chart import router as ai_chart_router  # noqa: E402
 app.include_router(ai_chart_router)
 
+# 附加功能：购物比价助手（输入商品与需求 -> 淘宝 / 京东 按销量价格对比 + 建议 + 购买链接）
+# 浏览器访问 http://127.0.0.1:8000/buy-helper 即可使用。
+from buy_helper import router as buy_helper_router  # noqa: E402
+app.include_router(buy_helper_router)
+
 
 
 # =========================================================
