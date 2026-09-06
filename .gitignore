@@ -1,0 +1,46 @@
+# =========================================================
+# .gitignore —— 只提交代码与运行所需资源
+# 本地环境 / 隐私 / 构建产物 一律不进入版本库
+# =========================================================
+
+# ---- IDE / 编辑器 ----
+.idea/
+.vscode/
+*.swp
+*.swo
+*.iml
+
+# ---- Python 虚拟环境与缓存 ----
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# ---- 打包产物 ----
+build/
+dist/
+
+# ---- 运行时生成的数据（含隐私，勿上传） ----
+douyin_cookies.txt
+ai_chart_key.txt
+*.log
+logs/
+
+# ---- 本地临时文件 / 调试截图 ----
+_shot_*.png
+_shot_*.jpg
+_v_*.png
+_v_*.jpg
+_*.log
+.~*
+
+# ---- 操作系统文件 ----
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+requests
+yt-dlp
+playwright
+

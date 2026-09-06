@@ -1,0 +1,959 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 数据图表分析</title>
+<link rel="icon" href="data:,">
+<script src="/static/echarts.min.js"></script>
+<script src="/static/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#0a0f1e;
+  --panel:rgba(255,255,255,.055);
+  --panel-2:rgba(255,255,255,.035);
+  --line:rgba(255,255,255,.09);
+  --text:#e8edf7;
+  --muted:#93a0ba;
+  --acc1:#6d7cff;
+  --acc2:#2dd4bf;
+  --acc3:#ffb454;
+  --ok:#34d399;
+  --err:#fb7185;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  color:var(--text);
+  font-family:"Segoe UI","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+  min-height:100vh;
+  background:
+    radial-gradient(1100px 520px at 10% -10%, rgba(109,124,255,.24), transparent 60%),
+    radial-gradient(900px 480px at 105% 0%, rgba(45,212,191,.16), transparent 55%),
+    radial-gradient(700px 600px at 50% 120%, rgba(167,139,250,.12), transparent 60%),
+    linear-gradient(160deg,#0a0f1e 0%,#0c1427 55%,#0a0f1e 100%);
+  background-attachment:fixed;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:26px 20px 70px}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:22px}
+.logo{display:flex;align-items:center;gap:13px}
+.mark{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-weight:800;font-size:20px;color:#fff;
+  background:linear-gradient(135deg,#6d7cff 0%,#2dd4bf 100%);
+  box-shadow:0 10px 28px rgba(109,124,255,.4)}
+h1{margin:0;font-size:22px;letter-spacing:.4px}
+.sub{color:var(--muted);font-size:13px;margin-top:3px}
+.badge{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#c7d2fe;background:rgba(109,124,255,.14);
+  border:1px solid rgba(109,124,255,.3);padding:6px 12px;border-radius:999px;white-space:nowrap}
+.badge .dot{width:7px;height:7px;border-radius:50%;background:var(--acc2);box-shadow:0 0 10px var(--acc2)}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.035));
+  border:1px solid var(--line);border-radius:18px;padding:18px;backdrop-filter:blur(8px);
+  box-shadow:0 20px 46px rgba(0,0,0,.28)}
+.card + .card{margin-top:16px}
+label.field{display:block;font-size:13px;color:#b8c4da;margin:0 0 8px;font-weight:600}
+textarea#prompt{width:100%;min-height:64px;resize:vertical;padding:13px 14px;font-size:15px;line-height:1.7;color:var(--text);
+  background:rgba(8,12,26,.6);border:1px solid rgba(255,255,255,.12);border-radius:12px;outline:none;font-family:inherit}
+textarea#prompt:focus{border-color:rgba(109,124,255,.65);box-shadow:0 0 0 3px rgba(109,124,255,.16)}
+.actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.btn{border:0;border-radius:11px;padding:11px 22px;font-size:15px;cursor:pointer;font-weight:700;display:inline-flex;
+  align-items:center;gap:8px;transition:transform .12s ease,box-shadow .15s ease,background .15s ease}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.btn-main{color:#fff;background:linear-gradient(135deg,#6d7cff,#4f9cff);box-shadow:0 10px 26px rgba(109,124,255,.35)}
+.btn-main:hover:not(:disabled){box-shadow:0 12px 32px rgba(109,124,255,.5)}
+.btn-ghost{color:#cdd7ea;background:rgba(255,255,255,.06);border:1px solid var(--line)}
+.btn-ghost:hover:not(:disabled){background:rgba(255,255,255,.1)}
+.btn-ok{color:#062a20;background:linear-gradient(135deg,#34d399,#2dd4bf);box-shadow:0 8px 22px rgba(45,212,191,.3)}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;
+  animation:spin .8s linear infinite;display:none}
+.spinner.on{display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.chips{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+.chip{font-size:12.5px;color:#b9c6dd;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+  padding:6px 12px;border-radius:999px;cursor:pointer;transition:all .15s ease}
+.chip:hover{color:#fff;border-color:rgba(45,212,191,.55);background:rgba(45,212,191,.1)}
+#status{margin-top:12px;font-size:13.5px;line-height:1.8;display:none}
+#status.show{display:block}
+#status.err{color:var(--err);background:rgba(251,113,133,.08);border:1px solid rgba(251,113,133,.25);
+  padding:10px 14px;border-radius:10px}
+#status.info{color:#bfe9ff;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);padding:10px 14px;border-radius:10px}
+#status.ok{color:#86efac;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);padding:10px 14px;border-radius:10px}
+#resultWrap{display:none}
+#resultWrap.show{display:block}
+.ribbon{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+h2.rtitle{margin:0 0 6px;font-size:21px}
+.meta-tags{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.tag{font-size:11.5px;color:#aab8d6;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  padding:3px 10px;border-radius:999px}
+.summary{display:flex;gap:12px;padding:13px 15px;border-radius:13px;margin-top:4px;
+  background:linear-gradient(90deg,rgba(109,124,255,.13),rgba(45,212,191,.07));
+  border:1px solid rgba(109,124,255,.22)}
+.summary .icon{font-size:19px;line-height:1.4}
+.summary p{margin:0;line-height:1.9;font-size:14px;color:#dfe6f5}
+.charts{display:grid;grid-template-columns:repeat(12,1fr);gap:16px;margin-top:18px}
+.chart-card{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:16px;padding:14px 14px 8px}
+.chart-title{display:flex;align-items:center;gap:9px;font-size:14.5px;font-weight:700;color:#d7dfef;padding:2px 6px 0}
+.chart-title .ic{width:8px;height:8px;border-radius:3px}
+.chart-body{height:330px}
+.span-bar{grid-column:span 7}
+.span-pie{grid-column:span 5}
+.span-line{grid-column:span 12}
+@media(max-width:900px){.span-bar,.span-pie{grid-column:span 12}}
+.note{font-size:12px;color:#9db0d0;margin-top:2px;padding:0 6px}
+details.settings{margin-top:18px}
+summary.settings-sum{list-style:none;cursor:pointer;font-weight:700;font-size:15px;display:flex;align-items:center;gap:10px}
+summary.settings-sum::-webkit-details-marker{display:none}
+summary.settings-sum .arr{transition:transform .18s ease;display:inline-block}
+details[open] summary.settings-sum .arr{transform:rotate(90deg)}
+.settings-body{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.settings-body .full{grid-column:1/-1}
+.settings-body input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);
+  background:rgba(8,12,26,.55);color:var(--text);outline:none;font-size:14px}
+.settings-body input:focus{border-color:rgba(109,124,255,.6)}
+.settings-body label{display:block;font-size:12.5px;color:#9fb0cf;margin-bottom:6px}
+.hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.8}
+table.data{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+table.data th{text-align:left;color:#c3cfe6;background:rgba(255,255,255,.05);padding:9px 12px;border-bottom:1px solid var(--line);font-weight:600}
+table.data td{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.055);color:#d4dcec}
+table.data tr:hover td{background:rgba(109,124,255,.06)}
+.table-scroll{max-height:340px;overflow:auto;border:1px solid rgba(255,255,255,.08);border-radius:12px}
+@media(max-width:720px){.settings-body{grid-template-columns:1fr}.actions .btn{flex:1;justify-content:center}}
+
+/* ---- added: data source card + adaptive extra charts ---- */
+.span-radar{grid-column:span 6}
+.span-scatter{grid-column:span 6}
+.span-rank{grid-column:span 12}
+.chart-title .tname{display:flex;flex-direction:column;gap:2px}
+.chart-title .why{display:block;font-size:11.5px;color:#8ea0c0;font-weight:400;line-height:1.6}
+.sources{margin-top:14px;border:1px dashed rgba(109,124,255,.38);background:rgba(109,124,255,.06);border-radius:13px;padding:13px 15px}
+.source-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.source-item{display:flex;gap:10px;align-items:flex-start;padding:8px 2px;border-bottom:1px dashed rgba(255,255,255,.08);font-size:13px;color:#d6deef;line-height:1.7}
+.source-item:last-child{border-bottom:0}
+.source-dot{width:7px;height:7px;border-radius:50%;background:var(--acc2);margin-top:7px;flex:none}
+.source-num{width:23px;height:23px;flex:none;border-radius:8px;background:rgba(109,124,255,.16);border:1px solid rgba(109,124,255,.3);color:#c7d2fe;font-size:12px;display:grid;place-items:center;font-weight:700;margin-top:2px}
+.source-main{flex:1;min-width:0}
+.source-url-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:1px}
+.source-url-row a{font-size:12.5px}
+.src-go{color:#6f7f9f;font-size:11.5px}
+.source-url-empty{color:#93a0ba;font-size:12px}
+.more-sources{margin-top:12px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:rgba(255,255,255,.03)}
+.more-sources summary{cursor:pointer;list-style:none;padding:10px 14px;font-size:13px;color:#9fc0ff;font-weight:700;display:flex;align-items:center;gap:8px;user-select:none}
+.more-sources summary::-webkit-details-marker{display:none}
+.more-sources summary::before{content:'▾';display:inline-block;transition:transform .18s ease;color:var(--acc2)}
+.more-sources[open] summary::before{transform:rotate(180deg)}
+.more-sources .src-body{padding:0 12px 10px}
+.more-sources .src-body .source-item:first-child{border-top:1px dashed rgba(255,255,255,.08)}
+.source-label{font-weight:700;color:#e8edf7;margin-right:4px}
+.source-note{color:#aab8d6}
+.source-item a{color:#7da2ff;text-decoration:none;word-break:break-all}
+.source-item a:hover{text-decoration:underline}
+.src-warn{color:#fbbf24;font-size:13px;line-height:1.9;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:10px;padding:10px 13px;margin:2px 0}
+.src-hint{color:#9db0d0;font-size:12px;line-height:1.9;margin-top:10px}
+.charts-note{font-size:12.5px;color:#a9b8d4;margin:14px 0 0;padding:10px 13px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px;line-height:1.9}
+@media(max-width:900px){.span-radar,.span-scatter,.span-rank{grid-column:span 12}}
+</style>
+</head><body>
+<div class="wrap">
+  <header class="top">
+    <div class="logo">
+      <div class="mark">AI</div>
+      <div>
+        <h1>AI 数据图表分析</h1>
+        <div class="sub">输入任意主题或粘贴你的数据，大模型自动整理成图表数据</div>
+      </div>
+    </div>
+    <div class="badge"><span class="dot"></span>DeepSeek · OpenAI 兼容接口</div>
+  </header>
+
+  <div class="card">
+    <label class="field" for="prompt">你想分析什么？可输入主题，也可直接粘贴一段数据描述</label>
+    <textarea id="prompt" placeholder="例如：比较 2024 年国内主要手机品牌的市场份额；或粘贴你手里的销售明细并说明想看的维度。"></textarea>
+    <div class="actions">
+      <button id="btnRun" class="btn btn-main"><span class="spinner" id="runSpin"></span><span id="btnRunText">生成图表</span></button>
+    </div>
+    <div id="status"></div>
+  </div>
+
+  <details class="card settings">
+    <summary class="settings-sum"><span class="arr">▶</span>&nbsp;模型设置（API Key 只保存在本机浏览器）</summary>
+    <div class="settings-body">
+      <div>
+        <label>API Base URL</label>
+        <input id="cfgBase" type="text" autocomplete="off">
+      </div>
+      <div>
+        <label>模型名称</label>
+        <input id="cfgModel" type="text" autocomplete="off">
+      </div>
+      <div class="full">
+        <label>API Key</label>
+        <input id="cfgKey" type="password" autocomplete="off" placeholder="粘贴你的 DeepSeek API Key">
+      </div>
+    </div>
+    <div class="hint">
+      默认调用 DeepSeek 官方接口（https://api.deepseek.com，模型 deepseek-chat）。若你的服务商用了其它模型名
+      （例如 deepseek-v3.2 / deepseek-reasoner），在“模型名称”里修改即可；Base URL 会自动拼接 /chat/completions。
+      除了在页面上填写，也可设置环境变量 DEEPSEEK_API_KEY，或在程序同目录放 ai_chart_key.txt。Key 不会被上传到其它地方。
+    </div>
+  </details>
+
+  <div id="resultWrap">
+    <div class="card">
+      <div class="ribbon">
+        <div style="flex:1;min-width:0">
+          <h2 class="rtitle" id="metaTitle"></h2>
+          <div class="meta-tags" id="metaTags"></div>
+        </div>
+        <button id="btnExport" class="btn btn-ok">⬇ 导出 Excel</button>
+      </div>
+      <div class="summary">
+        <div class="icon">💡</div>
+        <p id="metaSummary"></p>
+      </div>
+
+      <div class="sources" id="sourceBox">
+        <div class="source-head">
+          <div style="font-weight:800;font-size:15px">📌 数据来源与可信度说明</div>
+          <span class="tag" id="srcBadge">…</span>
+        </div>
+        <div id="srcList"></div>
+        <p class="hint src-hint">页面所有数据均由大模型按你的输入现场生成并整理，可能存在偏差：<br>
+        ① 你粘贴了原始数据 → 模型必须原样转述，可直接与你手上的原表核对；<br>
+        ② 你只输入主题 → 模型只能按公开常识估算，会标注“估算数据”，仅用于演示分析思路，不能作为决策依据；<br>
+        ③ 下方来源名称与链接由模型给出，引用前请点开核对原文，本工具不保证链接与数字的真实性。</p>
+      </div>
+
+      <div class="charts-note">💡 图表面板按数据形态自适应：柱状 / 饼图 / 折线始终展示；当数据含多个数值指标或较多分类时，自动追加
+      <b>雷达图</b>（多维画像）、<b>散点图</b>（指标关系）、<b>排名图</b>（Top 表现）。单指标数据不会强行画无意义的图。</div>
+      <div class="charts">
+        <div class="chart-card span-bar">
+          <div class="chart-title"><span class="ic" style="background:linear-gradient(90deg,#6d7cff,#4f9cff)"></span>柱状图 · 数值对比</div>
+          <div class="chart-body" id="chartBar"></div>
+        </div>
+        <div class="chart-card span-pie">
+          <div class="chart-title"><span class="ic" style="background:#2dd4bf"></span>饼图 · 占比分布</div>
+          <div class="chart-body" id="chartPie"></div>
+        </div>
+        <div class="chart-card span-line">
+          <div class="chart-title"><span class="ic" style="background:#ffb454"></span>折线图 · 变化趋势</div>
+          <div class="chart-body" id="chartLine"></div>
+        </div>
+        <div class="chart-card span-radar" id="cardRadar">
+          <div class="chart-title"><span class="ic" style="background:#a78bfa"></span><span class="tname">雷达图 · 多维指标画像<span class="why">适合比较多个主体在多项指标上的相对强弱（数值已归一化到 0-100）</span></span></div>
+          <div class="chart-body" id="chartRadar"></div>
+          <div class="note" id="noteRadar"></div>
+        </div>
+        <div class="chart-card span-scatter" id="cardScatter">
+          <div class="chart-title"><span class="ic" style="background:#38bdf8"></span><span class="tname">散点图 · 指标关系与异常点<span class="why">观察两个指标的分布关系，快速发现相关性与高潜 / 异常主体</span></span></div>
+          <div class="chart-body" id="chartScatter"></div>
+          <div class="note" id="noteScatter"></div>
+        </div>
+        <div class="chart-card span-rank" id="cardRank">
+          <div class="chart-title"><span class="ic" style="background:#34d399"></span><span class="tname">排名图 · Top 表现一览<span class="why">分类较多时按数值排序，名次与差距比纵向柱状图更直观</span></span></div>
+          <div class="chart-body" id="chartRank"></div>
+          <div class="note" id="noteRank"></div>
+        </div>
+      </div>
+      <div class="note" id="noteTrunc"></div>
+    </div>
+
+    <div class="card">
+      <div class="ribbon">
+        <h3 style="margin:2px 0 0;font-size:16px">数据明细</h3>
+      </div>
+      <div class="table-scroll" id="tableWrap"></div>
+    </div>
+  </div>
+</div><script>
+(function(){
+'use strict';
+var PALETTE = ['#6d7cff','#2dd4bf','#ffb454','#f472b6','#a78bfa','#34d399','#fb923c','#e879f9','#38bdf8','#f59e0b'];
+var AXIS_COLOR = '#8ea0c0';
+var SPLIT_LINE = 'rgba(255,255,255,.07)';
+var state = { data: null };
+var chartMap = { bar:null, pie:null, line:null, radar:null, scatter:null, rank:null };
+var CFG_KEY = 'aiChartCfg_v1';
+
+function $(id){ return document.getElementById(id); }
+
+function loadCfg(){
+  try { return JSON.parse(localStorage.getItem(CFG_KEY) || '{}') || {}; } catch(e){ return {}; }
+}
+function saveCfg(c){
+  try { localStorage.setItem(CFG_KEY, JSON.stringify(c)); } catch(e){}
+}
+function currentCfg(){
+  return {
+    base: $('cfgBase').value.trim() || 'https://api.deepseek.com',
+    model: $('cfgModel').value.trim() || 'deepseek-chat',
+    key: $('cfgKey').value.trim()
+  };
+}
+function applyCfgToInputs(c){
+  $('cfgBase').value = c.base || 'https://api.deepseek.com';
+  $('cfgModel').value = c.model || 'deepseek-chat';
+  $('cfgKey').value = c.key || '';
+}
+function persistCfg(){ saveCfg(currentCfg()); }
+
+function setStatus(html, type){
+  var el = $('status');
+  el.className = 'show' + (type ? ' ' + type : '');
+  el.innerHTML = html;
+}
+function clearStatus(){
+  var el = $('status');
+  el.className = '';
+  el.innerHTML = '';
+}
+
+
+function setBusy(busy){
+  $('btnRun').disabled = busy;
+  $('runSpin').className = 'spinner' + (busy ? ' on' : '');
+  $('btnRunText').textContent = busy ? '正在分析…' : '生成图表';
+}
+
+function dimsOf(data){
+  var dim = null, metrics = [];
+  (data.columns || []).forEach(function(c){
+    if(c.type === 'metric'){ metrics.push(c); }
+    else if(!dim){ dim = c; }
+  });
+  if(!dim && data.columns && data.columns.length){ dim = data.columns[0]; }
+  if(!metrics.length && data.columns && data.columns.length > 1){ metrics = data.columns.slice(1); }
+  return { dim:dim, metrics:metrics };
+}
+
+function fmtNum(v){
+  if(v === null || v === undefined || isNaN(v)){ return '-'; }
+  var n = Number(v);
+  return n.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+}
+
+function fmtUnit(data, v){ return fmtNum(v) + (data.unit ? ' ' + data.unit : ''); }
+
+function buildMeta(data){
+  $('metaTitle').textContent = data.title || '数据分析结果';
+  var tags = [];
+  tags.push('数据 ' + data.rows.length + ' 行');
+  if(data.unit){ tags.push('单位 ' + data.unit); }
+  if(data.model){ tags.push('模型 ' + data.model); }
+  if(data.estimated){ tags.push('⚠ 估算数据'); }
+  else if((data.sources || []).length){ tags.push('✓ 含来源'); }
+  if(typeof data.elapsed === 'number'){ tags.push('耗时 ' + data.elapsed + 's'); }
+  var host = $('metaTags');
+  host.innerHTML = '';
+  tags.forEach(function(t){
+    var s = document.createElement('span');
+    s.className = 'tag';
+    s.textContent = t;
+    host.appendChild(s);
+  });
+  $('metaSummary').textContent = data.summary || '（模型未返回文字结论）';
+  $('noteTrunc').textContent = data.truncated ? '维度较多，已自动保留前 50 行用于展示，导出 Excel 仍为完整数据。' : '';
+}
+
+function buildTable(data){
+  var host = $('tableWrap');
+  host.innerHTML = '';
+  var dim = dimsOf(data).dim;
+  var table = document.createElement('table');
+  table.className = 'data';
+  var thead = document.createElement('thead');
+  var tr = document.createElement('tr');
+  (data.columns || []).forEach(function(c){
+    var th = document.createElement('th');
+    th.textContent = c.label || c.key;
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);
+  table.appendChild(thead);
+  var tbody = document.createElement('tbody');
+  data.rows.forEach(function(row){
+    var r = document.createElement('tr');
+    (data.columns || []).forEach(function(c){
+      var td = document.createElement('td');
+      if(c.type === 'metric'){ td.textContent = fmtNum(row[c.key]); }
+      else { td.textContent = row[c.key] === undefined ? '' : row[c.key]; }
+      if(dim && c.key === dim.key){ td.style.fontWeight = '600'; }
+      r.appendChild(td);
+    });
+    tbody.appendChild(r);
+  });
+  table.appendChild(tbody);
+  host.appendChild(table);
+}
+
+function disposeChart(key){
+  var el = $(key);
+  if(chartMap[key]){ echarts.dispose(el); chartMap[key] = null; }
+}
+function makeChart(key, option){
+  disposeChart(key);
+  var el = $(key);
+  chartMap[key] = echarts.init(el, null, { renderer:'canvas' });
+  chartMap[key].setOption(option);
+}
+
+function baseTooltip(data){
+  return {
+    backgroundColor:'rgba(13,19,37,.92)',
+    borderColor:'rgba(255,255,255,.15)',
+    borderWidth:1,
+    textStyle:{ color:'#e6ecf8', fontSize:12.5 },
+    extraCssText:'box-shadow:0 10px 26px rgba(0,0,0,.4);border-radius:10px;'
+  };
+}
+function valueAxisFormatter(data){
+  return function(v){ return fmtUnit(data, v); };
+}
+
+function renderBar(data){
+  var d = dimsOf(data);
+  var cats = data.rows.map(function(r){ return r[d.dim.key]; });
+  var opt = {
+    backgroundColor:'transparent',
+    tooltip: Object.assign(baseTooltip(data), {
+      trigger:'axis',
+      axisPointer:{ type:'shadow', shadowStyle:{ color:'rgba(109,124,255,.08)' } },
+      valueFormatter: valueAxisFormatter(data)
+    }),
+    legend:{ top:0, right:8, textStyle:{ color:'#b7c3da' }, itemWidth:12, itemHeight:9 },
+    grid:{ left:52, right:18, top:d.metrics.length > 1 ? 40 : 24, bottom:26, containLabel:false },
+    xAxis:{
+      type:'category',
+      data:cats,
+      axisLine:{ lineStyle:{ color:'rgba(255,255,255,.14)' } },
+      axisTick:{ show:false },
+      axisLabel:{ color:AXIS_COLOR, fontSize:11.5, interval:0, rotate: cats.length > 7 ? 30 : 0 },
+      name: d.dim.label || '',
+      nameTextStyle:{ color:'#8ea0c0', padding:[18,0,0,0] }
+    },
+    yAxis:{
+      type:'value',
+      name: data.unit || '',
+      nameTextStyle:{ color:'#8ea0c0' },
+      axisLabel:{ color:AXIS_COLOR, formatter:function(v){ return fmtNum(v); } },
+      splitLine:{ lineStyle:{ color:SPLIT_LINE } }
+    },
+    series: d.metrics.map(function(m, i){
+      var base = PALETTE[i % PALETTE.length];
+      return {
+        name: m.label,
+        type:'bar',
+        data: data.rows.map(function(r){ return r[m.key]; }),
+        barMaxWidth:30,
+        itemStyle:{
+          borderRadius:[7,7,0,0],
+          color: new echarts.graphic.LinearGradient(0,0,0,1,[
+            { offset:0, color: base },
+            { offset:1, color: base + '59' }
+          ])
+        },
+        emphasis:{ itemStyle:{ shadowBlur:16, shadowColor:'rgba(0,0,0,.35)' } }
+      };
+    })
+  };
+  makeChart('chartBar', opt);
+}
+
+function renderLine(data){
+  var d = dimsOf(data);
+  var cats = data.rows.map(function(r){ return r[d.dim.key]; });
+  var opt = {
+    backgroundColor:'transparent',
+    tooltip: Object.assign(baseTooltip(data), {
+      trigger:'axis',
+      valueFormatter: valueAxisFormatter(data)
+    }),
+    legend:{ top:0, right:8, textStyle:{ color:'#b7c3da' }, itemWidth:12, itemHeight:9 },
+    grid:{ left:52, right:20, top:d.metrics.length > 1 ? 40 : 20, bottom:30 },
+    xAxis:{
+      type:'category',
+      boundaryGap:false,
+      data:cats,
+      axisLine:{ lineStyle:{ color:'rgba(255,255,255,.14)' } },
+      axisTick:{ show:false },
+      axisLabel:{ color:AXIS_COLOR, fontSize:11.5, interval:0, rotate: cats.length > 8 ? 35 : 0 }
+    },
+    yAxis:{
+      type:'value',
+      name: data.unit || '',
+      nameTextStyle:{ color:'#8ea0c0' },
+      axisLabel:{ color:AXIS_COLOR, formatter:function(v){ return fmtNum(v); } },
+      splitLine:{ lineStyle:{ color:SPLIT_LINE } }
+    },
+    series: d.metrics.map(function(m, i){
+      var base = PALETTE[i % PALETTE.length];
+      var s = {
+        name:m.label,
+        type:'line',
+        smooth:0.35,
+        symbol:'circle',
+        symbolSize:6,
+        showSymbol: data.rows.length <= 20,
+        data: data.rows.map(function(r){ return r[m.key]; }),
+        lineStyle:{ width:2.5, color: base },
+        itemStyle:{ color: base, borderColor:'#0a0f1e', borderWidth:1.5 }
+      };
+      if(d.metrics.length === 1){
+        s.areaStyle = {
+          color: new echarts.graphic.LinearGradient(0,0,0,1,[
+            { offset:0, color: base + '55' },
+            { offset:1, color: base + '05' }
+          ])
+        };
+      }
+      return s;
+    })
+  };
+  makeChart('chartLine', opt);
+}
+
+function renderPie(data){
+  var d = dimsOf(data);
+  var metric = d.metrics[0];
+  var list = data.rows.map(function(r){
+    return { name:String(r[d.dim.key]), value:Number(r[metric.key]) || 0 };
+  });
+  list.sort(function(a,b){ return b.value - a.value; });
+  var MAX = 8;
+  var main = list.slice(0, MAX);
+  if(list.length > MAX){
+    var rest = list.slice(MAX).reduce(function(s,x){ return s + x.value; }, 0);
+    main.push({ name:'其他', value: rest });
+  }
+  var opt = {
+    backgroundColor:'transparent',
+    tooltip: Object.assign(baseTooltip(data), {
+      trigger:'item',
+      formatter:function(p){
+        return p.name + '<br/>' + fmtUnit(data, p.value) + '（' + p.percent + '%）';
+      }
+    }),
+    legend:{
+      orient:'vertical',
+      right:6,
+      top:'middle',
+      itemWidth:10,
+      itemHeight:10,
+      textStyle:{ color:'#b7c3da', fontSize:12 },
+      formatter:function(name){
+        var it = null;
+        main.forEach(function(x){ if(x.name === name){ it = x; } });
+        return it ? name + '  ' + fmtNum(it.value) : name;
+      }
+    },
+    color:PALETTE,
+    series:[{
+      name: metric.label || '占比',
+      type:'pie',
+      radius:['44%','72%'],
+      center:['40%','50%'],
+      avoidLabelOverlap:true,
+      itemStyle:{ borderColor:'#0b1222', borderWidth:2, borderRadius:6 },
+      label:{ color:'#dfe7f5', fontSize:12, formatter:'{b}\n{d}%' },
+      labelLine:{ lineStyle:{ color:'rgba(255,255,255,.25)' } },
+      data: main
+    }]
+  };
+  makeChart('chartPie', opt);
+}
+
+function noteOf(id, text){ var el = $(id); if(el){ el.textContent = text || ''; } }
+function chartCardVisible(cardId, visible){
+  var card = $(cardId);
+  if(card){ card.style.display = visible ? '' : 'none'; }
+}
+function hideChart(key){
+  if(chartMap[key]){ var el = $(key); if(el){ echarts.dispose(el); } chartMap[key] = null; }
+}
+function dimLooksTemporal(data){
+  var d = dimsOf(data);
+  if(!d.dim){ return false; }
+  var k = String(d.dim.label) + '|' + String(d.dim.key);
+  return /(年|月|日|季度|时间|年份|月份|日期|year|month|date|quarter|week)/i.test(k);
+}
+
+function renderRank(data){
+  var d = dimsOf(data);
+  var usable = data.rows.length >= 3;
+  chartCardVisible('cardRank', usable);
+  noteOf('noteRank', '');
+  if(!usable){ hideChart('chartRank'); return; }
+  var metric = d.metrics[0];
+  var list = data.rows.map(function(r){
+    return { name:String(r[d.dim.key]), value:Number(r[metric.key]) || 0 };
+  });
+  list.sort(function(a,b){ return b.value - a.value; });
+  var top = list.slice(0, 10).reverse();
+  var opt = {
+    backgroundColor:'transparent',
+    tooltip: Object.assign(baseTooltip(data), {
+      trigger:'axis',
+      axisPointer:{ type:'shadow', shadowStyle:{ color:'rgba(52,211,153,.08)' } },
+      formatter:function(ps){
+        var p = ps[0] || {};
+        return p.name + '<br/>' + metric.label + '：' + fmtUnit(data, p.value);
+      }
+    }),
+    grid:{ left:10, right:58, top:8, bottom:8, containLabel:true },
+    xAxis:{
+      type:'value',
+      name: data.unit || '',
+      nameTextStyle:{ color:'#8ea0c0' },
+      axisLabel:{ color:AXIS_COLOR, formatter:function(v){ return fmtNum(v); } },
+      splitLine:{ lineStyle:{ color:SPLIT_LINE } }
+    },
+    yAxis:{
+      type:'category',
+      data: top.map(function(x){ return x.name; }),
+      axisLine:{ show:false },
+      axisTick:{ show:false },
+      axisLabel:{
+        color:'#d6deef', fontSize:12,
+        formatter:function(v){ return v.length > 9 ? v.slice(0,9) + '…' : v; }
+      }
+    },
+    series:[{
+      name: metric.label,
+      type:'bar',
+      data: top.map(function(x){ return x.value; }),
+      barMaxWidth:16,
+      label:{ show:true, position:'right', color:'#cfe8dd', fontSize:11.5, formatter:function(p){ return fmtNum(p.value); } },
+      itemStyle:{
+        borderRadius:[0,7,7,0],
+        color: new echarts.graphic.LinearGradient(0,0,1,0,[
+          { offset:0, color:'#34d39955' },
+          { offset:1, color:'#34d399' }
+        ])
+      },
+      emphasis:{ itemStyle:{ shadowBlur:14, shadowColor:'rgba(0,0,0,.35)' } }
+    }]
+  };
+  makeChart('chartRank', opt);
+  noteOf('noteRank', '按「' + metric.label + '」从高到低排序，展示前 ' + top.length + ' 名。' + (d.metrics.length > 1 ? '多指标时以第一个数值列为主排序口径。' : ''));
+}
+
+function renderScatter(data){
+  var d = dimsOf(data);
+  var usable = d.metrics.length >= 2 && data.rows.length >= 4 && !dimLooksTemporal(data);
+  chartCardVisible('cardScatter', usable);
+  noteOf('noteScatter', '');
+  if(!usable){ hideChart('chartScatter'); return; }
+  var xm = d.metrics[0], ym = d.metrics[1];
+  var pts = data.rows.map(function(r){
+    return {
+      value:[Number(r[xm.key]) || 0, Number(r[ym.key]) || 0],
+      name:String(r[d.dim.key])
+    };
+  });
+  var opt = {
+    backgroundColor:'transparent',
+    tooltip: Object.assign(baseTooltip(data), {
+      trigger:'item',
+      formatter:function(p){
+        var it = p.data || {};
+        return '<b>' + it.name + '</b><br/>' + xm.label + '：' + fmtUnit(data, p.value[0]) + '<br/>' + ym.label + '：' + fmtUnit(data, p.value[1]);
+      }
+    }),
+    grid:{ left:56, right:26, top:30, bottom:44 },
+    xAxis:{
+      type:'value',
+      name: xm.label + (data.unit ? '(' + data.unit + ')' : ''),
+      nameLocation:'middle',
+      nameGap:30,
+      nameTextStyle:{ color:'#8ea0c0' },
+      axisLabel:{ color:AXIS_COLOR, formatter:function(v){ return fmtNum(v); } },
+      splitLine:{ lineStyle:{ color:SPLIT_LINE } }
+    },
+    yAxis:{
+      type:'value',
+      name: ym.label + (data.unit ? '(' + data.unit + ')' : ''),
+      nameTextStyle:{ color:'#8ea0c0' },
+      axisLabel:{ color:AXIS_COLOR, formatter:function(v){ return fmtNum(v); } },
+      splitLine:{ lineStyle:{ color:SPLIT_LINE } }
+    },
+    series:[{
+      type:'scatter',
+      symbolSize:14,
+      data: pts,
+      itemStyle:{ color:'rgba(56,189,248,.85)', shadowBlur:10, shadowColor:'rgba(56,189,248,.35)' },
+      emphasis:{
+        scale:1.6,
+        itemStyle:{ color:'#ffb454', shadowBlur:16, shadowColor:'rgba(255,180,84,.5)' }
+      },
+      labelLayout:{ hideOverlap:true },
+      label:{ show:true, position:'top', color:'#c9d6ec', fontSize:10.5, formatter:function(p){ return p.data.name; } }
+    }]
+  };
+  makeChart('chartScatter', opt);
+  var extra = d.metrics.length > 2 ? '（当前展示前两个指标：' + xm.label + ' 与 ' + ym.label + '）' : '';
+  noteOf('noteScatter', '散点图用于观察「' + xm.label + '」与「' + ym.label + '」的相关性，便于发现高潜点与异常值。' + extra);
+}
+
+function renderRadar(data){
+  var d = dimsOf(data);
+  var usable = d.metrics.length >= 3 && data.rows.length >= 2 && data.rows.length <= 10;
+  chartCardVisible('cardRadar', usable);
+  noteOf('noteRadar', '');
+  if(!usable){ hideChart('chartRadar'); return; }
+  var rows = data.rows.slice(0, 6);
+  var picked = rows.length < data.rows.length;
+  var maxv = {};
+  d.metrics.forEach(function(m){ maxv[m.key] = 0; });
+  rows.forEach(function(r){
+    d.metrics.forEach(function(m){
+      var v = Number(r[m.key]) || 0;
+      if(v > maxv[m.key]){ maxv[m.key] = v; }
+    });
+  });
+  var series = rows.map(function(r, i){
+    var base = PALETTE[i % PALETTE.length];
+    return {
+      name: String(r[d.dim.key]),
+      value: d.metrics.map(function(m){
+        return +( ((Number(r[m.key]) || 0) / (maxv[m.key] || 1)) * 100 ).toFixed(1);
+      }),
+      lineStyle:{ width:2, color:base },
+      itemStyle:{ color:base },
+      areaStyle:{ color: base + '26' }
+    };
+  });
+  var opt = {
+    backgroundColor:'transparent',
+    tooltip: Object.assign(baseTooltip(data), {
+      trigger:'item',
+      formatter:function(p){
+        var lines = ['<b>' + p.name + '</b>'];
+        d.metrics.forEach(function(m, i){
+          var raw = ((p.value[i] || 0) / 100) * (maxv[m.key] || 1);
+          lines.push(m.label + '：' + fmtUnit(data, raw) + '（' + p.value[i] + '%）');
+        });
+        return lines.join('<br/>');
+      }
+    }),
+    legend:{ bottom:0, left:'center', textStyle:{ color:'#b7c3da', fontSize:12 }, itemWidth:12, itemHeight:9 },
+    radar:{
+      indicator: d.metrics.map(function(m){ return { name:m.label, max:100 }; }),
+      center:['50%','46%'],
+      radius:'60%',
+      splitNumber:4,
+      shape:'polygon',
+      axisName:{ color:'#c3cfe6', fontSize:11 },
+      axisLine:{ lineStyle:{ color:'rgba(255,255,255,.16)' } },
+      splitLine:{ lineStyle:{ color:'rgba(255,255,255,.13)' } },
+      splitArea:{ areaStyle:{ color:['rgba(109,124,255,.02)','rgba(109,124,255,.08)'] } }
+    },
+    series:[{ type:'radar', symbol:'circle', symbolSize:4, data: series }]
+  };
+  makeChart('chartRadar', opt);
+  noteOf('noteRadar', '各指标已按最大值归一化为 0-100 后比较相对强弱。' + (picked ? '分类较多，仅对比前 6 个主体。' : ''));
+}
+
+var SRC_VISIBLE = 10;
+
+function normalizeUrl(u){
+  u = String(u || '').trim();
+  if(!u){ return ''; }
+  if(!/^https?:\/\//i.test(u)){ return 'https://' + u.replace(/^\/+/, ''); }
+  return u;
+}
+
+function buildSourceItem(idx, src){
+  var div = document.createElement('div');
+  div.className = 'source-item';
+  var num = document.createElement('span');
+  num.className = 'source-num';
+  num.textContent = idx;
+  div.appendChild(num);
+  var main = document.createElement('div');
+  main.className = 'source-main';
+  var line1 = document.createElement('div');
+  if(src.label){
+    var lb = document.createElement('span');
+    lb.className = 'source-label';
+    lb.textContent = src.label;
+    line1.appendChild(lb);
+  }
+  main.appendChild(line1);
+  var urlRow = document.createElement('div');
+  urlRow.className = 'source-url-row';
+  var href = normalizeUrl(src.url);
+  if(href){
+    var a = document.createElement('a');
+    a.href = href;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.title = '点击在新标签页打开：' + href;
+    a.textContent = '🔗 ' + href;
+    urlRow.appendChild(a);
+    var go = document.createElement('span');
+    go.className = 'src-go';
+    go.textContent = '（点击链接即可访问）';
+    urlRow.appendChild(go);
+  } else {
+    var empty = document.createElement('span');
+    empty.className = 'source-url-empty';
+    empty.textContent = src.label ? '⚠ 模型未给出可访问链接 · 请按来源名称自行搜索核对' : '（未提供链接）';
+    urlRow.appendChild(empty);
+  }
+  main.appendChild(urlRow);
+  if(src.note){
+    var nt = document.createElement('div');
+    nt.className = 'source-note';
+    nt.textContent = src.note;
+    main.appendChild(nt);
+  }
+  div.appendChild(main);
+  return div;
+}
+
+function buildSources(data){
+  if(!$('sourceBox')){ return; }
+  $('sourceBox').style.display = '';
+  var badge = $('srcBadge');
+  var srcs = data.sources || [];
+  var warn = false;
+  var labelTxt = '';
+  if(data.estimated && srcs.length === 0){ labelTxt = '⚠ 估算数据 · 无来源'; warn = true; }
+  else if(data.estimated){ labelTxt = '⚠ 估算数据（参考来源见下）'; warn = true; }
+  else if(srcs.length){ labelTxt = '✓ 已提供 ' + srcs.length + ' 个来源'; }
+  else { labelTxt = '⚠ 模型未提供可核验来源'; warn = true; }
+  badge.textContent = labelTxt;
+  badge.style.color = warn ? '#fbbf24' : '#86efac';
+  badge.style.borderColor = warn ? 'rgba(251,191,36,.45)' : 'rgba(52,211,153,.4)';
+  badge.style.background = warn ? 'rgba(251,191,36,.1)' : 'rgba(52,211,153,.1)';
+  var host = $('srcList');
+  host.innerHTML = '';
+  if(srcs.length){
+    srcs.slice(0, SRC_VISIBLE).forEach(function(src, k){
+      host.appendChild(buildSourceItem(k + 1, src));
+    });
+    if(srcs.length > SRC_VISIBLE){
+      var details = document.createElement('details');
+      details.className = 'more-sources';
+      var sum = document.createElement('summary');
+      sum.textContent = '下拉查看其余 ' + (srcs.length - SRC_VISIBLE) + ' 条来源（共 ' + srcs.length + ' 条）· 点击展开 / 收起';
+      details.appendChild(sum);
+      var wrap = document.createElement('div');
+      wrap.className = 'src-body';
+      srcs.slice(SRC_VISIBLE).forEach(function(src, k){
+        wrap.appendChild(buildSourceItem(SRC_VISIBLE + k + 1, src));
+      });
+      details.appendChild(wrap);
+      host.appendChild(details);
+    }
+  } else {
+    var p = document.createElement('p');
+    p.className = 'src-warn';
+    p.textContent = data.estimated
+      ? '模型判定当前图表为常识估算数据，未提供可核验来源。请仅将其视为演示，正式使用前务必用官方报告 / 统计局等一手数据复核。'
+      : '模型未返回数据来源。该结果可能由大模型凭常识生成，请勿直接当作真实统计引用；建议粘贴你自己的原始数据或补充可靠资料后重新分析。';
+    host.appendChild(p);
+  }
+}
+
+
+function exportExcel(){
+  if(!state.data){ return; }
+  var data = state.data;
+  var d = dimsOf(data);
+  var header = data.columns.map(function(c){ return c.label || c.key; });
+  var aoa = [];
+  aoa.push([(data.title || '数据分析') + (data.unit ? '（单位：' + data.unit + '）' : '')]);
+  aoa.push([]);
+  aoa.push(header);
+  data.rows.forEach(function(row){
+    var line = [];
+    data.columns.forEach(function(c){
+      line.push(c.type === 'metric' ? (Number(row[c.key]) || 0) : (row[c.key] === undefined ? '' : row[c.key]));
+    });
+    aoa.push(line);
+  });
+  aoa.push([]);
+  aoa.push(['说明', data.summary || '']);
+  var srcs = data.sources || [];
+  if(data.estimated || srcs.length){
+    aoa.push([]);
+    aoa.push(['数据可信度', data.estimated ? '估算数据（无权威口径，仅供演示）' : '真实/整理数据']);
+    srcs.forEach(function(sx, i){
+      aoa.push(['来源 ' + (i + 1), sx.label || '', sx.note || '', sx.url || '']);
+    });
+  }
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '数据');
+  var safe = String(data.title || 'chart').replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_').slice(0, 60);
+  XLSX.writeFile(wb, safe + '.xlsx');
+  setStatus('Excel 已导出：' + safe + '.xlsx', 'ok');
+}
+
+function render(data, autoStatus){
+  state.data = data;
+  $('resultWrap').className = 'show';
+  buildMeta(data);
+  renderBar(data);
+  renderPie(data);
+  renderLine(data);
+  renderRank(data);
+  renderScatter(data);
+  renderRadar(data);
+  buildSources(data);
+  buildTable(data);
+  if(autoStatus){ setStatus('图表生成成功。', 'ok'); }
+}
+
+
+async function runQuery(){
+  var promptText = $('prompt').value.trim();
+  if(!promptText){
+    setStatus('请先输入要分析的主题或数据。', 'err');
+    return;
+  }
+  var cfg = currentCfg();
+  if(!cfg.key){
+    $('resultWrap').className = '';
+    setStatus('缺少 API Key：请展开「模型设置」粘贴你的 Key（仅保存在本机浏览器）。', 'err');
+    return;
+  }
+  setBusy(true);
+  setStatus('<span class="spinner on"></span> 正在调用大模型，请稍候（通常 10 ~ 60 秒）…', 'info');
+  try{
+    var resp = await fetch('/ai-chart/api/query', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ prompt: promptText, base: cfg.base, model: cfg.model, key: cfg.key })
+    });
+    var data = await resp.json();
+    if(!data.ok){ throw new Error(data.message || '未知错误'); }
+    render(data, true);
+  }catch(e){
+    $('resultWrap').className = '';
+    setStatus('调用失败：' + e.message, 'err');
+  }finally{
+    setBusy(false);
+  }
+}
+
+
+function init(){
+  applyCfgToInputs(loadCfg());
+  $('btnRun').addEventListener('click', runQuery);
+  $('btnExport').addEventListener('click', exportExcel);
+  $('cfgBase').addEventListener('input', persistCfg);
+  $('cfgModel').addEventListener('input', persistCfg);
+  $('cfgKey').addEventListener('input', persistCfg);
+  window.addEventListener('resize', function(){
+    Object.keys(chartMap).forEach(function(k){ if(chartMap[k]){ chartMap[k].resize(); } });
+  });
+}
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', init);
+}else{
+  init();
+}
+})();
+</script>
+</body>
+</html>
