@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6d7cff"/>
+      <stop offset=".45" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#2dd4bf"/>
+    </linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".38"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="r"><rect width="64" height="64" rx="15"/></clipPath>
+  </defs>
+  <g clip-path="url(#r)">
+    <rect width="64" height="64" fill="url(#bg)"/>
+    <rect width="64" height="40" fill="url(#gloss)"/>
+    <circle cx="6" cy="60" r="26" fill="#0a0f1e" opacity=".08"/>
+    <circle cx="58" cy="60" r="30" fill="#34d399" opacity=".18"/>
+  </g>
+  <g>
+    <path d="M28 40 V33 a4 4 0 0 1 8 0 V40" stroke="#ffffff" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M16.5 34 h31 a6.5 6.5 0 0 1 6.5 6.5 v9 a6.5 6.5 0 0 1 -6.5 6.5 h-31 a6.5 6.5 0 0 1 -6.5 -6.5 v-9 a6.5 6.5 0 0 1 6.5 -6.5 Z" fill="#ffffff"/>
+    <path d="M16.5 46.5 a6.5 6.5 0 0 0 6.5 6.5 h18 a6.5 6.5 0 0 0 6.5 -6.5 v-1.6 h-31 Z" fill="#0a0f1e" opacity=".10"/>
+  </g>
+</svg>
