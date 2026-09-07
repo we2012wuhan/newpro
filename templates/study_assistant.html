@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>学习模型助手</title>
+<link rel="icon" href="data:,">
+<script src="/static/echarts.min.js"></script>
+<style>
+:root{
+  --bg:#0a0f1e;
+  --line:rgba(255,255,255,.09);
+  --text:#e8edf7;
+  --muted:#93a0ba;
+  --acc1:#8b5cf6;
+  --acc2:#ffb454;
+  --acc3:#2dd4bf;
+  --ok:#34d399;
+  --err:#fb7185;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  color:var(--text);
+  font-family:"Segoe UI","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+  min-height:100vh;
+  background:
+    radial-gradient(1100px 520px at 10% -10%, rgba(139,92,246,.26), transparent 60%),
+    radial-gradient(900px 480px at 105% 0%, rgba(45,212,191,.16), transparent 55%),
+    radial-gradient(700px 600px at 50% 120%, rgba(255,180,84,.1), transparent 60%),
+    linear-gradient(160deg,#0a0f1e 0%,#0c1427 55%,#0a0f1e 100%);
+  background-attachment:fixed;
+}
+.wrap{max-width:1360px;margin:0 auto;padding:26px 20px 80px}
+.back{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:13px;text-decoration:none;margin-bottom:14px}
+.back:hover{color:#fff}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:22px}
+.logo{display:flex;align-items:center;gap:13px}
+.mark{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-weight:800;font-size:21px;color:#fff;
+  background:linear-gradient(135deg,#8b5cf6 0%,#2dd4bf 100%);
+  box-shadow:0 10px 28px rgba(139,92,246,.4)}
+h1{margin:0;font-size:22px;letter-spacing:.4px}
+.sub{color:var(--muted);font-size:13px;margin-top:3px}
+.badge{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#e9d5ff;background:rgba(139,92,246,.16);
+  border:1px solid rgba(139,92,246,.35);padding:6px 12px;border-radius:999px;white-space:nowrap}
+.badge .dot{width:7px;height:7px;border-radius:50%;background:var(--acc3);box-shadow:0 0 10px var(--acc3)}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.035));
+  border:1px solid var(--line);border-radius:18px;padding:18px;backdrop-filter:blur(8px);
+  box-shadow:0 20px 46px rgba(0,0,0,.28)}
+.card + .card{margin-top:16px}
+label.field{display:block;font-size:13px;color:#b8c4da;margin:0 0 8px;font-weight:600}
+textarea#topic{width:100%;min-height:90px;resize:vertical;padding:13px 14px;font-size:15px;line-height:1.8;color:var(--text);
+  background:rgba(8,12,26,.6);border:1px solid rgba(255,255,255,.12);border-radius:12px;outline:none;font-family:inherit}
+textarea#topic:focus{border-color:rgba(139,92,246,.7);box-shadow:0 0 0 3px rgba(139,92,246,.16)}
+.chips{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+.chip{font-size:12.5px;color:#c3cfe6;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+  padding:7px 13px;border-radius:999px;cursor:pointer;transition:all .15s ease}
+.chip:hover{color:#fff;border-color:rgba(45,212,191,.6);background:rgba(45,212,191,.1)}
+.actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
+.btn{border:0;border-radius:11px;padding:11px 22px;font-size:15px;cursor:pointer;font-weight:700;display:inline-flex;
+  align-items:center;gap:8px;transition:transform .12s ease,box-shadow .15s ease,background .15s ease}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.btn-main{color:#fff;background:linear-gradient(135deg,#8b5cf6,#6366f1);box-shadow:0 10px 26px rgba(139,92,246,.4)}
+.btn-main:hover:not(:disabled){box-shadow:0 12px 32px rgba(139,92,246,.55)}
+.hint{font-size:12.5px;color:var(--muted);margin-left:4px}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;
+  animation:spin .8s linear infinite;display:none}
+.spinner.on{display:inline-block}
+details.cfg{margin-top:16px;border-top:1px dashed rgba(255,255,255,.1);padding-top:12px}
+details.cfg summary{font-size:13px;color:#aab8d6;cursor:pointer;user-select:none}
+details.cfg summary:hover{color:#fff}
+.cfg-body{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:12px;margin-top:12px}
+.cfg-body .field{display:block;font-size:12px;color:#9fb0cd;margin:0 0 5px}
+.cfg-body input{width:100%;padding:8px 10px;border-radius:9px;border:1px solid rgba(255,255,255,.12);
+  background:rgba(8,12,26,.6);color:var(--text);outline:none;font-size:13px;font-family:inherit}
+.cfg-body input:focus{border-color:rgba(139,92,246,.6)}
+.cfg-note{font-size:11.5px;color:#7c8db0;line-height:1.7;margin-top:10px}
+@media(max-width:900px){.cfg-body{grid-template-columns:1fr}}
+#status{margin-top:14px;font-size:13.5px;line-height:1.8;display:none}
+#status.show{display:block}
+#status.err{color:var(--err);background:rgba(251,113,133,.08);border:1px solid rgba(251,113,133,.25);padding:10px 14px;border-radius:10px}
+#status.info{color:#bfe9ff;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);padding:10px 14px;border-radius:10px}
+#status.ok{color:#86efac;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);padding:10px 14px;border-radius:10px}
+.summary{display:flex;gap:12px;padding:14px 16px;border-radius:13px;margin-top:4px;
+  background:linear-gradient(90deg,rgba(139,92,246,.14),rgba(45,212,191,.07));
+  border:1px solid rgba(139,92,246,.25)}
+.summary .icon{font-size:20px;line-height:1.4}
+.summary .stxt{flex:1;font-size:14px;line-height:1.9;color:#e5e9f6}
+.meta-tags{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 2px}
+.tag{font-size:11.5px;color:#aab8d6;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  padding:3px 10px;border-radius:999px}
+.map-card{overflow:hidden}
+.map-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-bottom:6px}
+.map-no{flex:none;width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-weight:800;font-size:14px;color:#fff}
+.map-head h3{margin:0;font-size:18px;letter-spacing:.5px}
+.map-desc{font-size:12.5px;color:var(--muted);width:100%;margin:2px 0 0;line-height:1.7}
+.map{margin-top:4px}
+.mn-fp{background:linear-gradient(135deg,#8b5cf6,#6366f1);box-shadow:0 6px 16px rgba(139,92,246,.4)}
+.mn-py{background:linear-gradient(135deg,#ffb454,#fb923c);box-shadow:0 6px 16px rgba(251,146,60,.4)}
+.mn-ba{background:linear-gradient(135deg,#2dd4bf,#34d399);box-shadow:0 6px 16px rgba(45,212,191,.4)}
+.ck-title{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;margin:2px 0 10px}
+#ckList{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr;gap:10px}
+#ckList li{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;line-height:1.8;color:#dce4f3;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:10px 13px}
+#ckList .no{flex:none;width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,#2dd4bf,#34d399);
+  color:#06281f;display:grid;place-items:center;font-weight:800;font-size:12px;margin-top:2px}
+.hide{display:none!important}
+.fadein{animation:fadein .5s ease both}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← 返回工具箱</a>
+  <header class="top">
+    <div class="logo">
+      <div class="mark">🧠</div>
+      <div>
+        <h1>学习模型助手</h1>
+        <p class="sub">描述你想学什么 · AI 从三种思维模型拆解成三张学习导图</p>
+      </div>
+    </div>
+    <span class="badge"><span class="dot"></span>第一性原理 · 金字塔原理 · 贝叶斯定理</span>
+  </header>
+
+  <section class="card">
+    <label class="field" for="topic">🧭 你想学什么 / 想弄明白什么问题？</label>
+    <textarea id="topic" placeholder="例如：我想系统学会机器学习，该从哪里开始？该怎么安排学习顺序？&#10;例如：我想搞懂怎么快速读一本书并记住重点……"></textarea>
+    <div class="chips" id="chips"></div>
+    <div class="actions">
+      <button type="button" id="btnRun" class="btn btn-main">
+        <span class="spinner" id="spin"></span><span id="btnTxt">生成思维导图</span>
+      </button>
+      <span class="hint">一次会从 3 个角度拆解，约 30~90 秒</span>
+    </div>
+    <details class="cfg">
+      <summary>⚙️ 模型设置（API Key 仅保存在本地浏览器）</summary>
+      <div class="cfg-body">
+        <div>
+          <span class="field">接口地址</span>
+          <input id="cfgBase" placeholder="https://api.deepseek.com">
+        </div>
+        <div>
+          <span class="field">模型</span>
+          <input id="cfgModel" placeholder="deepseek-chat">
+        </div>
+        <div>
+          <span class="field">API Key</span>
+          <input id="cfgKey" type="password" placeholder="sk-…">
+        </div>
+      </div>
+      <p class="cfg-note">默认使用 DeepSeek（deepseek-chat）。也可填写任意 OpenAI 兼容接口；或设置环境变量 DEEPSEEK_API_KEY。</p>
+    </details>
+    <div id="status"></div>
+  </section>
+
+  <section id="resultWrap" class="hide">
+    <div class="card fadein">
+      <div class="meta-tags" id="metaTags"></div>
+      <div class="summary"><span class="icon">🧭</span><span class="stxt" id="sumText"></span></div>
+    </div>
+
+    <div id="mapsWrap"></div>
+
+    <div class="card fadein">
+      <div class="ck-title">✅ 先做这 3~5 步（马上可执行的行动）</div>
+      <ul id="ckList"></ul>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+'use strict';
+function $(id){ return document.getElementById(id); }
+var CFG_KEY = 'study_assistant_cfg';
+var EXAMPLES = [
+  '我想系统学会机器学习，该怎么入门、怎么安排学习顺序？',
+  '我想学会看懂上市公司财报，该先学哪些财务知识？',
+  '我想自学 Python 编程，应该如何规划一条有效的学习路线？',
+  '我想提升自己的表达与逻辑思考能力，有什么训练方法？',
+  '我经常学了就忘，想找到一套真正有效的学习方法。'
+];
+
+function loadCfg(){
+  var d = {};
+  try { d = JSON.parse(localStorage.getItem(CFG_KEY) || '{}'); } catch(e){}
+  $('cfgBase').value = d.base || 'https://api.deepseek.com';
+  $('cfgModel').value = d.model || 'deepseek-chat';
+  $('cfgKey').value = d.key || '';
+}
+function persistCfg(){
+  var d = {
+    base: $('cfgBase').value.trim(),
+    model: $('cfgModel').value.trim(),
+    key: $('cfgKey').value.trim()
+  };
+  try { localStorage.setItem(CFG_KEY, JSON.stringify(d)); } catch(e){}
+}
+
+function fillChips(){
+  var host = $('chips');
+  host.innerHTML = '';
+  EXAMPLES.forEach(function(t){
+    var c = document.createElement('button');
+    c.type = 'button';
+    c.className = 'chip';
+    c.textContent = t;
+    c.addEventListener('click', function(){ $('topic').value = t; $('topic').focus(); });
+    host.appendChild(c);
+  });
+}
+
+function setStatus(msg, kind){
+  var el = $('status');
+  el.className = 'show';
+  el.classList.remove('err','ok','info');
+  if(kind){ el.classList.add(kind); }
+  el.textContent = msg;
+}
+function clearStatus(){ var el=$('status'); el.className=''; el.textContent=''; }
+
+function busy(on){
+  $('btnRun').disabled = on;
+  $('spin').className = on ? 'spinner on' : 'spinner';
+  $('btnTxt').textContent = on ? '正在拆解中…' : '生成思维导图';
+}
+
+var chartMap = {};
+
+var MAP_META = {
+  'first-principles': {no:'01', cls:'mn-fp', color:'#8b5cf6'},
+  'pyramid': {no:'02', cls:'mn-py', color:'#ffb454'},
+  'bayes': {no:'03', cls:'mn-ba', color:'#2dd4bf'}
+};
+
+function buildMapCard(map){
+  var meta = MAP_META[map.id] || {no:'—', cls:'mn-fp', color:'#8b5cf6'};
+  var card = document.createElement('div');
+  card.className = 'card map-card fadein';
+  var head = document.createElement('div');
+  head.className = 'map-head';
+  var no = document.createElement('div');
+  no.className = 'map-no ' + meta.cls;
+  no.textContent = meta.no;
+  var t = document.createElement('h3');
+  t.textContent = map.name || map.id;
+  head.appendChild(no);
+  head.appendChild(t);
+  var d = document.createElement('p');
+  d.className = 'map-desc';
+  d.textContent = map.desc || '';
+  head.appendChild(d);
+  card.appendChild(head);
+  var box = document.createElement('div');
+  box.className = 'map';
+  box.id = 'map_' + map.id;
+  box.style.height = '520px';
+  card.appendChild(box);
+  return card;
+}
+
+function treeOption(root, color){
+  return {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'item',
+      triggerOn: 'mousemove',
+      backgroundColor: 'rgba(15,23,42,.92)',
+      borderColor: 'rgba(255,255,255,.14)',
+      textStyle: { color: '#eef2fb', fontSize: 12.5 },
+      formatter: function(p){ return p.data.name; }
+    },
+    series: [{
+      type: 'tree',
+      data: [root],
+      top: '5%',
+      bottom: '6%',
+      left: '14%',
+      right: '24%',
+      orient: 'LR',
+      symbol: 'circle',
+      symbolSize: 9,
+      expandAndCollapse: true,
+      initialTreeDepth: 2,
+      animationDuration: 550,
+      label: {
+        position: 'left',
+        align: 'right',
+        verticalAlign: 'middle',
+        distance: 10,
+        fontSize: 13,
+        color: '#dfe6f5',
+        formatter: function(p){ return p.data.name; }
+      },
+      leaves: { label: { position: 'right', align: 'left' } },
+      lineStyle: { color: 'rgba(148,163,184,.55)', width: 1.5, curveness: .5 },
+      itemStyle: { color: color, borderColor: '#0a0f1e', borderWidth: 1.5 },
+      emphasis: {
+        focus: 'descendant',
+        label: { color: '#ffffff', fontWeight: 700 },
+        itemStyle: { shadowBlur: 14, shadowColor: color }
+      }
+    }]
+  };
+}
+
+function renderMap(map){
+  var meta = MAP_META[map.id] || {color:'#8b5cf6'};
+  var el = $('map_' + map.id);
+  if(!el){ return; }
+  var chart = echarts.init(el);
+  chart.setOption(treeOption(map.root, meta.color));
+  chartMap[map.id] = chart;
+}
+
+function renderResult(data){
+  chartMap = {};
+  $('sumText').textContent = data.summary || '';
+  var tags = $('metaTags');
+  tags.innerHTML = '';
+  var items = [
+    ['💬 主题', data.topic || ''],
+    ['🤖 模型', data.model || ''],
+    ['⏱ 耗时', (data.elapsed || 0) + 's']
+  ];
+  items.forEach(function(it){
+    var s = document.createElement('span');
+    s.className = 'tag';
+    s.textContent = it[0] + '：' + it[1];
+    tags.appendChild(s);
+  });
+
+  var wrap = $('mapsWrap');
+  wrap.innerHTML = '';
+  (data.maps || []).forEach(function(map){
+    wrap.appendChild(buildMapCard(map));
+  });
+
+  (data.maps || []).forEach(function(map){
+    renderMap(map);
+  });
+
+  var list = $('ckList');
+  list.innerHTML = '';
+  (data.checklist || []).forEach(function(item, i){
+    var li = document.createElement('li');
+    var no = document.createElement('span');
+    no.className = 'no';
+    no.textContent = i + 1;
+    var tx = document.createElement('span');
+    tx.textContent = item;
+    li.appendChild(no);
+    li.appendChild(tx);
+    list.appendChild(li);
+  });
+
+  $('resultWrap').classList.remove('hide');
+  $('resultWrap').scrollIntoView({behavior:'smooth', block:'start'});
+  window.setTimeout(function(){
+    (data.maps || []).forEach(function(map){
+      var c = chartMap[map.id];
+      if(c){ c.resize(); }
+    });
+  }, 120);
+}
+
+function run(){
+  var topic = $('topic').value.trim();
+  if(!topic){ setStatus('请先描述你想学什么或想解决的问题', 'err'); return; }
+  persistCfg();
+  busy(true);
+  clearStatus();
+  setStatus('正在从「第一性原理 · 金字塔原理 · 贝叶斯定理」三个角度拆解你的问题…', 'info');
+  fetch('/study-assistant/api/analyze', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      topic: topic,
+      base: $('cfgBase').value.trim(),
+      model: $('cfgModel').value.trim(),
+      key: $('cfgKey').value.trim()
+    })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if(!data.ok){
+      busy(false);
+      setStatus(data.message || '生成失败，请稍后重试', 'err');
+      return;
+    }
+    busy(false);
+    setStatus('拆解完成，三张思维导图已生成 👇 点击节点可展开 / 收起分支', 'ok');
+    renderResult(data);
+  })
+  .catch(function(e){
+    busy(false);
+    setStatus('网络请求失败：' + e.message, 'err');
+  });
+}
+
+function init(){
+  loadCfg();
+  fillChips();
+  $('cfgBase').addEventListener('input', persistCfg);
+  $('cfgModel').addEventListener('input', persistCfg);
+  $('cfgKey').addEventListener('input', persistCfg);
+  $('btnRun').addEventListener('click', run);
+  window.addEventListener('resize', function(){
+    Object.keys(chartMap).forEach(function(k){ if(chartMap[k]) chartMap[k].resize(); });
+  });
+}
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', init);
+}else{
+  init();
+}
+})();
+</script>
+</body>
+</html>
