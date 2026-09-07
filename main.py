@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 FastAPI 入门 Demo —— 边写接口边学 Python
 =========================================
@@ -85,6 +85,11 @@ app.include_router(buy_helper_router)
 # 浏览器访问 http://127.0.0.1:8000/bill-analysis 即可使用。
 from bill_analysis import router as bill_router  # noqa: E402
 app.include_router(bill_router)
+
+# 附加功能：学习模型助手（提出想学的内容 -> 第一性原理 / 金字塔原理 / 贝叶斯定理 三视角拆解 -> 思维导图展示）
+# 浏览器访问 http://127.0.0.1:8000/study-assistant 即可使用。
+from study_assistant import router as study_router  # noqa: E402
+app.include_router(study_router)
 
 
 
