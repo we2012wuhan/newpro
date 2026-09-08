@@ -16,6 +16,7 @@
 | `ai_chart.py` | AI 数据图表分析（页面在 `/ai-chart`，需 API Key） |
 | `buy_helper.py` | 购物比价助手（页面在 `/buy-helper`，需 API Key；无 Key 也可直接跳平台搜索） |
 | `bill_analysis.py` | 账单分析（上传月度账单 Excel/CSV 到 `/bill-analysis`，DeepSeek 分类汇总消费并给省钱建议） |
+| `translator.py` | 翻译助手（页面在 `/translator`：输入中文 -> 免费接口返回英文，并转换小写/大写/驼峰命名格式） |
 | `templates/` 与 `static/` | 工具箱主页 / AI 图表 / 比价助手 页面模板与本地静态资源 |
 | `requirements.txt` | 项目依赖（fastapi + uvicorn + requests + yt-dlp + playwright） |
 
@@ -59,6 +60,7 @@ python video_downloader.py
 - `http://127.0.0.1:8000/douyin-download` **抖音下载**：粘贴抖音分享链接即可下载视频
 - `http://127.0.0.1:8000/ai-chart` **AI 数据图表**：输入主题，大模型自动整理数据并生成图表，支持导出 Excel
 - `http://127.0.0.1:8000/buy-helper` **购物比价助手**：输入商品与需求，对比淘宝 / 京东销量价格并给出建议与购买入口
+- `http://127.0.0.1:8000/translator` **翻译助手**：中文翻译成英文，一键复制小写 / 大写 / camelCase / PascalCase 命名
 
 ## 抖音视频下载工具
 
@@ -127,6 +129,19 @@ python video_downloader.py
 - 账单里标为「不计收支」（如微信导出的 `/`、支付宝的「不计收支」，多为转账 / 理财 / 退款）
    会与真实消费分开统计：不计入总消费、每日图表与分类占比，单独展示金额与明细供核对。
 
+
+## 翻译助手
+
+打开 `http://127.0.0.1:8000/translator`：
+
+1. 输入中文（单词或短语），点击「开始翻译」，后端调用免费的公共翻译接口（MyMemory，无需密钥）返回英文；
+2. 翻译结果可编辑，页面实时给出：全部小写、全部大写、单词首字母大写、camelCase（小驼峰）、PascalCase（大驼峰）；
+3. 点击任意格式行即可复制，方便直接用作变量名 / 函数名 / 类名。
+
+说明：
+
+- 全程无需配置任何密钥，打开页面即可使用；
+- 免费接口为 MyMemory 公共 API，单次请求限制约 500 字节（页面限制 200 字以内），每日有匿名额度，若提示“今日额度已用完”可稍后再试。
 
 ## 打包成 EXE（可选）
 

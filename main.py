@@ -91,6 +91,11 @@ app.include_router(bill_router)
 from study_assistant import router as study_router  # noqa: E402
 app.include_router(study_router)
 
+# 附加功能：翻译助手（输入中文 -> 免费公共接口 MyMemory 返回英文 -> 小写/大写/驼峰等格式一键复制，无需密钥）
+# 浏览器访问 http://127.0.0.1:8000/translator 即可使用。
+from translator import router as translator_router  # noqa: E402
+app.include_router(translator_router)
+
 
 
 # =========================================================

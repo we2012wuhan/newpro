@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>翻译助手</title>
+<link rel="icon" href="data:,">
+<style>
+:root{
+  --bg:#0a0f1e;
+  --line:rgba(255,255,255,.09);
+  --text:#e8edf7;
+  --muted:#93a0ba;
+  --acc1:#2dd4bf;
+  --acc2:#fbbf24;
+  --ok:#34d399;
+  --err:#fb7185;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  color:var(--text);
+  font-family:"Segoe UI","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+  min-height:100vh;
+  background:
+    radial-gradient(1100px 520px at 10% -10%, rgba(45,212,191,.22), transparent 60%),
+    radial-gradient(900px 480px at 105% 0%, rgba(251,191,36,.14), transparent 55%),
+    radial-gradient(700px 600px at 50% 120%, rgba(56,189,248,.12), transparent 60%),
+    linear-gradient(160deg,#0a0f1e 0%,#0c1427 55%,#0a0f1e 100%);
+  background-attachment:fixed;
+}
+.wrap{max-width:980px;margin:0 auto;padding:26px 20px 80px}
+.back{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:13px;text-decoration:none;margin-bottom:14px}
+.back:hover{color:#fff}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+.logo{display:flex;align-items:center;gap:13px}
+.mark{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;font-size:23px;
+  background:linear-gradient(135deg,#2dd4bf 0%,#38bdf8 100%);
+  box-shadow:0 10px 28px rgba(45,212,191,.4)}
+h1{margin:0;font-size:23px;letter-spacing:.4px}
+.sub{color:var(--muted);font-size:13px;margin-top:4px}
+.badge{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#a7f3d0;background:rgba(45,212,191,.14);
+  border:1px solid rgba(45,212,191,.35);padding:6px 12px;border-radius:999px;white-space:nowrap}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.035));
+  border:1px solid var(--line);border-radius:18px;padding:20px;backdrop-filter:blur(8px);
+  box-shadow:0 20px 46px rgba(0,0,0,.28)}
+.card + .card{margin-top:16px}
+.card h2{margin:0 0 6px;font-size:17px}
+.card .desc{color:var(--muted);font-size:13px;line-height:1.9;margin:0 0 14px}
+label.field{display:block;font-size:13px;color:#b8c4da;margin:0 0 8px;font-weight:600}
+textarea#zhText{width:100%;min-height:96px;resize:vertical;padding:13px 14px;font-size:15px;line-height:1.9;color:var(--text);
+  background:rgba(8,12,26,.6);border:1px solid rgba(255,255,255,.12);border-radius:12px;outline:none;font-family:inherit}
+textarea#zhText:focus{border-color:rgba(45,212,191,.7);box-shadow:0 0 0 3px rgba(45,212,191,.14)}
+  padding:6px 12px;border-radius:999px;cursor:pointer;transition:all .15s ease}
+.actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
+.btn{border:0;border-radius:11px;padding:11px 22px;font-size:15px;cursor:pointer;font-weight:700;display:inline-flex;
+  align-items:center;gap:8px;transition:transform .12s ease,box-shadow .15s ease,background .15s ease}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.btn-main{color:#04211b;background:linear-gradient(135deg,#2dd4bf,#34d399);box-shadow:0 10px 26px rgba(45,212,191,.35)}
+.btn-main:hover:not(:disabled){box-shadow:0 12px 32px rgba(45,212,191,.5)}
+.btn-ghost{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)}
+.btn-ghost:hover:not(:disabled){background:rgba(255,255,255,.11)}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;
+  animation:spin .8s linear infinite;display:none}
+.spinner.on{display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+#msg{margin-top:14px;font-size:13.5px;line-height:1.8;display:none}
+#msg.show{display:block}
+#msg.err{color:var(--err);background:rgba(251,113,133,.08);border:1px solid rgba(251,113,133,.25);padding:10px 14px;border-radius:10px}
+#msg.info{color:#bfe9ff;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);padding:10px 14px;border-radius:10px}
+#result{display:none}
+#result.show{display:block}
+.row-in{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+textarea#enText{flex:1;min-width:260px;min-height:84px;resize:vertical;padding:12px 14px;font-size:16px;line-height:1.8;color:#d1fae5;
+  background:rgba(8,12,26,.6);border:1px solid rgba(255,255,255,.12);border-radius:12px;outline:none;font-family:Consolas,Menlo,monospace}
+textarea#enText:focus{border-color:rgba(45,212,191,.7)}
+.variants{margin-top:6px}
+.var{display:flex;align-items:center;gap:14px;border:1px solid rgba(255,255,255,.08);background:rgba(8,12,26,.45);
+  border-radius:12px;padding:12px 16px;cursor:pointer;transition:border-color .15s,background .15s}
+.var + .var{margin-top:10px}
+.var:hover{border-color:rgba(45,212,191,.5);background:rgba(45,212,191,.06)}
+.var .tag{width:118px;flex:none;font-size:13px;color:#aab8d6;font-weight:700}
+.var .val{flex:1;min-width:0;font-family:Consolas,Menlo,monospace;font-size:16px;color:#e8fdf5;word-break:break-all;line-height:1.5}
+.var .copy-ico{flex:none;font-size:12px;color:var(--muted)}
+.var.copied{border-color:rgba(52,211,153,.7)}
+.var.copied .copy-ico{color:#34d399}
+@media(max-width:640px){.var .tag{width:96px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← 返回工具箱</a>
+  <header class="top">
+    <div class="logo">
+      <div class="mark">🌐</div>
+      <div>
+        <h1>翻译助手</h1>
+      </div>
+    </div>
+    <span class="badge">免密钥 · 免费直连</span>
+  </header>
+
+  <div class="card">
+    <h2>输入中文</h2>
+    <p class="desc">输入单词或短语（可带空格），无需配置任何密钥即可翻译；结果自动给出小写、大写、首字母大写、camelCase、PascalCase 等格式，点一下即可复制。</p>
+    <label class="field" for="zhText">想翻译的中文</label>
+    <textarea id="zhText"></textarea>
+    <div class="actions">
+      <button id="btnTrans" class="btn btn-main" type="button"><span class="spinner" id="spinner"></span>开始翻译</button>
+    </div>
+    <div id="msg"></div>
+  </div>
+
+  <div class="card" id="result">
+    <h2>翻译结果与命名格式</h2>
+    <p class="desc">下方英文可以直接编辑，格式结果会随输入实时更新。</p>
+    <div class="row-in">
+      <textarea id="enText" spellcheck="false" placeholder="翻译结果会出现在这里"></textarea>
+      <button id="btnCopyEn" class="btn btn-ghost" type="button">复制原文</button>
+    </div>
+    <div class="variants" id="vars"></div>
+    <p class="desc" style="margin:14px 0 0">💡 点击任意一行即可复制；把鼠标停留在标签上可查看说明。</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var msg = $('msg'), spinner = $('spinner');
+
+  function showMsg(text, kind) {
+    msg.textContent = text || '';
+    msg.className = 'show ' + (kind || 'info');
+  }
+  function clearMsg() { msg.className = ''; msg.textContent = ''; }
+
+  // —— 文本格式工具 ——
+  function tokens(s) {
+    return (String(s || '').match(/[A-Za-z0-9]+/g) || []);
+  }
+  function cap(w) { return w ? w.charAt(0).toUpperCase() + w.slice(1) : w; }
+  function lowerAll(s) { return tokens(s).join(' ').toLowerCase(); }
+  function upperAll(s) { return tokens(s).join(' ').toUpperCase(); }
+  function titleCase(s) { return tokens(s).map(function (w) { return cap(w.toLowerCase()); }).join(' '); }
+  function camel(s) {
+    var t = tokens(s).map(function (w) { return w.toLowerCase(); });
+    if (!t.length) { return ''; }
+    var out = t[0];
+    for (var i = 1; i < t.length; i++) { out += cap(t[i]); }
+    return out;
+  }
+  function pascal(s) {
+    return tokens(s).map(function (w) { return cap(w.toLowerCase()); }).join('');
+  }
+
+  var VARIANTS = [
+    { tag: '全部小写', tip: '全部小写，用于普通标识', fn: lowerAll },
+    { tag: '全部大写', tip: '全部大写，例如常量', fn: upperAll },
+    { tag: '首字母大写', tip: '每个单词首字母大写', fn: titleCase },
+    { tag: 'camelCase', tip: '小驼峰命名（变量 / 函数名）', fn: camel },
+    { tag: 'PascalCase', tip: '大驼峰命名（类名 / 组件名）', fn: pascal },
+  ];
+
+  function renderVariants() {
+    var box = $('vars');
+    box.innerHTML = '';
+    VARIANTS.forEach(function (v) {
+      var value = v.fn($('enText').value);
+      var row = document.createElement('div');
+      row.className = 'var';
+      row.title = v.tip;
+      row.innerHTML = '<span class="tag"></span><span class="val"></span><span class="copy-ico">点击复制</span>';
+      row.querySelector('.tag').textContent = v.tag;
+      row.querySelector('.val').textContent = value || '（无内容）';
+      row.addEventListener('click', function () {
+        if (value) { copyText(value, row); }
+      });
+      box.appendChild(row);
+    });
+  }
+
+  function copyText(text, row) {
+    function done() {
+      if (row) {
+        row.classList.add('copied');
+        row.querySelector('.copy-ico').textContent = '✓ 已复制';
+        setTimeout(function () {
+          row.classList.remove('copied');
+          row.querySelector('.copy-ico').textContent = '点击复制';
+        }, 1500);
+      }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(done);
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+      done();
+    }
+  }
+
+  // —— 翻译（免费直连，无需密钥）——
+  function translate() {
+    var text = $('zhText').value.trim();
+    if (!text) { showMsg('请先输入要翻译的中文', 'err'); return; }
+    clearMsg();
+    spinner.classList.add('on');
+    $('btnTrans').disabled = true;
+    fetch('/translator/api/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text })
+    }).then(function (r) { return r.json(); }).then(function (data) {
+      if (!data.ok) {
+        showMsg(data.message || '翻译失败，请稍后重试', 'err');
+        return;
+      }
+      $('enText').value = data.dst || '';
+      $('result').classList.add('show');
+      renderVariants();
+      showMsg('翻译成功（' + (data.provider || '免费接口') + '），点击下方格式行可复制', 'info');
+      setTimeout(clearMsg, 3200);
+      $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }).catch(function () {
+      showMsg('请求失败，请检查服务是否在运行', 'err');
+    }).finally(function () {
+      spinner.classList.remove('on');
+      $('btnTrans').disabled = false;
+    });
+  }
+
+  // 点击示例词条填入输入框
+
+  $('btnTrans').addEventListener('click', translate);
+  $('enText').addEventListener('input', renderVariants);
+  $('btnCopyEn').addEventListener('click', function () {
+    var v = $('enText').value;
+    if (!v) { return; }
+    var btn = $('btnCopyEn');
+    copyText(v, null);
+    var old = btn.textContent;
+    btn.textContent = '✓ 已复制';
+    setTimeout(function () { btn.textContent = old; }, 1500);
+  });
+
+  renderVariants();
+})();
+</script>
+</body>
+</html>
