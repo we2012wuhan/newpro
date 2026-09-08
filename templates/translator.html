@@ -39,7 +39,6 @@ header.top{display:flex;align-items:center;justify-content:space-between;gap:14p
   box-shadow:0 10px 28px rgba(45,212,191,.4)}
 h1{margin:0;font-size:23px;letter-spacing:.4px}
 .sub{color:var(--muted);font-size:13px;margin-top:4px}
-.badge{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#a7f3d0;background:rgba(45,212,191,.14);
   border:1px solid rgba(45,212,191,.35);padding:6px 12px;border-radius:999px;white-space:nowrap}
 .card{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.035));
   border:1px solid var(--line);border-radius:18px;padding:20px;backdrop-filter:blur(8px);
@@ -47,7 +46,6 @@ h1{margin:0;font-size:23px;letter-spacing:.4px}
 .card + .card{margin-top:16px}
 .card h2{margin:0 0 6px;font-size:17px}
 .card .desc{color:var(--muted);font-size:13px;line-height:1.9;margin:0 0 14px}
-label.field{display:block;font-size:13px;color:#b8c4da;margin:0 0 8px;font-weight:600}
 textarea#zhText{width:100%;min-height:96px;resize:vertical;padding:13px 14px;font-size:15px;line-height:1.9;color:var(--text);
   background:rgba(8,12,26,.6);border:1px solid rgba(255,255,255,.12);border-radius:12px;outline:none;font-family:inherit}
 textarea#zhText:focus{border-color:rgba(45,212,191,.7);box-shadow:0 0 0 3px rgba(45,212,191,.14)}
@@ -98,13 +96,10 @@ textarea#enText:focus{border-color:rgba(45,212,191,.7)}
         <h1>翻译助手</h1>
       </div>
     </div>
-    <span class="badge">免密钥 · 免费直连</span>
   </header>
 
   <div class="card">
     <h2>输入中文</h2>
-    <p class="desc">输入单词或短语（可带空格），无需配置任何密钥即可翻译；结果自动给出小写、大写、首字母大写、camelCase、PascalCase 等格式，点一下即可复制。</p>
-    <label class="field" for="zhText">想翻译的中文</label>
     <textarea id="zhText"></textarea>
     <div class="actions">
       <button id="btnTrans" class="btn btn-main" type="button"><span class="spinner" id="spinner"></span>开始翻译</button>
