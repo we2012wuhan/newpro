@@ -96,7 +96,7 @@ app.include_router(study_router)
 from translator import router as translator_router  # noqa: E402
 app.include_router(translator_router)
 
-# 附加功能：OCR 文字识别（粘贴截图 / 上传图片 -> 本地离线识别成可编辑文字，免费无需密钥）
+# 附加功能：OCR图片识别（粘贴截图 / 上传图片 -> 免费云端接口 OCR.space 识别成可编辑文字，无需本地模型）
 # 浏览器访问 http://127.0.0.1:8000/ocr 即可使用。
 from ocr import router as ocr_router  # noqa: E402
 app.include_router(ocr_router)

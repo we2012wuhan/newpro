@@ -49,6 +49,14 @@ h1{margin:0;font-size:23px;letter-spacing:.4px}
 .drop-ico{font-size:34px;line-height:1}
 .drop-main{font-size:16px;font-weight:600}
 .drop-sub{font-size:13px;color:var(--muted)}
+.keybox{margin-top:14px;border-top:1px solid rgba(255,255,255,.08);padding-top:12px}
+.keybox summary{cursor:pointer;font-size:13px;color:var(--muted);outline:none;list-style:none}
+.keybox summary::-webkit-details-marker{display:none}
+.keybox summary:hover{color:#fff}
+.keyrow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.keyrow input{flex:1;min-width:200px;background:rgba(8,12,26,.6);border:1px solid rgba(255,255,255,.12);
+  border-radius:10px;padding:9px 12px;color:var(--text);font-size:13.5px;outline:none;font-family:inherit}
+.keyrow input:focus{border-color:rgba(34,211,238,.7);box-shadow:0 0 0 3px rgba(34,211,238,.12)}
 .stage{display:flex;align-items:center;justify-content:center;background:rgba(8,12,26,.55);
   border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:12px;max-height:420px;overflow:auto}
 .stage img{max-width:100%;max-height:396px;border-radius:8px;display:block}
@@ -97,6 +105,13 @@ textarea#out:focus{border-color:rgba(34,211,238,.7);box-shadow:0 0 0 3px rgba(34
       <div class="drop-sub">Ctrl + V 直接粘贴截图</div>
     </div>
     <input id="file" type="file" accept="image/*" hidden>
+    <details class="keybox">
+      <summary>自定义 Key（可选）</summary>
+      <div class="keyrow">
+        <input id="apiKey" type="text" autocomplete="off" placeholder="公共 Key 被限流时，可填自己的免费 Key（ocr.space/ocrapi）">
+        <button class="btn btn-ghost sm" id="btnSaveKey" type="button">保存</button>
+      </div>
+    </details>
   </div>
 
   <div class="card" id="stage" hidden>
@@ -127,8 +142,12 @@ textarea#out:focus{border-color:rgba(34,211,238,.7);box-shadow:0 0 0 3px rgba(34
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
   var fileInput = $('file'), drop = $('drop'), stage = $('stage'), preview = $('preview');
-  var msg = $('msg'), spinner = $('spinner'), out = $('out');
+  var msg = $('msg'), spinner = $('spinner'), out = $('out'), keyInput = $('apiKey');
   var current = null, objectUrl = null;
+
+  var MAX_UP = 1000 * 1024;  // 免费接口单张上限 1 MB
+  var OK_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/bmp', 'image/tiff'];
+  var KEY_STORE = 'ocrApiKey';
 
   function showMsg(text, kind) {
     msg.textContent = text || '';
@@ -136,19 +155,97 @@ textarea#out:focus{border-color:rgba(34,211,238,.7);box-shadow:0 0 0 3px rgba(34
   }
   function clearMsg() { msg.className = ''; msg.textContent = ''; }
 
+  // —— 自定义 Key 只存在浏览器本地 ——
+  try { keyInput.value = localStorage.getItem(KEY_STORE) || ''; } catch (e) {}
+  function savedKey() {
+    try { return (localStorage.getItem(KEY_STORE) || '').trim(); } catch (e) { return ''; }
+  }
+  $('btnSaveKey').addEventListener('click', function () {
+    var v = (keyInput.value || '').trim();
+    try {
+      if (v) { localStorage.setItem(KEY_STORE, v); } else { localStorage.removeItem(KEY_STORE); }
+    } catch (e) {}
+    showMsg(v ? '已保存自定义 Key' : '已改回公共免费 Key', 'info');
+    setTimeout(clearMsg, 2600);
+  });
+
+  // —— 图片预处理：接口只收 png/jpg/gif/bmp/tiff 且单张 ≤1MB ——
+  function loadImage(file) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var im = new Image();
+      im.onload = function () { URL.revokeObjectURL(url); resolve(im); };
+      im.onerror = function () { URL.revokeObjectURL(url); reject(new Error('load failed')); };
+      im.src = url;
+    });
+  }
+  function toBlob(canvas, type, quality) {
+    return new Promise(function (resolve) { canvas.toBlob(resolve, type, quality); });
+  }
+
+  function prepare(file) {
+    var type = (file.type || '').toLowerCase();
+    if (OK_TYPES.indexOf(type) >= 0 && file.size <= MAX_UP) {
+      return Promise.resolve({ blob: file, name: file.name || 'screenshot.png' });
+    }
+    // webp / 超大图：先用 canvas 重编码（先降质量，再降分辨率）压到 1MB 以内
+    return loadImage(file).then(function (im) {
+      var canvas = document.createElement('canvas');
+      var ctx = canvas.getContext('2d');
+      var scale = 1;
+      var tries = [
+        { t: 'image/png' },
+        { t: 'image/jpeg', q: 0.92 },
+        { t: 'image/jpeg', q: 0.8 },
+        { t: 'image/jpeg', q: 0.65 }
+      ];
+      function attempt(i) {
+        if (i >= tries.length) {
+          scale *= 0.7;
+          if (scale < 0.15) { return Promise.resolve(null); }
+          return attempt(0);
+        }
+        var spec = tries[i];
+        canvas.width = Math.max(1, Math.round(im.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(im.naturalHeight * scale));
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(im, 0, 0, canvas.width, canvas.height);
+        return toBlob(canvas, spec.t, spec.q).then(function (b) {
+          if (b && b.size <= MAX_UP) {
+            return { blob: b, name: spec.t === 'image/png' ? 'screenshot.png' : 'screenshot.jpg' };
+          }
+          return attempt(i + 1);
+        });
+      }
+      return attempt(0);
+    });
+  }
+
   function setFile(f) {
     if (!f) { return; }
     if (!/^image\//.test(f.type || '')) { showMsg('请选择图片文件', 'err'); return; }
-    if (objectUrl) { URL.revokeObjectURL(objectUrl); }
-    objectUrl = URL.createObjectURL(f);
-    current = f;
-    preview.src = objectUrl;
-    stage.hidden = false;
-    $('result').hidden = true;
-    out.value = '';
-    $('stats').textContent = '';
     clearMsg();
-    run();
+    $('btnRun').disabled = true;
+    prepare(f).then(function (prepared) {
+      if (!prepared) {
+        showMsg('图片太大，压缩不到 1 MB 以内，请裁剪后再试', 'err');
+        $('btnRun').disabled = false;
+        return;
+      }
+      if (objectUrl) { URL.revokeObjectURL(objectUrl); }
+      objectUrl = URL.createObjectURL(prepared.blob);
+      current = prepared;
+      preview.src = objectUrl;
+      stage.hidden = false;
+      $('result').hidden = true;
+      out.value = '';
+      $('stats').textContent = '';
+      run();
+    }).catch(function () {
+      showMsg('图片读取失败，请换一张试试', 'err');
+      $('btnRun').disabled = false;
+    });
   }
 
   function reset() {
@@ -160,6 +257,7 @@ textarea#out:focus{border-color:rgba(34,211,238,.7);box-shadow:0 0 0 3px rgba(34
     out.value = '';
     $('stats').textContent = '';
     fileInput.value = '';
+    $('btnRun').disabled = false;
     clearMsg();
   }
 
@@ -169,7 +267,9 @@ textarea#out:focus{border-color:rgba(34,211,238,.7);box-shadow:0 0 0 3px rgba(34
     spinner.classList.add('on');
     $('btnRun').disabled = true;
     var fd = new FormData();
-    fd.append('file', current, current.name || 'screenshot.png');
+    fd.append('file', current.blob, current.name);
+    var k = savedKey();
+    if (k) { fd.append('key', k); }
     fetch('/ocr/api/recognize', { method: 'POST', body: fd })
       .then(function (r) { return r.json(); })
       .then(function (d) {
@@ -177,7 +277,7 @@ textarea#out:focus{border-color:rgba(34,211,238,.7);box-shadow:0 0 0 3px rgba(34
         out.value = d.text || '';
         $('result').hidden = false;
         $('stats').textContent = d.count
-          ? (d.count + ' 行 · 平均置信度 ' + Math.round((d.avg_score || 0) * 100) + '% · 耗时 ' + d.elapsed + 's')
+          ? (d.count + ' 行 · 耗时 ' + d.elapsed + 's')
           : '未识别到文字';
         if (!d.count) { showMsg('没有识别到文字，换一张更清晰的图片试试', 'info'); }
       })

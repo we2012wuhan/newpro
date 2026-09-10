@@ -17,9 +17,9 @@
 | `buy_helper.py` | 购物比价助手（页面在 `/buy-helper`，需 API Key；无 Key 也可直接跳平台搜索） |
 | `bill_analysis.py` | 账单分析（上传月度账单 Excel/CSV 到 `/bill-analysis`，DeepSeek 分类汇总消费并给省钱建议） |
 | `translator.py` | 翻译助手（页面在 `/translator`：输入中文 -> 免费接口返回英文，并转换小写/大写/驼峰命名格式） |
-| `ocr.py` | OCR图片识别（页面在 `/ocr`：粘贴截图或上传图片 -> 本地 RapidOCR 离线识别成文字，免费无需密钥） |
+| `ocr.py` | OCR图片识别（页面在 `/ocr`：粘贴截图或上传图片 -> 免费云端接口 OCR.space 识别成文字，无需本地模型，部署体积小） |
 | `templates/` 与 `static/` | 工具箱主页 / AI 图表 / 比价助手 页面模板与本地静态资源 |
-| `requirements.txt` | 项目依赖（fastapi + uvicorn + requests + yt-dlp + playwright + openpyxl + rapidocr-onnxruntime） |
+| `requirements.txt` | 项目依赖（fastapi + uvicorn + requests + yt-dlp + playwright + openpyxl） |
 
 ## 怎么运行
 
@@ -62,7 +62,7 @@ python video_downloader.py
 - `http://127.0.0.1:8000/ai-chart` **AI 数据图表**：输入主题，大模型自动整理数据并生成图表，支持导出 Excel
 - `http://127.0.0.1:8000/buy-helper` **购物比价助手**：输入商品与需求，对比淘宝 / 京东销量价格并给出建议与购买入口
 - `http://127.0.0.1:8000/translator` **翻译助手**：中文翻译成英文，一键复制小写 / 大写 / camelCase / PascalCase 命名
-- `http://127.0.0.1:8000/ocr` **OCR图片识别**：粘贴截图或上传图片，本地离线识别成文字，可复制 / 下载 txt
+- `http://127.0.0.1:8000/ocr` **OCR图片识别**：粘贴截图或上传图片，免费云端接口识别成文字，可复制 / 下载 txt
 
 ## 抖音视频下载工具
 
@@ -149,14 +149,15 @@ python video_downloader.py
 
 打开 `http://127.0.0.1:8000/ocr`：
 
-1. 直接按 `Ctrl + V` 粘贴截图，或点击 / 拖拽上传图片（png / jpg / webp / bmp / gif / tiff，单张不超过 12 MB）；
+1. 直接按 `Ctrl + V` 粘贴截图，或点击 / 拖拽上传图片（png / jpg / gif / bmp / tiff 等；webp 或超过 1 MB 的图会在浏览器里自动转码压缩）；
 2. 图片加载后自动开始识别，也可点「识别文字」重新识别；
 3. 结果可直接编辑，支持「复制」「下载 .txt」「清空」。
 
 说明：
 
-- 使用 RapidOCR（PP-OCRv4）在本机离线识别，模型随 `rapidocr-onnxruntime` 一起安装，完全免费、无需密钥、图片不上传；
-- 首次识别需要加载模型（约数秒），之后自动复用，中英文 / 数字截图识别效果最好。
+- 识别调用免费的云端接口 OCR.space，本机不装任何模型，只依赖 `requests`，因此在 Vercel 等平台部署时体积很小；
+- 默认使用公共免费 Key，无需注册即可用，但高峰期会被限流；在页面「自定义 Key」里填入自己申请的免费 Key（https://ocr.space/ocrapi ，每月 25000 次）即可稳定使用，也可以在服务端配置环境变量 `OCR_SPACE_API_KEY`；
+- 免费额度单张图片上限 1 MB，中文简体（同时兼顾英文与数字）识别效果最好。
 
 ## 打包成 EXE（可选）
 
