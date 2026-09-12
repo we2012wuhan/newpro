@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>贝叶斯日记</title>
+<link rel="icon" href="data:,">
+<script src="/static/echarts.min.js"></script>
+<style>
+:root{
+  --bg:#0a0f1e;
+  --line:rgba(255,255,255,.09);
+  --text:#e8edf7;
+  --muted:#93a0ba;
+  --acc1:#818cf8;
+  --acc2:#e879f9;
+  --ok:#34d399;
+  --err:#fb7185;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  color:var(--text);
+  font-family:"Segoe UI","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+  min-height:100vh;
+  background:
+    radial-gradient(1100px 520px at 10% -10%, rgba(129,140,248,.22), transparent 60%),
+    radial-gradient(900px 480px at 105% 0%, rgba(232,121,249,.14), transparent 55%),
+    radial-gradient(700px 600px at 50% 120%, rgba(99,102,241,.14), transparent 60%),
+    linear-gradient(160deg,#0a0f1e 0%,#0c1427 55%,#0a0f1e 100%);
+  background-attachment:fixed;
+}
+.wrap{max-width:1000px;margin:0 auto;padding:26px 20px 80px}
+.back{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:13px;text-decoration:none;margin-bottom:14px}
+.back:hover{color:#fff}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+.logo{display:flex;align-items:center;gap:13px}
+.mark{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;font-size:23px;
+  background:linear-gradient(135deg,#6366f1 0%,#a855f7 100%);
+  box-shadow:0 10px 28px rgba(129,140,248,.42)}
+h1{margin:0;font-size:23px;letter-spacing:.4px}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.035));
+  border:1px solid var(--line);border-radius:18px;padding:20px;backdrop-filter:blur(8px);
+  box-shadow:0 20px 46px rgba(0,0,0,.28)}
+.card + .card{margin-top:16px}
+.card h2{margin:0 0 4px;font-size:17px}
+.card .desc{color:var(--muted);font-size:13px;line-height:1.9;margin:0 0 14px}
+.input{width:100%;padding:12px 14px;font-size:15px;color:var(--text);font-family:inherit;
+  background:rgba(8,12,26,.6);border:1px solid rgba(255,255,255,.12);border-radius:12px;outline:none}
+.input:focus{border-color:rgba(129,140,248,.75);box-shadow:0 0 0 3px rgba(129,140,248,.14)}
+.slider-row{margin-top:16px}
+.slider-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:13.5px;color:#c3cde3;margin-bottom:8px}
+.slider-head b{font-size:19px;color:#fff;font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:6px;
+  background:rgba(255,255,255,.14);outline:none;cursor:pointer;display:block}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+  background:linear-gradient(135deg,#818cf8,#e879f9);border:2px solid #0b1220;box-shadow:0 2px 10px rgba(0,0,0,.55);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border:2px solid #0b1220;border-radius:50%;
+  background:#a78bfa;cursor:pointer}
+.bar{position:relative;height:28px;border-radius:9px;background:rgba(8,12,26,.72);
+  border:1px solid rgba(255,255,255,.1);overflow:hidden}
+.bar > i{display:block;height:100%;width:0;border-radius:8px 0 0 8px;
+  background:linear-gradient(90deg,#6366f1,#a855f7);transition:width .45s cubic-bezier(.4,0,.2,1)}
+.bar > span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:13.5px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.7);font-variant-numeric:tabular-nums}
+.bar.thin{height:18px;border-radius:6px}
+.bar.thin > span{font-size:11px}
+.bar.preview > i{background:linear-gradient(90deg,#22d3ee,#34d399)}
+.actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;align-items:center}
+.btn{border:0;border-radius:11px;padding:11px 20px;font-size:14.5px;cursor:pointer;font-weight:700;display:inline-flex;
+  align-items:center;gap:8px;transition:transform .12s ease,box-shadow .15s ease,background .15s ease;font-family:inherit}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.btn-main{color:#0b0620;background:linear-gradient(135deg,#818cf8,#c084fc);box-shadow:0 10px 26px rgba(129,140,248,.32)}
+.btn-main:hover:not(:disabled){box-shadow:0 12px 32px rgba(129,140,248,.5)}
+.btn-ghost{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:var(--text)}
+.btn-ghost:hover:not(:disabled){background:rgba(255,255,255,.11)}
+.btn-hit{background:rgba(52,211,153,.15);border:1px solid rgba(52,211,153,.45);color:#6ee7b7}
+.btn-hit:hover{background:rgba(52,211,153,.24)}
+.btn-miss{background:rgba(251,113,133,.13);border:1px solid rgba(251,113,133,.42);color:#fda4af}
+.btn-miss:hover{background:rgba(251,113,133,.22)}
+.btn.sm{padding:8px 14px;font-size:13px}
+#msg{margin-top:12px;font-size:13px;display:none}
+#msg.show{display:block}
+#msg.err{color:var(--err)}
+#msg.info{color:#a5f3fc}
+.list{display:flex;flex-direction:column;gap:10px}
+.item{display:flex;align-items:center;gap:14px;padding:13px 16px;border-radius:13px;cursor:pointer;
+  background:rgba(8,12,26,.45);border:1px solid rgba(255,255,255,.08);transition:border-color .15s,background .15s}
+.item:hover{border-color:rgba(129,140,248,.5);background:rgba(129,140,248,.07)}
+.item.sel{border-color:rgba(232,121,249,.6);background:rgba(232,121,249,.09)}
+.it-main{flex:1;min-width:0}
+.it-text{font-size:15px;line-height:1.6;word-break:break-word}
+.it-meta{font-size:12px;color:var(--muted);margin-top:3px}
+.it-p{flex:none;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;color:#c4b5fd}
+.empty{font-size:13px;color:var(--muted);padding:6px 0}
+.dt-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:12px 0 14px}
+.dt-title{font-size:18px;line-height:1.5;font-weight:700;word-break:break-word}
+.dt-sub{font-size:12.5px;color:var(--muted);margin-top:8px;display:flex;gap:14px;flex-wrap:wrap}
+hr.sep{border:0;border-top:1px solid rgba(255,255,255,.08);margin:20px 0 16px}
+.q{font-size:14px;line-height:1.9;color:#c3cde3;margin:0 0 4px}
+.q em{color:#e879f9;font-style:normal;font-weight:700}
+.preview{margin-top:18px;padding:14px;border-radius:13px;background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.22)}
+.preview .pv-line{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:#bae6fd;margin-bottom:10px}
+.preview .pv-line b{font-size:15px;color:#fff;font-variant-numeric:tabular-nums}
+.ev{padding:12px 14px;border-radius:12px;background:rgba(8,12,26,.45);border:1px solid rgba(255,255,255,.08)}
+.ev + .ev{margin-top:9px}
+.ev-top{display:flex;align-items:center;gap:10px;font-size:13.5px}
+.ev-note{flex:1;min-width:0;word-break:break-word}
+.ev-lr{flex:none;font-size:13px;color:#e879f9;font-weight:700;font-variant-numeric:tabular-nums}
+.ev-del{flex:none;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:12px;padding:2px 4px;border-radius:6px}
+.ev-del:hover{color:#fb7185;background:rgba(251,113,133,.12)}
+.ev-body{font-size:12.5px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}
+.ev-arrow{color:rgba(255,255,255,.3)}
+.ev-after{color:#a5b4fc;font-weight:700}
+.cal-stats{font-size:13.5px;color:#c3cde3;margin:10px 0 4px;display:flex;gap:16px;flex-wrap:wrap}
+.cal-stats b{color:#fff;font-variant-numeric:tabular-nums}
+#calChart{width:100%;height:320px;margin-top:6px}
+.srow{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:11px;
+  background:rgba(8,12,26,.4);border:1px solid rgba(255,255,255,.07);font-size:13.5px}
+.srow .s-text{flex:1;min-width:0;word-break:break-word}
+.srow .s-tag{flex:none;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px}
+.s-tag.hit{color:#6ee7b7;background:rgba(52,211,153,.14);border:1px solid rgba(52,211,153,.35)}
+.s-tag.miss{color:#fda4af;background:rgba(251,113,133,.13);border:1px solid rgba(251,113,133,.33)}
+.srow .s-p{flex:none;color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
+.srow .s-undo{flex:none;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:12px}
+.srow .s-undo:hover{color:#fff}
+.hist-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.hist-tools{display:flex;gap:8px;flex-wrap:wrap}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.tab{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#c3cde3;
+  border-radius:999px;padding:6px 14px;font-size:13px;cursor:pointer;font-family:inherit;transition:all .15s}
+.tab:hover{background:rgba(255,255,255,.1)}
+.tab.on{background:rgba(129,140,248,.18);border-color:rgba(129,140,248,.55);color:#fff;font-weight:700}
+.daygrp + .daygrp{margin-top:18px}
+.daylabel{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  font-size:13px;color:#c3cde3;padding:0 2px 8px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:10px}
+.daylabel b{color:#fff}
+.daylabel .day-key{color:#6b7a99;font-size:12px}
+.daylabel .day-sum{font-size:12px;color:var(--muted)}
+.row{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:12px;
+  background:rgba(8,12,26,.45);border:1px solid rgba(255,255,255,.08);margin-bottom:8px;transition:border-color .15s,background .15s}
+.row.open{cursor:pointer}
+.row.open:hover{border-color:rgba(129,140,248,.5);background:rgba(129,140,248,.07)}
+.row-main{flex:1;min-width:0}
+.row-text{font-size:14.5px;line-height:1.55;word-break:break-word}
+.row-meta{font-size:12px;color:var(--muted);margin-top:4px;display:flex;gap:12px;flex-wrap:wrap}
+.row-meta .moved{color:#a5b4fc}
+.row-p{flex:none;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;color:#c4b5fd}
+.row-del{flex:none;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:12px;padding:3px 7px;border-radius:6px}
+.row-del:hover{color:#fb7185;background:rgba(251,113,133,.12)}
+.s-tag.open{color:#c4b5fd;background:rgba(129,140,248,.14);border:1px solid rgba(129,140,248,.35)}
+.srow .s-undo{flex:none;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:12px}
+.srow .s-undo:hover{color:#fff}
+.egg-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.egg-box{padding:14px;border-radius:13px;background:rgba(8,12,26,.45);border:1px solid rgba(255,255,255,.08)}
+.egg-box h3{margin:0 0 12px;font-size:14px;color:#e9d5ff}
+.path{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+.chip{display:flex;flex-direction:column;gap:5px;align-items:center;flex:1;min-width:88px}
+.chip .c-val{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+.chip .c-tag{font-size:11px;color:var(--muted)}
+.chip .bar{width:100%}
+.parrow{flex:none;color:rgba(255,255,255,.35);font-size:13px}
+.egg-same{margin-top:16px;padding:12px 15px;border-radius:12px;font-size:13.5px;line-height:1.8;
+  background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);color:#bbf7d0}
+.egg-same b{color:#fff;font-variant-numeric:tabular-nums}
+.path-label{font-size:12.5px;color:var(--muted);margin-top:10px}
+@media(max-width:720px){.egg-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← 返回工具箱</a>
+  <header class="top">
+    <div class="logo">
+      <div class="mark">🎲</div>
+      <div><h1>贝叶斯日记</h1></div>
+    </div>
+  </header>
+
+  <div class="card">
+    <h2>1 · 下注</h2>
+    <p class="desc">写一条当天就能验证的预测，再给出你心里的概率。</p>
+    <input id="betText" class="input" maxlength="120" placeholder="例如：明天 9 点前外卖会准时送到">
+    <div class="slider-row">
+      <div class="slider-head"><span>我认为它会发生</span><b id="betP">70%</b></div>
+      <input id="betSlider" type="range" min="1" max="99" value="70">
+    </div>
+    <div class="actions">
+      <button class="btn btn-main" id="btnAddBet">记下这个预测</button>
+    </div>
+    <div id="msg"></div>
+    <hr class="sep">
+    <h2>待结算</h2>
+    <div id="openList" class="list"></div>
+  </div>
+
+  <div class="card" id="detailCard" hidden>
+    <h2>2 · 随手记证据 · 3 · 看后验动</h2>
+    <div class="dt-head">
+      <div class="dt-title" id="dTitle"></div>
+      <button class="btn btn-ghost sm" id="btnDelBet">删除</button>
+    </div>
+    <div class="bar"><i id="dBar"></i><span id="dPct"></span></div>
+    <div class="dt-sub" id="dSub"></div>
+
+    <hr class="sep">
+    <p class="q">这条证据，在「<em id="qHit">会发生</em>」和「<em id="qMiss">不会发生</em>」下各有多大可能出现？</p>
+    <input id="evNote" class="input" maxlength="120" placeholder="证据是什么（可留空）">
+    <div class="slider-row">
+      <div class="slider-head"><span>如果「会发生」，看到它的可能性</span><b id="evAVal">70%</b></div>
+      <input id="evA" type="range" min="0" max="100" value="70">
+    </div>
+    <div class="slider-row">
+      <div class="slider-head"><span>如果「不会发生」，看到它的可能性</span><b id="evBVal">30%</b></div>
+      <input id="evB" type="range" min="0" max="100" value="30">
+    </div>
+    <div class="preview">
+      <div class="pv-line">
+        <span>这条证据的说服力</span>
+        <span><b id="evLR">×2.33</b>　<span id="evShift"></span></span>
+      </div>
+      <div class="bar preview"><i id="evBar"></i><span id="evBarTxt"></span></div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-main" id="btnAddEv">记下这条证据</button>
+    </div>
+
+    <hr class="sep">
+    <h2>证据时间线</h2>
+    <div id="evList" class="list" style="margin-top:10px"></div>
+
+    <hr class="sep">
+    <h2>4 · 结算</h2>
+    <p class="desc">结果出来后再点，会记下你当时的概率，用于校准曲线。</p>
+    <div class="actions">
+      <button class="btn btn-hit" id="btnHit">它发生了 ✓</button>
+      <button class="btn btn-miss" id="btnMiss">它没发生 ✗</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>校准曲线</h2>
+    <p class="desc">你嘴上说 80% 的事，实际发生了多少次。样本越多越有意义。</p>
+    <div class="cal-stats" id="calStats"></div>
+    <div id="calChart"></div>
+    <div class="empty" id="calEmpty">还没有结算记录，先攒几条结果吧。</div>
+  </div>
+
+  <div class="card">
+    <div class="hist-head">
+      <h2>历史记录</h2>
+      <div class="hist-tools">
+        <button class="btn btn-ghost sm" id="btnExport">导出备份</button>
+        <button class="btn btn-ghost sm" id="btnImport">导入</button>
+        <button class="btn btn-ghost sm" id="btnClearAll">清空</button>
+      </div>
+    </div>
+    <input id="importFile" type="file" accept=".json,application/json" hidden>
+    <div class="tabs">
+      <button class="tab on" data-f="all">全部</button>
+      <button class="tab" data-f="open">待结算</button>
+      <button class="tab" data-f="done">已结算</button>
+    </div>
+    <div id="histList"></div>
+  </div>
+
+  <div class="card">
+    <h2>彩蛋实验 · 顺序不改变结论</h2>
+    <p class="desc">同一个信念，先喂证据 A 再喂 B，和先 B 后 A：过程不同，终点必然一模一样。</p>
+    <div class="slider-row">
+      <div class="slider-head"><span>初始信念（先验）</span><b id="eggPVal">50%</b></div>
+      <input id="eggP" type="range" min="1" max="99" value="50">
+    </div>
+    <div class="egg-grid" style="margin-top:16px">
+      <div class="egg-box">
+        <h3>证据 A</h3>
+        <div class="slider-head"><span>会发生时出现的可能性</span><b id="eggA1Val">80%</b></div>
+        <input id="eggA1" type="range" min="0" max="100" value="80">
+        <div class="slider-head" style="margin-top:12px"><span>不会发生时出现的可能性</span><b id="eggA2Val">40%</b></div>
+        <input id="eggA2" type="range" min="0" max="100" value="40">
+        <div class="path-label">A 的说服力 <b id="eggLRA">×2</b></div>
+      </div>
+      <div class="egg-box">
+        <h3>证据 B</h3>
+        <div class="slider-head"><span>会发生时出现的可能性</span><b id="eggB1Val">60%</b></div>
+        <input id="eggB1" type="range" min="0" max="100" value="60">
+        <div class="slider-head" style="margin-top:12px"><span>不会发生时出现的可能性</span><b id="eggB2Val">20%</b></div>
+        <input id="eggB2" type="range" min="0" max="100" value="20">
+        <div class="path-label">B 的说服力 <b id="eggLRB">×3</b></div>
+      </div>
+    </div>
+    <div class="path-label" style="margin-top:18px">路径一：先 A 后 B</div>
+    <div class="path" id="path1"></div>
+    <div class="path-label">路径二：先 B 后 A</div>
+    <div class="path" id="path2"></div>
+    <div class="egg-same" id="eggSame"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var STORE = 'bayesDiary.v1';
+  var state = { bets: [], selected: null, filter: 'all' };
+
+  // ---------- 概率工具：全部用「赔率 × 似然比」计算 ----------
+  function oddsOf(p) { return p / (1 - p); }
+  function pOf(o) { if (!(o > 0)) { return 0; } if (!isFinite(o)) { return 1; } return o / (1 + o); }
+  function lrOf(a, b) { return (a <= 0 ? 0 : a) / Math.max(b, 0.01); }
+  function applyLR(p, lr) { return pOf(oddsOf(p) * lr); }
+  function pct(p, d) {
+    var v = p * 100;
+    if (d != null) { return v.toFixed(d) + '%'; }
+    if (v > 0 && v < 1) { return '<1%'; }
+    if (v < 100 && v > 99) { return '>99%'; }
+    return Math.round(v) + '%';
+  }
+  function fmtLR(x) {
+    if (!isFinite(x)) { return '∞'; }
+    if (x <= 0) { return '0'; }
+    if (x >= 100) { return '99+'; }
+    var s = x >= 10 ? x.toFixed(0) : x.toFixed(2);
+    return s.indexOf('.') >= 0 ? s.replace(/0+$/, '').replace(/\.$/, '') : s;
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function uid() { return 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function setBar(el, p) { el.style.width = (Math.max(0, Math.min(1, p)) * 100).toFixed(2) + '%'; }
+
+  // ---------- 存储 ----------
+  function load() {
+    try {
+      var d = JSON.parse(localStorage.getItem(STORE) || 'null');
+      if (d && Array.isArray(d.bets)) { state.bets = d.bets; }
+    } catch (e) { state.bets = []; }
+    // 读档后重算一遍：老数据或手工改过的数据也能自愈，避免出现 NaN
+    state.bets.forEach(function (b) {
+      if (!Array.isArray(b.evidence)) { b.evidence = []; }
+      recompute(b);
+    });
+  }
+  function save() {
+    try { localStorage.setItem(STORE, JSON.stringify({ bets: state.bets })); } catch (e) {}
+  }
+  function selectedBet() {
+    for (var i = 0; i < state.bets.length; i++) {
+      if (state.bets[i].id === state.selected) { return state.bets[i]; }
+    }
+    return null;
+  }
+  // 从原始预测出发，把全部证据重算一遍（这样删掉中间某条也不会错）
+  function recompute(bet) {
+    var p = bet.p0;
+    bet.evidence.forEach(function (ev) {
+      ev.lr = lrOf(ev.a, ev.b);
+      ev.before = p;
+      p = applyLR(p, ev.lr);
+      ev.after = p;
+    });
+    bet.p = p;
+  }
+
+  // ---------- 渲染 ----------
+  function renderOpen() {
+    var open = state.bets.filter(function (b) { return b.status === 'open'; });
+    var box = $('openList');
+    if (!open.length) {
+      box.innerHTML = '<div class="empty">还没有待结算的预测，先在上面写一条。</div>';
+      return;
+    }
+    box.innerHTML = open.map(function (b) {
+      return '<div class="item' + (b.id === state.selected ? ' sel' : '') + '" data-id="' + b.id + '">' +
+        '<div class="it-main"><div class="it-text">' + esc(b.text) + '</div>' +
+        '<div class="it-meta">' + esc(dayTitle(dayKeyOf(tsOf(b.created) || Date.now()))) +
+        ' · 下注 ' + pct(b.p0) +
+        (b.evidence.length ? ' · ' + b.evidence.length + ' 条证据' : '') + '</div></div>' +
+        '<div class="it-p">' + pct(b.p) + '</div></div>';
+    }).join('');
+    Array.prototype.forEach.call(box.querySelectorAll('.item'), function (el) {
+      el.addEventListener('click', function () {
+        state.selected = el.getAttribute('data-id');
+        $('evNote').value = '';
+        renderOpen();
+        renderDetail();
+      });
+    });
+  }
+
+  function renderDetail() {
+    var b = selectedBet();
+    if (!b) { $('detailCard').hidden = true; return; }
+    $('detailCard').hidden = false;
+    $('dTitle').textContent = b.text;
+    $('dSub').innerHTML = '<span>下注时 ' + pct(b.p0) + '</span><span>' + b.evidence.length + ' 条证据</span>';
+    setBar($('dBar'), b.p);
+    $('dPct').textContent = pct(b.p);
+
+    var list = $('evList');
+    if (!b.evidence.length) {
+      list.innerHTML = '<div class="empty">还没有证据。拖动下面的滑杆，看概率怎么动。</div>';
+    } else {
+      list.innerHTML = b.evidence.map(function (ev, i) {
+        return '<div class="ev">' +
+          '<div class="ev-top"><span class="ev-note">' + esc(ev.note || ('证据 ' + (i + 1))) + '</span>' +
+          '<span class="ev-lr">×' + fmtLR(ev.lr) + '</span>' +
+          '<button class="ev-del" data-ev="' + ev.id + '" title="删除这条证据">✕</button></div>' +
+          '<div class="ev-body"><span>' + pct(ev.before) + '</span>' +
+          '<span class="ev-arrow">→</span><span class="ev-after">' + pct(ev.after) + '</span></div>' +
+          '</div>';
+      }).join('');
+      Array.prototype.forEach.call(list.querySelectorAll('.ev-del'), function (el) {
+        el.addEventListener('click', function () {
+          var id = el.getAttribute('data-ev');
+          b.evidence = b.evidence.filter(function (e) { return e.id !== id; });
+          recompute(b);
+          save();
+          renderOpen();
+          renderDetail();
+        });
+      });
+    }
+    updatePreview();
+  }
+
+  function updatePreview() {
+    var b = selectedBet();
+    if (!b) { return; }
+    var a = (+$('evA').value) / 100;
+    var c = (+$('evB').value) / 100;
+    $('evAVal').textContent = Math.round(a * 100) + '%';
+    $('evBVal').textContent = Math.round(c * 100) + '%';
+    var lr = lrOf(a, c);
+    var next = applyLR(b.p, lr);
+    $('evLR').textContent = '×' + fmtLR(lr);
+    $('evShift').textContent = pct(b.p) + ' → ' + pct(next);
+    setBar($('evBar'), next);
+    $('evBarTxt').textContent = pct(next);
+  }
+
+  var chart = null;
+  function renderCalibration() {
+    var settled = state.bets.filter(function (b) { return b.status !== 'open'; });
+    if (!settled.length) {
+      $('calEmpty').hidden = false;
+      $('calStats').textContent = '';
+      if (chart) { chart.clear(); }
+      return;
+    }
+    $('calEmpty').hidden = true;
+
+    var buckets = [];
+    for (var i = 0; i < 10; i++) { buckets.push({ lo: i * 10, hi: i * 10 + 10, n: 0, hits: 0 }); }
+    var brier = 0;
+    settled.forEach(function (b) {
+      var p = b.settleP != null ? b.settleP : b.p;
+      var hit = b.status === 'hit' ? 1 : 0;
+      brier += (p - hit) * (p - hit);
+      var idx = Math.min(9, Math.max(0, Math.floor(p * 10)));
+      buckets[idx].n++;
+      buckets[idx].hits += hit;
+    });
+    brier = brier / settled.length;
+    var used = buckets.filter(function (x) { return x.n > 0; });
+    var verdict = brier < 0.1 ? '很准' : (brier < 0.2 ? '还不错' : '继续练');
+    $('calStats').innerHTML = '<span>已结算 <b>' + settled.length + '</b> 条</span>' +
+      '<span>Brier 分数 <b>' + brier.toFixed(3) + '</b>（越小越准）</span><span><b>' + verdict + '</b></span>';
+
+    if (typeof echarts === 'undefined') { return; }
+    if (!chart) {
+      chart = echarts.init($('calChart'));
+      window.addEventListener('resize', function () { if (chart) { chart.resize(); } });
+    }
+    chart.setOption({
+      grid: { left: 46, right: 22, top: 44, bottom: 34 },
+      tooltip: {
+        trigger: 'axis',
+        formatter: function (ps) {
+          var i = ps[0].dataIndex;
+          return used[i].lo + '-' + used[i].hi + '%　样本 ' + used[i].n + ' 条<br>' +
+            '实际发生 ' + used[i].hits + ' 次（' + ps[0].value + '%）<br>' +
+            '你给的概率 ' + ps[1].value + '%';
+        }
+      },
+      legend: { data: ['实际发生率', '你给的概率'], textStyle: { color: '#93a0ba' }, top: 4 },
+      xAxis: {
+        type: 'category',
+        data: used.map(function (x) { return x.lo + '-' + x.hi + '%'; }),
+        axisLine: { lineStyle: { color: 'rgba(255,255,255,.2)' } },
+        axisLabel: { color: '#93a0ba', fontSize: 11 }
+      },
+      yAxis: {
+        type: 'value', max: 100,
+        axisLabel: { color: '#93a0ba', formatter: '{value}%' },
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,.07)' } }
+      },
+      series: [
+        {
+          name: '实际发生率', type: 'bar', barMaxWidth: 46,
+          data: used.map(function (x) { return +(x.hits / x.n * 100).toFixed(1); }),
+          itemStyle: {
+            borderRadius: [6, 6, 0, 0],
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: '#818cf8' }, { offset: 1, color: '#6366f1' }
+            ])
+          }
+        },
+        {
+          name: '你给的概率', type: 'line', symbolSize: 8,
+          data: used.map(function (x) { return (x.lo + x.hi) / 2; }),
+          lineStyle: { width: 2, type: 'dashed', color: '#e879f9' },
+          itemStyle: { color: '#e879f9' }
+        }
+      ]
+    }, true);
+    chart.resize();
+  }
+
+  // ---------- 彩蛋：赔率连乘，顺序无关 ----------
+  function renderEgg() {
+    var p0 = (+$('eggP').value) / 100;
+    var a1 = (+$('eggA1').value) / 100, a2 = (+$('eggA2').value) / 100;
+    var b1 = (+$('eggB1').value) / 100, b2 = (+$('eggB2').value) / 100;
+    $('eggPVal').textContent = Math.round(p0 * 100) + '%';
+    $('eggA1Val').textContent = Math.round(a1 * 100) + '%';
+    $('eggA2Val').textContent = Math.round(a2 * 100) + '%';
+    $('eggB1Val').textContent = Math.round(b1 * 100) + '%';
+    $('eggB2Val').textContent = Math.round(b2 * 100) + '%';
+
+    var lrA = lrOf(a1, a2), lrB = lrOf(b1, b2);
+    $('eggLRA').textContent = '×' + fmtLR(lrA);
+    $('eggLRB').textContent = '×' + fmtLR(lrB);
+
+    var o0 = oddsOf(p0);
+    var oA = o0 * lrA, oB = o0 * lrB;          // 第一步的中间状态
+    var oEnd = o0 * lrA * lrB;                  // 乘法交换律：终点必然相同
+
+    function chip(label, value, accent) {
+      var w = (Math.max(0, Math.min(1, value)) * 100).toFixed(2);
+      return '<div class="chip"><div class="c-tag">' + label + '</div>' +
+        '<div class="c-val" style="color:' + accent + '">' + pct(value, 1) + '</div>' +
+        '<div class="bar thin"><i style="width:' + w + '%;background:linear-gradient(90deg,' +
+        accent + ',' + accent + ')"></i></div></div>';
+    }
+    var end = pOf(oEnd);
+    $('path1').innerHTML = chip('先验', p0, '#93a0ba') + '<span class="parrow">先 A →</span>' +
+      chip('喂 A 后', pOf(oA), '#818cf8') + '<span class="parrow">再 B →</span>' +
+      chip('喂 B 后', end, '#e879f9');
+    $('path2').innerHTML = chip('先验', p0, '#93a0ba') + '<span class="parrow">先 B →</span>' +
+      chip('喂 B 后', pOf(oB), '#818cf8') + '<span class="parrow">再 A →</span>' +
+      chip('喂 A 后', pOf(oEnd), '#e879f9');
+
+    var mid1 = pct(pOf(oA), 1), mid2 = pct(pOf(oB), 1);
+    var diff = mid1 === mid2;
+    $('eggSame').innerHTML = '两条路径的终点都是 <b>' + pct(end, 1) + '</b>。' +
+      (diff ? '这次的参数刚好让中间值也相同。' :
+        '但中间过程不一样：先 A 时是 <b>' + mid1 + '</b>，先 B 时是 <b>' + mid2 + '</b>' +
+        ' —— 顺序只改变你的心情，不改变最终结论。');
+  }
+
+  // ---------- 历史记录：按天分组，方便回看以前下的注 ----------
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function tsOf(v) { return (typeof v === 'number' && isFinite(v) && v > 0) ? v : 0; }
+  function dayKeyOf(t) {
+    var d = new Date(t);
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  }
+  function hmOf(t) {
+    if (!t) { return ''; }
+    var d = new Date(t);
+    return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+  function dayTitle(key) {
+    var now = Date.now();
+    if (key === dayKeyOf(now)) { return '今天'; }
+    if (key === dayKeyOf(now - 86400000)) { return '昨天'; }
+    var seg = key.split('-');
+    if (Number(seg[0]) === new Date().getFullYear()) {
+      return Number(seg[1]) + ' 月 ' + Number(seg[2]) + ' 日';
+    }
+    return key;
+  }
+  function statusTag(b) {
+    if (b.status === 'open') { return '<span class="s-tag open">待结算</span>'; }
+    return '<span class="s-tag ' + b.status + '">' +
+      (b.status === 'hit' ? '发生了' : '没发生') + '</span>';
+  }
+  function finalP(b) { return b.settleP != null ? b.settleP : b.p; }
+
+  function historyRow(b) {
+    var open = b.status === 'open';
+    var created = tsOf(b.created) || tsOf(b.settledAt) || Date.now();
+    var meta = ['<span>' + hmOf(created) + ' 下注 ' + pct(b.p0) + '</span>'];
+    if (b.evidence.length) { meta.push('<span>' + b.evidence.length + ' 条证据</span>'); }
+    if (open && b.evidence.length) { meta.push('<span class="moved">现在 ' + pct(b.p) + '</span>'); }
+    if (!open) {
+      meta.push('<span>结算时 ' + pct(finalP(b)) + '</span>');
+      if (tsOf(b.settledAt)) { meta.push('<span>' + hmOf(b.settledAt) + ' 结算</span>'); }
+    }
+    return '<div class="row' + (open ? ' open' : '') + '" data-id="' + b.id + '">' +
+      statusTag(b) +
+      '<div class="row-main"><div class="row-text">' + esc(b.text) + '</div>' +
+      '<div class="row-meta">' + meta.join('') + '</div></div>' +
+      '<div class="row-p">' + pct(open ? b.p : finalP(b)) + '</div>' +
+      (open ? '' : '<button class="s-undo" data-undo="' + b.id + '">撤销</button>') +
+      '<button class="row-del" data-del="' + b.id + '" title="删除这条记录">✕</button></div>';
+  }
+
+  function renderHistory() {
+    var box = $('histList');
+    var list = state.bets.slice().sort(function (a, b) {
+      return (tsOf(b.created) || tsOf(b.settledAt)) - (tsOf(a.created) || tsOf(a.settledAt));
+    });
+    if (state.filter === 'open') {
+      list = list.filter(function (b) { return b.status === 'open'; });
+    } else if (state.filter === 'done') {
+      list = list.filter(function (b) { return b.status !== 'open'; });
+    }
+    if (!list.length) {
+      box.innerHTML = '<div class="empty">' +
+        (state.bets.length ? '这个分类下还没有记录。' : '还没有任何记录，先在上面下第一注吧。') + '</div>';
+      return;
+    }
+    var groups = [], seen = {};
+    list.forEach(function (b) {
+      var key = dayKeyOf(tsOf(b.created) || tsOf(b.settledAt) || Date.now());
+      if (!seen[key]) { seen[key] = { key: key, items: [] }; groups.push(seen[key]); }
+      seen[key].items.push(b);
+    });
+    box.innerHTML = groups.map(function (g) {
+      var done = g.items.filter(function (b) { return b.status !== 'open'; });
+      var hits = done.filter(function (b) { return b.status === 'hit'; }).length;
+      var sum = g.items.length + ' 条';
+      if (done.length) { sum += ' · 已结算 ' + done.length + ' · 命中 ' + hits; }
+      return '<div class="daygrp"><div class="daylabel">' +
+        '<span><b>' + esc(dayTitle(g.key)) + '</b> <span class="day-key">' + esc(g.key) + '</span></span>' +
+        '<span class="day-sum">' + sum + '</span></div>' +
+        g.items.map(historyRow).join('') + '</div>';
+    }).join('');
+    bindHistory();
+  }
+
+  function bindHistory() {
+    var box = $('histList');
+    Array.prototype.forEach.call(box.querySelectorAll('.row.open'), function (el) {
+      el.addEventListener('click', function () {
+        state.selected = el.getAttribute('data-id');
+        $('evNote').value = '';
+        renderAll();
+        $('detailCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+    Array.prototype.forEach.call(box.querySelectorAll('[data-undo]'), function (el) {
+      el.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var id = el.getAttribute('data-undo');
+        state.bets.forEach(function (b) {
+          if (b.id === id) { b.status = 'open'; b.settleP = null; b.settledAt = null; }
+        });
+        save();
+        renderAll();
+      });
+    });
+    Array.prototype.forEach.call(box.querySelectorAll('[data-del]'), function (el) {
+      el.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var id = el.getAttribute('data-del');
+        state.bets = state.bets.filter(function (b) { return b.id !== id; });
+        if (state.selected === id) { state.selected = null; }
+        save();
+        renderAll();
+      });
+    });
+  }
+
+  function renderAll() { renderOpen(); renderDetail(); renderCalibration(); renderHistory(); }
+
+  // ---------- 交互 ----------
+  $('betSlider').addEventListener('input', function () {
+    $('betP').textContent = this.value + '%';
+  });
+  $('btnAddBet').addEventListener('click', function () {
+    var text = ($('betText').value || '').trim();
+    var msg = $('msg');
+    if (!text) {
+      msg.className = 'show err';
+      msg.textContent = '先写一条可验证的预测吧';
+      return;
+    }
+    msg.className = '';
+    var bet = {
+      id: uid(), text: text, p0: (+$('betSlider').value) / 100, p: 0,
+      evidence: [], status: 'open', created: Date.now(), settleP: null, settledAt: null
+    };
+    recompute(bet);
+    state.bets.unshift(bet);
+    state.selected = bet.id;
+    $('betText').value = '';
+    save();
+    renderAll();
+  });
+
+  ['evA', 'evB'].forEach(function (id) {
+    $(id).addEventListener('input', updatePreview);
+  });
+  $('btnAddEv').addEventListener('click', function () {
+    var b = selectedBet();
+    if (!b) { return; }
+    var a = (+$('evA').value) / 100;
+    var c = (+$('evB').value) / 100;
+    b.evidence.push({
+      id: uid(), note: ($('evNote').value || '').trim(), a: a, b: c, at: Date.now()
+    });
+    recompute(b);
+    $('evNote').value = '';
+    save();
+    renderOpen();
+    renderDetail();
+  });
+
+  function settle(status) {
+    var b = selectedBet();
+    if (!b) { return; }
+    b.status = status;
+    b.settleP = b.p;
+    b.settledAt = Date.now();
+    state.selected = null;
+    save();
+    renderAll();
+  }
+  $('btnHit').addEventListener('click', function () { settle('hit'); });
+  $('btnMiss').addEventListener('click', function () { settle('miss'); });
+  $('btnDelBet').addEventListener('click', function () {
+    var b = selectedBet();
+    if (!b) { return; }
+    state.bets = state.bets.filter(function (x) { return x.id !== b.id; });
+    state.selected = null;
+    save();
+    renderAll();
+  });
+
+  ['eggP', 'eggA1', 'eggA2', 'eggB1', 'eggB2'].forEach(function (id) {
+    $(id).addEventListener('input', renderEgg);
+  });
+
+  // ---------- 历史记录的筛选与备份 ----------
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (el) {
+    el.addEventListener('click', function () {
+      state.filter = el.getAttribute('data-f');
+      Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (x) {
+        x.classList.toggle('on', x === el);
+      });
+      renderHistory();
+    });
+  });
+  $('btnExport').addEventListener('click', function () {
+    var data = JSON.stringify(
+      { app: 'bayes-diary', version: 1, exportedAt: Date.now(), bets: state.bets }, null, 2);
+    var blob = new Blob([data], { type: 'application/json;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'bayes-diary-' + dayKeyOf(Date.now()) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  });
+  $('btnImport').addEventListener('click', function () { $('importFile').click(); });
+  $('importFile').addEventListener('change', function () {
+    var input = this;
+    var f = input.files && input.files[0];
+    if (!f) { return; }
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var d = JSON.parse(reader.result);
+        var incoming = Array.isArray(d) ? d : (d && d.bets);
+        if (!Array.isArray(incoming)) { throw new Error('format'); }
+        var ids = {};
+        state.bets.forEach(function (b) { ids[b.id] = 1; });
+        var added = 0;
+        incoming.forEach(function (b) {
+          if (!b || !b.id || !b.text || ids[b.id]) { return; }
+          if (!Array.isArray(b.evidence)) { b.evidence = []; }
+          if (typeof b.p0 !== 'number') { b.p0 = typeof b.p === 'number' ? b.p : 0.5; }
+          if (!b.status) { b.status = 'open'; }
+          recompute(b);
+          state.bets.push(b);
+          ids[b.id] = 1;
+          added++;
+        });
+        save();
+        renderAll();
+        alert('已导入 ' + added + ' 条记录（重复的自动跳过）');
+      } catch (err) {
+        alert('导入失败：不是有效的备份文件');
+      }
+      input.value = '';
+    };
+    reader.readAsText(f);
+  });
+  $('btnClearAll').addEventListener('click', function () {
+    if (!state.bets.length) { return; }
+    if (!confirm('确定清空全部 ' + state.bets.length + ' 条记录吗？建议先「导出备份」。')) { return; }
+    state.bets = [];
+    state.selected = null;
+    save();
+    renderAll();
+  });
+
+  load();
+  renderAll();
+  renderEgg();
+})();
+</script>
+</body>
+</html>
