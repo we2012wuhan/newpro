@@ -125,33 +125,6 @@ hr.sep{border:0;border-top:1px solid rgba(255,255,255,.08);margin:20px 0 16px}
 .srow .s-p{flex:none;color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
 .srow .s-undo{flex:none;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:12px}
 .srow .s-undo:hover{color:#fff}
-.hist-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
-.hist-tools{display:flex;gap:8px;flex-wrap:wrap}
-.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-.tab{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#c3cde3;
-  border-radius:999px;padding:6px 14px;font-size:13px;cursor:pointer;font-family:inherit;transition:all .15s}
-.tab:hover{background:rgba(255,255,255,.1)}
-.tab.on{background:rgba(129,140,248,.18);border-color:rgba(129,140,248,.55);color:#fff;font-weight:700}
-.daygrp + .daygrp{margin-top:18px}
-.daylabel{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;
-  font-size:13px;color:#c3cde3;padding:0 2px 8px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:10px}
-.daylabel b{color:#fff}
-.daylabel .day-key{color:#6b7a99;font-size:12px}
-.daylabel .day-sum{font-size:12px;color:var(--muted)}
-.row{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:12px;
-  background:rgba(8,12,26,.45);border:1px solid rgba(255,255,255,.08);margin-bottom:8px;transition:border-color .15s,background .15s}
-.row.open{cursor:pointer}
-.row.open:hover{border-color:rgba(129,140,248,.5);background:rgba(129,140,248,.07)}
-.row-main{flex:1;min-width:0}
-.row-text{font-size:14.5px;line-height:1.55;word-break:break-word}
-.row-meta{font-size:12px;color:var(--muted);margin-top:4px;display:flex;gap:12px;flex-wrap:wrap}
-.row-meta .moved{color:#a5b4fc}
-.row-p{flex:none;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;color:#c4b5fd}
-.row-del{flex:none;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:12px;padding:3px 7px;border-radius:6px}
-.row-del:hover{color:#fb7185;background:rgba(251,113,133,.12)}
-.s-tag.open{color:#c4b5fd;background:rgba(129,140,248,.14);border:1px solid rgba(129,140,248,.35)}
-.srow .s-undo{flex:none;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:12px}
-.srow .s-undo:hover{color:#fff}
 .egg-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .egg-box{padding:14px;border-radius:13px;background:rgba(8,12,26,.45);border:1px solid rgba(255,255,255,.08)}
 .egg-box h3{margin:0 0 12px;font-size:14px;color:#e9d5ff}
@@ -245,24 +218,7 @@ hr.sep{border:0;border-top:1px solid rgba(255,255,255,.08);margin:20px 0 16px}
     <div class="cal-stats" id="calStats"></div>
     <div id="calChart"></div>
     <div class="empty" id="calEmpty">还没有结算记录，先攒几条结果吧。</div>
-  </div>
-
-  <div class="card">
-    <div class="hist-head">
-      <h2>历史记录</h2>
-      <div class="hist-tools">
-        <button class="btn btn-ghost sm" id="btnExport">导出备份</button>
-        <button class="btn btn-ghost sm" id="btnImport">导入</button>
-        <button class="btn btn-ghost sm" id="btnClearAll">清空</button>
-      </div>
-    </div>
-    <input id="importFile" type="file" accept=".json,application/json" hidden>
-    <div class="tabs">
-      <button class="tab on" data-f="all">全部</button>
-      <button class="tab" data-f="open">待结算</button>
-      <button class="tab" data-f="done">已结算</button>
-    </div>
-    <div id="histList"></div>
+    <div id="settledList" class="list" style="margin-top:14px"></div>
   </div>
 
   <div class="card">
@@ -303,7 +259,7 @@ hr.sep{border:0;border-top:1px solid rgba(255,255,255,.08);margin:20px 0 16px}
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
   var STORE = 'bayesDiary.v1';
-  var state = { bets: [], selected: null, filter: 'all' };
+  var state = { bets: [], selected: null };
 
   // ---------- 概率工具：全部用「赔率 × 似然比」计算 ----------
   function oddsOf(p) { return p / (1 - p); }
@@ -445,6 +401,24 @@ hr.sep{border:0;border-top:1px solid rgba(255,255,255,.08);margin:20px 0 16px}
   var chart = null;
   function renderCalibration() {
     var settled = state.bets.filter(function (b) { return b.status !== 'open'; });
+    var list = $('settledList');
+    list.innerHTML = settled.slice().reverse().map(function (b) {
+      return '<div class="srow"><span class="s-tag ' + b.status + '">' +
+        (b.status === 'hit' ? '发生了' : '没发生') + '</span>' +
+        '<span class="s-text">' + esc(b.text) + '</span>' +
+        '<span class="s-p">' + pct(b.settleP != null ? b.settleP : b.p) + '</span>' +
+        '<button class="s-undo" data-undo="' + b.id + '">撤销</button></div>';
+    }).join('');
+    Array.prototype.forEach.call(list.querySelectorAll('[data-undo]'), function (el) {
+      el.addEventListener('click', function () {
+        var id = el.getAttribute('data-undo');
+        state.bets.forEach(function (b) {
+          if (b.id === id) { b.status = 'open'; b.settleP = null; b.settledAt = null; }
+        });
+        save();
+        renderAll();
+      });
+    });
     if (!settled.length) {
       $('calEmpty').hidden = false;
       $('calStats').textContent = '';
@@ -562,17 +536,12 @@ hr.sep{border:0;border-top:1px solid rgba(255,255,255,.08);margin:20px 0 16px}
         ' —— 顺序只改变你的心情，不改变最终结论。');
   }
 
-  // ---------- 历史记录：按天分组，方便回看以前下的注 ----------
+  // ---------- 日期显示：待结算列表里标出是哪天下的注 ----------
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
   function tsOf(v) { return (typeof v === 'number' && isFinite(v) && v > 0) ? v : 0; }
   function dayKeyOf(t) {
     var d = new Date(t);
     return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
-  }
-  function hmOf(t) {
-    if (!t) { return ''; }
-    var d = new Date(t);
-    return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
   }
   function dayTitle(key) {
     var now = Date.now();
@@ -584,100 +553,9 @@ hr.sep{border:0;border-top:1px solid rgba(255,255,255,.08);margin:20px 0 16px}
     }
     return key;
   }
-  function statusTag(b) {
-    if (b.status === 'open') { return '<span class="s-tag open">待结算</span>'; }
-    return '<span class="s-tag ' + b.status + '">' +
-      (b.status === 'hit' ? '发生了' : '没发生') + '</span>';
-  }
-  function finalP(b) { return b.settleP != null ? b.settleP : b.p; }
 
-  function historyRow(b) {
-    var open = b.status === 'open';
-    var created = tsOf(b.created) || tsOf(b.settledAt) || Date.now();
-    var meta = ['<span>' + hmOf(created) + ' 下注 ' + pct(b.p0) + '</span>'];
-    if (b.evidence.length) { meta.push('<span>' + b.evidence.length + ' 条证据</span>'); }
-    if (open && b.evidence.length) { meta.push('<span class="moved">现在 ' + pct(b.p) + '</span>'); }
-    if (!open) {
-      meta.push('<span>结算时 ' + pct(finalP(b)) + '</span>');
-      if (tsOf(b.settledAt)) { meta.push('<span>' + hmOf(b.settledAt) + ' 结算</span>'); }
-    }
-    return '<div class="row' + (open ? ' open' : '') + '" data-id="' + b.id + '">' +
-      statusTag(b) +
-      '<div class="row-main"><div class="row-text">' + esc(b.text) + '</div>' +
-      '<div class="row-meta">' + meta.join('') + '</div></div>' +
-      '<div class="row-p">' + pct(open ? b.p : finalP(b)) + '</div>' +
-      (open ? '' : '<button class="s-undo" data-undo="' + b.id + '">撤销</button>') +
-      '<button class="row-del" data-del="' + b.id + '" title="删除这条记录">✕</button></div>';
-  }
 
-  function renderHistory() {
-    var box = $('histList');
-    var list = state.bets.slice().sort(function (a, b) {
-      return (tsOf(b.created) || tsOf(b.settledAt)) - (tsOf(a.created) || tsOf(a.settledAt));
-    });
-    if (state.filter === 'open') {
-      list = list.filter(function (b) { return b.status === 'open'; });
-    } else if (state.filter === 'done') {
-      list = list.filter(function (b) { return b.status !== 'open'; });
-    }
-    if (!list.length) {
-      box.innerHTML = '<div class="empty">' +
-        (state.bets.length ? '这个分类下还没有记录。' : '还没有任何记录，先在上面下第一注吧。') + '</div>';
-      return;
-    }
-    var groups = [], seen = {};
-    list.forEach(function (b) {
-      var key = dayKeyOf(tsOf(b.created) || tsOf(b.settledAt) || Date.now());
-      if (!seen[key]) { seen[key] = { key: key, items: [] }; groups.push(seen[key]); }
-      seen[key].items.push(b);
-    });
-    box.innerHTML = groups.map(function (g) {
-      var done = g.items.filter(function (b) { return b.status !== 'open'; });
-      var hits = done.filter(function (b) { return b.status === 'hit'; }).length;
-      var sum = g.items.length + ' 条';
-      if (done.length) { sum += ' · 已结算 ' + done.length + ' · 命中 ' + hits; }
-      return '<div class="daygrp"><div class="daylabel">' +
-        '<span><b>' + esc(dayTitle(g.key)) + '</b> <span class="day-key">' + esc(g.key) + '</span></span>' +
-        '<span class="day-sum">' + sum + '</span></div>' +
-        g.items.map(historyRow).join('') + '</div>';
-    }).join('');
-    bindHistory();
-  }
-
-  function bindHistory() {
-    var box = $('histList');
-    Array.prototype.forEach.call(box.querySelectorAll('.row.open'), function (el) {
-      el.addEventListener('click', function () {
-        state.selected = el.getAttribute('data-id');
-        $('evNote').value = '';
-        renderAll();
-        $('detailCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    });
-    Array.prototype.forEach.call(box.querySelectorAll('[data-undo]'), function (el) {
-      el.addEventListener('click', function (e) {
-        e.stopPropagation();
-        var id = el.getAttribute('data-undo');
-        state.bets.forEach(function (b) {
-          if (b.id === id) { b.status = 'open'; b.settleP = null; b.settledAt = null; }
-        });
-        save();
-        renderAll();
-      });
-    });
-    Array.prototype.forEach.call(box.querySelectorAll('[data-del]'), function (el) {
-      el.addEventListener('click', function (e) {
-        e.stopPropagation();
-        var id = el.getAttribute('data-del');
-        state.bets = state.bets.filter(function (b) { return b.id !== id; });
-        if (state.selected === id) { state.selected = null; }
-        save();
-        renderAll();
-      });
-    });
-  }
-
-  function renderAll() { renderOpen(); renderDetail(); renderCalibration(); renderHistory(); }
+  function renderAll() { renderOpen(); renderDetail(); renderCalibration(); }
 
   // ---------- 交互 ----------
   $('betSlider').addEventListener('input', function () {
@@ -745,71 +623,6 @@ hr.sep{border:0;border-top:1px solid rgba(255,255,255,.08);margin:20px 0 16px}
 
   ['eggP', 'eggA1', 'eggA2', 'eggB1', 'eggB2'].forEach(function (id) {
     $(id).addEventListener('input', renderEgg);
-  });
-
-  // ---------- 历史记录的筛选与备份 ----------
-  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (el) {
-    el.addEventListener('click', function () {
-      state.filter = el.getAttribute('data-f');
-      Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (x) {
-        x.classList.toggle('on', x === el);
-      });
-      renderHistory();
-    });
-  });
-  $('btnExport').addEventListener('click', function () {
-    var data = JSON.stringify(
-      { app: 'bayes-diary', version: 1, exportedAt: Date.now(), bets: state.bets }, null, 2);
-    var blob = new Blob([data], { type: 'application/json;charset=utf-8' });
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'bayes-diary-' + dayKeyOf(Date.now()) + '.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
-  });
-  $('btnImport').addEventListener('click', function () { $('importFile').click(); });
-  $('importFile').addEventListener('change', function () {
-    var input = this;
-    var f = input.files && input.files[0];
-    if (!f) { return; }
-    var reader = new FileReader();
-    reader.onload = function () {
-      try {
-        var d = JSON.parse(reader.result);
-        var incoming = Array.isArray(d) ? d : (d && d.bets);
-        if (!Array.isArray(incoming)) { throw new Error('format'); }
-        var ids = {};
-        state.bets.forEach(function (b) { ids[b.id] = 1; });
-        var added = 0;
-        incoming.forEach(function (b) {
-          if (!b || !b.id || !b.text || ids[b.id]) { return; }
-          if (!Array.isArray(b.evidence)) { b.evidence = []; }
-          if (typeof b.p0 !== 'number') { b.p0 = typeof b.p === 'number' ? b.p : 0.5; }
-          if (!b.status) { b.status = 'open'; }
-          recompute(b);
-          state.bets.push(b);
-          ids[b.id] = 1;
-          added++;
-        });
-        save();
-        renderAll();
-        alert('已导入 ' + added + ' 条记录（重复的自动跳过）');
-      } catch (err) {
-        alert('导入失败：不是有效的备份文件');
-      }
-      input.value = '';
-    };
-    reader.readAsText(f);
-  });
-  $('btnClearAll').addEventListener('click', function () {
-    if (!state.bets.length) { return; }
-    if (!confirm('确定清空全部 ' + state.bets.length + ' 条记录吗？建议先「导出备份」。')) { return; }
-    state.bets = [];
-    state.selected = null;
-    save();
-    renderAll();
   });
 
   load();
