@@ -101,6 +101,11 @@ app.include_router(translator_router)
 from ocr import router as ocr_router  # noqa: E402
 app.include_router(ocr_router)
 
+# 附加功能：贝叶斯日记（给日常预测下注 -> 记证据实时更新后验 -> 结算后画校准曲线，纯前端计算）
+# 浏览器访问 http://127.0.0.1:8000/bayes-diary 即可使用。
+from bayes_diary import router as bayes_diary_router  # noqa: E402
+app.include_router(bayes_diary_router)
+
 
 
 # =========================================================
