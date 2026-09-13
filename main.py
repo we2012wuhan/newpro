@@ -111,6 +111,12 @@ app.include_router(bayes_diary_router)
 from judgement_trainer import router as judgement_trainer_router  # noqa: E402
 app.include_router(judgement_trainer_router)
 
+# 附加功能：SDD 需求拆解器（七段式逼问痛点 / 目标 / 用户 / 功能 / 交互 / 技术 / 验收，
+# 实时编译成提示词，纯前端，数据存浏览器 localStorage）
+# 浏览器访问 http://127.0.0.1:8000/sdd-decomposer 即可使用。
+from sdd_decomposer import router as sdd_decomposer_router  # noqa: E402
+app.include_router(sdd_decomposer_router)
+
 
 
 # =========================================================

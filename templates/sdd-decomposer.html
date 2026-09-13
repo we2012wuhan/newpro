@@ -1,0 +1,1873 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#4B5FCC">
+<script>(function(){try{var v=JSON.parse(localStorage.getItem('sdd_theme'));if(v==='dark'){document.documentElement.setAttribute('data-theme','dark');}}catch(e){}})();</script>
+<title>SDD 需求拆解器</title>
+<style>
+:root{
+  --blue:#4B5FCC; --blue-d:#3A4BA6; --blue-l:#EEF0FB; --blue-line:#C7CDF0;
+  --ink:#1F2A44; --text:#3C4759; --muted:#8492A3;
+  --bg:#F6F7F9; --card:#FFFFFF; --line:#E6EAF0;
+  --green:#5F9E7C; --green-l:#EDF6F1; --green-ink:#3F7A5B; --green-line:#CBE3D8;
+  --amber:#C8922F; --amber-l:#FDF5E4; --amber-ink:#8F6A1F; --amber-line:#EBDCB4;
+  --rose:#C08573; --rose-l:#FAF0ED; --rose-ink:#9B6350; --rose-line:#E8D2CA;
+  --r:16px;
+  --sh:0 1px 2px rgba(16,24,40,.04), 0 10px 24px -14px rgba(16,24,40,.18);
+  --primary:#4B5FCC; --primary-d:#3A4BA6; --primary-off:#B7BEDD;
+  --surface:#FFFFFF; --surface-2:#F2F4F7; --track:#EFF2F6; --btn-active:#F3F5F8; --dot:#D7DDE6;
+  --topbar-bg:rgba(246,247,249,.94); --tabbar-bg:rgba(255,255,255,.97); --rail-bg:rgba(255,255,255,.72);
+  --text-2:#5A6879; --text-3:#4A5866; --code-bg:#FBFCFE;
+  --focus-ring:0 0 0 3px rgba(75,95,204,.12);
+  color-scheme:light;
+}
+html[data-theme="dark"]{
+  --blue:#9BA9F5; --blue-d:#B4BFF9; --blue-l:#1D2338; --blue-line:#333C5E;
+  --ink:#E8ECF8; --text:#C2CBDE; --muted:#8593A9;
+  --bg:#0E1119; --card:#161B26; --line:#272E3D;
+  --green:#7CC79E; --green-l:#152A20; --green-ink:#8CD9AE; --green-line:#2E4B3C;
+  --amber:#E0B45C; --amber-l:#2A2314; --amber-ink:#EBC57E; --amber-line:#4A3E22;
+  --rose:#D89E8C; --rose-l:#2C1E1A; --rose-ink:#E4AC9B; --rose-line:#4A322C;
+  --sh:0 1px 2px rgba(0,0,0,.45), 0 10px 24px -14px rgba(0,0,0,.75);
+  --primary:#4E63C4; --primary-d:#3F51A8; --primary-off:#39415C;
+  --surface:#1A2130; --surface-2:#212A3A; --track:#232E3E; --btn-active:#232D3C; --dot:#33415A;
+  --topbar-bg:rgba(14,17,25,.9); --tabbar-bg:rgba(18,22,32,.97); --rail-bg:rgba(16,20,30,.75);
+  --text-2:#A9B5C8; --text-3:#B6C2D4; --code-bg:#131924;
+  --focus-ring:0 0 0 3px rgba(155,169,245,.2);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none !important}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font-family:inherit;font-size:15px;color:inherit}
+h1,h2,h3,h4{margin:0;font-weight:600;color:var(--ink)}
+p{margin:0}
+#app{max-width:560px;margin:0 auto;min-height:100vh;padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+.topbar{position:sticky;top:0;z-index:20;background:var(--topbar-bg);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:560px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px}
+.ttl{font-size:17px;font-weight:600;color:var(--ink);line-height:1.3}
+.sub{font-size:12px;color:var(--muted);line-height:1.4;margin-top:2px}
+.top-actions{margin-left:auto;display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.ghost{width:44px;height:44px;flex:0 0 44px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--muted);font-size:15px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.ghost:hover{color:var(--blue);border-color:var(--blue-line)}
+.ghost svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ghost .ic-moon{display:none}
+html[data-theme="dark"] .ghost .ic-sun{display:none}
+html[data-theme="dark"] .ghost .ic-moon{display:block}
+.view{padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--sh);margin-bottom:14px}
+.card.tight{padding:13px 14px}
+.card-h{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.card-sub{font-size:12.5px;color:var(--muted);line-height:1.65}
+.sec-t{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.02em;margin:18px 2px 8px}
+.row{display:flex;align-items:center;gap:10px}
+.spread{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.badge{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;line-height:1.8;background:var(--blue-l);color:var(--blue);border:1px solid var(--blue-line);white-space:nowrap}
+.badge.g{background:var(--green-l);color:var(--green-ink);border-color:var(--green-line)}
+.badge.o{background:var(--amber-l);color:var(--amber-ink);border-color:var(--amber-line)}
+.badge.r{background:var(--rose-l);color:var(--rose-ink);border-color:var(--rose-line)}
+.badge.n{background:var(--surface-2);color:var(--muted);border-color:var(--line)}
+.mini{font-size:11.5px;color:var(--muted);line-height:1.7}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:14.5px;cursor:pointer;transition:background .15s ease,opacity .15s ease}
+.btn:active{background:var(--btn-active)}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.primary:active{background:var(--primary-d)}
+.btn.primary:disabled{background:var(--primary-off);border-color:var(--primary-off);cursor:not-allowed}
+.btn.sm{min-height:34px;padding:0 11px;font-size:12.5px;border-radius:9px}
+.btn.block{width:100%}
+.btn-row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.btn-row .btn{flex:1;min-width:120px}
+.chip{min-height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:12.5px;cursor:pointer}
+.chip.on{border-color:var(--primary);background:var(--blue-l);color:var(--blue);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+input[type=text],input[type=search],textarea,select{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--surface);outline:none;min-height:42px;font-size:14.5px;line-height:1.65;color:var(--text)}
+textarea{resize:vertical;line-height:1.75}
+input:focus,textarea:focus,select:focus{border-color:var(--blue-line);box-shadow:var(--focus-ring)}
+label.f{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 5px}
+.hr{height:1px;background:var(--line);margin:14px 0}
+.empty{text-align:center;padding:26px 12px;color:var(--muted);font-size:13.5px;line-height:1.8}
+.empty b{display:block;color:var(--ink);font-size:15px;font-weight:600;margin-bottom:6px}
+.hintbox{border:1px dashed var(--blue-line);background:var(--blue-l);border-radius:12px;padding:10px 12px;font-size:12.5px;line-height:1.75;color:var(--blue);margin-bottom:12px}
+.qlist{margin:0;padding-left:18px;font-size:13px;line-height:1.85;color:var(--text-2)}
+.qlist li{margin-bottom:3px}
+.mist{border-left:2px solid var(--rose-line);padding-left:11px;margin-bottom:10px}
+.mist .mt{font-size:13px;color:var(--rose-ink);font-weight:600;line-height:1.6}
+.mist .mw{font-size:12.5px;color:var(--muted);line-height:1.7;margin-top:3px}
+.eg{background:var(--surface-2);border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.8;color:var(--text-2);white-space:pre-wrap}
+.det{border:1px solid var(--line);border-radius:14px;background:var(--card);margin-bottom:10px;overflow:hidden;box-shadow:var(--sh)}
+.det>summary{list-style:none;cursor:pointer;padding:13px 14px;display:flex;align-items:center;gap:10px;background:var(--card)}
+.det>summary::-webkit-details-marker{display:none}
+.det>summary:hover{background:var(--btn-active)}
+.det .no{width:26px;height:26px;flex:0 0 26px;border-radius:8px;background:var(--blue-l);color:var(--blue);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;border:1px solid var(--blue-line)}
+.det .nm{font-size:14.5px;font-weight:600;color:var(--ink)}
+.det .en{font-size:11.5px;color:var(--muted)}
+.det .caret{margin-left:auto;color:var(--muted);font-size:12px;transition:transform .2s ease}
+.det[open] .caret{transform:rotate(90deg)}
+.det .body{padding:0 14px 14px}
+.reqitem{border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:9px;background:var(--surface)}
+.lvl{display:flex;gap:6px;margin-bottom:8px}
+.lvl button{min-height:30px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:12px;cursor:pointer;color:var(--muted)}
+.lvl button.on{background:var(--blue-l);border-color:var(--primary);color:var(--blue);font-weight:600}
+.pv{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.75;white-space:pre-wrap;word-break:break-word;background:var(--code-bg);border:1px solid var(--line);border-radius:12px;padding:14px;max-height:60vh;overflow:auto;color:var(--text-2)}
+.seg{display:flex;gap:6px;background:var(--surface-2);border-radius:12px;padding:4px;margin-bottom:12px}
+.seg button{flex:1;min-height:36px;border:0;background:none;border-radius:9px;font-size:13px;color:var(--muted);cursor:pointer}
+.seg button.on{background:var(--card);color:var(--blue);font-weight:600;box-shadow:var(--sh)}
+.ck{display:flex;align-items:flex-start;gap:9px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;line-height:1.7;color:var(--text-2)}
+.ck:last-child{border-bottom:0}
+.ck .dotm{width:9px;height:9px;border-radius:50%;flex:0 0 9px;margin-top:6px}
+.ck .dotm.r{background:#D2695C}
+.ck .dotm.y{background:#D8A63C}
+.ck .dotm.g{background:#5F9E7C}
+.ck .jump{margin-left:auto;flex:0 0 auto;font-size:12px;color:var(--blue);cursor:pointer;background:none;border:0;padding:2px 4px;text-decoration:underline}
+.tpl{border:1px solid var(--line);border-radius:14px;padding:13px;background:var(--card);margin-bottom:10px;cursor:pointer;box-shadow:var(--sh)}
+.tpl:hover{border-color:var(--blue-line)}
+.tpl.on{border-color:var(--primary);background:var(--blue-l)}
+.tpl .tn{font-size:14.5px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px}
+.tpl .td{font-size:12.5px;color:var(--muted);line-height:1.7;margin-top:4px}
+.rec{border:1px solid var(--line);border-radius:13px;padding:12px;background:var(--card);margin-bottom:10px;box-shadow:var(--sh)}
+.rec .rt{font-size:14.5px;font-weight:600;color:var(--ink)}
+.rec .rm{font-size:12px;color:var(--muted);margin-top:4px}
+.rec .ra{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:80;background:rgba(31,42,68,.94);color:#fff;font-size:13.5px;padding:10px 18px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.3);pointer-events:none;opacity:0;transition:opacity .2s ease,bottom .2s ease}
+.toast.on{opacity:1;bottom:calc(108px + env(safe-area-inset-bottom))}
+.sheet{position:fixed;inset:0;z-index:70;background:var(--bg);overflow:auto}
+.sheet-in{max-width:760px;margin:0 auto;padding:14px 16px calc(40px + env(safe-area-inset-bottom))}
+.sheet .sh-top{position:sticky;top:0;background:var(--topbar-bg);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;gap:10px;z-index:5}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--tabbar-bg);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.tabbar-in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:56px;padding:6px 0;background:none;border:0;font-size:11px;color:var(--muted);cursor:pointer}
+.tab svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.tab.active{color:var(--blue);font-weight:600}
+.brand{display:none}
+.work-switch{margin-bottom:12px}
+@media (min-width:1000px){
+  :root{--rail:228px}
+  #app{margin-left:var(--rail);max-width:none;padding-bottom:40px}
+  .topbar-in,.view{max-width:1000px;margin:0 auto}
+  .topbar-in{padding:16px 26px}
+  .view{padding:22px 26px}
+  .tabbar{top:0;bottom:0;right:auto;width:var(--rail);border-top:0;border-right:1px solid var(--line);
+    background:var(--rail-bg);backdrop-filter:blur(10px);display:flex;flex-direction:column;padding:18px 12px;overflow-y:auto}
+  .brand{display:block;padding:4px 12px 18px}
+  .brand b{display:block;font-size:16px;font-weight:600;color:var(--ink)}
+  .brand span{display:block;font-size:11.5px;color:var(--muted);margin-top:4px}
+  .tabbar-in{max-width:none;width:100%;display:flex;flex-direction:column;gap:4px;padding:0}
+  .tab{width:100%;flex-direction:row;justify-content:flex-start;gap:11px;min-height:44px;padding:0 12px;border-radius:11px;font-size:14.5px}
+  .tab:hover{background:var(--blue-l)}
+  .tab.active{background:var(--blue-l)}
+  .toast{bottom:40px}
+  .toast.on{bottom:52px}
+}
+@media (min-width:1200px){
+  .v-work .view{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,500px);gap:20px;align-items:start;max-width:1320px}
+  .v-work .work-side{position:sticky;top:82px;max-height:calc(100vh - 106px);overflow:auto}
+  .v-work .work-switch{display:none}
+  .v-work.mode-prev .work-main{display:block}
+  .v-work.mode-form .work-side{display:block}
+}
+@media (max-width:1199px){
+  .v-work.mode-prev .work-main{display:none}
+  .v-work.mode-form .work-side{display:none}
+}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+<div id="app" class="app v-work">
+  <header class="topbar">
+    <div class="topbar-in">
+      <div>
+        <div class="ttl" id="pageTitle">拆解工作台</div>
+        <div class="sub" id="pageSub"></div>
+      </div>
+      <div class="top-actions">
+        <button class="ghost" id="themeBtn" title="切换深色 / 浅色" aria-label="切换深色 / 浅色">
+          <svg class="ic-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.4v2.6M12 19v2.6M2.4 12h2.6M19 12h2.6M5.2 5.2l1.9 1.9M16.9 16.9l1.9 1.9M18.8 5.2l-1.9 1.9M7.1 16.9l-1.9 1.9"/></svg>
+          <svg class="ic-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.2A8.2 8.2 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg>
+        </button>
+        <button class="ghost" id="helpBtn" title="怎么用" aria-label="怎么用">?</button>
+      </div>
+    </div>
+  </header>
+  <main class="view" id="view"></main>
+</div>
+<nav class="tabbar">
+  <div class="brand"><b>SDD 需求拆解器</b><span>七段式 · 从模糊想法到可交付规格</span></div>
+  <div class="tabbar-in" id="tabbar"></div>
+</nav>
+<div class="sheet" id="sheet" hidden></div>
+<div class="toast" id="toast"></div>
+<script>(function(){
+'use strict';
+
+/* ============================================================
+   0. 通用工具
+   ============================================================ */
+function esc(s){
+  return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function uid(){ return 'r' + Date.now().toString(36) + Math.floor(Math.random()*1000).toString(36); }
+function nowStr(){
+  var d = new Date(), p = function(n){ return (n<10?'0':'')+n; };
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+function lines(s){
+  return String(s==null?'':s).split('\n').map(function(x){ return x.replace(/^\s+|\s+$/g,''); })
+    .filter(function(x){ return x.length > 0; });
+}
+function nonEmpty(s){ return String(s==null?'':s).replace(/\s/g,'').length > 0; }
+function toast(msg){
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('on');
+  clearTimeout(el._t);
+  el._t = setTimeout(function(){ el.classList.remove('on'); }, 1600);
+}
+function copyText(text, okMsg){
+  var done = function(){ toast(okMsg || '已复制'); };
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(text).then(done, function(){ fallbackCopy(text, done); });
+  } else { fallbackCopy(text, done); }
+}
+function fallbackCopy(text, done){
+  try{
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    done();
+  }catch(e){ toast('这台浏览器不让复制，请手动选中'); }
+}
+function download(name, text){
+  try{
+    var blob = new Blob([text], { type:'text/plain;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 600);
+    toast('已下载 ' + name);
+  }catch(e){ toast('这台浏览器不支持直接下载'); }
+}
+
+/* ============================================================
+   1. 存储层：key 统一 sdd_ 前缀，数据只留在这台设备
+   ============================================================ */
+var K = {
+  draft   : 'sdd_draft',
+  tpl     : 'sdd_tpl',
+  records : 'sdd_records',
+  opt     : 'sdd_opt',
+  theme   : 'sdd_theme',
+  help    : 'sdd_help_seen'
+};
+var DB = {
+  get: function(k, fb){
+    try{ var v = localStorage.getItem(k); return v===null ? fb : JSON.parse(v); }
+    catch(e){ return fb; }
+  },
+  set: function(k, v){
+    try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){}
+  },
+  del: function(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+
+/* ============================================================
+   2. 七段式知识库：每一段 = 引导问题 + 常见错误 + 示例 + 字段
+   ============================================================ */
+var SECS = [
+{
+  id:'pain', no:'①', icon:'🩺', name:'痛点解读', en:'Why', catchField:'scene',
+  tagline:'不是复述需求，是把"难受"翻译成一个问题',
+  formula:'我在【场景】里，因为【原因】，导致【代价】；目前的凑合办法是【现状】。',
+  questions:[
+    '上一次你被这件事烦到，具体是在什么时间、什么地点、手上正在做什么？',
+    '这件事多久发生一次？是每天都在发生，还是每次到某个节点才冒出来？',
+    '你现在的"土办法"是什么？用备忘录、微信群、Excel，还是靠脑子硬记？',
+    '这个土办法每个月让你多花多少时间，或者让你实实在在损失过什么？',
+    '如果一年都不解决，最坏会坏到什么程度？说得出一个具体画面吗？',
+    '这件事里最让你难受的那 10 秒，是哪 10 秒？'
+  ],
+  mistakes:[
+    {t:'把需求复述当成痛点', w:'"我想要一个记账小工具"这句话里没有任何痛点——它没说你今天怎么记的、卡在哪一步、错在哪一次。'},
+    {t:'写成情绪而不是事实', w:'"太麻烦了""很烦"没有信息量。换成"每次都要把 30 条流水一条条粘进 Excel"，agent 才知道力气该花在哪。'},
+    {t:'写了痛，但没写代价', w:'没有代价就没有优先级。agent 不知道哪一段流程值得做重、哪一段可以糊弄过去。'}
+  ],
+  example:'我在【月底对账的晚上】里，因为【要打开三个银行 App、微信、支付宝，把流水一条条复制进 Excel 再手工分类】，导致【上个月花了两个多小时，还漏掉一笔 380 的退款，直到第二个月才发现】；目前的凑合办法是【导出 CSV 之后靠眼睛逐行看】。',
+  fields:[
+    {k:'scene', label:'场景：什么时候、在哪儿、手上在做什么', kind:'area', ph:'例：每个月月底的晚上，坐在电脑前，桌面同时开着三个银行网页和 Excel'},
+    {k:'reason', label:'原因：是什么在反复触发它', kind:'area', ph:'例：没有统一入口，每个平台的账单格式都不一样，只能人工搬'},
+    {k:'cost', label:'代价：你为它付出了什么（时间、钱、错误、情绪）', kind:'area', ph:'例：一次两小时；上个月漏了一笔 380 的退款'},
+    {k:'workaround', label:'现状：你现在用什么土办法凑合', kind:'area', ph:'例：导出 CSV 后靠眼睛逐行核对，凭印象打分类标签'}
+  ]
+},
+{
+  id:'goal', no:'②', icon:'🎯', name:'目标与非目标', en:'What / Not', catchField:'goals',
+  tagline:'说清这次做成什么，更要敢说这次不做什么',
+  questions:[
+    '做完之后你能做哪些现在做不了的事？请用"我可以……"开头写。',
+    '目标要能验收：一周之后，你怎么证明它达成了？',
+    '这次明确不做的是什么？先说三个"不做"，比说三个"要做"更能防跑偏。',
+    '哪些功能是"以后再说"而不是"这次不要"？挪进非目标，并写清为什么这次不做。',
+    '如果有人给你的工具提了个新功能，你打算用什么理由拒绝他？'
+  ],
+  mistakes:[
+    {t:'目标写成动作而不是结果', w:'"做一个记录页面"是动作；"每天 30 秒内记完一条，月底能导出分类汇总"是结果。'},
+    {t:'非目标写成一句废话', w:'"不做无关功能"等于没写。要具体到"不做账号、不做登录、不做云同步"。'},
+    {t:'目标超过 3 条', w:'超过 3 条通常说明你还没想清楚这次到底要解决哪一件事。'}
+  ],
+  example:'目标：① 月底 10 分钟内完成对账并导出分类结果；② 一笔流水从看到到记完不超过 3 个动作。\n非目标：不做自动登录银行抓取；不做多账本；不做预算提醒；不做多人共享。',
+  fields:[
+    {k:'goals', label:'这次要做成什么（1-3 条，每条都要能被验收）', kind:'area', ph:'① 我可以 ……\n② 我可以 ……'},
+    {k:'nongoals', label:'这次明确不做什么（越具体越好）', kind:'area', ph:'不做 ……\n不做 ……\n不做 ……'}
+  ]
+},
+{
+  id:'user', no:'③', icon:'👤', name:'用户与场景', en:'Who / When', catchField:'who',
+  tagline:'谁、在什么时刻、什么状态下用它——这决定界面长什么样',
+  questions:[
+    '谁用？只有你自己，还是要给别人用？那个人看得懂你的术语吗？',
+    '什么时刻用？坐在电脑前，还是在地铁上、睡前躺床上？',
+    '多久用一次？每天一次、每周一次，还是三个月才想起来一次？',
+    '单次停留多久？30 秒、3 分钟，还是半小时？',
+    '用什么设备？手机为主还是电脑为主？手机是单手还是双手？',
+    '用的时候是什么状态？赶时间、很累、旁边有人，还是心情不好？'
+  ],
+  mistakes:[
+    {t:'写"所有有这个需求的人"', w:'用户越模糊，界面就越中庸，最后谁都不好用。哪怕只写一个人，也比写一类人强。'},
+    {t:'忽略使用时刻和状态', w:'"睡前躺着用"和"上班摸鱼用"对界面密度、按钮大小、要不要键盘的要求是相反的。'},
+    {t:'忘了写频率', w:'一天用 5 次和一年用 5 次，决定了要不要做历史记录、搜索和统计功能。'}
+  ],
+  example:'只有我自己用；每月 1 号晚上，坐在电脑前，一次性录入上个整月的流水，单次约 20 分钟；电脑为主，需要键盘输入。',
+  fields:[
+    {k:'who', label:'谁在用（写具体的人，不要写"用户"）', kind:'area', ph:'例：只有我自己 / 我和我老婆 / 班里 40 个同学'},
+    {k:'when', label:'什么时刻用', kind:'line', ph:'例：每月 1 号晚上，坐在电脑前'},
+    {k:'freq', label:'多久用一次', kind:'line', ph:'例：每月 1 次 / 每天 5-8 次 / 一年两次'},
+    {k:'stay', label:'单次停留多久', kind:'line', ph:'例：20 分钟 / 30 秒'},
+    {k:'device', label:'用什么设备，单手还是双手', kind:'line', ph:'例：手机为主，站着单手操作'},
+    {k:'mood', label:'当时的身体和情绪状态', kind:'line', ph:'例：很累、赶时间、不想动脑'}
+  ]
+},
+{
+  id:'req', no:'④', icon:'🧱', name:'功能规格', en:'Requirements',
+  tagline:'拆成必须 / 应该有 / 可以有三档，每一条都要能验收',
+  req:true,
+  questions:[
+    '这条如果做不到，工具还有意义吗？没意义就是 M，能忍就是 S，有更好就是 C。',
+    '写完这一条，你能回答"做到了没有"吗？答不上来，它就不是一条规格。',
+    '验收断言怎么写：主语 + 动作 + 可观察的结果 + 数字。例："在手机上从打开到存下第 1 条记录，不超过 3 次点击。"',
+    '这一条有没有隐含的前置条件？需不需要拆成单独一条？',
+    '有没有哪一条其实是两条需求粘在一起？拆开。'
+  ],
+  mistakes:[
+    {t:'"体验要流畅"这类不可验收的话', w:'流畅是感觉，不是标准。改成"手机上单手 3 步内完成一次记录，页面切换无白屏"。'},
+    {t:'全都写 M，没有优先级', w:'全是必须等于没有必须。当时间和质量冲突时，agent 需要有东西可以砍。'},
+    {t:'有需求没有验收断言', w:'断言写不出来，通常说明这条需求本身还没想清楚。写"用户满意"这种话等于没写。'}
+  ],
+  example:'M 必须：能手动新增一条记录。\n验收：点「+」后，填写不超过 4 个字段即可保存；保存成功后列表第一条立刻显示这条新记录，不需要刷新。',
+  fields:[]
+},
+{
+  id:'ux', no:'⑤', icon:'🧭', name:'交互与形态', en:'How it feels', catchField:'flow',
+  tagline:'几步走完、有几个界面、出错和空着的时候长什么样',
+  questions:[
+    '从打开到完成核心动作，一共几步？能把步骤写出来吗？',
+    '一共有几个界面？每个界面上最重要的那个元素是什么？',
+    '第一次打开、还没有任何数据时，屏幕上是空的还是有一句引导？',
+    '填错了、网断了、保存失败了，分别发生什么？用户能看到什么、能做什么？',
+    '数据从哪来、存到哪去、什么时候会被删掉？',
+    '有哪些操作是不可逆的？需不需要二次确认？'
+  ],
+  mistakes:[
+    {t:'只写正常流程', w:'空状态、失败状态、边界状态加起来是一半的开发量。不写，agent 就会只做那条主干，一用就露馅。'},
+    {t:'界面数量含糊', w:'写"几个页面"agent 会自由发挥。要写"一共 3 个界面：列表页、编辑页、设置页"。'},
+    {t:'没写数据流向', w:'数据存浏览器还是服务器？刷新会不会丢？换设备怎么办？这三问不回答，后面全是坑。'}
+  ],
+  example:'主流程 3 步：打开 → 点「+」→ 填金额和分类保存。空状态显示一句示例和「记第一笔」按钮。保存失败时保留已填内容，提示"没存上，点这里重试"。',
+  fields:[
+    {k:'flow', label:'主流程：从打开到完成核心动作的步骤', kind:'area', ph:'① 打开 → ② 点 …… → ③ ……'},
+    {k:'screens', label:'一共几个界面，每个界面最重要的元素', kind:'area', ph:'例：2 个界面。主页只有今日进度和一个大按钮；记录页是列表'},
+    {k:'empty', label:'空状态：一条数据都没有时显示什么', kind:'area', ph:'例：显示一句示例文案和「记第一笔」按钮'},
+    {k:'fail', label:'边界与异常：填错了 / 断网了 / 保存失败了', kind:'area', ph:'例：保存失败时保留输入，并给出重试按钮'},
+    {k:'dataflow', label:'数据从哪来、存到哪去、什么时候删', kind:'area', ph:'例：手动输入，存浏览器 localStorage，用户点清空才删'},
+    {k:'irreversible', label:'哪些操作不可逆，怎么二次确认', kind:'area', ph:'例：清空全部记录需要输入次数确认'}
+  ]
+},
+{
+  id:'tech', no:'⑥', icon:'🔧', name:'技术约束', en:'Constraints', catchField:'stack',
+  tagline:'技术栈、部署、数据在哪、能不能联网——写死了才不会被随机发挥',
+  questions:[
+    '技术栈定死了吗？还是希望 agent 自己选（那就明确写"由你决定，但要说明理由"）？',
+    '部署到哪？本地跑、内网、还是公网域名？谁负责部署？',
+    '数据存在哪？浏览器 localStorage、SQLite，还是云数据库？要不要备份和导出？',
+    '需要联网吗？能调用外部 API 吗？有没有密钥、费用、被墙的风险？',
+    '有没有硬性性能指标？首屏多久、多少条数据以内不能卡？',
+    '要兼容哪些浏览器和设备？有没有必须支持的旧环境？',
+    '界面语言？只有中文还是中英双语？'
+  ],
+  mistakes:[
+    {t:'技术栈写"随便"', w:'agent 会随机选一个，然后你维护不了、也改不动。哪怕写"你来定，但必须是单文件 HTML"，也比"随便"强。'},
+    {t:'没写部署环境', w:'不说清楚在哪跑，交付的东西很可能在你机器上根本起不来。'},
+    {t:'忽略数据归属', w:'写完才想起"我的数据不能出本机"，就要推倒重来。'}
+  ],
+  example:'单文件 HTML + 原生 JS，无构建、无依赖；数据存浏览器 localStorage；不联网；桌面 Chrome / Edge 与 iOS Safari；界面中文。',
+  fields:[
+    {k:'stack', label:'技术栈（写死，或明确授权让 agent 决定）', kind:'area', ph:'例：单文件 HTML + 原生 JS，不引入框架和 CDN'},
+    {k:'deploy', label:'部署方式：在哪跑、谁来部署', kind:'area', ph:'例：本地双击打开 / 挂到已有 FastAPI 服务器'},
+    {k:'store', label:'数据存哪、怎么备份、怎么搬家', kind:'area', ph:'例：localStorage，支持导出 JSON'},
+    {k:'network', label:'是否联网、是否调用外部接口与费用', kind:'area', ph:'例：完全不联网；或需要后端存储，但不调用第三方 API'},
+    {k:'perf', label:'性能指标', kind:'area', ph:'例：首屏 200ms 内可用，1000 条记录以内不卡'},
+    {k:'compat', label:'兼容性：浏览器与设备', kind:'area', ph:'例：iOS Safari 16+，桌面 Chrome / Edge 最新版'},
+    {k:'lang', label:'界面语言', kind:'line', ph:'例：中文 / 中英双语'}
+  ]
+},
+{
+  id:'done', no:'⑦', icon:'✅', name:'验收标准与交付物', en:'Done', catchField:'criteria',
+  tagline:'什么算做完、怎么验证、交付什么、分几步',
+  questions:[
+    '什么算"做完了"？写成一条条能当场演示的检查项。',
+    '你会怎么验证？自己点一遍，还是拿 10 条真实数据跑一遍？',
+    '交付哪些文件？放在哪个目录？叫什么名字？',
+    '分几步交付？每一步交付什么、你需要在这一步之后确认什么？',
+    '如果只做完一半，你希望先拿到哪一半？',
+    '交付前 agent 需要自己做哪些检查（能不能跑起来、有没有报错）？'
+  ],
+  mistakes:[
+    {t:'没有验收标准', w:'于是"做完了"变成 agent 说了算。你只能凭感觉说"好像还差点"，然后开始无限返工。'},
+    {t:'一次性交付一大坨', w:'中间没有可确认的节点，等发现跑偏时已经写完一半了。'},
+    {t:'没写交付物清单', w:'最后拿到一堆文件，不知道该打开哪一个、哪个是入口。'}
+  ],
+  example:'分 2 步。第 1 步交付一个能跑通的单文件 HTML，支持新增 / 删除 / 刷新不丢；第 2 步再加分类统计和导出。\n验收：用上个月真实的 30 条流水走一遍，10 分钟内导出一份分类汇总。',
+  fields:[
+    {k:'criteria', label:'验收标准（一条一行，每条都要能当场演示）', kind:'area', ph:'① 在手机上扫码能填进去，电脑上能看到这条\n② 两个人同时提交不会互相覆盖'},
+    {k:'verify', label:'怎么验证（用真实数据走一遍的过程）', kind:'area', ph:'例：拿上个月真实的 30 条流水走一遍，核对总数和 Excel 一致'},
+    {k:'files', label:'交付物清单（文件名 + 放在哪）', kind:'area', ph:'例：templates/xxx.html + xxx.py（FastAPI 路由）'},
+    {k:'rhythm', label:'交付节奏（分几步、每步交付什么）', kind:'area', ph:'例：分 2 步。第 1 步先给能记录的版本，我确认后再加导出'}
+  ]
+}
+];
+
+var LEVELS = [
+  { k:'M', name:'必须', hint:'做不到这个工具就没意义' },
+  { k:'S', name:'应该有', hint:'没有会难受，但能忍' },
+  { k:'C', name:'可以有', hint:'有更好，没有也不影响' }
+];
+
+/* ============================================================
+   3. 模板库：8 类常见小工具，每类给七段"写法提示"
+   ============================================================ */
+var TEMPLATES = [
+{
+  id:'rec', icon:'📌', name:'记录打卡类', desc:'每天或每次随手记一条，核心矛盾是"记的那一下要足够快"。',
+  hints:{
+    pain:'写清楚"记的那一下"发生在什么场景：是刚做完某件事的 5 秒内，还是晚上回头补记？补记的比例越高，痛点越真。',
+    goal:'目标里必须有速度指标（"3 秒记完一条"）和回看指标（"月底能导出"）。非目标先砍掉账号、社交、提醒推送。',
+    user:'重点写频率和单次停留。一天记 5 次和一周记 1 次，界面完全是两个东西。',
+    req:'M 档至少两条：一条管"记"，一条管"存不丢"。验收断言里必须出现秒数或点击数。',
+    ux:'记录类的主流程越短越好，最好只有一个界面、一个主按钮。空状态要写清楚"一条都没有的时候屏幕长什么样"。',
+    tech:'记录类最怕丢数据。明确写清存在哪、刷新会不会丢、换设备怎么搬。',
+    done:'验收要用"真实地用一天"来验证，而不是点一遍看有没有报错。'
+  }
+},
+{
+  id:'train', icon:'🏋️', name:'训练练习类', desc:'打开就知道今天练什么，并且能看见自己坚持过的痕迹。',
+  hints:{
+    pain:'写清"打不开、不知道练什么、练完没痕迹"这三件事里，哪一件最致命。',
+    goal:'目标要包含"零决策成本"（打开就有内容）和"连续性"（能连续用 N 天）。',
+    user:'写清使用时刻的状态——是精力充沛还是正在拖延？这决定界面要多"逼"你一把。',
+    req:'把"今天练什么"的生成规则写死（按日期轮换？按进度？随机？），否则 agent 会自己编一套。',
+    ux:'训练类通常只有两个界面：今天做什么、我练过什么。别做成课程 App。',
+    tech:'题库放哪、要不要调用 AI、题目会不会变，必须写死。',
+    done:'验收用"连续用 3 天 / 7 天"来验，比当天点一遍有用得多。'
+  }
+},
+{
+  id:'calc', icon:'🧮', name:'查询计算类', desc:'输入 → 计算 → 出结果，核心是输入够省事、结果够明确。',
+  hints:{
+    pain:'说清现在是怎么算的：心算？Excel 公式？问别人？上一次算错是什么情况？',
+    goal:'目标要写清"输入什么、输出什么、结果能不能直接拿去用"。',
+    user:'重点写"输入"从哪来：手打、粘贴，还是从别处导入？这一条决定一半的开发量。',
+    req:'计算规则必须写成可复现的条目，并覆盖边界：除零、空值、极大极小值。',
+    ux:'查询类的空状态和"输入错了"状态，比正常状态更重要——用户打了错东西一定要看得懂。',
+    tech:'精度、单位、四舍五入规则要明确写出来。',
+    done:'验收要准备 3 组已知答案的输入，跑出来和你手算的一致才算过。'
+  }
+},
+{
+  id:'gen', icon:'✍️', name:'内容生成类', desc:'一点原料进去，一段能用的文字或图片出来，核心是输出的质量下限。',
+  hints:{
+    pain:'写清现在是怎么憋出来的：从零写、抄模板，还是反复改到满意？',
+    goal:'目标要写"输出能直接用的比例"，以及"我平均要改几遍才算能用"。',
+    user:'写清生成结果用在哪（发朋友圈？交作业？发给客户？），场合决定语气和长度。',
+    req:'把输出的结构写死：几段、每段说什么、字数范围。别只说"生成一篇文章"。',
+    ux:'生成中、生成失败、结果不满意，这三种状态都要写，尤其是"重来一次"的入口。',
+    tech:'用哪个模型、要不要密钥、有没有费用、断网能不能用，必须写清。',
+    done:'验收用 3 条真实输入跑一遍，人工判断"能不能直接用"。'
+  }
+},
+{
+  id:'conv', icon:'🔀', name:'转换整理类', desc:'一种格式进、另一种格式出，核心是别丢信息。',
+  hints:{
+    pain:'写清现在手工转换一次要多久，最容易在哪一步出错。',
+    goal:'目标写成"输入 X 能得到 Y"，并明确哪些信息允许丢、哪些一个字都不能丢。',
+    user:'写清输入的长相：从哪复制来的、有没有杂乱格式、一次要处理多少条。',
+    req:'必须包含"异常输入怎么办"（空行、缺列、格式不对），否则第一次遇到脏数据就崩。',
+    ux:'转换类适合做成"左边贴、右边出"，一次操作完成，结果能直接复制。',
+    tech:'编码、换行符、特殊字符（逗号、引号、emoji）怎么处理，写明。',
+    done:'验收用一份真实的、带脏数据的样本跑一遍，逐条核对没丢东西。'
+  }
+},
+{
+  id:'dash', icon:'📊', name:'数据看板类', desc:'一堆数据变成一眼能看懂的图和数，核心是回答哪一个问题。',
+  hints:{
+    pain:'写清你现在"想看却看不出来"的那个问题是什么，比如"这个月的钱到底花哪了"。',
+    goal:'目标写成"我要在一屏里回答这三个问题"，而不是"做一个图表页面"。',
+    user:'写清是每天扫一眼，还是月底坐下来深看。这决定默认时间范围和图的数量。',
+    req:'每个图表都要写明"画什么、按什么分组、数据从哪来"，否则 agent 会随便画几个。',
+    ux:'数据为空、只有一条数据、数据特别多，这三种情况都要写。',
+    tech:'图表库要不要引 CDN、断网怎么办、数据量上限多少，写明。',
+    done:'验收用真实数据跑，检查"数字和 Excel 里算出来的一致"。'
+  }
+},
+{
+  id:'collect', icon:'📮', name:'信息收集类', desc:'多人往一个地方填，核心是填的人省事、收的人清楚。',
+  hints:{
+    pain:'写清现在大家在哪填、你怎么汇总、上一次出错是什么时候。',
+    goal:'目标要分两个视角写：填的人几步填完，收的人怎么拿到一份干净名单。',
+    user:'两类人都要写：填表人（几乎全在手机上、随手点开）和收集者（多半在电脑前）。',
+    req:'必填两条："重复提交怎么办""能不能修改自己的提交"。这两条不写，名单一定是脏的。',
+    ux:'填表页字段越少越好，每个字段都要能说清"为什么非得收集它"。',
+    tech:'多人共享意味着必须有服务端存储。把存储方案和部署方式写死。',
+    done:'验收必须找真人当小白鼠填一遍，尤其是用手机微信打开。'
+  }
+},
+{
+  id:'list', icon:'⚖️', name:'清单决策类', desc:'一堆选项摆在眼前，帮你按一致的标准选出一个。',
+  hints:{
+    pain:'写清你现在纠结的是什么、纠结多久了、上一次选错是因为漏看了什么。',
+    goal:'目标写成"输入 N 个选项和我的标准，输出一个排序或推荐"。',
+    user:'写清是"当场就要决定"还是"慢慢比"，这两者的界面差别极大。',
+    req:'评价标准要能打分（1-5 还是高/中/低），并且写清"哪个标准更重要"。',
+    ux:'决策类的结果页必须说清"为什么推荐它"，否则你不会信这个结果。',
+    tech:'是否保存历史决策、要不要多设备同步，写明。',
+    done:'验收用你真实纠结过的 3 个决定跑一遍，看推荐结果和你事后的判断是否一致。'
+  }
+}
+];
+
+/* ============================================================
+   4. 三份完整示范：粗糙需求 -> 七段规格 -> 最终提示词
+   ============================================================ */
+var DEMOS = [
+{
+  id:'d1', icon:'💧', kind:'记录打卡类', title:'喝水打卡',
+  raw:'我想做个每天喝水打卡的小工具，老是忘记喝水，一天下来才发现才喝了两杯。',
+  fill:{
+    pain:{
+      scene:'工作日的下午，坐在工位上连续写代码或开会，经常一坐就是三四个小时',
+      reason:'手边没有水杯，也没有任何东西提醒我，注意力全在屏幕上，渴的感觉被盖过去了',
+      cost:'每天实际只喝两三杯水，下午经常头昏、嘴干，晚上回家又猛灌，体检报告里尿酸偏高',
+      workaround:'全靠感觉，偶尔想起来才去接一杯；手机自带的喝水提醒嫌吵，用了两天就关了'
+    },
+    goal:{
+      goals:'① 一天里我能在任意时刻用 3 秒记下"喝了多少"，不需要思考\n② 每天结束能一眼看到今天喝了几杯、离目标还差多少',
+      nongoals:'不做账号和云同步\n不做社交排行\n不做推送提醒（这次先不碰通知权限）\n不做饮水种类和容量的细分'
+    },
+    user:{
+      who:'只有我自己用',
+      when:'坐在工位上，或者刚接完水回到座位的那一下',
+      freq:'每天 5-8 次',
+      stay:'每次不超过 5 秒',
+      device:'手机为主（手机就在手边），偶尔顺手用电脑',
+      mood:'正在专注做事，非常不想被打断'
+    },
+    req:[
+      { lvl:'M', text:'点一下就能 +1 杯', assert:'在手机主屏打开页面后，单击一次按钮即可 +1，无需选择杯型和容量，全程不超过 3 秒' },
+      { lvl:'M', text:'数据本地保存，刷新和关掉浏览器都不丢', assert:'记录 3 条后刷新页面，3 条记录仍在，今日杯数不变；关掉浏览器重开同样还在' },
+      { lvl:'S', text:'能看到今日进度条', assert:'进度条宽度等于 今日杯数除以目标杯数，达到目标时变换颜色并显示"达标"' },
+      { lvl:'C', text:'能修改今日目标杯数', assert:'设置里可把目标改成 1-20 之间任意整数，改完进度条立刻按新目标重算' }
+    ],
+    ux:{
+      flow:'① 打开页面 → ② 点中间的大按钮 +1 杯 → ③ 顶部数字和进度条立刻变化。全程没有二级页面',
+      screens:'只有 1 个界面：顶部是今日进度和数字，中间是一个占屏幕宽度 80% 的大按钮，底部一行小字链接到历史',
+      empty:'当天还没记录时，显示"今天还没喝呢"和 0/8，大按钮下方一行小字"点一下记一杯"',
+      fail:'浏览器存不了数据时（隐私模式），顶部显示黄色提示条"这台设备存不了数据，关掉页面记录会丢"，功能仍然可用',
+      dataflow:'全部存在本机浏览器 localStorage，不上传任何数据；提供"导出 JSON"用于换设备',
+      irreversible:'「清空今天」需要二次确认；「清空全部历史」需要输入"清空"两个字才能确认'
+    },
+    tech:{
+      stack:'单文件 HTML + 原生 JS，不用框架、不用构建、不引 CDN',
+      deploy:'本地双击打开即可用，也可以直接放进内网静态目录',
+      store:'浏览器 localStorage，键名前缀 water_；提供导出 JSON 按钮',
+      network:'完全不联网，断网可用',
+      perf:'首屏 200ms 内可交互；5000 条历史以内列表不卡',
+      compat:'iOS Safari 16+，桌面 Chrome / Edge 最新版',
+      lang:'界面中文'
+    },
+    done:{
+      criteria:'① 手机上打开后 3 秒内能完成一次记录\n② 刷新和关掉浏览器再打开，今日杯数不丢\n③ 历史列表能翻到上个月任意一天的记录',
+      verify:'拿真实的一天走一遍：上午下午各记 3 次，中途刷新 2 次，晚上核对总数是不是 6',
+      files:'单个文件 water.html，放在仓库 tools/ 目录下',
+      rhythm:'1 步交付。先给能记录 + 能持久化的版本，我确认之后再谈导出和历史统计'
+    }
+  }
+},
+{
+  id:'d2', icon:'🗣️', kind:'训练练习类', title:'英语口语每日一练',
+  raw:'我想练英语口语，但每次都不知道今天该练啥，打开 App 又不知道点哪里，想做个工具帮我安排。',
+  fill:{
+    pain:{
+      scene:'晚上九点，坐在书桌前，打开手机准备练口语',
+      reason:'不知道该说什么话题，也没有固定题库，每次都要先花十分钟想"练什么"，想着想着就开始刷别的了',
+      cost:'连续三周没练；去年花 1200 报的口语课下个月就过期了，一堂没去',
+      workaround:'在 B 站搜"英语口语跟读"，跟着视频念两句就关了；把喜欢的句子截图存进相册，从来不回看'
+    },
+    goal:{
+      goals:'① 打开就有一个今天的题目，完全不需要我自己想练什么\n② 每次至少开口 60 秒，并留下一条能回看的记录',
+      nongoals:'不做语音识别和打分\n不做社交、排行和打卡分享\n不做课程体系和语法讲解\n不做多语言'
+    },
+    user:{
+      who:'只有我自己',
+      when:'晚上 21:00-22:00，在书桌前，戴着耳机',
+      freq:'每天 1 次，每次 10-15 分钟',
+      stay:'10-15 分钟',
+      device:'电脑为主（浏览器打开，用耳机录音），偶尔睡前用手机看一眼记录',
+      mood:'有点拖延，需要被推一把；状态一般，不想读长文'
+    },
+    req:[
+      { lvl:'M', text:'打开页面立刻呈现今天的题目', assert:'打开后 1 秒内显示一条题目，不需要任何点击；同一天内刷新，题目保持不变' },
+      { lvl:'M', text:'能记录本次是否完成，以及一句感受', assert:'点「练完了」后出现输入框，输入不少于 4 个字即可保存；保存后今日状态变成已完成' },
+      { lvl:'S', text:'能回看过去 30 天的练习记录', assert:'列表按日期倒序显示最近 30 条，每条能看到当天的题目和那句感受' },
+      { lvl:'C', text:'能手动换一道题', assert:'点「换一题」立即换成题库里的另一道题，同一天换题不超过 3 次' }
+    ],
+    ux:{
+      flow:'① 打开 → ② 看到今天的题目 → ③ 自己对着耳机练 10 分钟（工具不介入）→ ④ 点「练完了」写一句话',
+      screens:'一共 2 个界面。主页只有今日题目、一个"换一题"小链接和一个"练完了"大按钮；记录页是日期列表',
+      empty:'第一次打开时，主页显示"题库里有 60 道题，够你练两个月"和今天的题目',
+      fail:'题库读不出来时，显示一条兜底题目并提示"今天的题库没读到，先练这道"；保存失败时保留输入并给重试按钮',
+      dataflow:'题库内置在代码里；记录存 localStorage；提供导出 JSON 用于换设备',
+      irreversible:'「清空全部记录」需要二次确认，并显示将删除多少条'
+    },
+    tech:{
+      stack:'单文件 HTML + 原生 JS，60 道题库以数组形式内联在文件里',
+      deploy:'本地双击打开，或挂到内网静态目录',
+      store:'localStorage，键名前缀 speak_',
+      network:'不联网；不调用任何 AI 接口，题目是固定的',
+      perf:'打开即用，没有加载态',
+      compat:'桌面 Chrome / Edge 为主；手机 Safari 只需能正常看记录',
+      lang:'界面中文，题目英文'
+    },
+    done:{
+      criteria:'① 晚上打开到看到题目不超过 3 秒，且不需要做任何选择\n② 连续 7 天都能留下一条记录\n③ 能翻到 30 天前那天的题目',
+      verify:'连续用 3 天；第 3 天检查列表里是否有 3 条记录、题目是否每天不同、刷新后当天题目是否不变',
+      files:'单文件 speak.html',
+      rhythm:'1 步交付，先给我"能出题 + 能记录"的版本；连续天数和统计之后再说'
+    }
+  }
+},
+{
+  id:'d3', icon:'📮', kind:'信息收集类', title:'社团活动报名收集',
+  raw:'每次办活动都要在群里喊大家报名，消息刷得飞快，最后还得我自己一条条数，太麻烦了。',
+  fill:{
+    pain:{
+      scene:'每次社团活动发通知之后的两个小时里，在微信群里不停往上翻消息',
+      reason:'大家用各种格式回复（"我+1""算我一个""能带个朋友吗"），没有统一入口，也没有截止时间',
+      cost:'上次数漏了两个人，到了现场没座位；每次统计要花 40 分钟，还要反复在群里确认谁改了主意',
+      workaround:'用群接龙加手工抄进 Excel；有人改主意之后，Excel 和接龙就对不上了'
+    },
+    goal:{
+      goals:'① 参与者自己填一次表，我不再手工抄任何东西\n② 活动前一天，我能导出确定名单：姓名 + 联系方式 + 备注',
+      nongoals:'不做账号系统，参与者不注册不登录\n不做报名审核流程\n不做收款和支付\n不做往期活动的归档'
+    },
+    user:{
+      who:'两类人：我（组织者，建表、导名单）和同学（参与者，扫码填表）',
+      when:'我：活动前一周建表，前一天晚上导名单；同学：看到群消息后随手点开',
+      freq:'每月 1-2 次活动',
+      stay:'我 3-5 分钟；同学 30 秒以内',
+      device:'同学几乎全在手机上（微信里点开链接）；我用电脑导名单',
+      mood:'同学在群里随手点开、没什么耐心；我在前一天晚上着急要名单'
+    },
+    req:[
+      { lvl:'M', text:'能生成一个填表链接和二维码', assert:'建表后页面直接显示可复制的链接和对应二维码；任何人用手机点开即可填，不需要登录' },
+      { lvl:'M', text:'同一人重复打开时能修改自己的提交，不产生第二条', assert:'同一设备再次打开链接看到"你已经报过了"，可选择修改；修改后名单里是修改后的内容，总条数不变' },
+      { lvl:'M', text:'我能把名单导出成表格', assert:'点「导出」下载 CSV，用 Excel 打开中文不乱码，列包含姓名、联系方式、备注、提交时间' },
+      { lvl:'S', text:'能看到当前已报名人数', assert:'名单页顶部显示实时人数，每新增一条后 60 秒内自动更新' },
+      { lvl:'C', text:'能设置报名截止时间', assert:'设置截止时间后，超时再打开链接显示"报名已截止"，且不再接受提交' }
+    ],
+    ux:{
+      flow:'我：① 打开 → ② 填活动名称和要收集的字段 → ③ 生成链接和二维码 → ④ 发到群里 → ⑤ 导名单。同学：① 点链接 → ② 填 3 个字段 → ③ 提交成功',
+      screens:'一共 3 个界面：建表页、填表页、名单页（含导出按钮）',
+      empty:'名单页还没有人报名时，显示"还没有人报名，把上面的二维码发到群里吧"',
+      fail:'提交失败（网络中断）时保留已填内容并显示"没提交上，点这里重试"；重复提交给出明确提示而不是静默失败',
+      dataflow:'数据需要多人共享，所以不能只存浏览器——存服务端 SQLite；导出 CSV 是唯一的离线备份方式',
+      irreversible:'「清空全部报名」必须二次确认；删除单条报名后提供 10 秒内撤销'
+    },
+    tech:{
+      stack:'前端单文件 HTML；后端一个 FastAPI 路由文件，含 SQLite 读写',
+      deploy:'部署在我自己已有的服务器上（已有 FastAPI + uvicorn 环境），通过一个固定域名访问',
+      store:'服务端 SQLite 单文件数据库，不用任何云服务；每次导出 CSV 作为备份',
+      network:'需要联网（多人协作）；不调用任何第三方 API，不依赖外部 CDN',
+      perf:'填表页在手机 4G 下 2 秒内可交互；1000 条报名以内列表不卡',
+      compat:'手机微信内置浏览器（iOS / Android）+ 桌面 Chrome',
+      lang:'界面中文'
+    },
+    done:{
+      criteria:'① 我用手机扫码能填进去，用电脑立刻能看到这条记录\n② 两个人同时提交不会互相覆盖\n③ 导出的 CSV 用 Excel 打开中文正常、列不串位',
+      verify:'找 3 个同事当小白鼠：各自用手机填一次，其中一人再修改一次，最后核对名单是 3 条且内容正确',
+      files:'templates/enroll.html（建表 + 填表 + 名单在同一页面按角色切换）和 enroll.py（FastAPI 路由，含 SQLite 读写）',
+      rhythm:'分 2 步。第 1 步先做"能建表 + 能填 + 能看到名单"，我确认字段和信息结构；第 2 步再加 CSV 导出和截止时间'
+    }
+  }
+}
+];
+
+/* ============================================================
+   5. 智能起步：关键词规则（纯本地，不联网）
+   ============================================================ */
+var KW = {
+  pain:['烦','麻烦','难受','痛','头疼','总是','老是','每次','经常','记不住','忘记','漏掉','出错','出错','费时','花时间','手工','土办法','凑合','受不了','受够','效率低','问题是','导致','因为','结果','浪费时间','翻半天','一条条'],
+  goal:['想做','想做个','希望','目标','目的是','为了','做成','实现','能够','要能','支持','最好','至少要','重点是','核心是','主要解决'],
+  user:['我自己','自己用','同事','同学','家人','老婆','老公','孩子','爸妈','朋友','用户','每天','每周','每月','早上','中午','晚上','睡前','上班','通勤','地铁','公交','躺在床上','手机','电脑','平板','电脑前','单手','赶时间','随手'],
+  req:['必须','一定要','核心','自动','一键','点击','导出','导入','保存','删除','搜索','排序','统计','提醒','分类','标签','上传','下载','生成','同步','备注','筛选','批量'],
+  ux:['界面','页面','首页','列表','按钮','弹窗','提示','流程','步骤','打开','跳转','空状态','异常','失败','报错','刷新','返回','扫码','二维码'],
+  tech:['技术','框架','语言','Python','JavaScript','TypeScript','HTML','CSS','Vue','React','Flask','FastAPI','部署','服务器','数据库','SQLite','localStorage','浏览器','联网','接口','API','密钥','离线','依赖','性能','兼容','插件','小程序','打包'],
+  done:['验收','算做完','做完','完成标准','交付','上线','测试','验证','标准','里程碑','分步','分两步','分三步','分几步','第一步','先做','先给','文件','交付物','跑通','可运行'],
+  nongoal:['不做','不需要','不用','不考虑','先不','暂不','别做','不要','无需','无关','以后再说','暂时']
+};
+var FIELD_KW = {
+  goal:[ {k:'goals', kw:['要做成','目标','想实现','希望能做到']},
+         {k:'nongoals', kw:['不做','不需要','不用','先不','暂不','不要','无需','无关']} ],
+  pain:[ {k:'scene', kw:['场景','时候','每次','每次要','坐在','打开','睡前','上班','下班','月底','周末','早上','晚上']},
+         {k:'reason', kw:['因为','原因是','没有','找不到','不清楚','都是','各自','靠自己']},
+         {k:'cost', kw:['花了','浪费','漏','错','损失','两个小时','分钟','返工','挨骂','耽误']},
+         {k:'workaround', kw:['现在','目前','土办法','凑合','靠','用Excel','用表格','备忘录','微信群','手工']} ],
+  user:[ {k:'who', kw:['我自己','自己用','同事','同学','家人','用户','给别','给别人']},
+         {k:'when', kw:['早上','中午','晚上','睡前','上班','通勤','地铁','周末','月底','时候']},
+         {k:'freq', kw:['每天','每周','每月','一天','一次','经常','偶尔']},
+         {k:'stay', kw:['秒','分钟','小时','停留','一次多久']},
+         {k:'device', kw:['手机','电脑','平板','笔记本','单手','双手','扫码']},
+         {k:'mood', kw:['累','赶时间','着急','躺','困','心情','不想动脑','随便']} ],
+  ux:[ {k:'flow', kw:['步骤','流程','几步','先点','然后','打开之后']},
+       {k:'screens', kw:['界面','页面','首页','列表页','一共几个']},
+       {k:'empty', kw:['空','还没','一开始','第一条']},
+       {k:'fail', kw:['失败','报错','错误','异常','断网','没存上','重试']},
+       {k:'dataflow', kw:['数据','存到','存在','导出','备份','换设备']},
+       {k:'irreversible', kw:['删除','清空','不可逆','二次确认','撤销']} ],
+  tech:[ {k:'stack', kw:['技术','框架','语言','单文件','不用框架','原生','HTML','Python','JavaScript','Vue','React','依赖']},
+         {k:'deploy', kw:['部署','服务器','上线','本地','内网','域名','双击']},
+         {k:'store', kw:['localStorage','数据库','SQLite','存储','数据存','保存数据']},
+         {k:'network', kw:['联网','接口','API','密钥','离线','断网','CDN']},
+         {k:'perf', kw:['性能','首屏','毫秒','条以内','不卡','加载']},
+         {k:'compat', kw:['浏览器','兼容','iOS','安卓','Android','Chrome','Safari','微信']},
+         {k:'lang', kw:['中文','英文','双语','界面语言']} ],
+  done:[ {k:'criteria', kw:['验收','算做完','做完','标准','做到这些']},
+         {k:'verify', kw:['验证','测试','走一遍','跑一遍','试一遍']},
+         {k:'files', kw:['交付物','文件','目录','.html','.py','.md','放哪','叫什么']},
+         {k:'rhythm', kw:['分步','分几步','分两步','分三步','第一步','先给','先做','节奏','里程碑']} ]
+};
+function pickField(secId, clause){
+  var rules = FIELD_KW[secId];
+  if(!rules) return null;
+  var best = null, bestN = 0;
+  rules.forEach(function(r){
+    var n = 0;
+    r.kw.forEach(function(k){ if(clause.indexOf(k) >= 0) n++; });
+    if(n > bestN){ bestN = n; best = r.k; }
+  });
+  return best;
+}
+var LEVEL_KW = {
+  M:['必须','一定要','务必','核心','不能少','最少','至少'],
+  S:['应该','最好','希望能','尽量','比较重要','挺重要'],
+  C:['可以','顺便','如果方便','锦上添花','有更好','可选','也可以']
+};
+
+/* ============================================================
+   6. 状态
+   ============================================================ */
+var OPT_DEFAULT = { audience:'generic', detail:'std', checklist:true, stepwise:false, restate:false };
+var AUDIENCES = [
+  { k:'generic', name:'通用', desc:'任何能读写文件的 agent' },
+  { k:'claude',  name:'Claude Code', desc:'强调先读仓库、改动最小、自己跑检查' },
+  { k:'cursor',  name:'Cursor', desc:'强调最小 diff、分块修改' },
+  { k:'codex',   name:'Codex 类', desc:'强调自己执行命令验证' },
+  { k:'cn',      name:'国内 agent', desc:'强调中文回复、中文注释、不引额外依赖' }
+];
+var AUDIENCE_TAIL = {
+  generic:'请按上面的规格实现。过程中如果发现规格里有矛盾、或者有没说清楚的地方，先停下来问我，不要自己补。',
+  claude:'你在我的代码仓库里工作。动手前先读一遍相关文件再改，改动保持最小；改完请运行项目已有的检查命令（或者至少确认入口能正常打开），并把你改了哪些文件列给我。',
+  cursor:'请在编辑器里以最小 diff 的方式逐步修改，不要整文件重写；每改完一块简单说明一下为什么这么改。',
+  codex:'你可以直接执行命令来验证。改完之后请自己跑一遍关键路径（能启动、能打开页面、控制台没有报错），再把实际结果告诉我。',
+  cn:'请用中文回复，代码注释也用中文。动手前先复述一遍你的理解，不要引入我没要求的第三方依赖。'
+};
+
+var state = { tab:'work', mode:'form', draft:null, opt:null, records:[], smart:null };
+
+function blankDraft(){
+  var s = {};
+  SECS.forEach(function(sec){
+    if(sec.req){ s[sec.id] = { items:[] }; return; }
+    var o = {};
+    sec.fields.forEach(function(f){ o[f.k] = ''; });
+    s[sec.id] = o;
+  });
+  return { title:'', raw:'', tpl:'', hints:{}, s:s, open:{}, at:nowStr() };
+}
+function secById(id){
+  for(var i=0;i<SECS.length;i++){ if(SECS[i].id===id) return SECS[i]; }
+  return null;
+}
+function secFilled(d, id){
+  var sec = secById(id);
+  if(id==='req'){
+    return (d.s.req.items||[]).some(function(it){ return nonEmpty(it.text) || nonEmpty(it.assert); });
+  }
+  return sec.fields.some(function(f){ return nonEmpty(d.s[id][f.k]); });
+}
+function secEmpty(d, id){ return !secFilled(d, id); }
+function cut(s, n){
+  s = String(s==null?'':s);
+  return s.length > (n||18) ? s.slice(0, n||18) + '…' : s;
+}
+
+/* ============================================================
+   7. 智能起步：把一段大白话按关键词粗分到七段
+   ============================================================ */
+function splitClauses(text){
+  var raw = String(text==null?'':text).replace(/\r/g,'');
+  var parts = raw.split(/[\n。；;！!？?]/);
+  var out = [];
+  parts.forEach(function(p){
+    p = p.replace(/^\s+|\s+$/g,'');
+    if(!p) return;
+    if(p.length > 56){
+      p.split(/[，,]/).forEach(function(q){
+        q = q.replace(/^\s+|\s+$/g,'');
+        if(q.length > 3) out.push(q);
+      });
+    } else if(p.length > 3){ out.push(p); }
+  });
+  return out;
+}
+function scoreClause(secId, c){
+  var kws = KW[secId] || [], n = 0;
+  kws.forEach(function(k){ if(c.indexOf(k) >= 0) n++; });
+  return n;
+}
+function guessLevel(c){
+  var i, arr;
+  for(var lv in LEVEL_KW){
+    arr = LEVEL_KW[lv];
+    for(i=0;i<arr.length;i++){ if(c.indexOf(arr[i]) >= 0) return lv; }
+  }
+  return 'M';
+}
+function smartStart(text){
+  var clauses = splitClauses(text);
+  var assign = {}, unmatched = [];
+  SECS.forEach(function(s){ assign[s.id] = []; });
+  clauses.forEach(function(c){
+    var neg = scoreClause('nongoal', c);
+    var best = null, bestN = 0;
+    SECS.forEach(function(s){
+      if(s.id === 'goal') return;
+      var n = scoreClause(s.id, c);
+      if(n > bestN){ bestN = n; best = s.id; }
+    });
+    if(neg > 0 && (best === null || neg >= bestN)){ assign.goal.push({ c:c, neg:true }); return; }
+    if(best === null || bestN === 0){ unmatched.push(c); return; }
+    assign[best].push({ c:c, neg:false });
+  });
+  return { text:text, assign:assign, unmatched:unmatched };
+}
+function applySmart(){
+  var sm = state.smart;
+  if(!sm) return;
+  var d = state.draft;
+  var hit = 0;
+  SECS.forEach(function(sec){
+    var arr = sm.assign[sec.id] || [];
+    if(!arr.length) return;
+    hit += arr.length;
+    if(sec.id === 'req'){
+      arr.forEach(function(x){
+        var lv = guessLevel(x.c);
+        d.s.req.items.push({ lvl:lv, text:x.c, assert:'' });
+      });
+      return;
+    }
+    if(sec.id === 'goal'){
+      var g = [], ng = [];
+      arr.forEach(function(x){ (x.neg ? ng : g).push(x.c); });
+      if(g.length){
+        d.s.goal.goals = (d.s.goal.goals ? d.s.goal.goals + '\n' : '') + g.join('\n');
+      }
+      if(ng.length){
+        d.s.goal.nongoals = (d.s.goal.nongoals ? d.s.goal.nongoals + '\n' : '') + ng.join('\n');
+      }
+      return;
+    }
+    var byField = {};
+    arr.forEach(function(x){
+      var key = pickField(sec.id, x.c) || sec.catchField;
+      byField[key] = byField[key] || [];
+      byField[key].push(x.c);
+    });
+    Object.keys(byField).forEach(function(key){
+      var old = d.s[sec.id][key] || '';
+      d.s[sec.id][key] = (old ? old + '\n' : '') + byField[key].join('\n');
+    });
+    d.open[sec.id] = true;
+  });
+  if(!nonEmpty(d.title) && nonEmpty(sm.text)){
+    d.title = cut(sm.text.replace(/[\n。；;！!？?]/g,' ').replace(/^\s+|\s+$/g,''), 16);
+  }
+  saveDraft();
+  state.smart = { text:sm.text, assign:sm.assign, unmatched:sm.unmatched, done:true, hit:hit };
+  return hit;
+}
+function sendTo(secId, idx){
+  var sm = state.smart;
+  if(!sm) return;
+  var c = sm.unmatched[idx];
+  if(c == null) return;
+  sm.unmatched.splice(idx, 1);
+  var d = state.draft;
+  if(secId === 'req'){
+    d.s.req.items.push({ lvl:'M', text:c, assert:'' });
+  } else if(secId === 'goal'){
+    d.s.goal.nongoals = (d.s.goal.nongoals ? d.s.goal.nongoals + '\n' : '') + c;
+  } else {
+    var sec = secById(secId);
+    var key2 = pickField(secId, c) || sec.catchField;
+    var old = d.s[secId][key2];
+    d.s[secId][key2] = (old ? old + '\n' : '') + c;
+  }
+  d.open[secId] = true;
+  saveDraft();
+  renderWork();
+}
+
+/* ============================================================
+   8. 编译器：七段 -> 提示词 / 规格说明 / 验收清单
+   ============================================================ */
+function painSentence(d){
+  var p = d.s.pain;
+  var a = nonEmpty(p.scene) ? p.scene.split('\n')[0] : '';
+  var b = nonEmpty(p.reason) ? p.reason.split('\n')[0] : '';
+  var c = nonEmpty(p.cost) ? p.cost.split('\n')[0] : '';
+  var e = nonEmpty(p.workaround) ? p.workaround.split('\n')[0] : '';
+  if(!a && !b && !c && !e) return '';
+  return '我在【'+(a||'待补充')+'】里，因为【'+(b||'待补充')+'】，导致【'+(c||'待补充')+'】；目前的凑合办法是【'+(e||'待补充')+'】。';
+}
+function detailOf(opt){ return opt.detail || 'std'; }
+function painBlock(d, opt){
+  var head = painSentence(d);
+  var det = joinBlocks([
+    blockField('场景', d.s.pain.scene, opt),
+    blockField('原因', d.s.pain.reason, opt),
+    blockField('代价', d.s.pain.cost, opt),
+    blockField('现状', d.s.pain.workaround, opt)
+  ]);
+  if(!head) return det || '';
+  if(!det) return head;
+  return head + '\n\n补充细节\n' + det;
+}
+function keepEmpty(opt){ return detailOf(opt) === 'full'; }
+
+function blockField(label, val, opt){
+  if(!nonEmpty(val)){
+    if(keepEmpty(opt)) return label + '：待补充（这里我没想清楚，请你先问我）';
+    return '';
+  }
+  var ls = lines(val);
+  if(ls.length > 1){
+    return label + '：\n' + ls.map(function(x){ return '  - ' + x; }).join('\n');
+  }
+  return label + '：' + ls[0];
+}
+function blockList(val, opt, bullet){
+  if(!nonEmpty(val)){
+    if(keepEmpty(opt)) return bullet + '待补充（这里我没想清楚，请你先问我）';
+    return '';
+  }
+  return lines(val).map(function(x){ return bullet + x; }).join('\n');
+}
+function joinBlocks(arr){ return arr.filter(function(x){ return x && x.length; }).join('\n\n'); }
+
+function buildPrompt(d, opt){
+  var L = [];
+  var det = detailOf(opt);
+  var title = nonEmpty(d.title) ? d.title : '未命名需求';
+
+  if(opt.restate){
+    L.push('**动手之前**：请先用 5 句话复述你对这份规格的理解——你打算怎么做、哪些地方你还不确定——等我确认之后再开始动代码。');
+  }
+  L.push('# 需求规格：' + title);
+  L.push('这份规格是按 SDD 七段式写死的。请严格按它实现，**不要自行扩展范围，也不要顺手加我没写在这里的功能**。');
+
+  L.push('## 一、痛点与背景（Why）');
+  L.push(painBlock(d, opt) || '待补充');
+
+  L.push('## 二、目标与非目标（What / Not）');
+  L.push('### 这次要做成\n' + (blockList(d.s.goal.goals, opt, '- ') || '待补充'));
+  L.push('### 这次明确不做（请务必不要加进来）\n' + (blockList(d.s.goal.nongoals, opt, '- ') || '待补充'));
+
+  if(det !== 'slim'){
+    L.push('## 三、用户与场景（Who / When）');
+    L.push(joinBlocks([
+      blockField('谁在用', d.s.user.who, opt),
+      blockField('什么时候用', d.s.user.when, opt),
+      blockField('多久用一次', d.s.user.freq, opt),
+      blockField('单次停留', d.s.user.stay, opt),
+      blockField('设备', d.s.user.device, opt),
+      blockField('当时的状态', d.s.user.mood, opt)
+    ]) || '待补充');
+  }
+
+  var reqTxt = LEVELS.map(function(lv){
+    var arr = (d.s.req.items || []).filter(function(it){ return it.lvl === lv.k && nonEmpty(it.text); });
+    if(!arr.length){
+      if(keepEmpty(opt)) return '### ' + lv.k + ' ' + lv.name + '（' + lv.hint + '）\n- 待补充';
+      return '';
+    }
+    return '### ' + lv.k + ' ' + lv.name + '（' + lv.hint + '）\n' + arr.map(function(it){
+      var s = '- ' + it.text;
+      s += '\n  验收：' + (nonEmpty(it.assert) ? it.assert : '（我还没写验收断言，请你先按你的理解提一个给我确认）');
+      return s;
+    }).join('\n');
+  }).filter(function(x){ return x.length; }).join('\n\n');
+  L.push('## 四、功能规格（Requirements）');
+  L.push(reqTxt || '待补充');
+
+  if(det !== 'slim'){
+    L.push('## 五、交互与形态（How it feels）');
+    L.push(joinBlocks([
+      blockField('主流程', d.s.ux.flow, opt),
+      blockField('关键界面', d.s.ux.screens, opt),
+      blockField('空状态', d.s.ux.empty, opt),
+      blockField('边界与异常', d.s.ux.fail, opt),
+      blockField('数据流向', d.s.ux.dataflow, opt),
+      blockField('不可逆操作', d.s.ux.irreversible, opt)
+    ]) || '待补充');
+
+    L.push('## 六、技术约束（Constraints）');
+    L.push(joinBlocks([
+      blockField('技术栈', d.s.tech.stack, opt),
+      blockField('部署方式', d.s.tech.deploy, opt),
+      blockField('数据存储', d.s.tech.store, opt),
+      blockField('联网与外部依赖', d.s.tech.network, opt),
+      blockField('性能', d.s.tech.perf, opt),
+      blockField('兼容性', d.s.tech.compat, opt),
+      blockField('界面语言', d.s.tech.lang, opt)
+    ]) || '待补充');
+  }
+
+  L.push('## 七、验收标准与交付物（Done）');
+  L.push('### 验收标准（做到这些才算做完）\n' + (blockList(d.s.done.criteria, opt, '- [ ] ') || '待补充'));
+  L.push(joinBlocks([
+    blockField('怎么验证', d.s.done.verify, opt),
+    blockList(d.s.done.files, opt, '- 交付物：'),
+    blockField('交付节奏', d.s.done.rhythm, opt)
+  ]));
+
+  if(opt.checklist){
+    var ck = (d.s.done.criteria ? lines(d.s.done.criteria) : []).map(function(x){ return '- [ ] ' + x; });
+    (d.s.req.items || []).forEach(function(it){
+      if(it.lvl === 'M' && nonEmpty(it.assert)) ck.push('- [ ] ' + it.assert);
+    });
+    ck.push('- [ ] 控制台没有报错，入口能正常打开');
+    ck.push('- [ ] 没有实现「非目标」里明确说不做的东西');
+    L.push('## 交付前请自查这一份清单\n' + ck.join('\n'));
+  }
+  if(opt.stepwise){
+    L.push('## 交付方式：分步交付\n请先给一个能跑通的最小版本，说明这一步做了什么、怎么验证；等我确认之后再继续下一步。不要一次把所有功能都写完。');
+  }
+  L.push('## 分工说明\n' + AUDIENCE_TAIL[opt.audience || 'generic']);
+  return L.filter(function(x){ return x && x.length; }).join('\n\n');
+}
+
+function buildSpec(d, opt){
+  var L = [];
+  L.push('# 规格说明：' + (nonEmpty(d.title) ? d.title : '未命名需求'));
+  L.push('生成时间：' + nowStr());
+  L.push('## 原始想法\n' + (nonEmpty(d.raw) ? d.raw : '（没有留下原始输入）'));
+  SECS.forEach(function(sec){
+    var body;
+    if(sec.id === 'req'){
+      body = LEVELS.map(function(lv){
+        var arr = (d.s.req.items||[]).filter(function(it){ return it.lvl===lv.k && nonEmpty(it.text); });
+        if(!arr.length) return '';
+        return '**' + lv.k + ' ' + lv.name + '**\n' + arr.map(function(it){
+          return '- ' + it.text + '\n  - 验收：' + (nonEmpty(it.assert) ? it.assert : '待补充');
+        }).join('\n');
+      }).filter(function(x){ return x.length; }).join('\n\n');
+    } else if(sec.id === 'pain'){
+      body = painBlock(d, opt);
+    } else {
+      body = joinBlocks(sec.fields.map(function(f){
+        var v = d.s[sec.id][f.k];
+        return blockField(f.label.split('：')[0], v, opt);
+      }));
+    }
+    L.push('## ' + sec.no + ' ' + sec.name + '\n' + (body || '【待补充】'));
+  });
+  return L.join('\n\n');
+}
+
+function buildChecklist(d, opt){
+  var L = [];
+  L.push('# 验收清单：' + (nonEmpty(d.title) ? d.title : '未命名需求'));
+  L.push('## 一定要做到（M）');
+  var ms = (d.s.req.items||[]).filter(function(it){ return it.lvl==='M' && nonEmpty(it.text); });
+  L.push(ms.length ? ms.map(function(it){
+    return '- [ ] ' + it.text + '\n      判定：' + (nonEmpty(it.assert) ? it.assert : '待补充');
+  }).join('\n') : '待补充');
+  var ss = (d.s.req.items||[]).filter(function(it){ return it.lvl==='S' && nonEmpty(it.text); });
+  if(ss.length){
+    L.push('## 应该有（S）');
+    L.push(ss.map(function(it){
+      return '- [ ] ' + it.text + '\n      判定：' + (nonEmpty(it.assert) ? it.assert : '待补充');
+    }).join('\n'));
+  }
+  var cs = (d.s.req.items||[]).filter(function(it){ return it.lvl==='C' && nonEmpty(it.text); });
+  if(cs.length){
+    L.push('## 可以有（C，做不完可以砍）');
+    L.push(cs.map(function(it){ return '- [ ] ' + it.text; }).join('\n'));
+  }
+  L.push('## 整体验收标准');
+  L.push(blockList(d.s.done.criteria, opt, '- [ ] ') || '待补充');
+  if(nonEmpty(d.s.done.verify)) L.push('## 怎么验证\n' + d.s.done.verify);
+  if(nonEmpty(d.s.goal.nongoals)) L.push('## 出现这些东西就是跑偏了\n' + blockList(d.s.goal.nongoals, opt, '- [ ] 没有做：'));
+  return L.join('\n\n');
+}
+
+function buildOutput(d, opt, view){
+  if(view === 'spec') return buildSpec(d, opt);
+  if(view === 'checklist') return buildChecklist(d, opt);
+  return buildPrompt(d, opt);
+}
+
+/* ============================================================
+   9. 质量自检
+   ============================================================ */
+var VAGUE = ['流畅','友好','美观','好看','简单','方便','好用','舒适','人性化','智能','合理','清晰','贴心','稳定','快','顺手'];
+function vagueHit(s){
+  if(/\d/.test(s)) return '';
+  for(var i=0;i<VAGUE.length;i++){ if(s.indexOf(VAGUE[i]) >= 0) return VAGUE[i]; }
+  return '';
+}
+function runCheck(d){
+  var out = [];
+  SECS.forEach(function(sec){
+    if(secEmpty(d, sec.id)){
+      out.push({ lvl:'r', sec:sec.id, text:'「' + sec.no + ' ' + sec.name + '」还是空的。这一段空着，agent 就会替你脑补。' });
+    }
+  });
+  if(!nonEmpty(d.s.goal.nongoals)){
+    out.push({ lvl:'y', sec:'goal', text:'没有写「非目标」——这是 agent 自作主张加一堆用不上的功能的最大来源。' });
+  }
+  if(!nonEmpty(d.s.done.criteria)){
+    out.push({ lvl:'r', sec:'done', text:'没有写验收标准，于是"做完了"变成 agent 说了算。' });
+  }
+  if(nonEmpty(d.s.goal.goals) && lines(d.s.goal.goals).length > 3){
+    out.push({ lvl:'y', sec:'goal', text:'目标写了 ' + lines(d.s.goal.goals).length + ' 条。超过 3 条通常说明这次要解决的事还没收敛。' });
+  }
+  var items = (d.s.req.items || []).filter(function(it){ return nonEmpty(it.text) || nonEmpty(it.assert); });
+  if(!items.length){
+    out.push({ lvl:'y', sec:'req', text:'功能规格里一条都没写。' });
+  }
+  items.forEach(function(it){
+    var name = nonEmpty(it.text) ? cut(it.text) : '（只有验收、没有需求描述）';
+    if(!nonEmpty(it.assert)){
+      out.push({ lvl:'y', sec:'req', text:'「' + name + '」还没有验收断言——写完要能回答"做到了没有"。' });
+    } else {
+      var v = vagueHit(it.assert);
+      if(v) out.push({ lvl:'y', sec:'req', text:'「' + name + '」的验收里出现了"' + v + '"这种感觉词。加上数字或可观察的结果，比如"手机上单手 3 步内完成一次记录"。' });
+    }
+  });
+  var ms = items.filter(function(it){ return it.lvl === 'M' && nonEmpty(it.text); }).length;
+  if(items.length > 2 && ms === items.length){
+    out.push({ lvl:'y', sec:'req', text:'所有需求都被标成了 M（必须）。全是必须等于没有必须，agent 在取舍时没有东西可以砍。' });
+  }
+  if(!out.length){
+    out.push({ lvl:'g', sec:'', text:'七段都填了，需求可验收，非目标和验收标准也都在。这份规格可以直接丢给 agent 了。' });
+  }
+  return out;
+}
+function checkStatus(list){
+  if(list.some(function(x){ return x.lvl === 'r'; })) return 'r';
+  if(list.some(function(x){ return x.lvl === 'y'; })) return 'y';
+  return 'g';
+}
+
+/* ============================================================
+   10. 视图
+   ============================================================ */
+var TABS = [
+  { id:'work', label:'工作台', title:'拆解工作台', sub:'七段式 · 把模糊需求逼成一份规格' },
+  { id:'tpl',  label:'模板库', title:'模板库', sub:'8 类小工具的七段写法骨架' },
+  { id:'mine', label:'我的记录', title:'我的记录', sub:'保存过的拆解 · 可搜索、再编辑、导出' },
+  { id:'opt',  label:'输出设置', title:'输出设置', sub:'下游对象 · 详略 · 附加要求' }
+];
+var ICON = {
+  work:'<path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><circle cx="12" cy="12" r="4.2"/>',
+  tpl :'<rect x="3" y="4" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/>',
+  mine:'<path d="M5 4a2 2 0 0 1 2-2h11v18H7a2 2 0 0 1-2-2z"/><path d="M9 2v18"/>',
+  opt :'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7.9 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H2a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 7.9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V2a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H22a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>'
+};
+
+function fieldHTML(secId, f){
+  var v = state.draft.s[secId][f.k] || '';
+  var tag = f.kind === 'area'
+    ? '<textarea data-f="'+secId+'.'+f.k+'" placeholder="'+esc(f.ph)+'">'+esc(v)+'</textarea>'
+    : '<input type="text" data-f="'+secId+'.'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(f.ph)+'">';
+  return '<label class="f">'+esc(f.label)+'</label>'+tag;
+}
+function reqEditor(){
+  var items = state.draft.s.req.items;
+  var head = '<div class="mini" style="margin-bottom:8px">M 必须 / S 应该有 / C 可以有。每条都要配一句验收断言——写完能回答"做到了没有"。</div>';
+  var body = items.map(function(it, i){
+    return '<div class="reqitem">'+
+      '<div class="lvl">'+LEVELS.map(function(lv){
+        return '<button data-lvl="'+lv.k+'" data-i="'+i+'" class="'+(it.lvl===lv.k?'on':'')+'" title="'+esc(lv.hint)+'">'+lv.k+' '+lv.name+'</button>';
+      }).join('')+
+      '<button class="chip" style="margin-left:auto" data-delreq="'+i+'">删除</button></div>'+
+      '<input type="text" data-req="'+i+'.text" value="'+esc(it.text)+'" placeholder="需求：例 能手动新增一条记录">'+
+      '<label class="f">验收断言：做到什么程度算做到了</label>'+
+      '<input type="text" data-req="'+i+'.assert" value="'+esc(it.assert)+'" placeholder="例：点「+」后填不超过 4 个字段即可保存，列表第一条立刻出现">'+
+    '</div>';
+  }).join('');
+  return head + body + '<button class="btn sm" data-addreq="1">+ 加一条需求</button>';
+}
+function secForms(){
+  return SECS.map(function(sec){
+    var filled = secFilled(state.draft, sec.id);
+    var open = state.draft.open[sec.id] ? ' open' : '';
+    return '<details class="det" data-sec="'+sec.id+'"'+open+'>'+
+      '<summary>'+
+        '<span class="no">'+sec.no+'</span>'+
+        '<span><span class="nm">'+esc(sec.name)+'</span> <span class="en">'+esc(sec.en)+'</span></span>'+
+        (filled ? '<span class="badge g">已填</span>' : '<span class="badge o">待补充</span>')+
+        '<span class="caret">▶</span>'+
+      '</summary>'+
+      '<div class="body">'+
+        '<div class="mini" style="margin-bottom:10px">'+esc(sec.tagline)+'</div>'+
+        (state.draft.hints[sec.id] ? '<div class="hintbox">模板提示 · '+esc(state.draft.hints[sec.id])+'</div>' : '')+
+        (sec.formula ? '<div class="eg" style="margin-bottom:12px">产出句式：'+esc(sec.formula)+'</div>' : '')+
+        '<div class="sec-t" style="margin-top:0">引导问题</div>'+
+        '<ul class="qlist">'+sec.questions.map(function(q){ return '<li>'+esc(q)+'</li>'; }).join('')+'</ul>'+
+        '<div class="sec-t">常见错误</div>'+
+        sec.mistakes.map(function(m){ return '<div class="mist"><div class="mt">✕ '+esc(m.t)+'</div><div class="mw">'+esc(m.w)+'</div></div>'; }).join('')+
+        '<div class="sec-t">一段好的写法（照着改，别照抄）</div>'+
+        '<div class="eg">'+esc(sec.example)+'</div>'+
+        '<div class="hr"></div>'+
+        (sec.req ? reqEditor() : sec.fields.map(function(f){ return fieldHTML(sec.id, f); }).join(''))+
+        '<div class="btn-row"><button class="btn sm" data-clearseg="'+sec.id+'">清空本段</button><button class="btn sm" data-collapse="'+sec.id+'">收起本段</button></div>'+
+      '</div>'+
+    '</details>';
+  }).join('');
+}
+function smartPanel(){
+  var sm = state.smart;
+  if(!sm) return '';
+  if(!sm.done){
+    var rows = SECS.map(function(sec){
+      var arr = sm.assign[sec.id] || [];
+      if(!arr.length){
+        return '<div class="ck"><span class="dotm y"></span><div style="flex:1"><b>'+sec.no+' '+esc(sec.name)+'</b> · 【待补充】：没有识别到相关内容</div></div>';
+      }
+      return '<div class="ck"><span class="dotm g"></span><div style="flex:1"><b>'+sec.no+' '+esc(sec.name)+'</b> · 识别到 '+arr.length+' 条<br><span class="mini">'+arr.map(function(x){ return esc(cut(x.c, 28)); }).join(' · ')+'</span></div></div>';
+    }).join('');
+    var un = sm.unmatched.length ? '<div class="hr"></div><div class="card-h">没归类的 '+sm.unmatched.length+' 条</div><div class="mini" style="margin-bottom:8px">点一下放进对应的段落，或直接忽略。</div>'+
+      sm.unmatched.map(function(c, i){
+        return '<div class="reqitem"><div class="mini" style="margin-bottom:6px">'+esc(c)+'</div><div class="chips">'+
+          SECS.map(function(s){ return '<button class="chip" data-send="'+s.id+'" data-idx="'+i+'">→ '+esc(s.name)+'</button>'; }).join('')+
+        '</div></div>';
+      }).join('') : '';
+    return '<div class="hr"></div><div class="card-h">智能起步 · 粗分结果</div>'+
+      '<div class="mini" style="margin-bottom:6px">这只是按关键词的粗分，确认写入之后你还要逐段改写。</div>'+ rows + un +
+      '<div class="btn-row"><button class="btn primary" id="smartApply">写进七段</button><button class="btn" id="smartCancel">取消</button></div>';
+  }
+  return '<div class="hr"></div><div class="ck"><span class="dotm g"></span><div style="flex:1">已写入 '+sm.hit+' 条。没覆盖到的段落标着【待补充】，逐段补一下就行。</div></div>';
+}
+function startCard(){
+  var d = state.draft;
+  return '<div class="card">'+
+    '<div class="card-h">一句话起步</div>'+
+    '<div class="card-sub">把你脑子里那团东西原样倒出来，不用组织语言。点「智能起步」后，工具会按关键词把它粗分到下面七段，没覆盖到的段落标【待补充】。</div>'+
+    '<label class="f">我的粗糙需求</label>'+
+    '<textarea id="rawBox" style="min-height:92px" placeholder="例：我想做个每天喝水打卡的小工具，老是忘记喝水，一天下来才发现才喝了两杯……">'+esc(d.raw)+'</textarea>'+
+    '<div class="btn-row"><button class="btn primary" id="smartBtn">智能起步</button><button class="btn" id="demoBtn">看示范</button><button class="btn" id="tplBtn">套模板</button></div>'+
+    smartPanel()+
+    '<label class="f">这份需求叫什么</label>'+
+    '<input type="text" id="titleBox" value="'+esc(d.title)+'" placeholder="给它起个名字，比如「喝水打卡」">'+
+  '</div>';
+}
+function checkCard(){
+  var list = runCheck(state.draft);
+  var st = checkStatus(list);
+  var word = st==='r' ? '有必须补的' : (st==='y' ? '能用，但有几处要盯' : '可以交给 agent 了');
+  var cls = st==='r' ? 'r' : (st==='y' ? 'o' : 'g');
+  return '<div class="card tight">'+
+    '<div class="spread"><div class="card-h" style="margin:0">质量自检</div><span class="badge '+cls+'">'+word+'</span></div>'+
+    '<div style="margin-top:6px">'+list.map(function(x){
+      return '<div class="ck"><span class="dotm '+x.lvl+'"></span><div style="flex:1">'+esc(x.text)+'</div>'+
+        (x.sec ? '<button class="jump" data-jump="'+x.sec+'">去补</button>' : '')+'</div>';
+    }).join('')+'</div>'+
+  '</div>';
+}
+function previewCard(){
+  var view = state.pview || 'prompt';
+  var txt = buildOutput(state.draft, state.opt, view);
+  return '<div class="card tight">'+
+    '<div class="spread"><div class="card-h" style="margin:0">实时预览</div><span class="mini">'+txt.length+' 字</span></div>'+
+    '<div class="seg" style="margin-top:10px">'+
+      '<button data-pv="prompt" class="'+(view==='prompt'?'on':'')+'">完整提示词</button>'+
+      '<button data-pv="spec" class="'+(view==='spec'?'on':'')+'">规格说明</button>'+
+      '<button data-pv="checklist" class="'+(view==='checklist'?'on':'')+'">验收清单</button>'+
+    '</div>'+
+    '<div class="pv" id="pvBox">'+esc(txt)+'</div>'+
+    '<div class="btn-row">'+
+      '<button class="btn primary" id="copyBtn">复制</button>'+
+      '<button class="btn" id="dlBtn">下载 .md</button>'+
+      '<button class="btn" id="saveBtn">存进我的记录</button>'+
+    '</div>'+
+  '</div>';
+}
+function viewWork(){
+  return '<div class="seg work-switch">'+
+      '<button data-mode="form" class="'+(state.mode==='form'?'on':'')+'">填表</button>'+
+      '<button data-mode="prev" class="'+(state.mode==='prev'?'on':'')+'">实时预览</button>'+
+    '</div>'+
+    '<div class="work-main">'+ startCard() + secForms() + '</div>'+
+    '<div class="work-side">'+ checkCard() + previewCard() + '</div>';
+}
+function tplName(id){
+  var t = TEMPLATES.filter(function(x){ return x.id===id; })[0];
+  return t ? t.name : '';
+}
+function viewTpl(){
+  var cur = state.draft.tpl;
+  return '<div class="card"><div class="card-h">模板库</div>'+
+    '<div class="card-sub">8 类常见小工具的写法骨架。套用之后，七段里每一段都会多出一条"这个类型该怎么写"的提示——它是提示，不是替你写好的内容。</div>'+
+    (cur ? '<div class="hr"></div><div class="mini">当前已套用：'+esc(tplName(cur))+'</div><div class="btn-row"><button class="btn sm" id="tplClear">取消套用</button></div>' : '')+
+  '</div>'+
+  TEMPLATES.map(function(t){
+    return '<div class="tpl'+(cur===t.id?' on':'')+'" data-tpl="'+t.id+'">'+
+      '<div class="tn">'+t.icon+' '+esc(t.name)+(cur===t.id?' <span class="badge">已套用</span>':'')+'</div>'+
+      '<div class="td">'+esc(t.desc)+'</div></div>';
+  }).join('');
+}
+function recListHTML(q){
+  q = (q||'').toLowerCase();
+  var rs = state.records.filter(function(r){
+    if(!q) return true;
+    return String(r.title||'').toLowerCase().indexOf(q) >= 0 || String(r.prompt||'').toLowerCase().indexOf(q) >= 0;
+  });
+  if(!rs.length){
+    return '<div class="card"><div class="empty"><b>还没有记录</b>回到工作台写完七段，点「存进我的记录」就会出现在这里。</div></div>';
+  }
+  return rs.map(function(r){
+    var snip = String(r.prompt||'').replace(/\n+/g,' ').slice(0, 96);
+    return '<div class="rec"><div class="rt">'+esc(r.title||'未命名需求')+'</div>'+
+      '<div class="rm">'+esc(r.at)+(r.tpl?' · '+esc(tplName(r.tpl)):'')+'</div>'+
+      '<div class="mini" style="margin-top:6px">'+esc(snip)+'…</div>'+
+      '<div class="ra"><button class="btn sm" data-recedit="'+r.id+'">再编辑</button>'+
+      '<button class="btn sm" data-reccopy="'+r.id+'">复制提示词</button>'+
+      '<button class="btn sm" data-recdl="'+r.id+'">下载 .md</button>'+
+      '<button class="btn sm" data-recdel="'+r.id+'">删除</button></div></div>';
+  }).join('');
+}
+function viewMine(){
+  return '<div class="card"><div class="card-h">我的记录</div>'+
+    '<div class="card-sub">每次「存进我的记录」都会留一份带完整七段的存档，可以再编辑、复制、导出。数据只存在这台设备的浏览器里。</div>'+
+    '<label class="f">搜索</label><input type="search" id="recQ" placeholder="搜标题或内容">'+
+    '<div class="btn-row"><button class="btn" id="expAll">导出全部 JSON</button><button class="btn" id="clearRec">清空全部</button></div>'+
+  '</div>'+
+  '<div id="recList">'+ recListHTML('') +'</div>';
+}
+function audDesc(k){
+  var a = AUDIENCES.filter(function(x){ return x.k===k; })[0];
+  return a ? a.desc : '';
+}
+function detDesc(k){
+  if(k==='slim') return '精简：只输出痛点、目标/非目标、功能规格、验收标准，跳过其余段落。';
+  if(k==='full') return '详尽：七段全出，而且没填的字段也会写出来并标注"待补充，请你先问我"。';
+  return '标准：七段全出，没填的字段自动省略。';
+}
+function toggleChip(k, on, label){
+  return '<button class="chip'+(on?' on':'')+'" data-tog="'+k+'">'+(on?'✓ ':'')+label+'</button>';
+}
+function extraPreview(o){
+  var a = [];
+  if(o.restate) a.push('动手之前：请先用 5 句话复述你对这份规格的理解，等我确认后再动代码。');
+  if(o.checklist) a.push('交付前请自查这一份清单：每条 M 需求的验收断言 + 控制台没有报错 + 没有实现非目标里的东西。');
+  if(o.stepwise) a.push('交付方式：分步交付。先给一个能跑通的最小版本，等我确认之后再继续下一步。');
+  a.push('结尾分工说明：'+AUDIENCE_TAIL[o.audience||'generic']);
+  return a.join('\n\n');
+}
+function viewOpt(){
+  var o = state.opt;
+  return '<div class="card"><div class="card-h">输出设置</div>'+
+    '<div class="card-sub">同样的七段，给不同的下游对象，措辞和收尾会不一样。</div>'+
+    '<label class="f">下游对象</label><div class="chips">'+AUDIENCES.map(function(a){
+      return '<button class="chip'+(o.audience===a.k?' on':'')+'" data-aud="'+a.k+'">'+esc(a.name)+'</button>';
+    }).join('')+'</div>'+
+    '<div class="mini" style="margin-top:6px">'+esc(audDesc(o.audience))+'</div>'+
+    '<label class="f">详略程度</label><div class="chips">'+
+      [['slim','精简'],['std','标准'],['full','详尽']].map(function(x){
+        return '<button class="chip'+(o.detail===x[0]?' on':'')+'" data-det="'+x[0]+'">'+x[1]+'</button>';
+      }).join('')+'</div>'+
+    '<div class="mini" style="margin-top:6px">'+esc(detDesc(o.detail))+'</div>'+
+    '<label class="f">开关</label><div class="chips">'+
+      toggleChip('checklist', o.checklist, '附验收清单')+
+      toggleChip('stepwise', o.stepwise, '要求分步交付')+
+      toggleChip('restate', o.restate, '先复述理解再动手')+
+    '</div></div>'+
+    '<div class="card"><div class="card-h">当前设置下会额外加上</div><div class="eg">'+esc(extraPreview(o))+'</div></div>';
+}
+
+/* ============================================================
+   11. 导航与渲染
+   ============================================================ */
+function renderTabs(){
+  document.getElementById('tabbar').innerHTML = TABS.map(function(t){
+    return '<button class="tab'+(state.tab===t.id?' active':'')+'" data-tab="'+t.id+'">'+
+      '<svg viewBox="0 0 24 24">'+ICON[t.id]+'</svg><span>'+esc(t.label)+'</span></button>';
+  }).join('');
+}
+function appClass(){
+  var c = 'app v-' + state.tab;
+  if(state.tab === 'work') c += ' mode-' + state.mode;
+  return c;
+}
+function go(tab){
+  state.tab = tab;
+  var t = TABS.filter(function(x){ return x.id===tab; })[0] || TABS[0];
+  document.getElementById('pageTitle').textContent = t.title;
+  document.getElementById('pageSub').textContent = t.sub;
+  document.getElementById('app').className = appClass();
+  renderTabs();
+  window.scrollTo(0,0);
+  renderView();
+}
+function renderView(){
+  var v = document.getElementById('view');
+  if(state.tab === 'work'){ v.innerHTML = viewWork(); bindDetails(); }
+  else if(state.tab === 'tpl') v.innerHTML = viewTpl();
+  else if(state.tab === 'mine') v.innerHTML = viewMine();
+  else v.innerHTML = viewOpt();
+}
+function renderWork(){ renderView(); }
+function renderSide(){
+  var side = document.querySelector('.work-side');
+  if(!side) return;
+  var box = document.getElementById('pvBox');
+  var top = box ? box.scrollTop : 0;
+  side.innerHTML = checkCard() + previewCard();
+  var nb = document.getElementById('pvBox');
+  if(nb) nb.scrollTop = top;
+}
+function bindDetails(){
+  Array.prototype.forEach.call(document.querySelectorAll('details.det'), function(det){
+    det.addEventListener('toggle', function(){
+      state.draft.open[det.getAttribute('data-sec')] = det.open;
+      saveDraft();
+    });
+  });
+}
+function setMode(m){
+  state.mode = m;
+  document.getElementById('app').className = appClass();
+  var sw = document.querySelector('.work-switch');
+  if(sw){
+    Array.prototype.forEach.call(sw.querySelectorAll('button'), function(b){
+      b.classList.toggle('on', b.getAttribute('data-mode') === m);
+    });
+  }
+  renderSide();
+}
+function saveDraft(){ DB.set(K.draft, state.draft); }
+function slug(s){
+  return String(s==null?'':s).replace(/[\\/:*?"<>|\s]+/g,'-').slice(0,40) || 'spec';
+}
+
+/* ============================================================
+   12. 动作
+   ============================================================ */
+function doSmartStart(){
+  var box = document.getElementById('rawBox');
+  var txt = box ? box.value : state.draft.raw;
+  state.draft.raw = txt;
+  saveDraft();
+  if(!nonEmpty(txt)){ toast('先写一句你的粗糙需求'); return; }
+  state.smart = smartStart(txt);
+  renderWork();
+}
+function applyTemplate(id){
+  var t = TEMPLATES.filter(function(x){ return x.id===id; })[0];
+  if(!t) return;
+  state.draft.tpl = t.id;
+  state.draft.hints = {};
+  SECS.forEach(function(s){
+    state.draft.hints[s.id] = t.hints[s.id] || '';
+    state.draft.open[s.id] = true;
+  });
+  if(!nonEmpty(state.draft.title)) state.draft.title = t.name.replace(/类$/,'') + '小工具';
+  saveDraft();
+  go('work');
+  toast('已套用「' + t.name + '」，七段里多了写法提示');
+}
+function jumpTo(secId){
+  if(state.tab !== 'work') go('work');
+  if(state.mode !== 'form') setMode('form');
+  state.draft.open[secId] = true;
+  saveDraft();
+  renderWork();
+  var el = document.querySelector('details[data-sec="' + secId + '"]');
+  if(el) el.scrollIntoView({ behavior:'smooth', block:'center' });
+}
+function clearSeg(id){
+  var sec = secById(id);
+  if(!sec) return;
+  if(!confirm('清空「' + sec.name + '」这一段的全部内容？')) return;
+  if(id === 'req') state.draft.s.req.items = [];
+  else sec.fields.forEach(function(f){ state.draft.s[id][f.k] = ''; });
+  saveDraft();
+  renderWork();
+  toast('已清空本段');
+}
+function saveRecord(){
+  var d = state.draft;
+  if(!nonEmpty(d.title) && secEmpty(d, 'pain')){ toast('先写点内容再存'); return; }
+  var rec = {
+    id:uid(), title:d.title || '未命名需求', at:nowStr(), tpl:d.tpl || '',
+    draft:JSON.parse(JSON.stringify(d)),
+    prompt:buildPrompt(d, state.opt)
+  };
+  state.records.unshift(rec);
+  if(state.records.length > 60) state.records.length = 60;
+  DB.set(K.records, state.records);
+  toast('已存进我的记录');
+}
+function findRec(id){
+  return state.records.filter(function(x){ return x.id===id; })[0];
+}
+function loadRecord(id){
+  var r = findRec(id);
+  if(!r) return;
+  state.draft = JSON.parse(JSON.stringify(r.draft));
+  state.smart = null;
+  saveDraft();
+  go('work');
+  toast('已载入「' + r.title + '」');
+}
+function exportAll(){
+  if(!state.records.length){ toast('还没有记录'); return; }
+  download('sdd-records-' + nowStr().slice(0,10) + '.json',
+    JSON.stringify({ app:'SDD 需求拆解器', version:1, exportedAt:new Date().toISOString(), records:state.records }, null, 2));
+}
+function useDemo(id){
+  var dm = DEMOS.filter(function(x){ return x.id===id; })[0];
+  if(!dm) return;
+  state.draft = blankDraft();
+  state.draft.title = dm.title;
+  state.draft.raw = dm.raw;
+  state.draft.s = JSON.parse(JSON.stringify(dm.fill));
+  SECS.forEach(function(s){ state.draft.open[s.id] = true; });
+  state.smart = null;
+  saveDraft();
+  closeSheet();
+  go('work');
+  toast('已套用示范「' + dm.title + '」，改写它就行');
+}
+function secBodyText(d, sec, opt){
+  if(sec.id === 'req'){
+    return LEVELS.map(function(lv){
+      var arr = (d.s.req.items||[]).filter(function(it){ return it.lvl===lv.k && nonEmpty(it.text); });
+      if(!arr.length) return '';
+      return lv.k + ' ' + lv.name + '\n' + arr.map(function(it){
+        return '  - ' + it.text + '\n    验收：' + (nonEmpty(it.assert) ? it.assert : '待补充');
+      }).join('\n');
+    }).filter(function(x){ return x.length; }).join('\n\n');
+  }
+  if(sec.id === 'pain') return painBlock(d, opt);
+  return joinBlocks(sec.fields.map(function(f){
+    return blockField(f.label.split('：')[0], d.s[sec.id][f.k], opt);
+  }));
+}
+
+/* ============================================================
+   13. 弹层：怎么用 + 示范案例
+   ============================================================ */
+function openSheet(kind){ state.sheet = kind; renderSheet(); }
+function closeSheet(){
+  state.sheet = null;
+  var h = document.getElementById('sheet');
+  h.hidden = true;
+  h.innerHTML = '';
+}
+function renderSheet(){
+  var host = document.getElementById('sheet');
+  if(!state.sheet){ host.hidden = true; host.innerHTML = ''; return; }
+  host.hidden = false;
+  host.scrollTop = 0;
+  if(state.sheet === 'help') host.innerHTML = helpSheet();
+  else if(state.sheet === 'demos') host.innerHTML = demosSheet();
+  else host.innerHTML = demoDetailSheet(String(state.sheet).slice(5));
+}
+function helpSheet(){
+  return '<div class="sh-top"><b style="color:var(--ink)">怎么用</b><button class="ghost" style="margin-left:auto" data-sheet="close" aria-label="关闭">✕</button></div>'+
+    '<div class="sheet-in">'+
+      '<div class="card"><div class="card-h">三步</div><ol class="qlist">'+
+        '<li>把脑子里那团东西原样倒进「一句话起步」，点<b>智能起步</b>。工具会按关键词粗分到七段，没覆盖到的标【待补充】。</li>'+
+        '<li>从上往下逐段改。每段都有引导问题、常见错误和一段好写法；右侧「质量自检」会实时指出哪段还空着、哪条需求不可验收。</li>'+
+        '<li>改完点「复制」，把整段提示词丢给 agent。要留底就点「存进我的记录」。</li>'+
+      '</ol></div>'+
+      '<div class="card"><div class="card-h">为什么是这个顺序</div>'+
+        '<div class="card-sub">先逼出痛点，再定目标和<b>非目标</b>，然后才是用户、功能、交互、技术、验收。跳过前两段直接写功能清单，就是反复返工的根源——你写的是"要什么"，agent 需要的是"为什么做、到什么程度算够"。</div></div>'+
+      '<div class="card"><div class="card-h">数据</div>'+
+        '<div class="card-sub">全部存在这台设备的浏览器里（localStorage，sdd_ 前缀），不上传、不需要登录。换设备时在「我的记录」里导出 JSON。</div></div>'+
+    '</div>';
+}
+function demosSheet(){
+  return '<div class="sh-top"><b style="color:var(--ink)">示范案例</b><button class="ghost" style="margin-left:auto" data-sheet="close" aria-label="关闭">✕</button></div>'+
+    '<div class="sheet-in">'+
+      '<div class="card"><div class="card-sub">三份完整对照：一句粗糙的大白话，怎么被逼成一份能直接交给 agent 的规格。点进去逐段看。</div></div>'+
+      DEMOS.map(function(d){
+        return '<div class="tpl" data-demo="'+d.id+'">'+
+          '<div class="tn">'+d.icon+' '+esc(d.title)+' <span class="badge">'+esc(d.kind)+'</span></div>'+
+          '<div class="td">原始想法：'+esc(d.raw)+'</div></div>';
+      }).join('')+
+    '</div>';
+}
+function demoDetailSheet(id){
+  var dm = DEMOS.filter(function(x){ return x.id===id; })[0];
+  if(!dm) return demosSheet();
+  var fake = { title:dm.title, raw:dm.raw, s:dm.fill, hints:{}, tpl:'' };
+  var opt = { audience:'generic', detail:'std', checklist:true, stepwise:false, restate:false };
+  var secs = SECS.map(function(sec){
+    return '<div class="card"><div class="card-h">'+sec.no+' '+esc(sec.name)+' <span class="mini">'+esc(sec.en)+'</span></div>'+
+      '<div class="mini" style="margin:4px 0 8px">这一步要逼问的：'+esc(sec.questions[0])+'</div>'+
+      '<div class="eg">'+esc(secBodyText(fake, sec, opt))+'</div></div>';
+  }).join('');
+  return '<div class="sh-top"><button class="ghost" data-sheet="demos" aria-label="返回">‹</button>'+
+    '<b style="color:var(--ink)">'+esc(dm.title)+'</b>'+
+    '<button class="ghost" style="margin-left:auto" data-sheet="close" aria-label="关闭">✕</button></div>'+
+    '<div class="sheet-in">'+
+      '<div class="card"><div class="card-h">原始的一句话</div><div class="eg">'+esc(dm.raw)+'</div>'+
+        '<div class="btn-row"><button class="btn primary" data-usedemo="'+dm.id+'">套用为我的草稿</button></div></div>'+
+      secs+
+      '<div class="sec-t">最后拼出来的提示词</div>'+
+      '<div class="card tight"><div class="pv" style="max-height:none">'+esc(buildPrompt(fake, opt))+'</div>'+
+        '<div class="btn-row"><button class="btn" data-copydemo="'+dm.id+'">复制这份提示词</button></div></div>'+
+    '</div>';
+}
+
+/* ============================================================
+   14. 主题
+   ============================================================ */
+function applyTheme(mode){
+  var dark = (mode === 'dark');
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  var m = document.querySelector('meta[name="theme-color"]');
+  if(m) m.setAttribute('content', dark ? '#0E1119' : '#4B5FCC');
+}
+function initTheme(){
+  applyTheme(DB.get(K.theme, 'light') === 'dark' ? 'dark' : 'light');
+}
+
+/* ============================================================
+   15. 事件绑定
+   ============================================================ */
+function onViewInput(e){
+  var t = e.target;
+  if(!t) return;
+  var id = t.id || '';
+  if(id === 'rawBox'){ state.draft.raw = t.value; saveDraft(); return; }
+  if(id === 'titleBox'){ state.draft.title = t.value; saveDraft(); renderSide(); return; }
+  if(id === 'recQ'){ document.getElementById('recList').innerHTML = recListHTML(t.value); return; }
+  var f = t.getAttribute('data-f');
+  if(f){
+    var p = f.split('.');
+    state.draft.s[p[0]][p[1]] = t.value;
+    saveDraft(); renderSide();
+    return;
+  }
+  var rq = t.getAttribute('data-req');
+  if(rq){
+    var q = rq.split('.');
+    state.draft.s.req.items[+q[0]][q[1]] = t.value;
+    saveDraft(); renderSide();
+    return;
+  }
+}
+function onViewClick(e){
+  var t = e.target;
+  if(!t || !t.closest) return;
+  var tplEl = t.closest('[data-tpl]');
+  if(tplEl){ applyTemplate(tplEl.getAttribute('data-tpl')); return; }
+  var b = t.closest('button');
+  if(!b) return;
+  var id = b.id || '';
+  if(id === 'smartBtn'){ doSmartStart(); return; }
+  if(id === 'smartApply'){ var n = applySmart(); renderWork(); toast('已写入 ' + n + ' 条，接着逐段改写吧'); return; }
+  if(id === 'smartCancel'){ state.smart = null; renderWork(); return; }
+  if(id === 'demoBtn'){ openSheet('demos'); return; }
+  if(id === 'tplBtn'){ go('tpl'); return; }
+  if(id === 'tplClear'){ state.draft.tpl = ''; state.draft.hints = {}; saveDraft(); renderView(); toast('已取消套用'); return; }
+  if(id === 'copyBtn'){ copyText(buildOutput(state.draft, state.opt, state.pview || 'prompt'), '已复制，丢给 agent 吧'); return; }
+  if(id === 'dlBtn'){ download(slug(state.draft.title || '需求规格') + '.md', buildOutput(state.draft, state.opt, state.pview || 'prompt')); return; }
+  if(id === 'saveBtn'){ saveRecord(); return; }
+  if(id === 'expAll'){ exportAll(); return; }
+  if(id === 'clearRec'){
+    if(!state.records.length){ toast('还没有记录'); return; }
+    if(!confirm('会删掉全部 ' + state.records.length + ' 条记录，且无法恢复。确定吗？')) return;
+    state.records = []; DB.set(K.records, state.records); renderView(); toast('已清空');
+    return;
+  }
+  if(b.hasAttribute('data-mode')){ setMode(b.getAttribute('data-mode')); return; }
+  if(b.hasAttribute('data-pv')){ state.pview = b.getAttribute('data-pv'); renderSide(); return; }
+  if(b.hasAttribute('data-send')){ sendTo(b.getAttribute('data-send'), +b.getAttribute('data-idx')); return; }
+  if(b.hasAttribute('data-addreq')){
+    state.draft.s.req.items.push({ lvl:'M', text:'', assert:'' });
+    saveDraft(); renderWork(); return;
+  }
+  if(b.hasAttribute('data-delreq')){
+    state.draft.s.req.items.splice(+b.getAttribute('data-delreq'), 1);
+    saveDraft(); renderWork(); return;
+  }
+  if(b.hasAttribute('data-lvl')){
+    state.draft.s.req.items[+b.getAttribute('data-i')].lvl = b.getAttribute('data-lvl');
+    saveDraft(); renderWork(); return;
+  }
+  if(b.hasAttribute('data-clearseg')){ clearSeg(b.getAttribute('data-clearseg')); return; }
+  if(b.hasAttribute('data-collapse')){
+    state.draft.open[b.getAttribute('data-collapse')] = false;
+    saveDraft(); renderWork(); return;
+  }
+  if(b.hasAttribute('data-jump')){ jumpTo(b.getAttribute('data-jump')); return; }
+  if(b.hasAttribute('data-recedit')){ loadRecord(b.getAttribute('data-recedit')); return; }
+  if(b.hasAttribute('data-reccopy')){
+    var r1 = findRec(b.getAttribute('data-reccopy'));
+    if(r1) copyText(r1.prompt, '已复制「' + r1.title + '」');
+    return;
+  }
+  if(b.hasAttribute('data-recdl')){
+    var r2 = findRec(b.getAttribute('data-recdl'));
+    if(r2) download(slug(r2.title) + '.md', r2.prompt);
+    return;
+  }
+  if(b.hasAttribute('data-recdel')){
+    var rid = b.getAttribute('data-recdel');
+    var r3 = findRec(rid);
+    if(!r3) return;
+    if(!confirm('删除「' + r3.title + '」？')) return;
+    state.records = state.records.filter(function(x){ return x.id !== rid; });
+    DB.set(K.records, state.records);
+    renderView(); toast('已删除');
+    return;
+  }
+  if(b.hasAttribute('data-aud')){ state.opt.audience = b.getAttribute('data-aud'); saveOpt(); renderView(); return; }
+  if(b.hasAttribute('data-det')){ state.opt.detail = b.getAttribute('data-det'); saveOpt(); renderView(); return; }
+  if(b.hasAttribute('data-tog')){
+    var k = b.getAttribute('data-tog');
+    state.opt[k] = !state.opt[k];
+    saveOpt(); renderView(); return;
+  }
+}
+function saveOpt(){ DB.set(K.opt, state.opt); }
+function onSheetClick(e){
+  var t = e.target;
+  if(!t || !t.closest) return;
+  var dEl = t.closest('[data-demo]');
+  if(dEl){ openSheet('demo:' + dEl.getAttribute('data-demo')); return; }
+  var b = t.closest('button');
+  if(!b) return;
+  if(b.hasAttribute('data-sheet')){
+    var v = b.getAttribute('data-sheet');
+    if(v === 'close') closeSheet(); else openSheet(v);
+    return;
+  }
+  if(b.hasAttribute('data-usedemo')){ useDemo(b.getAttribute('data-usedemo')); return; }
+  if(b.hasAttribute('data-copydemo')){
+    var dm = DEMOS.filter(function(x){ return x.id === b.getAttribute('data-copydemo'); })[0];
+    if(dm){
+      var fake = { title:dm.title, raw:dm.raw, s:dm.fill, hints:{}, tpl:'' };
+      copyText(buildPrompt(fake, { audience:'generic', detail:'std', checklist:true, stepwise:false, restate:false }), '已复制示范提示词');
+    }
+    return;
+  }
+}
+
+/* ============================================================
+   16. 启动
+   ============================================================ */
+function init(){
+  initTheme();
+  var blank = blankDraft();
+  var saved = DB.get(K.draft, null);
+  state.draft = (saved && saved.s) ? saved : blank;
+  SECS.forEach(function(s){
+    if(!state.draft.s[s.id]) state.draft.s[s.id] = blank.s[s.id];
+  });
+  if(!state.draft.s.req) state.draft.s.req = { items:[] };
+  if(!state.draft.s.req.items) state.draft.s.req.items = [];
+  if(!state.draft.hints) state.draft.hints = {};
+  if(!state.draft.open) state.draft.open = {};
+  if(typeof state.draft.title !== 'string') state.draft.title = '';
+  if(typeof state.draft.raw !== 'string') state.draft.raw = '';
+  if(typeof state.draft.tpl !== 'string') state.draft.tpl = '';
+
+  var o = DB.get(K.opt, {});
+  state.opt = {
+    audience:o.audience || OPT_DEFAULT.audience,
+    detail:o.detail || OPT_DEFAULT.detail,
+    checklist:o.checklist === undefined ? OPT_DEFAULT.checklist : !!o.checklist,
+    stepwise:!!o.stepwise,
+    restate:!!o.restate
+  };
+  state.records = DB.get(K.records, []);
+  state.pview = 'prompt';
+
+  document.getElementById('view').addEventListener('input', onViewInput);
+  document.getElementById('view').addEventListener('click', onViewClick);
+  document.getElementById('sheet').addEventListener('click', onSheetClick);
+  document.getElementById('tabbar').addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('.tab') : null;
+    if(b) go(b.getAttribute('data-tab'));
+  });
+  document.getElementById('helpBtn').onclick = function(){ openSheet('help'); };
+  document.getElementById('themeBtn').onclick = function(){
+    var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    DB.set(K.theme, next);
+  };
+  document.addEventListener('keydown', function(e){
+    if((e.ctrlKey || e.metaKey) && e.key === 'Enter' && state.tab === 'work'){
+      e.preventDefault();
+      copyText(buildOutput(state.draft, state.opt, state.pview || 'prompt'), '已复制，丢给 agent 吧');
+    }
+    if(e.key === 'Escape' && state.sheet) closeSheet();
+  });
+
+  go('work');
+  if(!DB.get(K.help, false)){ DB.set(K.help, true); openSheet('help'); }
+}
+init();
+
+})();
+</script>
+</body>
+</html>

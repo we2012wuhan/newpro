@@ -20,6 +20,7 @@
 | `ocr.py` | OCR图片识别（页面在 `/ocr`：粘贴截图或上传图片 -> 免费云端接口 OCR.space 识别成文字，无需本地模型，部署体积小） |
 | `bayes_diary.py` | 贝叶斯日记（页面在 `/bayes-diary`：给日常预测下注 -> 记证据实时更新后验 -> 结算后画校准曲线，纯浏览器计算） |
 | `judgement_trainer.py` | 判断力小工具（页面在 `/judgement-trainer`：认出判断点 -> 拆解决策 -> 记录账本 -> 校准回访，纯浏览器计算） |
+| `sdd_decomposer.py` | SDD 需求拆解器（页面在 `/sdd-decomposer`：把模糊想法按七段式逼成结构化规格，实时编译成可丢给 agent 的提示词，纯浏览器计算） |
 | `templates/` 与 `static/` | 工具箱主页 / AI 图表 / 比价助手 页面模板与本地静态资源 |
 | `requirements.txt` | 项目依赖（fastapi + uvicorn + requests + yt-dlp + playwright + openpyxl） |
 
@@ -67,6 +68,7 @@ python video_downloader.py
 - `http://127.0.0.1:8000/ocr` **OCR图片识别**：粘贴截图或上传图片，免费云端接口识别成文字，可复制 / 下载 txt
 - `http://127.0.0.1:8000/bayes-diary` **贝叶斯日记**：给日常预测下注，记证据看概率实时更新，结算后画出你的校准曲线
 - `http://127.0.0.1:8000/judgement-trainer` **判断力小工具**：在流水账里认出判断点、拆解决策、记决策账本并回看校准，纯浏览器计算
+- `http://127.0.0.1:8000/sdd-decomposer` **SDD 需求拆解器**：一句粗糙需求进去，沿七段式逼问痛点 / 目标与非目标 / 用户 / 功能 / 交互 / 技术 / 验收，实时编译成提示词，纯浏览器计算
 
 ## 抖音视频下载工具
 
