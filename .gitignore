@@ -30,6 +30,8 @@ dist/
 ai_chart_key.txt
 *.log
 logs/
+data/
+*.db
 
 # ---- 本地临时文件 / 调试截图 ----
 _shot_*.png

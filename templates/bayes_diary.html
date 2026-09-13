@@ -2,13 +2,12 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>贝叶斯日记</title>
 <link rel="icon" href="data:,">
 <script src="/static/echarts.min.js"></script>
 <style>
 :root{
-  --bg:#0a0f1e;
   --line:rgba(255,255,255,.09);
   --text:#e8edf7;
   --muted:#93a0ba;
@@ -16,6 +15,9 @@
   --acc2:#e879f9;
   --ok:#34d399;
   --err:#fb7185;
+  --warn:#fbbf24;
+  --card1:rgba(255,255,255,.075);
+  --card2:rgba(255,255,255,.035);
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -29,25 +31,39 @@ body{
     radial-gradient(700px 600px at 50% 120%, rgba(99,102,241,.14), transparent 60%),
     linear-gradient(160deg,#0a0f1e 0%,#0c1427 55%,#0a0f1e 100%);
   background-attachment:fixed;
+  -webkit-font-smoothing:antialiased;
 }
-.wrap{max-width:1000px;margin:0 auto;padding:26px 20px 80px}
+.wrap{max-width:1000px;margin:0 auto;padding:26px 20px 90px}
 .back{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:13px;text-decoration:none;margin-bottom:14px}
 .back:hover{color:#fff}
 header.top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px}
 .logo{display:flex;align-items:center;gap:13px}
-.mark{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;font-size:23px;
-  background:linear-gradient(135deg,#6366f1 0%,#a855f7 100%);
-  box-shadow:0 10px 28px rgba(129,140,248,.42)}
+.mark{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;font-size:23px;flex:none;
+  background:linear-gradient(135deg,#6366f1 0%,#a855f7 100%);box-shadow:0 10px 28px rgba(129,140,248,.42)}
 h1{margin:0;font-size:23px;letter-spacing:.4px}
-.card{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.035));
-  border:1px solid var(--line);border-radius:18px;padding:20px;backdrop-filter:blur(8px);
-  box-shadow:0 20px 46px rgba(0,0,0,.28)}
+.tag{margin:5px 0 0;font-size:12.5px;color:var(--muted)}
+.tag em{font-style:normal;color:#a5b4fc}
+.top-act{display:flex;gap:8px;flex-wrap:wrap}
+.card{background:linear-gradient(180deg,var(--card1),var(--card2));border:1px solid var(--line);border-radius:18px;
+  padding:20px;backdrop-filter:blur(8px);box-shadow:0 20px 46px rgba(0,0,0,.28)}
 .card + .card{margin-top:16px}
-.card h2{margin:0 0 4px;font-size:17px}
-.card .desc{color:var(--muted);font-size:13px;line-height:1.9;margin:0 0 14px}
-.input{width:100%;padding:12px 14px;font-size:15px;color:var(--text);font-family:inherit;
+.card h2{margin:0 0 6px;font-size:17px;display:flex;align-items:center;gap:9px}
+.card h2 .n{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font-size:12px;flex:none;
+  background:rgba(129,140,248,.18);color:#c7d2fe;border:1px solid rgba(129,140,248,.32)}
+.card h3{margin:0 0 10px;font-size:14px;color:#e9d5ff}
+.desc{color:var(--muted);font-size:13px;line-height:1.9;margin:0 0 14px}
+.desc b{color:#fcd34d;font-weight:600}
+.hint{font-size:12px;color:var(--muted);line-height:1.8;margin-top:8px}
+.hint b{color:#c3cde3;font-weight:600}
+.sep{border:0;border-top:1px solid rgba(255,255,255,.08);margin:20px 0 16px}
+.input,select,textarea{width:100%;padding:12px 14px;font-size:15px;color:var(--text);font-family:inherit;
   background:rgba(8,12,26,.6);border:1px solid rgba(255,255,255,.12);border-radius:12px;outline:none}
-.input:focus{border-color:rgba(129,140,248,.75);box-shadow:0 0 0 3px rgba(129,140,248,.14)}
+.input:focus,select:focus,textarea:focus{border-color:rgba(129,140,248,.75);box-shadow:0 0 0 3px rgba(129,140,248,.14)}
+select{appearance:none;cursor:pointer}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.row > *{flex:1;min-width:0}
+.f{margin-top:14px}
+.f label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:7px}
 .slider-row{margin-top:16px}
 .slider-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:13.5px;color:#c3cde3;margin-bottom:8px}
 .slider-head b{font-size:19px;color:#fff;font-variant-numeric:tabular-nums}
@@ -55,54 +71,69 @@ input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;
   background:rgba(255,255,255,.14);outline:none;cursor:pointer;display:block}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;
   background:linear-gradient(135deg,#818cf8,#e879f9);border:2px solid #0b1220;box-shadow:0 2px 10px rgba(0,0,0,.55);cursor:pointer}
-input[type=range]::-moz-range-thumb{width:18px;height:18px;border:2px solid #0b1220;border-radius:50%;
-  background:#a78bfa;cursor:pointer}
-.bar{position:relative;height:28px;border-radius:9px;background:rgba(8,12,26,.72);
-  border:1px solid rgba(255,255,255,.1);overflow:hidden}
-.bar > i{display:block;height:100%;width:0;border-radius:8px 0 0 8px;
-  background:linear-gradient(90deg,#6366f1,#a855f7);transition:width .45s cubic-bezier(.4,0,.2,1)}
-.bar > span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-weight:700;font-size:13.5px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.7);font-variant-numeric:tabular-nums}
-.bar.thin{height:18px;border-radius:6px}
-.bar.thin > span{font-size:11px}
-.bar.preview > i{background:linear-gradient(90deg,#22d3ee,#34d399)}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border:2px solid #0b1220;border-radius:50%;background:#a78bfa;cursor:pointer}
+.bar{position:relative;height:28px;border-radius:9px;background:rgba(8,12,26,.72);border:1px solid rgba(255,255,255,.1);overflow:hidden}
+.bar > i{display:block;height:100%;width:0;border-radius:8px 0 0 8px;background:linear-gradient(90deg,#6366f1,#a855f7);
+  transition:width .45s cubic-bezier(.4,0,.2,1)}
+.bar > span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;
+  font-size:13.5px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.7);font-variant-numeric:tabular-nums}
+.bar > u{position:absolute;top:0;bottom:0;width:2px;background:rgba(255,255,255,.9);box-shadow:0 0 8px rgba(255,255,255,.6)}
+.bar.thin{height:16px;border-radius:6px}
+.bar.thin > span{font-size:10.5px}
+.bar-wrap{position:relative;padding-top:20px;margin-top:4px}
+.bar-flag{position:absolute;top:0;transform:translateX(-50%);font-size:11px;color:var(--muted);white-space:nowrap}
 .actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;align-items:center}
-.btn{border:0;border-radius:11px;padding:11px 20px;font-size:14.5px;cursor:pointer;font-weight:700;display:inline-flex;
-  align-items:center;gap:8px;transition:transform .12s ease,box-shadow .15s ease,background .15s ease;font-family:inherit}
+.btn{border:0;border-radius:11px;padding:11px 20px;font-size:14.5px;cursor:pointer;font-weight:700;font-family:inherit;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  transition:transform .12s ease,box-shadow .15s ease,background .15s ease}
 .btn:active{transform:translateY(1px)}
-.btn:disabled{opacity:.6;cursor:not-allowed}
+.btn:disabled{opacity:.5;cursor:not-allowed}
 .btn-main{color:#0b0620;background:linear-gradient(135deg,#818cf8,#c084fc);box-shadow:0 10px 26px rgba(129,140,248,.32)}
 .btn-main:hover:not(:disabled){box-shadow:0 12px 32px rgba(129,140,248,.5)}
 .btn-ghost{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:var(--text)}
 .btn-ghost:hover:not(:disabled){background:rgba(255,255,255,.11)}
 .btn-hit{background:rgba(52,211,153,.15);border:1px solid rgba(52,211,153,.45);color:#6ee7b7}
-.btn-hit:hover{background:rgba(52,211,153,.24)}
+.btn-hit:hover:not(:disabled){background:rgba(52,211,153,.24)}
 .btn-miss{background:rgba(251,113,133,.13);border:1px solid rgba(251,113,133,.42);color:#fda4af}
-.btn-miss:hover{background:rgba(251,113,133,.22)}
+.btn-miss:hover:not(:disabled){background:rgba(251,113,133,.22)}
+.btn-del{background:transparent;border:1px solid rgba(255,255,255,.12);color:var(--muted)}
+.btn-del:hover{color:#fda4af;border-color:rgba(251,113,133,.4)}
 .btn.sm{padding:8px 14px;font-size:13px}
-#msg{margin-top:12px;font-size:13px;display:none}
+.btn.block{width:100%}
+#msg{margin:0 0 14px;font-size:13px;display:none;padding:11px 15px;border-radius:12px;line-height:1.7}
 #msg.show{display:block}
-#msg.err{color:var(--err)}
-#msg.info{color:#a5f3fc}
-.list{display:flex;flex-direction:column;gap:10px}
-.item{display:flex;align-items:center;gap:14px;padding:13px 16px;border-radius:13px;cursor:pointer;
-  background:rgba(8,12,26,.45);border:1px solid rgba(255,255,255,.08);transition:border-color .15s,background .15s}
-.item:hover{border-color:rgba(129,140,248,.5);background:rgba(129,140,248,.07)}
-.item.sel{border-color:rgba(232,121,249,.6);background:rgba(232,121,249,.09)}
+#msg.err{color:#fecdd3;background:rgba(251,113,133,.12);border:1px solid rgba(251,113,133,.36)}
+#msg.ok{color:#bbf7d0;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3)}
+.list{margin-top:10px}
+.item{display:flex;align-items:center;gap:14px;padding:13px 15px;border-radius:13px;background:rgba(8,12,26,.5);
+  border:1px solid rgba(255,255,255,.08);cursor:pointer;transition:border-color .15s ease,background .15s ease}
+.item + .item{margin-top:9px}
+.item:hover{background:rgba(255,255,255,.06)}
+.item.sel{border-color:rgba(167,139,250,.62);background:rgba(129,140,248,.1)}
 .it-main{flex:1;min-width:0}
-.it-text{font-size:15px;line-height:1.6;word-break:break-word}
-.it-meta{font-size:12px;color:var(--muted);margin-top:3px}
-.it-p{flex:none;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;color:#c4b5fd}
-.empty{font-size:13px;color:var(--muted);padding:6px 0}
-.dt-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:12px 0 14px}
+.it-text{font-size:14.5px;line-height:1.6;word-break:break-word}
+.it-meta{font-size:12px;color:var(--muted);margin-top:5px;display:flex;gap:9px;flex-wrap:wrap;align-items:center;line-height:1.7}
+.it-p{flex:none;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;color:#c4b5fd}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;line-height:1.7;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:var(--muted)}
+.pill.lock{color:#fcd34d;background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.34)}
+.pill.ok{color:#6ee7b7;background:rgba(52,211,153,.14);border-color:rgba(52,211,153,.35)}
+.pill.no{color:#fda4af;background:rgba(251,113,133,.13);border-color:rgba(251,113,133,.33)}
+.pill.warn{color:#fcd34d;background:rgba(251,191,36,.13);border-color:rgba(251,191,36,.34)}
+.dt-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 0 14px}
+.dt-head .btn{flex:none;white-space:nowrap}
 .dt-title{font-size:18px;line-height:1.5;font-weight:700;word-break:break-word}
-.dt-sub{font-size:12.5px;color:var(--muted);margin-top:8px;display:flex;gap:14px;flex-wrap:wrap}
-hr.sep{border:0;border-top:1px solid rgba(255,255,255,.08);margin:20px 0 16px}
-.q{font-size:14px;line-height:1.9;color:#c3cde3;margin:0 0 4px}
-.q em{color:#e879f9;font-style:normal;font-weight:700}
-.preview{margin-top:18px;padding:14px;border-radius:13px;background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.22)}
-.preview .pv-line{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:#bae6fd;margin-bottom:10px}
-.preview .pv-line b{font-size:15px;color:#fff;font-variant-numeric:tabular-nums}
+.dt-sub{font-size:12.5px;color:var(--muted);margin-top:9px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.lvls{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}
+.lvl{padding:11px 6px;border-radius:12px;text-align:center;cursor:pointer;font-family:inherit;font-weight:700;font-size:13px;
+  color:var(--text);border:1px solid rgba(255,255,255,.12);background:rgba(8,12,26,.5);
+  transition:background .15s ease,border-color .15s ease}
+.lvl b{display:block;font-size:13.5px}
+.lvl span{display:block;margin-top:4px;font-size:11px;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums}
+.lvl:hover{background:rgba(255,255,255,.09)}
+.lvl.f{border-color:rgba(52,211,153,.42);color:#a7f3d0}
+.lvl.n{border-color:rgba(255,255,255,.18);color:#cbd5e1}
+.lvl.a{border-color:rgba(251,113,133,.42);color:#fecdd3}
 .ev{padding:12px 14px;border-radius:12px;background:rgba(8,12,26,.45);border:1px solid rgba(255,255,255,.08)}
 .ev + .ev{margin-top:9px}
 .ev-top{display:flex;align-items:center;gap:10px;font-size:13.5px}
@@ -110,120 +141,115 @@ hr.sep{border:0;border-top:1px solid rgba(255,255,255,.08);margin:20px 0 16px}
 .ev-lr{flex:none;font-size:13px;color:#e879f9;font-weight:700;font-variant-numeric:tabular-nums}
 .ev-del{flex:none;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:12px;padding:2px 4px;border-radius:6px}
 .ev-del:hover{color:#fb7185;background:rgba(251,113,133,.12)}
-.ev-body{font-size:12.5px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}
+.ev-body{font-size:12.5px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
 .ev-arrow{color:rgba(255,255,255,.3)}
 .ev-after{color:#a5b4fc;font-weight:700}
-.cal-stats{font-size:13.5px;color:#c3cde3;margin:10px 0 4px;display:flex;gap:16px;flex-wrap:wrap}
-.cal-stats b{color:#fff;font-variant-numeric:tabular-nums}
-#calChart{width:100%;height:320px;margin-top:6px}
-.srow{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:11px;
-  background:rgba(8,12,26,.4);border:1px solid rgba(255,255,255,.07);font-size:13.5px}
-.srow .s-text{flex:1;min-width:0;word-break:break-word}
-.srow .s-tag{flex:none;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px}
-.s-tag.hit{color:#6ee7b7;background:rgba(52,211,153,.14);border:1px solid rgba(52,211,153,.35)}
-.s-tag.miss{color:#fda4af;background:rgba(251,113,133,.13);border:1px solid rgba(251,113,133,.33)}
-.srow .s-p{flex:none;color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
-.srow .s-undo{flex:none;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:12px}
-.srow .s-undo:hover{color:#fff}
+.ev-none{font-size:12.5px;color:var(--muted);padding:8px 0}
+.dom-row{margin-bottom:12px}
+.dom-lab{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--muted);margin-bottom:5px;flex-wrap:wrap}
+.dom-lab b{color:#c3cde3;font-weight:600}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 4px}
+.metric{padding:12px 10px;border-radius:13px;background:rgba(8,12,26,.45);border:1px solid rgba(255,255,255,.08);text-align:center}
+.metric b{display:block;font-size:19px;color:#fff;font-variant-numeric:tabular-nums;line-height:1.3}
+.metric span{display:block;font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.6}
+.ins{display:flex;flex-direction:column;gap:5px;padding:13px 15px;border-radius:13px;background:rgba(8,12,26,.45);
+  border:1px solid rgba(255,255,255,.08);border-left-width:3px}
+.ins + .ins{margin-top:10px}
+.ins b{font-size:14px}
+.ins span{font-size:12.5px;color:#b9c4d8;line-height:1.8}
+.ins.warn{border-left-color:#fb7185}
+.ins.warn b{color:#fda4af}
+.ins.good{border-left-color:#34d399}
+.ins.good b{color:#6ee7b7}
+.ins.info{border-left-color:#818cf8}
+.ins.info b{color:#c7d2fe}
+#calChart{width:100%;height:330px;margin-top:10px}
+.anchors .anc{padding:12px 14px;border-radius:12px;background:rgba(8,12,26,.45);border:1px solid rgba(255,255,255,.08)}
+.anchors .anc + .anc{margin-top:9px}
+.anc-top{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13.5px;flex-wrap:wrap}
+.anc-note{font-size:12.5px;color:var(--muted);line-height:1.8;margin-top:6px}
+.anc-meta{font-size:12px;color:var(--muted);margin-top:5px;font-variant-numeric:tabular-nums;line-height:1.7}
 .egg-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .egg-box{padding:14px;border-radius:13px;background:rgba(8,12,26,.45);border:1px solid rgba(255,255,255,.08)}
 .egg-box h3{margin:0 0 12px;font-size:14px;color:#e9d5ff}
-.path{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+.path{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-top:12px}
 .chip{display:flex;flex-direction:column;gap:5px;align-items:center;flex:1;min-width:88px}
 .chip .c-val{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
-.chip .c-tag{font-size:11px;color:var(--muted)}
+.chip .c-tag{font-size:11px;color:var(--muted);text-align:center}
 .chip .bar{width:100%}
-.parrow{flex:none;color:rgba(255,255,255,.35);font-size:13px}
+.parrow{flex:none;color:rgba(255,255,255,.35);font-size:13px;padding-top:14px}
 .egg-same{margin-top:16px;padding:12px 15px;border-radius:12px;font-size:13.5px;line-height:1.8;
   background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);color:#bbf7d0}
 .egg-same b{color:#fff;font-variant-numeric:tabular-nums}
 .path-label{font-size:12.5px;color:var(--muted);margin-top:10px}
-@media(max-width:720px){.egg-grid{grid-template-columns:1fr}}
+.empty{font-size:13px;color:var(--muted);padding:6px 0;line-height:1.8}
+.mini{font-size:11.5px;color:var(--muted);line-height:1.8;font-weight:400}
+details > summary{outline:none}
+details > summary::-webkit-details-marker{display:none}
+@media(max-width:720px){
+  .wrap{padding:20px 14px 80px}
+  .card{padding:16px;border-radius:16px}
+  .egg-grid{grid-template-columns:1fr}
+  .metrics{grid-template-columns:repeat(2,1fr)}
+  .lvls{grid-template-columns:repeat(2,1fr)}
+  .lvls .lvl:nth-child(5){grid-column:1/-1}
+  .row{flex-direction:column}
+  #calChart{height:290px}
+  h1{font-size:20px}
+  .mark{width:42px;height:42px;font-size:20px;border-radius:13px}
+  .dt-title{font-size:16.5px}
+}
+@media(max-width:359px){
+  .lvls{grid-template-columns:1fr}
+  .lvls .lvl:nth-child(5){grid-column:auto}
+  .chip{min-width:70px}
+}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <a class="back" href="/">← 返回工具箱</a>
+  <a class="back" href="/">&larr; 返回工具箱</a>
   <header class="top">
     <div class="logo">
-      <div class="mark">🎲</div>
-      <div><h1>贝叶斯日记</h1></div>
+      <div class="mark">&#127922;</div>
+      <div>
+        <h1>贝叶斯日记</h1>
+        <p class="tag">似然比 &middot; 后验 &middot; 校准报告 &mdash; <em>全部由 Python 现算</em></p>
+      </div>
+    </div>
+    <div class="top-act">
+      <button class="btn btn-ghost sm" id="btnAnchors">似然比锚点</button>
+      <button class="btn btn-ghost sm" id="btnExport">导出</button>
+      <button class="btn btn-ghost sm" id="btnReset">清空</button>
     </div>
   </header>
+  <div id="msg"></div>
 
   <div class="card">
-    <h2>1 · 下注</h2>
-    <p class="desc">写一条当天就能验证的预测，再给出你心里的概率。</p>
-    <input id="betText" class="input" maxlength="120" placeholder="例如：明天 9 点前外卖会准时送到">
+    <h2><i class="n">1</i>下注</h2>
+    <p class="desc">写一条能验证的预测，写下你此刻的把握。<b>先验一保存就锁死</b>，事后不能改 &mdash; 这是整份报告可信的前提。</p>
+    <input id="betText" class="input" maxlength="200" placeholder="例如：这周三之前他会把方案回给我">
+    <div class="row f">
+      <div><label>领域</label><select id="betDomain"></select></div>
+      <div><label>验证截止</label><input id="betDue" class="input" type="date"></div>
+    </div>
     <div class="slider-row">
       <div class="slider-head"><span>我认为它会发生</span><b id="betP">70%</b></div>
       <input id="betSlider" type="range" min="1" max="99" value="70">
     </div>
-    <div class="actions">
-      <button class="btn btn-main" id="btnAddBet">记下这个预测</button>
-    </div>
-    <div id="msg"></div>
+    <div class="actions"><button class="btn btn-main" id="btnAddBet">记下这个预测</button></div>
     <hr class="sep">
-    <h2>待结算</h2>
+    <h2 style="font-size:15px">待结算</h2>
     <div id="openList" class="list"></div>
   </div>
 
-  <div class="card" id="detailCard" hidden>
-    <h2>2 · 随手记证据 · 3 · 看后验动</h2>
-    <div class="dt-head">
-      <div class="dt-title" id="dTitle"></div>
-      <button class="btn btn-ghost sm" id="btnDelBet">删除</button>
-    </div>
-    <div class="bar"><i id="dBar"></i><span id="dPct"></span></div>
-    <div class="dt-sub" id="dSub"></div>
-
-    <hr class="sep">
-    <p class="q">这条证据，在「<em id="qHit">会发生</em>」和「<em id="qMiss">不会发生</em>」下各有多大可能出现？</p>
-    <input id="evNote" class="input" maxlength="120" placeholder="证据是什么（可留空）">
-    <div class="slider-row">
-      <div class="slider-head"><span>如果「会发生」，看到它的可能性</span><b id="evAVal">70%</b></div>
-      <input id="evA" type="range" min="0" max="100" value="70">
-    </div>
-    <div class="slider-row">
-      <div class="slider-head"><span>如果「不会发生」，看到它的可能性</span><b id="evBVal">30%</b></div>
-      <input id="evB" type="range" min="0" max="100" value="30">
-    </div>
-    <div class="preview">
-      <div class="pv-line">
-        <span>这条证据的说服力</span>
-        <span><b id="evLR">×2.33</b>　<span id="evShift"></span></span>
-      </div>
-      <div class="bar preview"><i id="evBar"></i><span id="evBarTxt"></span></div>
-    </div>
-    <div class="actions">
-      <button class="btn btn-main" id="btnAddEv">记下这条证据</button>
-    </div>
-
-    <hr class="sep">
-    <h2>证据时间线</h2>
-    <div id="evList" class="list" style="margin-top:10px"></div>
-
-    <hr class="sep">
-    <h2>4 · 结算</h2>
-    <p class="desc">结果出来后再点，会记下你当时的概率，用于校准曲线。</p>
-    <div class="actions">
-      <button class="btn btn-hit" id="btnHit">它发生了 ✓</button>
-      <button class="btn btn-miss" id="btnMiss">它没发生 ✗</button>
-    </div>
-  </div>
+  <div class="card" id="detailCard" hidden></div>
+  <div class="card" id="reportCard"></div>
+  <div class="card" id="anchorCard" hidden></div>
 
   <div class="card">
-    <h2>校准曲线</h2>
-    <p class="desc">你嘴上说 80% 的事，实际发生了多少次。样本越多越有意义。</p>
-    <div class="cal-stats" id="calStats"></div>
-    <div id="calChart"></div>
-    <div class="empty" id="calEmpty">还没有结算记录，先攒几条结果吧。</div>
-    <div id="settledList" class="list" style="margin-top:14px"></div>
-  </div>
-
-  <div class="card">
-    <h2>彩蛋实验 · 顺序不改变结论</h2>
-    <p class="desc">同一个信念，先喂证据 A 再喂 B，和先 B 后 A：过程不同，终点必然一模一样。</p>
+    <h2><i class="n">&#9733;</i>顺序不改变结论</h2>
+    <p class="desc">同一条信念，先喂证据 A 再喂 B，和先 B 后 A：中间过程不同，终点必然一模一样。下面的数字是 Python 实时算的。</p>
     <div class="slider-row">
       <div class="slider-head"><span>初始信念（先验）</span><b id="eggPVal">50%</b></div>
       <input id="eggP" type="range" min="1" max="99" value="50">
@@ -232,18 +258,18 @@ hr.sep{border:0;border-top:1px solid rgba(255,255,255,.08);margin:20px 0 16px}
       <div class="egg-box">
         <h3>证据 A</h3>
         <div class="slider-head"><span>会发生时出现的可能性</span><b id="eggA1Val">80%</b></div>
-        <input id="eggA1" type="range" min="0" max="100" value="80">
+        <input id="eggA1" type="range" min="1" max="99" value="80">
         <div class="slider-head" style="margin-top:12px"><span>不会发生时出现的可能性</span><b id="eggA2Val">40%</b></div>
-        <input id="eggA2" type="range" min="0" max="100" value="40">
-        <div class="path-label">A 的说服力 <b id="eggLRA">×2</b></div>
+        <input id="eggA2" type="range" min="1" max="99" value="40">
+        <div class="path-label">A 的说服力 <b id="eggLRA">&times;2</b></div>
       </div>
       <div class="egg-box">
         <h3>证据 B</h3>
         <div class="slider-head"><span>会发生时出现的可能性</span><b id="eggB1Val">60%</b></div>
-        <input id="eggB1" type="range" min="0" max="100" value="60">
+        <input id="eggB1" type="range" min="1" max="99" value="60">
         <div class="slider-head" style="margin-top:12px"><span>不会发生时出现的可能性</span><b id="eggB2Val">20%</b></div>
-        <input id="eggB2" type="range" min="0" max="100" value="20">
-        <div class="path-label">B 的说服力 <b id="eggLRB">×3</b></div>
+        <input id="eggB2" type="range" min="1" max="99" value="20">
+        <div class="path-label">B 的说服力 <b id="eggLRB">&times;3</b></div>
       </div>
     </div>
     <div class="path-label" style="margin-top:18px">路径一：先 A 后 B</div>
@@ -253,20 +279,21 @@ hr.sep{border:0;border-top:1px solid rgba(255,255,255,.08);margin:20px 0 16px}
     <div class="egg-same" id="eggSame"></div>
   </div>
 </div>
-
 <script>
 (function () {
   'use strict';
+  var API = '/api/bayes';
   var $ = function (id) { return document.getElementById(id); };
-  var STORE = 'bayesDiary.v1';
-  var state = { bets: [], selected: null };
+  var S = { data: null, anchors: null, sel: null, chart: null, eggTimer: null, bound: false };
 
-  // ---------- 概率工具：全部用「赔率 × 似然比」计算 ----------
-  function oddsOf(p) { return p / (1 - p); }
-  function pOf(o) { if (!(o > 0)) { return 0; } if (!isFinite(o)) { return 1; } return o / (1 + o); }
-  function lrOf(a, b) { return (a <= 0 ? 0 : a) / Math.max(b, 0.01); }
-  function applyLR(p, lr) { return pOf(oddsOf(p) * lr); }
+  // ---------- 小工具（只做格式化，不做统计：统计一律由 Python 出） ----------
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
   function pct(p, d) {
+    if (p == null) { return '—'; }
     var v = p * 100;
     if (d != null) { return v.toFixed(d) + '%'; }
     if (v > 0 && v < 1) { return '<1%'; }
@@ -274,360 +301,478 @@ hr.sep{border:0;border-top:1px solid rgba(255,255,255,.08);margin:20px 0 16px}
     return Math.round(v) + '%';
   }
   function fmtLR(x) {
-    if (!isFinite(x)) { return '∞'; }
-    if (x <= 0) { return '0'; }
+    if (x == null) { return '—'; }
     if (x >= 100) { return '99+'; }
-    var s = x >= 10 ? x.toFixed(0) : x.toFixed(2);
-    return s.indexOf('.') >= 0 ? s.replace(/0+$/, '').replace(/\.$/, '') : s;
+    if (x >= 10) { return x.toFixed(1).replace(/\.0$/, ''); }
+    return x.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
   }
-  function esc(s) {
-    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  function setBar(el, p) {
+    if (el) { el.style.width = (Math.max(0, Math.min(1, p)) * 100).toFixed(2) + '%'; }
+  }
+  function isoLocal(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function msg(text, kind) {
+    var m = $('msg');
+    if (!text) { m.className = ''; m.textContent = ''; return; }
+    m.className = 'show ' + (kind || 'err');
+    m.textContent = text;
+  }
+  function bindClicks(root, sel, fn) {
+    Array.prototype.forEach.call(root.querySelectorAll(sel), function (el) {
+      el.addEventListener('click', function (ev) { fn(el, ev); });
     });
   }
-  function uid() { return 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
-  function setBar(el, p) { el.style.width = (Math.max(0, Math.min(1, p)) * 100).toFixed(2) + '%'; }
 
-  // ---------- 存储 ----------
-  function load() {
-    try {
-      var d = JSON.parse(localStorage.getItem(STORE) || 'null');
-      if (d && Array.isArray(d.bets)) { state.bets = d.bets; }
-    } catch (e) { state.bets = []; }
-    // 读档后重算一遍：老数据或手工改过的数据也能自愈，避免出现 NaN
-    state.bets.forEach(function (b) {
-      if (!Array.isArray(b.evidence)) { b.evidence = []; }
-      recompute(b);
+  // ---------- 后端调用：所有数字都从这里回来 ----------
+  function send(path, method, body) {
+    var opt = { method: method || 'GET', headers: { 'Content-Type': 'application/json' } };
+    if (body !== undefined && body !== null) { opt.body = JSON.stringify(body); }
+    return fetch(API + path, opt).then(function (res) {
+      return res.json().catch(function () { return null; }).then(function (data) {
+        if (!res.ok) {
+          var d = data && data.detail;
+          throw new Error(typeof d === 'string' && d ? d : ('请求失败（' + res.status + '）'));
+        }
+        return data;
+      });
     });
   }
-  function save() {
-    try { localStorage.setItem(STORE, JSON.stringify({ bets: state.bets })); } catch (e) {}
+  function run(promise, okText) {
+    return promise.then(function (data) {
+      apply(data);
+      msg(okText || '', 'ok');
+    }).catch(function (e) { msg(e && e.message ? e.message : String(e), 'err'); });
   }
-  function selectedBet() {
-    for (var i = 0; i < state.bets.length; i++) {
-      if (state.bets[i].id === state.selected) { return state.bets[i]; }
+  function apply(data) {
+    if (!data || !data.bets) { return; }
+    S.data = data;
+    fillDomains();
+    if (S.sel != null && !data.bets.some(function (b) { return b.id === S.sel; })) { S.sel = null; }
+    if (S.sel == null) {
+      var first = data.bets.filter(function (b) { return b.status === 'open'; })[0] || data.bets[0];
+      if (first) { S.sel = first.id; }
+    }
+    render();
+  }
+  function fillDomains() {
+    var sel = $('betDomain');
+    if (!sel || sel.options.length) { return; }
+    var ds = (S.data.anchors && S.data.anchors.domains) || [];
+    sel.innerHTML = ds.map(function (d) { return '<option>' + esc(d) + '</option>'; }).join('');
+  }
+  function curBet() {
+    if (!S.data) { return null; }
+    for (var i = 0; i < S.data.bets.length; i++) {
+      if (S.data.bets[i].id === S.sel) { return S.data.bets[i]; }
     }
     return null;
   }
-  // 从原始预测出发，把全部证据重算一遍（这样删掉中间某条也不会错）
-  function recompute(bet) {
-    var p = bet.p0;
-    bet.evidence.forEach(function (ev) {
-      ev.lr = lrOf(ev.a, ev.b);
-      ev.before = p;
-      p = applyLR(p, ev.lr);
-      ev.after = p;
-    });
-    bet.p = p;
-  }
 
-  // ---------- 渲染 ----------
+  // ---------- 待结算列表 ----------
   function renderOpen() {
-    var open = state.bets.filter(function (b) { return b.status === 'open'; });
     var box = $('openList');
+    var open = S.data.bets.filter(function (b) { return b.status === 'open'; });
     if (!open.length) {
       box.innerHTML = '<div class="empty">还没有待结算的预测，先在上面写一条。</div>';
       return;
     }
     box.innerHTML = open.map(function (b) {
-      return '<div class="item' + (b.id === state.selected ? ' sel' : '') + '" data-id="' + b.id + '">' +
-        '<div class="it-main"><div class="it-text">' + esc(b.text) + '</div>' +
-        '<div class="it-meta">' + esc(dayTitle(dayKeyOf(tsOf(b.created) || Date.now()))) +
-        ' · 下注 ' + pct(b.p0) +
-        (b.evidence.length ? ' · ' + b.evidence.length + ' 条证据' : '') + '</div></div>' +
-        '<div class="it-p">' + pct(b.p) + '</div></div>';
+      var meta = [];
+      if (b.domain) { meta.push(esc(b.domain)); }
+      meta.push('下注 ' + pct(b.prior));
+      if (b.n_evidence) { meta.push(b.n_evidence + ' 条证据'); }
+      if (b.due) {
+        meta.push(b.overdue ? '<span class="pill no">已过 ' + esc(b.due) + '</span>'
+          : (b.due_soon ? '<span class="pill warn">' + b.days_left + ' 天内验证</span>' : '截止 ' + esc(b.due)));
+      }
+      return '<div class="item' + (b.id === S.sel ? ' sel' : '') + '" data-id="' + b.id + '">' +
+        '<div class="it-main"><div class="it-text">' + esc(b.question) + '</div>' +
+        '<div class="it-meta">' + meta.join(' <span style="opacity:.45">·</span> ') + '</div></div>' +
+        '<div class="it-p">' + pct(b.posterior) + '</div></div>';
     }).join('');
-    Array.prototype.forEach.call(box.querySelectorAll('.item'), function (el) {
-      el.addEventListener('click', function () {
-        state.selected = el.getAttribute('data-id');
-        $('evNote').value = '';
-        renderOpen();
-        renderDetail();
-      });
+    bindClicks(box, '.item', function (el) {
+      S.sel = +el.getAttribute('data-id');
+      render();
+      var card = $('detailCard');
+      if (card && !card.hidden) { window.scrollTo({ top: card.offsetTop - 70, behavior: 'smooth' }); }
     });
   }
-
-  function renderDetail() {
-    var b = selectedBet();
-    if (!b) { $('detailCard').hidden = true; return; }
-    $('detailCard').hidden = false;
-    $('dTitle').textContent = b.text;
-    $('dSub').innerHTML = '<span>下注时 ' + pct(b.p0) + '</span><span>' + b.evidence.length + ' 条证据</span>';
-    setBar($('dBar'), b.p);
-    $('dPct').textContent = pct(b.p);
-
-    var list = $('evList');
-    if (!b.evidence.length) {
-      list.innerHTML = '<div class="empty">还没有证据。拖动下面的滑杆，看概率怎么动。</div>';
-    } else {
-      list.innerHTML = b.evidence.map(function (ev, i) {
-        return '<div class="ev">' +
-          '<div class="ev-top"><span class="ev-note">' + esc(ev.note || ('证据 ' + (i + 1))) + '</span>' +
-          '<span class="ev-lr">×' + fmtLR(ev.lr) + '</span>' +
-          '<button class="ev-del" data-ev="' + ev.id + '" title="删除这条证据">✕</button></div>' +
-          '<div class="ev-body"><span>' + pct(ev.before) + '</span>' +
-          '<span class="ev-arrow">→</span><span class="ev-after">' + pct(ev.after) + '</span></div>' +
-          '</div>';
-      }).join('');
-      Array.prototype.forEach.call(list.querySelectorAll('.ev-del'), function (el) {
-        el.addEventListener('click', function () {
-          var id = el.getAttribute('data-ev');
-          b.evidence = b.evidence.filter(function (e) { return e.id !== id; });
-          recompute(b);
-          save();
-          renderOpen();
-          renderDetail();
-        });
-      });
-    }
-    updatePreview();
-  }
-
-  function updatePreview() {
-    var b = selectedBet();
-    if (!b) { return; }
-    var a = (+$('evA').value) / 100;
-    var c = (+$('evB').value) / 100;
-    $('evAVal').textContent = Math.round(a * 100) + '%';
-    $('evBVal').textContent = Math.round(c * 100) + '%';
-    var lr = lrOf(a, c);
-    var next = applyLR(b.p, lr);
-    $('evLR').textContent = '×' + fmtLR(lr);
-    $('evShift').textContent = pct(b.p) + ' → ' + pct(next);
-    setBar($('evBar'), next);
-    $('evBarTxt').textContent = pct(next);
-  }
-
-  var chart = null;
-  function renderCalibration() {
-    var settled = state.bets.filter(function (b) { return b.status !== 'open'; });
-    var list = $('settledList');
-    list.innerHTML = settled.slice().reverse().map(function (b) {
-      return '<div class="srow"><span class="s-tag ' + b.status + '">' +
-        (b.status === 'hit' ? '发生了' : '没发生') + '</span>' +
-        '<span class="s-text">' + esc(b.text) + '</span>' +
-        '<span class="s-p">' + pct(b.settleP != null ? b.settleP : b.p) + '</span>' +
-        '<button class="s-undo" data-undo="' + b.id + '">撤销</button></div>';
-    }).join('');
-    Array.prototype.forEach.call(list.querySelectorAll('[data-undo]'), function (el) {
-      el.addEventListener('click', function () {
-        var id = el.getAttribute('data-undo');
-        state.bets.forEach(function (b) {
-          if (b.id === id) { b.status = 'open'; b.settleP = null; b.settledAt = null; }
-        });
-        save();
-        renderAll();
-      });
-    });
-    if (!settled.length) {
-      $('calEmpty').hidden = false;
-      $('calStats').textContent = '';
-      if (chart) { chart.clear(); }
-      return;
-    }
-    $('calEmpty').hidden = true;
-
-    var buckets = [];
-    for (var i = 0; i < 10; i++) { buckets.push({ lo: i * 10, hi: i * 10 + 10, n: 0, hits: 0 }); }
-    var brier = 0;
-    settled.forEach(function (b) {
-      var p = b.settleP != null ? b.settleP : b.p;
-      var hit = b.status === 'hit' ? 1 : 0;
-      brier += (p - hit) * (p - hit);
-      var idx = Math.min(9, Math.max(0, Math.floor(p * 10)));
-      buckets[idx].n++;
-      buckets[idx].hits += hit;
-    });
-    brier = brier / settled.length;
-    var used = buckets.filter(function (x) { return x.n > 0; });
-    var verdict = brier < 0.1 ? '很准' : (brier < 0.2 ? '还不错' : '继续练');
-    $('calStats').innerHTML = '<span>已结算 <b>' + settled.length + '</b> 条</span>' +
-      '<span>Brier 分数 <b>' + brier.toFixed(3) + '</b>（越小越准）</span><span><b>' + verdict + '</b></span>';
-
-    if (typeof echarts === 'undefined') { return; }
-    if (!chart) {
-      chart = echarts.init($('calChart'));
-      window.addEventListener('resize', function () { if (chart) { chart.resize(); } });
-    }
-    chart.setOption({
-      grid: { left: 46, right: 22, top: 44, bottom: 34 },
-      tooltip: {
-        trigger: 'axis',
-        formatter: function (ps) {
-          var i = ps[0].dataIndex;
-          return used[i].lo + '-' + used[i].hi + '%　样本 ' + used[i].n + ' 条<br>' +
-            '实际发生 ' + used[i].hits + ' 次（' + ps[0].value + '%）<br>' +
-            '你给的概率 ' + ps[1].value + '%';
-        }
-      },
-      legend: { data: ['实际发生率', '你给的概率'], textStyle: { color: '#93a0ba' }, top: 4 },
-      xAxis: {
-        type: 'category',
-        data: used.map(function (x) { return x.lo + '-' + x.hi + '%'; }),
-        axisLine: { lineStyle: { color: 'rgba(255,255,255,.2)' } },
-        axisLabel: { color: '#93a0ba', fontSize: 11 }
-      },
-      yAxis: {
-        type: 'value', max: 100,
-        axisLabel: { color: '#93a0ba', formatter: '{value}%' },
-        splitLine: { lineStyle: { color: 'rgba(255,255,255,.07)' } }
-      },
-      series: [
-        {
-          name: '实际发生率', type: 'bar', barMaxWidth: 46,
-          data: used.map(function (x) { return +(x.hits / x.n * 100).toFixed(1); }),
-          itemStyle: {
-            borderRadius: [6, 6, 0, 0],
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: '#818cf8' }, { offset: 1, color: '#6366f1' }
-            ])
-          }
-        },
-        {
-          name: '你给的概率', type: 'line', symbolSize: 8,
-          data: used.map(function (x) { return (x.lo + x.hi) / 2; }),
-          lineStyle: { width: 2, type: 'dashed', color: '#e879f9' },
-          itemStyle: { color: '#e879f9' }
-        }
-      ]
-    }, true);
-    chart.resize();
-  }
-
-  // ---------- 彩蛋：赔率连乘，顺序无关 ----------
-  function renderEgg() {
-    var p0 = (+$('eggP').value) / 100;
-    var a1 = (+$('eggA1').value) / 100, a2 = (+$('eggA2').value) / 100;
-    var b1 = (+$('eggB1').value) / 100, b2 = (+$('eggB2').value) / 100;
-    $('eggPVal').textContent = Math.round(p0 * 100) + '%';
-    $('eggA1Val').textContent = Math.round(a1 * 100) + '%';
-    $('eggA2Val').textContent = Math.round(a2 * 100) + '%';
-    $('eggB1Val').textContent = Math.round(b1 * 100) + '%';
-    $('eggB2Val').textContent = Math.round(b2 * 100) + '%';
-
-    var lrA = lrOf(a1, a2), lrB = lrOf(b1, b2);
-    $('eggLRA').textContent = '×' + fmtLR(lrA);
-    $('eggLRB').textContent = '×' + fmtLR(lrB);
-
-    var o0 = oddsOf(p0);
-    var oA = o0 * lrA, oB = o0 * lrB;          // 第一步的中间状态
-    var oEnd = o0 * lrA * lrB;                  // 乘法交换律：终点必然相同
-
-    function chip(label, value, accent) {
-      var w = (Math.max(0, Math.min(1, value)) * 100).toFixed(2);
-      return '<div class="chip"><div class="c-tag">' + label + '</div>' +
-        '<div class="c-val" style="color:' + accent + '">' + pct(value, 1) + '</div>' +
-        '<div class="bar thin"><i style="width:' + w + '%;background:linear-gradient(90deg,' +
-        accent + ',' + accent + ')"></i></div></div>';
-    }
-    var end = pOf(oEnd);
-    $('path1').innerHTML = chip('先验', p0, '#93a0ba') + '<span class="parrow">先 A →</span>' +
-      chip('喂 A 后', pOf(oA), '#818cf8') + '<span class="parrow">再 B →</span>' +
-      chip('喂 B 后', end, '#e879f9');
-    $('path2').innerHTML = chip('先验', p0, '#93a0ba') + '<span class="parrow">先 B →</span>' +
-      chip('喂 B 后', pOf(oB), '#818cf8') + '<span class="parrow">再 A →</span>' +
-      chip('喂 A 后', pOf(oEnd), '#e879f9');
-
-    var mid1 = pct(pOf(oA), 1), mid2 = pct(pOf(oB), 1);
-    var diff = mid1 === mid2;
-    $('eggSame').innerHTML = '两条路径的终点都是 <b>' + pct(end, 1) + '</b>。' +
-      (diff ? '这次的参数刚好让中间值也相同。' :
-        '但中间过程不一样：先 A 时是 <b>' + mid1 + '</b>，先 B 时是 <b>' + mid2 + '</b>' +
-        ' —— 顺序只改变你的心情，不改变最终结论。');
-  }
-
-  // ---------- 日期显示：待结算列表里标出是哪天下的注 ----------
-  function pad2(n) { return (n < 10 ? '0' : '') + n; }
-  function tsOf(v) { return (typeof v === 'number' && isFinite(v) && v > 0) ? v : 0; }
-  function dayKeyOf(t) {
-    var d = new Date(t);
-    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
-  }
-  function dayTitle(key) {
-    var now = Date.now();
-    if (key === dayKeyOf(now)) { return '今天'; }
-    if (key === dayKeyOf(now - 86400000)) { return '昨天'; }
-    var seg = key.split('-');
-    if (Number(seg[0]) === new Date().getFullYear()) {
-      return Number(seg[1]) + ' 月 ' + Number(seg[2]) + ' 日';
-    }
-    return key;
-  }
-
-
-  function renderAll() { renderOpen(); renderDetail(); renderCalibration(); }
-
-  // ---------- 交互 ----------
-  $('betSlider').addEventListener('input', function () {
-    $('betP').textContent = this.value + '%';
-  });
-  $('btnAddBet').addEventListener('click', function () {
-    var text = ($('betText').value || '').trim();
-    var msg = $('msg');
-    if (!text) {
-      msg.className = 'show err';
-      msg.textContent = '先写一条可验证的预测吧';
-      return;
-    }
-    msg.className = '';
-    var bet = {
-      id: uid(), text: text, p0: (+$('betSlider').value) / 100, p: 0,
-      evidence: [], status: 'open', created: Date.now(), settleP: null, settledAt: null
-    };
-    recompute(bet);
-    state.bets.unshift(bet);
-    state.selected = bet.id;
-    $('betText').value = '';
-    save();
-    renderAll();
-  });
-
-  ['evA', 'evB'].forEach(function (id) {
-    $(id).addEventListener('input', updatePreview);
-  });
-  $('btnAddEv').addEventListener('click', function () {
-    var b = selectedBet();
-    if (!b) { return; }
-    var a = (+$('evA').value) / 100;
-    var c = (+$('evB').value) / 100;
-    b.evidence.push({
-      id: uid(), note: ($('evNote').value || '').trim(), a: a, b: c, at: Date.now()
-    });
-    recompute(b);
-    $('evNote').value = '';
-    save();
+  function render() {
     renderOpen();
     renderDetail();
-  });
-
-  function settle(status) {
-    var b = selectedBet();
-    if (!b) { return; }
-    b.status = status;
-    b.settleP = b.p;
-    b.settledAt = Date.now();
-    state.selected = null;
-    save();
-    renderAll();
+    renderReport();
   }
-  $('btnHit').addEventListener('click', function () { settle('hit'); });
-  $('btnMiss').addEventListener('click', function () { settle('miss'); });
-  $('btnDelBet').addEventListener('click', function () {
-    var b = selectedBet();
-    if (!b) { return; }
-    state.bets = state.bets.filter(function (x) { return x.id !== b.id; });
-    state.selected = null;
-    save();
-    renderAll();
-  });
+  // ---------- 详情：先验 → 证据 → 后验 → 结算 ----------
+  function renderDetail() {
+    var card = $('detailCard');
+    var b = curBet();
+    if (!b) { card.hidden = true; card.innerHTML = ''; return; }
+    card.hidden = false;
+    var open = b.status === 'open';
+    var html = '';
 
-  ['eggP', 'eggA1', 'eggA2', 'eggB1', 'eggB2'].forEach(function (id) {
-    $(id).addEventListener('input', renderEgg);
-  });
+    html += '<div class="dt-head"><div><div class="dt-title">' + esc(b.question) + '</div>' +
+      '<div class="dt-sub">' +
+        (b.domain ? '<span class="pill">' + esc(b.domain) + '</span>' : '') +
+        '<span class="pill lock">先验 ' + pct(b.prior) + ' · 已锁定</span>' +
+        (b.due ? '<span>截止 ' + esc(b.due) + '</span>' : '') +
+        '<span>' + (b.n_evidence ? b.n_evidence + ' 条证据' : '还没记证据') + '</span>' +
+      '</div></div>' +
+      '<button class="btn btn-del sm" data-del-bet="' + b.id + '">删除</button></div>';
 
-  load();
-  renderAll();
-  renderEgg();
+    html += '<div class="bar-wrap">' +
+      '<span class="bar-flag" style="left:' + Math.max(6, Math.min(94, b.prior * 100)) + '%">先验 ' + pct(b.prior) + '</span>' +
+      '<div class="bar"><i data-post="' + b.posterior + '"></i><span>' + pct(b.posterior) + '</span>' +
+      '<u style="left:' + (b.prior * 100).toFixed(2) + '%"></u></div></div>';
+    html += '<div class="hint">白线是你下注时写的先验，紫色进度条是叠加证据之后的后验。' +
+      (b.n_evidence ? '目前走了 <b>' + (b.move >= 0 ? '+' : '') + (b.move * 100).toFixed(0) + ' 个百分点</b>。' : '') + '</div>';
+
+    if (open) {
+      html += '<hr class="sep"><h3>随手记一条证据</h3>' +
+        '<div class="hint" style="margin:-4px 0 10px">记之前先问一句：这件事如果<b>不会发生</b>，我还会看到它吗？也会看到 —— 那它就不是证据。</div>' +
+        '<input id="evText" class="input" maxlength="200" placeholder="看到了什么（可留空）">' +
+        '<div class="lvls">' + (S.data.levels || []).map(function (L) {
+          var cls = L.lr > 1 ? 'f' : (L.lr < 1 ? 'a' : 'n');
+          return '<button class="lvl ' + cls + '" data-lvl="' + L.key + '" title="' + esc(L.desc) + '">' +
+            '<b>' + esc(L.label) + '</b><span>×' + fmtLR(L.lr) + '</span></button>';
+        }).join('') + '</div>' +
+        '<details style="margin-top:14px"><summary style="cursor:pointer;font-size:13px;color:#a5b4fc">自己填两个概率（进阶）</summary>' +
+          '<div class="slider-row"><div class="slider-head"><span>如果「会发生」，看到它的可能性</span><b id="evAVal">70%</b></div>' +
+          '<input id="evA" type="range" min="1" max="99" value="70"></div>' +
+          '<div class="slider-row"><div class="slider-head"><span>如果「不会发生」，看到它的可能性</span><b id="evBVal">30%</b></div>' +
+          '<input id="evB" type="range" min="1" max="99" value="30"></div>' +
+          '<div class="hint">这条线索的说服力预览 <b id="evLRPrev" style="color:#e879f9">×2.33</b>（以保存后 Python 算的为准）</div>' +
+          '<div class="actions"><button class="btn btn-ghost" id="btnAddCustom">按这两个概率记下</button></div>' +
+        '</details>';
+    }
+
+    html += '<hr class="sep"><h3>证据时间线</h3><div class="list">';
+    if (!b.evidence.length) {
+      html += '<div class="ev-none">一条证据都没有，后验就等于先验。</div>';
+    } else {
+      html += b.evidence.map(function (ev, i) {
+        return '<div class="ev"><div class="ev-top">' +
+          '<span class="ev-note">' + esc(ev.text || ('证据 ' + (i + 1))) + '</span>' +
+          '<span class="ev-lr">×' + fmtLR(ev.lr) + '</span>' +
+          (open ? '<button class="ev-del" data-del-ev="' + ev.id + '" title="删掉这条">✕</button>' : '') +
+          '</div><div class="ev-body">' +
+          '<span>P(看到|发生) ' + pct(ev.p_if_true) + '</span>' +
+          '<span>P(看到|不发生) ' + pct(ev.p_if_false) + '</span>' +
+          '<span>' + pct(ev.posterior_after - ev.move) + '<span class="ev-arrow"> → </span>' +
+          '<span class="ev-after">' + pct(ev.posterior_after) + '</span></span>' +
+          '<span style="opacity:.7">' + (ev.move >= 0 ? '+' : '') + (ev.move * 100).toFixed(1) + ' 个百分点</span>' +
+          '</div></div>';
+      }).join('');
+    }
+    html += '</div>';
+
+    html += '<hr class="sep">';
+    if (open) {
+      html += '<h3>结算</h3>' +
+        '<div class="hint" style="margin:-4px 0 10px">结果只能记一次，记完锁死；计入报告的是你<b>当时</b>的信念，不是你现在的解释。</div>' +
+        '<div class="actions"><button class="btn btn-hit" data-out="yes">它发生了 ✓</button>' +
+        '<button class="btn btn-miss" data-out="no">它没发生 ✗</button></div>';
+    } else {
+      html += '<div class="dt-sub"><span class="pill ' + (b.status === 'yes' ? 'ok' : 'no') + '">' +
+        (b.status === 'yes' ? '已结算 · 发生了' : '已结算 · 没发生') + '</span>' +
+        '<span>结算时信念 ' + pct(b.posterior) + '</span>' +
+        (b.settled_at ? '<span>' + esc(b.settled_at.slice(0, 10)) + '</span>' : '') +
+        '</div><div class="hint">结算之后证据锁定，不能再加 —— 结果出来再回头找线索，那是编故事。</div>';
+    }
+
+    card.innerHTML = html;
+    setBar(card.querySelector('[data-post]'), b.posterior);
+    bindDetail(b, open);
+  }
+
+  function bindDetail(b, open) {
+    var card = $('detailCard');
+    bindClicks(card, '[data-del-bet]', function () {
+      if (!confirm('删掉这条预测和它的全部证据？')) { return; }
+      run(send('/bets/' + b.id, 'DELETE'), '已删除');
+    });
+    if (!open) { return; }
+
+    bindClicks(card, '[data-lvl]', function (el) {
+      var text = $('evText') ? $('evText').value : '';
+      run(send('/bets/' + b.id + '/evidence', 'POST', { level: el.getAttribute('data-lvl'), text: text }), '记下了');
+    });
+    bindClicks(card, '[data-del-ev]', function (el) {
+      run(send('/evidence/' + el.getAttribute('data-del-ev'), 'DELETE'), '已删除');
+    });
+    bindClicks(card, '[data-out]', function (el) {
+      var out = el.getAttribute('data-out');
+      if (!confirm('结果确认是「' + (out === 'yes' ? '发生了' : '没发生') + '」？记下之后不能改。')) { return; }
+      run(send('/bets/' + b.id, 'PATCH', { outcome: out }), '已结算');
+    });
+
+    var a = $('evA'), bEl = $('evB');
+    function sync() {
+      if (!a) { return; }
+      $('evAVal').textContent = a.value + '%';
+      $('evBVal').textContent = bEl.value + '%';
+      $('evLRPrev').textContent = '×' + fmtLR((a.value / 100) / Math.max(0.01, bEl.value / 100));
+    }
+    if (a) {
+      a.addEventListener('input', sync);
+      bEl.addEventListener('input', sync);
+      sync();
+    }
+    var bc = $('btnAddCustom');
+    if (bc) {
+      bc.addEventListener('click', function () {
+        run(send('/bets/' + b.id + '/evidence', 'POST', {
+          p_if_true: (+$('evA').value) / 100,
+          p_if_false: (+$('evB').value) / 100,
+          text: $('evText') ? $('evText').value : ''
+        }), '记下了');
+      });
+    }
+  }
+  // ---------- 校准报告：全部数字来自 Python ----------
+  function metric(v, label) {
+    return '<div class="metric"><b>' + v + '</b><span>' + label + '</span></div>';
+  }
+  function renderReport() {
+    var card = $('reportCard');
+    var st = S.data.stats || {};
+    var o = st.overall || { n: 0 };
+    var n = o.n || 0;
+    var html = '<h2><i class="n">2</i>校准报告 <span class="mini">Python 现算</span></h2>';
+
+    if (!n) {
+      html += '<div class="desc">还没有结算记录。写下 5 条一周内能验证的预测，回来这里才有东西可看。</div>';
+      card.innerHTML = html;
+      return;
+    }
+
+    html += '<div class="desc">基于 ' + n + ' 条已结算的预测。' +
+      (n < 20 ? '样本还少，下面的结论先当提示看。' : '') + '</div>';
+
+    html += '<div class="metrics">' +
+      metric(pct(o.mean_pred), '你平均给出的把握') +
+      metric(pct(o.base_rate), '实际发生的比例') +
+      metric((o.bias >= 0 ? '+' : '') + (o.bias * 100).toFixed(0) + '%',
+        o.bias >= 0.05 ? '偏高（系统性高估）' : (o.bias <= -0.05 ? '偏低（系统性低估）' : '基本对得上')) +
+      metric(o.brier.toFixed(3), 'Brier 分数（越小越准）') +
+      metric((o.ece * 100).toFixed(0) + '%', '平均校准误差 ECE') +
+      metric(o.auc == null ? '—' : o.auc.toFixed(2), '区分度 AUC（0.5=瞎猜）') +
+      '</div>';
+
+    html += '<h3 style="margin-top:18px">认知提醒</h3>';
+    var ins = st.insights || [];
+    html += ins.length ? ins.map(function (i) {
+      return '<div class="ins ' + esc(i.level) + '"><b>' + esc(i.title) + '</b><span>' + esc(i.text) + '</span></div>';
+    }).join('') : '<div class="empty">还没有足够的数据说话。</div>';
+
+    var ev = st.evidence || { n_bets: 0, n_evidence: 0, helped: 0, hurt: 0, mean_abs_move: 0 };
+    html += '<hr class="sep"><h3>证据体检</h3>';
+    if (!ev.n_bets) {
+      html += '<div class="empty">还没有「记过证据」的结算记录 —— 现在它只是个预测记录本，没在练贝叶斯。</div>';
+    } else {
+      html += '<div class="metrics">' +
+        metric(ev.helped, '加证据后更接近结果') +
+        metric(ev.hurt, '加证据后被带偏') +
+        metric((ev.mean_abs_move * 100).toFixed(1) + '%', '每条证据平均推动') +
+        '</div><div class="hint">算法：同一条预测，只用<b>先验</b>算一次对数损失、用<b>后验</b>再算一次。后者更小 = 你挑的线索帮对了方向。</div>';
+    }
+
+    var bp = st.baseline_prior;
+    if (bp && bp.n) {
+      var gain = bp.brier - o.brier;
+      html += '<hr class="sep"><h3>证据到底加了多少分</h3><div class="metrics">' +
+        metric(bp.brier.toFixed(3), '只用先验的 Brier') +
+        metric(o.brier.toFixed(3), '用上证据的 Brier') +
+        metric((gain >= 0 ? '+' : '') + gain.toFixed(3), gain >= 0 ? '证据带来的改善' : '证据反而帮了倒忙') +
+        '</div><div class="hint">改善为正 = 你记的证据整体把你拉向了正确方向。为负也常见，那说明线索挑得还不够准。</div>';
+    }
+
+    html += '<hr class="sep"><h3>校准曲线</h3>' +
+      '<div class="hint" style="margin:-4px 0 0">横轴是你说的把握，纵轴是实际发生的比例，虚线是「说什么就中什么」。点越大，那一档样本越多。</div>' +
+      '<div id="calChart"></div>';
+
+    var doms = (st.domains || []).filter(function (d) { return d.n > 0; });
+    if (doms.length) {
+      html += '<hr class="sep"><h3>按领域拆开</h3>' + doms.map(function (d) {
+        var r = Math.round(d.base_rate * 100);
+        var tag = d.bias >= 0.08 ? '（高估）' : (d.bias <= -0.08 ? '（低估）' : '');
+        return '<div class="dom-row"><div class="dom-lab">' +
+          '<span><b>' + esc(d.domain) + '</b> · ' + d.n + ' 条 · 平均说 ' + pct(d.mean_pred) + '</span>' +
+          '<span>实际 ' + r + '%' + tag + '</span></div>' +
+          '<div class="bar thin"><i style="width:' + Math.round(d.mean_pred * 100) + '%;background:linear-gradient(90deg,#6366f1,#a855f7)"></i></div>' +
+          '<div class="bar thin" style="margin-top:4px"><i style="width:' + r + '%;background:linear-gradient(90deg,#10b981,#34d399)"></i></div>' +
+          '</div>';
+      }).join('');
+    }
+
+    card.innerHTML = html;
+    drawChart();
+  }
+
+  function drawChart() {
+    var el = $('calChart');
+    if (!el) { return; }
+    if (S.chart) { S.chart.dispose(); S.chart = null; }
+    var pts = ((S.data.stats || {}).reliability || []).filter(function (b) { return b.n > 0; })
+      .map(function (b) { return [+(b.mean_pred * 100).toFixed(2), +(b.mean_outcome * 100).toFixed(2), b.n]; });
+    if (!window.echarts) {
+      el.innerHTML = '<div class="empty">图表库没加载出来，但上面的数字照样有效。</div>';
+      return;
+    }
+    var ch = echarts.init(el);
+    ch.setOption({
+      backgroundColor: 'transparent',
+      grid: { left: 46, right: 18, top: 24, bottom: 44 },
+      tooltip: {
+        trigger: 'item',
+        backgroundColor: 'rgba(12,18,38,.95)',
+        borderColor: 'rgba(255,255,255,.14)',
+        textStyle: { color: '#e8edf7', fontSize: 12 },
+        formatter: function (p) {
+          if (p.seriesIndex === 0) { return ''; }
+          var d = p.data;
+          return '你说 ' + d[0] + '%<br>实际发生 ' + d[1] + '%<br>样本 ' + d[2] + ' 条';
+        }
+      },
+      xAxis: {
+        min: 0, max: 100, name: '你说的把握', nameLocation: 'middle', nameGap: 28,
+        nameTextStyle: { color: '#93a0ba', fontSize: 11 },
+        axisLine: { lineStyle: { color: 'rgba(255,255,255,.16)' } },
+        axisLabel: { color: '#93a0ba', fontSize: 11 },
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,.06)' } }
+      },
+      yAxis: {
+        min: 0, max: 100, name: '实际发生', nameLocation: 'middle', nameGap: 34, nameRotate: 90,
+        nameTextStyle: { color: '#93a0ba', fontSize: 11 },
+        axisLine: { lineStyle: { color: 'rgba(255,255,255,.16)' } },
+        axisLabel: { color: '#93a0ba', fontSize: 11 },
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,.06)' } }
+      },
+      series: [
+        { type: 'line', silent: true, symbol: 'none', data: [[0, 0], [100, 100]],
+          lineStyle: { color: 'rgba(255,255,255,.26)', type: 'dashed', width: 1 }, tooltip: { show: false }, z: 1 },
+        { type: 'scatter', data: pts, z: 3,
+          symbolSize: function (v) { return 12 + Math.min(26, v[2] * 5); },
+          itemStyle: { color: 'rgba(167,139,250,.85)', borderColor: '#e879f9', borderWidth: 1.5,
+            shadowBlur: 12, shadowColor: 'rgba(232,121,249,.4)' } }
+      ]
+    });
+    S.chart = ch;
+    if (!S.bound) {
+      S.bound = true;
+      window.addEventListener('resize', function () { if (S.chart) { S.chart.resize(); } });
+    }
+  }
+
+  function renderAnchors() {
+    var card = $('anchorCard');
+    if (!S.anchors) { return; }
+    card.innerHTML = '<h2 style="font-size:15px">似然比锚点 <span class="mini">先估 LR，再谈后验</span></h2>' +
+      '<div class="desc">每条线索的问法都一样：它在「会发生」下出现的机会，比在「不会发生」下大多少倍。</div>' +
+      '<div class="anchors">' + (S.anchors.examples || []).map(function (x) {
+        var cls = x.lr >= 1.5 ? 'ok' : (x.lr <= 0.67 ? 'no' : 'warn');
+        return '<div class="anc"><div class="anc-top"><b>' + esc(x.evidence) + '</b>' +
+          '<span class="pill ' + cls + '">×' + fmtLR(x.lr) + ' · ' + esc(x.verdict) + '</span></div>' +
+          '<div class="anc-meta">关于「' + esc(x.for_what) + '」 · P(看到|发生) ' + pct(x.p_if_true) +
+          ' · P(看到|不发生) ' + pct(x.p_if_false) + '</div>' +
+          '<div class="anc-note">' + esc(x.note) + '</div></div>';
+      }).join('') + '</div>' +
+      '<hr class="sep"><h3>五档怎么选</h3>' + (S.data.levels || []).map(function (L) {
+        return '<div class="ev" style="margin-bottom:9px"><div class="ev-top"><span class="ev-note"><b>' + esc(L.label) +
+          '</b></span><span class="ev-lr">×' + fmtLR(L.lr) + '</span></div><div class="ev-body">' + esc(L.desc) + '</div></div>';
+      }).join('');
+  }
+  // ---------- 彩蛋：顺序不改变结论（也是 Python 算的） ----------
+  function chip(p, tag) {
+    return '<div class="chip"><span class="c-val">' + pct(p) + '</span>' +
+      '<div class="bar thin"><i style="width:' + (p * 100).toFixed(1) + '%"></i></div>' +
+      '<span class="c-tag">' + tag + '</span></div>';
+  }
+  function paintEgg(r) {
+    function path(vals, names) {
+      var out = '';
+      for (var i = 0; i < vals.length; i++) {
+        if (i) { out += '<span class="parrow">→</span>'; }
+        out += chip(vals[i], names[i]);
+      }
+      return out;
+    }
+    $('path1').innerHTML = path(r.path_ab, ['先验', '喂 A', '喂 B']);
+    $('path2').innerHTML = path(r.path_ba, ['先验', '喂 B', '喂 A']);
+    $('eggLRA').textContent = '×' + fmtLR(r.steps[0].lr);
+    $('eggLRB').textContent = '×' + fmtLR(r.steps[1].lr);
+    $('eggSame').innerHTML = (r.identical
+      ? '两条路线的终点完全相同：<b>' + pct(r.final) + '</b>。 ' + esc(r.explain || '')
+      : '终点竟然不同了（不该发生）。');
+  }
+  function fetchEgg() {
+    send('/demo/sequence', 'POST', {
+      prior: (+$('eggP').value) / 100,
+      steps: [
+        { p_if_true: (+$('eggA1').value) / 100, p_if_false: (+$('eggA2').value) / 100 },
+        { p_if_true: (+$('eggB1').value) / 100, p_if_false: (+$('eggB2').value) / 100 }
+      ]
+    }).then(paintEgg).catch(function (e) { $('eggSame').textContent = e.message; });
+  }
+  function bindEgg() {
+    var ids = ['eggP', 'eggA1', 'eggA2', 'eggB1', 'eggB2'];
+    function labels() {
+      $('eggPVal').textContent = $('eggP').value + '%';
+      $('eggA1Val').textContent = $('eggA1').value + '%';
+      $('eggA2Val').textContent = $('eggA2').value + '%';
+      $('eggB1Val').textContent = $('eggB1').value + '%';
+      $('eggB2Val').textContent = $('eggB2').value + '%';
+    }
+    ids.forEach(function (id) {
+      $(id).addEventListener('input', function () {
+        labels();
+        clearTimeout(S.eggTimer);
+        S.eggTimer = setTimeout(fetchEgg, 130);
+      });
+    });
+    labels();
+    fetchEgg();
+  }
+
+  // ---------- 启动 ----------
+  function addBet() {
+    var text = $('betText').value.trim();
+    if (text.length < 2) { msg('预测至少要写两个字', 'err'); return; }
+    S.sel = null;
+    run(send('/bets', 'POST', {
+      question: text,
+      prior: (+$('betSlider').value) / 100,
+      domain: $('betDomain').value,
+      due: $('betDue').value || ''
+    }), '记下了，这条先验已经锁死').then(function () { $('betText').value = ''; });
+  }
+  function init() {
+    var d = new Date();
+    d.setDate(d.getDate() + 7);
+    $('betDue').value = isoLocal(d);
+    $('betSlider').addEventListener('input', function () { $('betP').textContent = $('betSlider').value + '%'; });
+    $('betText').addEventListener('keydown', function (e) { if (e.key === 'Enter') { addBet(); } });
+    $('btnAddBet').addEventListener('click', addBet);
+    $('btnAnchors').addEventListener('click', function () {
+      var c = $('anchorCard');
+      c.hidden = !c.hidden;
+      if (!c.hidden) { c.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    });
+    $('btnExport').addEventListener('click', function () { window.location.href = API + '/export'; });
+    $('btnReset').addEventListener('click', function () {
+      if (!confirm('清空全部预测与证据？无法恢复。')) { return; }
+      S.sel = null;
+      run(send('/reset', 'POST', { confirm: '清空' }), '已清空');
+    });
+    bindEgg();
+    Promise.all([send('/state'), send('/anchors')]).then(function (res) {
+      apply(res[0]);
+      S.anchors = res[1];
+      renderAnchors();
+    }).catch(function (e) { msg('加载失败：' + (e && e.message ? e.message : e), 'err'); });
+  }
+  init();
 })();
 </script>
 </body>
