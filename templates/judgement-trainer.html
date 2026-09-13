@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#3D5A80">
+<script>(function(){try{var v=JSON.parse(localStorage.getItem('jt_theme'));if(v==='dark'){document.documentElement.setAttribute('data-theme','dark');}}catch(e){}})();</script>
+<title>判断力小工具</title>
+<style>
+:root{
+  --blue:#3D5A80; --blue-d:#2F4763; --blue-l:#EEF3F9; --blue-line:#C3D0E0;
+  --ink:#22384F; --text:#3B4859; --muted:#8492A3;
+  --bg:#F6F7F9; --card:#FFFFFF; --line:#E6EAF0;
+  --green:#5F9E7C; --green-l:#EDF6F1;
+  --orange:#CE8B45; --orange-l:#FBF3E8;
+  --rose:#C08573; --rose-l:#FAF0ED;
+  --r:16px;
+  --sh:0 1px 2px rgba(16,24,40,.04), 0 10px 24px -14px rgba(16,24,40,.18);
+  /* 语义色：主题切换时只改这一组 */
+  --primary:#3D5A80; --primary-d:#2F4763; --primary-off:#B9C4D2;
+  --surface:#FFFFFF; --surface-2:#F2F4F7; --track:#EFF2F6; --bar-g:#9CC7AF; --bar-empty:#E6EAF0;
+  --btn-active:#F3F5F8; --dot:#D7DDE6;
+  --topbar-bg:rgba(246,247,249,.94); --tabbar-bg:rgba(255,255,255,.97); --rail-bg:rgba(255,255,255,.72);
+  --text-2:#5A6879; --text-3:#4A5866;
+  --green-ink:#3F7A5B; --green-line:#CBE3D8;
+  --orange-ink:#9E6A2C; --orange-line:#EBD7B8;
+  --rose-ink:#9B6350; --rose-line:#E8D2CA;
+  --radar-fill:rgba(61,90,128,.16);
+  --focus-ring:0 0 0 3px rgba(61,90,128,.08);
+  color-scheme:light;
+}
+html[data-theme="dark"]{
+  --blue:#93B4E0; --blue-d:#A9C6EC; --blue-l:#1D2839; --blue-line:#33445C;
+  --ink:#E8EEF8; --text:#C2CDDE; --muted:#8593A9;
+  --bg:#0E131C; --card:#161D29; --line:#27303F;
+  --green:#7CC79E; --green-l:#152A20;
+  --orange:#E0A868; --orange-l:#2B2113;
+  --rose:#D89E8C; --rose-l:#2C1E1A;
+  --sh:0 1px 2px rgba(0,0,0,.45), 0 10px 24px -14px rgba(0,0,0,.75);
+  --primary:#4E71A3; --primary-d:#40608C; --primary-off:#39465A;
+  --surface:#1A2230; --surface-2:#212B3A; --track:#232E3E; --bar-g:#57A07A; --bar-empty:#2A3546;
+  --btn-active:#232D3C; --dot:#33415A;
+  --topbar-bg:rgba(14,19,28,.9); --tabbar-bg:rgba(18,24,34,.97); --rail-bg:rgba(16,22,32,.75);
+  --text-2:#A9B5C8; --text-3:#B6C2D4;
+  --green-ink:#8CD9AE; --green-line:#2E4B3C;
+  --orange-ink:#E7B87A; --orange-line:#4A3A22;
+  --rose-ink:#E4AC9B; --rose-line:#4A322C;
+  --radar-fill:rgba(147,180,224,.22);
+  --focus-ring:0 0 0 3px rgba(147,180,224,.18);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none !important}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font-family:inherit;font-size:15px;color:inherit}
+h1,h2,h3,h4{margin:0;font-weight:600;color:var(--ink)}
+p{margin:0}
+#app{max-width:480px;margin:0 auto;min-height:100vh;padding-bottom:calc(88px + env(safe-area-inset-bottom))}
+.topbar{position:sticky;top:0;z-index:20;background:var(--topbar-bg);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:480px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px}
+.ttl{font-size:17px;font-weight:600;color:var(--ink);line-height:1.3}
+.sub{font-size:12px;color:var(--muted);line-height:1.4;margin-top:2px}
+.top-actions{margin-left:auto;display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.ghost{width:44px;height:44px;flex:0 0 44px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--muted);font-size:15px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.ghost:hover{color:var(--blue);border-color:var(--blue-line)}
+.ghost svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ghost .ic-moon{display:none}
+html[data-theme="dark"] .ghost .ic-sun{display:none}
+html[data-theme="dark"] .ghost .ic-moon{display:block}
+.view{padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--sh);margin-bottom:14px}
+.card.tight{padding:14px}
+.card-h{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.card-sub{font-size:12.5px;color:var(--muted);line-height:1.6}
+.sec-t{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.02em;margin:18px 2px 8px}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;line-height:1.7;background:var(--blue-l);color:var(--blue);border:1px solid var(--blue-line)}
+.badge.g{background:var(--green-l);color:var(--green-ink);border-color:var(--green-line)}
+.badge.o{background:var(--orange-l);color:var(--orange-ink);border-color:var(--orange-line)}
+.badge.r{background:var(--rose-l);color:var(--rose-ink);border-color:var(--rose-line)}
+.badge.n{background:var(--surface-2);color:var(--muted);border-color:var(--line)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:15px;cursor:pointer;transition:background .15s ease,opacity .15s ease}
+.btn:active{background:var(--btn-active)}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.primary:active{background:var(--primary-d)}
+.btn.primary:disabled{background:var(--primary-off);border-color:var(--primary-off);cursor:not-allowed}
+.btn.sm{min-height:44px;padding:0 12px;font-size:13.5px;border-radius:10px}
+.btn.block{width:100%}
+.btn-row{display:flex;gap:10px;margin-top:12px}
+.btn-row .btn{flex:1}
+.sent{display:block;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:9px;font-size:15px;line-height:1.7;color:var(--text);cursor:pointer;transition:background .15s ease,border-color .15s ease;min-height:44px}
+.sent.marked{border-color:var(--blue-line);background:var(--blue-l);box-shadow:inset 3px 0 0 var(--blue)}
+.sent.found{border-color:var(--green-line);background:var(--green-l);box-shadow:inset 3px 0 0 var(--green)}
+.sent.missed{border-color:var(--orange-line);background:var(--orange-l);box-shadow:inset 3px 0 0 var(--orange)}
+.sent.false{border-color:var(--rose-line);background:var(--rose-l);box-shadow:inset 3px 0 0 var(--rose)}
+.sent.plain{opacity:.92}
+.sent[disabled]{cursor:default}
+.why{border-left:2px solid var(--line);padding:2px 0 2px 12px;margin:2px 0 4px;font-size:13.5px;line-height:1.7;color:var(--text-2);animation:fadeUp .32s ease-out both}
+.why b{color:var(--ink);font-weight:600}
+.why .lbl{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.reveal,.why{animation:none}}
+.reveal{animation:fadeUp .32s ease-out both}
+.score{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0 4px}
+.score-i{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 8px;text-align:center}
+.score-n{font-size:20px;font-weight:600;color:var(--ink);line-height:1.2}
+.score-l{font-size:11.5px;color:var(--muted);margin-top:2px}
+.fb{font-size:14px;line-height:1.75;color:var(--text-3);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:10px}
+.opt{display:block;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:9px;font-size:14.5px;line-height:1.6;cursor:pointer;min-height:44px}
+.opt.on{border-color:var(--blue);background:var(--blue-l);box-shadow:inset 3px 0 0 var(--blue)}
+.opt .k{font-weight:600;color:var(--blue);margin-right:6px}
+textarea,input[type=text],input[type=date],select{width:100%;border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:var(--surface);outline:none;min-height:44px;font-size:15px;line-height:1.6}
+textarea{min-height:84px;resize:vertical;line-height:1.7}
+textarea:focus,input:focus,select:focus{border-color:var(--blue-line);box-shadow:var(--focus-ring)}
+label.f{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 6px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:13.5px;cursor:pointer}
+.chip.on{border-color:var(--blue);background:var(--blue-l);color:var(--blue)}
+.slider{width:100%;height:44px;display:flex;align-items:center}
+input[type=range]{width:100%;height:6px;-webkit-appearance:none;appearance:none;background:linear-gradient(90deg,var(--blue-line),var(--blue));border-radius:999px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:var(--surface);border:3px solid var(--blue);box-shadow:0 1px 4px rgba(16,24,40,.2)}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--surface);border:3px solid var(--blue)}
+.pct{font-size:26px;font-weight:600;color:var(--blue);line-height:1;text-align:center;padding:4px 0 0}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:9px}
+.item-t{font-size:14.5px;line-height:1.65;color:var(--ink)}
+.item-m{font-size:12px;color:var(--muted);margin-top:6px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row{display:flex;align-items:center;gap:10px}
+.bar-wrap{margin-top:10px}
+.bar-row{margin-bottom:10px}
+.bar-lab{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-bottom:4px}
+.bar{height:10px;border-radius:999px;background:var(--track);overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:999px;background:var(--blue-line)}
+.bar.g>i{background:var(--bar-g)}
+.bar.b>i{background:var(--blue)}
+.bars{display:flex;align-items:flex-end;gap:14px;height:120px;padding:0 2px;margin-top:8px}
+.bars .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:6px}
+.bars .col i{display:block;width:100%;max-width:46px;border-radius:8px 8px 4px 4px;background:var(--blue-line);min-height:3px}
+.bars .col i.g{background:var(--bar-g)}
+.bars .col span{font-size:11.5px;color:var(--muted)}
+.stat{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat-i{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 10px;text-align:center;box-shadow:var(--sh)}
+.stat-n{font-size:22px;font-weight:600;color:var(--ink);line-height:1.2}
+.stat-l{font-size:11.5px;color:var(--muted);margin-top:3px}
+.empty{text-align:center;padding:22px 12px;color:var(--muted);font-size:13.5px;line-height:1.8}
+.empty b{display:block;color:var(--ink);font-size:15px;font-weight:600;margin-bottom:6px}
+.quote{font-size:14.5px;line-height:1.9;color:var(--text-3);background:var(--blue-l);border:1px solid var(--blue-line);border-radius:var(--r);padding:16px;text-align:center}
+.quote span{display:block;font-size:12px;color:var(--muted);margin-top:8px}
+.matrix{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.matrix-i{border:1px solid var(--line);border-radius:12px;padding:10px;font-size:12.5px;line-height:1.6;background:var(--surface)}
+.matrix-i b{display:block;color:var(--ink);font-size:13px;margin-bottom:3px}
+.matrix-i.hl{border-color:var(--orange-line);background:var(--orange-l)}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--tabbar-bg);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.tabbar-in{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:56px;padding:6px 0;background:none;border:0;font-size:11px;color:var(--muted);cursor:pointer}
+.tab svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.tab.active{color:var(--blue);font-weight:600}
+.onboard{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column;padding:20px 20px calc(20px + env(safe-area-inset-bottom))}
+.onboard-in{width:100%;max-width:440px;margin:0 auto;flex:1;display:flex;flex-direction:column}
+.ob-skip{margin-left:auto;min-height:44px;padding:0 10px;background:none;border:0;color:var(--muted);font-size:13.5px;cursor:pointer}
+.ob-body{flex:1;display:flex;flex-direction:column;justify-content:center;gap:14px}
+.ob-icon{width:64px;height:64px;border-radius:20px;background:var(--blue-l);border:1px solid var(--blue-line);display:flex;align-items:center;justify-content:center;font-size:30px}
+.ob-h{font-size:22px;font-weight:600;color:var(--ink);line-height:1.4}
+.ob-p{font-size:15px;line-height:1.85;color:var(--text-3)}
+.ob-dots{display:flex;gap:6px;justify-content:center;margin:18px 0}
+.ob-dots i{width:7px;height:7px;border-radius:50%;background:var(--dot);display:block}
+.ob-dots i.on{background:var(--blue);width:20px;border-radius:999px}
+.tag-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.hr{height:1px;background:var(--line);margin:14px 0}
+.kv{font-size:13.5px;line-height:1.8;color:var(--text-3)}
+.kv b{color:var(--ink)}
+.q6{counter-reset:q;font-size:13.5px;line-height:1.9;color:var(--text-3)}
+.q6 div{padding-left:2px}
+.mini{font-size:11.5px;color:var(--muted)}
+.bar-lab b{color:var(--ink);font-weight:600}
+.bar.is-null>i{background:var(--bar-empty)}
+.radar .rd-grid{fill:none;stroke:var(--line)}
+.radar .rd-axis{stroke:var(--line)}
+.radar .rd-shape{fill:var(--radar-fill);stroke:var(--blue);stroke-width:2;stroke-linejoin:round}
+.radar .rd-dot{fill:var(--blue)}
+.radar .rd-lab{fill:var(--muted);font-size:12px}
+
+/* ===== 响应式：平板略加宽，桌面改为「左侧导航 + 双列内容」 ===== */
+.brand{display:none}
+
+@media (min-width:600px) and (max-width:899px){
+  #app,.topbar-in,.tabbar-in{max-width:560px}
+}
+
+@media (min-width:900px){
+  :root{--rail:232px}
+  #app{margin-left:var(--rail);max-width:none;padding-bottom:32px}
+  .ttl{font-size:19px}
+  .topbar-in,.view{max-width:1040px;margin:0 auto}
+  .topbar-in{padding:16px 28px}
+  .view{padding:24px 28px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:16px;align-items:start}
+  /* 以阅读为主的模块：单列窄一些，和顶部标题同宽 */
+  .v-scan .topbar-in,.v-scan .view,
+  .v-lab .topbar-in,.v-lab .view,
+  .v-me .topbar-in,.v-me .view{max-width:916px}
+  .v-scan .view,.v-lab .view,.v-me .view{grid-template-columns:minmax(0,1fr)}
+  .view>*{grid-column:1/-1}
+  .view>.card,.view>.item{margin-bottom:0}
+  .view>.sec-t{margin:4px 2px 0}
+  .v-calib .item{grid-column:auto}
+  /* 雷达卡：宽敞时 SVG 与进度条并排，避免大片留白 */
+  .v-me .card:has(>svg){display:grid;grid-template-columns:minmax(0,330px) minmax(0,1fr);
+    column-gap:30px;row-gap:10px;align-items:center}
+  .v-me .card:has(>svg)>svg{grid-column:1;grid-row:1/span 4;width:100%;height:auto}
+  .v-me .card:has(>svg)>.hr{display:none}
+  .v-me .card:has(>svg)>.bar-row,.v-me .card:has(>svg)>.mini{grid-column:2}
+  /* 底部 Tab 变成左侧导航 */
+  .tabbar{top:0;bottom:0;right:auto;width:var(--rail);border-top:0;
+    border-right:1px solid var(--line);background:var(--rail-bg);
+    display:flex;flex-direction:column;padding:18px 12px;overflow-y:auto}
+  .brand{display:block;padding:4px 12px 20px}
+  .brand b{display:block;font-size:16px;font-weight:600;color:var(--ink)}
+  .brand span{display:block;font-size:11.5px;color:var(--muted);margin-top:4px}
+  .tabbar-in{max-width:none;width:100%;display:flex;flex-direction:column;gap:4px;padding:0}
+  .tab{width:100%;flex-direction:row;justify-content:flex-start;gap:11px;
+    min-height:46px;padding:0 12px;border-radius:11px;font-size:14.5px}
+  .tab:hover{background:var(--blue-l)}
+  .tab.active{background:var(--blue-l);color:var(--blue)}
+  .onboard-in{max-width:560px}
+  .ob-body{gap:18px}
+}
+
+/* 大屏：再放开一档，别让内容缩在中间 */
+@media (min-width:1600px){
+  .topbar-in,.view{max-width:1160px}
+  .v-scan .topbar-in,.v-scan .view,
+  .v-lab .topbar-in,.v-lab .view,
+  .v-me .topbar-in,.v-me .view{max-width:1040px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="topbar-in">
+      <div>
+        <div class="ttl" id="pageTitle">今日扫描</div>
+        <div class="sub" id="pageSub"></div>
+      </div>
+      <div class="top-actions">
+        <button class="ghost" id="themeBtn" title="切换深色 / 浅色" aria-label="切换深色 / 浅色">
+          <svg class="ic-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.4v2.6M12 19v2.6M2.4 12h2.6M19 12h2.6M5.2 5.2l1.9 1.9M16.9 16.9l1.9 1.9M18.8 5.2l-1.9 1.9M7.1 16.9l-1.9 1.9"/></svg>
+          <svg class="ic-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.2A8.2 8.2 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg>
+        </button>
+        <button class="ghost" id="helpBtn" title="重看新手引导" aria-label="重看新手引导">?</button>
+      </div>
+    </div>
+  </header>
+  <main class="view" id="view"></main>
+</div>
+<nav class="tabbar">
+  <div class="brand"><b>判断力小工具</b><span>察觉 / 拆解 / 校准</span></div>
+  <div class="tabbar-in" id="tabbar"></div>
+</nav>
+<div class="onboard" id="onboard" hidden></div>
+<script>(function(){
+'use strict';
+
+/* ============================================================
+   1. 存储层：所有数据都在 localStorage，key 统一 jt_ 前缀
+   ============================================================ */
+var K = {
+  onboard : 'jt_onboarded',
+  scan    : 'jt_scan_records',   // { '2026-09-13': {textId,marked:[],submitted,found,missed,falseAlarm} }
+  lab     : 'jt_lab_records',    // [ {scenarioId,choice,reason,at} ]
+  calib   : 'jt_calib_records',  // [ {id,event,by,conf,tag,outcome,createdAt,reviewedAt} ]
+  ledger  : 'jt_ledger_records', // [ {id,scene,options,choice,reason,moods,expect,createdAt,review} ]
+  days    : 'jt_active_days',    // [ '2026-09-13', ... ]
+  seed    : 'jt_seed_version',
+  theme   : 'jt_theme'
+};
+var DB = {
+  get: function(k, fb){
+    try{ var v = localStorage.getItem(k); return v===null ? fb : JSON.parse(v); }
+    catch(e){ return fb; }
+  },
+  set: function(k, v){
+    try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ /* 隐私模式：静默降级 */ }
+  },
+  del: function(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+
+function todayStr(d){
+  var t = d || new Date();
+  var m = t.getMonth()+1, day = t.getDate();
+  return t.getFullYear()+'-'+(m<10?'0':'')+m+'-'+(day<10?'0':'')+day;
+}
+function addDays(str, n){
+  var p = str.split('-');
+  var d = new Date(+p[0], +p[1]-1, +p[2]);
+  d.setDate(d.getDate()+n);
+  return todayStr(d);
+}
+function daysBetween(a, b){
+  var pa=a.split('-'), pb=b.split('-');
+  var da=new Date(+pa[0],+pa[1]-1,+pa[2]), db=new Date(+pb[0],+pb[1]-1,+pb[2]);
+  return Math.round((db-da)/86400000);
+}
+function esc(s){
+  return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function markActive(){
+  var d = todayStr();
+  var arr = DB.get(K.days, []);
+  if(arr.indexOf(d) < 0){ arr.push(d); arr.sort(); DB.set(K.days, arr); }
+}
+function streakDays(){
+  var arr = DB.get(K.days, []);
+  if(!arr.length) return 0;
+  var set = {}; arr.forEach(function(d){ set[d]=1; });
+  var cur = todayStr();
+  if(!set[cur]) cur = addDays(cur, -1);
+  var n = 0;
+  while(set[cur]){ n++; cur = addDays(cur, -1); }
+  return n;
+}
+function hashStr(s){
+  var h = 2166136261;
+  for(var i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return Math.abs(h);
+}
+
+/* ============================================================
+   2. 内容库（第 1 步：每个模块 3 个示例；第 2 步补到 20 / 60）
+   ============================================================ */
+
+/* ---------- L1 今日扫描：流水账 ---------- */
+var SCAN_TEXTS = [
+{
+  id:'scan-1', tag:'通勤', title:'周一早上',
+  lines:[
+    {t:'闹钟响第二遍，我按掉又躺了五分钟。', j:false,
+     why:'习惯性动作。你没有在权衡任何东西，身体替你把这件事做完了，醒来才发现已经七点二十五。'},
+    {t:'出门前看了眼天气，往包里塞了把伞。', j:true,
+     why:'你在赌今天会下雨。赌注是多背一件东西，赌错就是淋一场。这是一个预测，只是做得太快，快到你以为它不算判断。'},
+    {t:'地铁上人很多，我站在门口刷短视频，刷到一个「35岁被裁」的帖子，心里咯噔一下，顺手点了个收藏。', j:true,
+     why:'你在赌「这事离我不远」，收藏是为了给自己留后路。但你从没真正评估过：我现在的岗位，缺了我多久会被补上？'},
+    {t:'到站换乘时，我犹豫了一下要不要在便利店买早饭，最后买了两个，想着中午可能没时间吃饭。', j:true,
+     why:'你在赌中午一定忙到没空吃饭。依据只有一种模糊的感觉，而不是今天到底有几个会、几点结束。'},
+    {t:'走到公司楼下，看到同事的车停在新车位，我心想他是不是升职了。', j:true,
+     why:'你在赌一个因果解释：换车位＝升职。一条信息直接跳到结论，中间那句「也可能是他老婆换车了」被你跳过了。'},
+    {t:'进电梯前我犹豫了一下，要不要先把今天上午的会推掉一个。', j:true,
+     why:'你在赌「少开一个会也出不了事」。可你手上并没有今天必须交付的清单，这个判断是凭心情下的，不是凭任务下的。'},
+    {t:'电梯里同事问我周末的球赛去不去，我说到时候看。', j:false,
+     why:'这是一句客套，你没有在权衡任何东西。真正开始判断，是有人问你几点出发的时候。'},    {t:'然后我加快脚步上了楼。', j:false,
+     why:'这是被上一条想法带着走的情绪反应，不是判断。你只是在逃开一个让自己不舒服的念头。'}
+  ]
+},
+{
+  id:'scan-2', tag:'网购', title:'睡前刷拼多多',
+  lines:[
+    {t:'晚上想给厨房换个水龙头，我打开拼多多。', j:false,
+     why:'触发动作，没有比较没有取舍，只是「想换」顺手打开了 App。'},
+    {t:'搜出来第一个九块九包邮，销量十万加，我看了两秒就下单了。', j:true,
+     why:'你在赌「卖得多＝质量过关」。其实你赌的是省下比价的十分钟，代价是可能收到一个用三个月就开始滴水的龙头。'},
+    {t:'付完款才想起来要量尺寸，翻出卷尺：家里那根是三十五厘米，我买的是三十厘米。', j:false,
+     why:'这是执行，不是判断。真正的判断发生在下单那一刻——你没量就买了，那是「先买再确认」的默认设置在起作用。'},
+    {t:'我犹豫要不要退：退的话得走去菜鸟驿站，还得跟客服扯几句。', j:true,
+     why:'你在赌「凑合能用」比「退货的两小时」更划算。这是一道明明白白的成本比较题，只是你在心里一秒就答完了。'},
+    {t:'正纠结，弹出一张满五十九减八的券，我为了用掉它又加了一个置物架。', j:true,
+     why:'你在赌自己需要那个置物架。更可能的情况是：目标被悄悄替换了，从「买个能用的龙头」变成「别浪费这张券」。'},
+    {t:'加完心里舒服了一点，觉得这单挺划算。', j:false,
+     why:'这是情绪给决定补的理由，不是判断点。舒服不等于算对了，这种感觉恰恰是最容易骗人的。'},
+    {t:'临睡前刷到一个测评说便宜龙头容易漏水，我把订单页翻出来看了两眼，还是没退。', j:true,
+     why:'你在赌「测评说的不一定是我这款」。你在用「还不确定」给自己争取不行动的空间，其实这时候退一单只需要三十秒。'},
+    {t:'关手机前我想：明天问下我妈家那边有没有闲置的。', j:true,
+     why:'你在赌妈妈家有闲置的龙头——一个没核实过的假设，同时把决定又往后推了一天。'}
+  ]
+},
+{
+  id:'scan-3', tag:'家庭', title:'周末的一通电话',
+  lines:[
+    {t:'中午我妈打电话，说我表哥下个月结婚，问我去不去。', j:false,
+     why:'这是收到信息，不是判断。你还没开始权衡任何东西。'},
+    {t:'我说看排班吧。', j:true,
+     why:'你在赌「到时候还能再推」。模糊回答是一种拖延式的判断：你已经知道自己大概率不想去，但不想现在就承担说出口的代价。'},
+    {t:'她说礼金给两千合适，前年你堂姐结婚也是这个数。', j:false,
+     why:'这是别人给的锚，是信息。它变成判断点是在你接受它的那一刻。'},
+    {t:'我嗯了一声，说行。', j:true,
+     why:'你在赌「不给会伤面子」的代价大于两千块。可你没算过这笔账：这个月房贷加车险，两千是紧的。你没有比较，只是接受了一个现成的数字。'},
+    {t:'挂了电话我算了下这个月房贷和车险，发现确实有点紧，还是把钱转了过去。', j:true,
+     why:'你在赌亲戚关系的分量值这两千。这句话说出来有点冷，但不问这一句，你就永远不知道自己是在花钱买关系，还是买心安。'},
+    {t:'下午三点，我姑在家族群里发了个偏方链接，说能降血糖，让大家看看。', j:false,
+     why:'这是别人发的信息，和你无关。'},
+    {t:'我点开看了两眼，转手发给我爸，配了一句「你试试」。', j:true,
+     why:'你在赌这条偏方「至少没坏处」，顺手把验证成本转给了你爸。这是一次典型的责任转移：转发的人不承担结果，所以转的人特别多。'},
+    {t:'晚上老婆问我周末去不去她爸妈家，我说再看吧，这周有点累。她说她妈念叨好几次了，我说那去吧。', j:true,
+     why:'你在赌「去了比不去更省事」。到这一步，你做的其实是情绪成本的比较：跑一趟的累，和接下来一周家里的低气压，哪个更难熬。'}
+  ]
+}
+];
+
+/* ---------- L2 微决策实验室：场景卡 ---------- */
+var LAB_CARDS = [
+{
+  id:'lab-1', tag:'消费', title:'押金被扣一千八',
+  scene:'你在这套房子住了两年，下周搬家，新房已经签好了。退租时房东说墙面有磕碰、油烟机太脏，四千押金要扣一千八。你手里有入住时拍的照片，能看出墙面那块印子原来就有，但当时没拍油烟机。房东态度挺硬，撂下一句「不行你就走法律程序」。你这周还要上班、打包、搬东西。',
+  options:['认了，扣就扣，赶紧搬完','跟他谈，试着把一千八压到八百','发律师函 / 去住建局投诉，走流程','先放着，搬完再说'],
+  analysis:{
+    bet:'不论你选哪个，你都在赌一件事。选「认了」，你赌的是：这三周的精力、心力和情绪，比一千八更贵，而且你不会为这事反复难受。选「压到八百」，你赌的是：房东其实嫌麻烦，八百他就会点头。选「走流程」，你赌的是：投诉的压力能在他退押金之前到，而不是三个月后你早搬走了才来一个电话。先把你选的那条翻译成一句能被验证的话——「我赌____会发生」——这一步比选哪个更重要。',
+    base:'粗略经验值，仅供参考：租房押金纠纷里，靠协商能拿回一半以上的，大概在一半上下；真走到投诉或诉讼并且拿回一半以上的，比例明显更低，而且周期通常以月计。多数人在一千块以内的争议上会直接放弃，不是因为赢不了，是因为算下来不划算。',
+    vars:'已有事实：你手上有入住照片（但没拍到油烟机）；合同里押金条款怎么写的；那处印记能不能被照片对上。这些是能翻出来核对的。只是假设：「房东怕麻烦」「走流程很久」「这个月我不能少一千八」。注意区分——事实可以拿证据，假设只能拿概率，而你现在的难受程度，属于后者。',
+    counter:'最可能让你判断错的情况是：你高估了房东怕麻烦的程度。有些人专门靠押金赚钱，流程对他来说只是日常。另一个可能性相反：你低估了自己的时间成本——你正在搬家最忙的两周，多一件悬着的事，代价可能是三个晚上睡不好。两个方向都要摆出来看。'
+  }
+},
+{
+  id:'lab-2', tag:'职场', title:'复盘会上被点了名',
+  scene:'项目上线出了事故，复盘会上同事说：「这块当时是你确认过的。」你记得他给的信息并不完整，你只是在群里回了个「OK」。老板在看着。你手上还有别的事，会议还剩二十分钟。',
+  options:['当场把聊天记录甩出来，说明他给的信息本来就是残的','先认下自己那部分，回头私聊他','不表态，说「我回去核一下」','直接推回去：这是你的模块，跟我没关系'],
+  analysis:{
+    bet:'选「当场甩记录」，你赌的是摆事实就能赢，而且这场赢值得。选「先认下」，你赌的是私下说他会认账，同时赌老板会记住你这个姿态。选「回去核一下」，你赌的是拖一拖这事会自然淡掉。注意这三种赌注的赢面都跟一个东西有关：老板真正在意的是「谁错了」，还是「怎么别再出一次」。你得先猜准这个。',
+    base:'粗略经验值，仅供参考：复盘会上当场翻旧账，短期你「赢了道理」的概率不低，但让在场的人觉得「这人不好合作」的概率同样不低。多数职场冲突的后续影响，来自旁观者对你的印象，而不是这一次谁对。',
+    vars:'已有事实：聊天记录里到底写没写清前置条件（这个能翻）；这个项目以前有没有类似甩锅；事故的实际损失有多大；老板今天有没有更急的事。属于假设：「他是故意的」（也可能他只是慌了）；「老板会记住我这次的表现」（老板可能只记得今天会开到几点）。',
+    counter:'最可能让你判断错的是你此刻的愤怒。上头的时候，人系统性地高估当场反击的收益，低估它的副作用。很多人第二天回看记录会发现：真正的问题不是他甩锅，而是你当时回「OK」太快了。如果你现在最想选第四条，那大概率是情绪在替你选。'
+  }
+},
+{
+  id:'lab-3', tag:'信息', title:'家长群里的「院长说」',
+  scene:'家长群里有人转了一篇文章：《某医院院长说，每天一杯它，血糖血脂全降》。配图是个穿白大褂的老年人。你妈血糖偏高，已经问你两次要不要买。链接拉到最下面是个卖产品的页面，三百九十八一盒，买三送一。群里有五六个家长说「我妈吃了确实有效」。',
+  options:['先买一盒试试，反正也不贵','直接跟我妈说这是骗人的，别信','花十分钟查一下批号和那位「院长」是谁，再决定','不表态，让她自己去问医生'],
+  analysis:{
+    bet:'选「买一盒」，你赌的是三百九十八买一个「万一有用」，而且你不会因为这次松口，以后每次都被同类链接找上门。选「直接说是骗人的」，你赌的是讲道理能说服她——其实你要说服的是她的焦虑，不是她的逻辑。选「查十分钟」，你赌的是十分钟真能找到决定性证据（大多数时候能找到，但你要有心理准备，查到之后她未必就信）。',
+    base:'粗略经验值，仅供参考：这类「某院长说」的健康文章，绝大多数最后都指向一个具体产品；群里「我妈吃了有效」的反馈，和真实疗效之间的相关性很低——血糖本来就会波动，安慰剂效应也真实存在。正规保健食品不会宣称治病，这是硬线。',
+    vars:'已有事实：链接末尾是不是卖货；产品拿的是「保健食品」的小蓝帽还是「国药准字」（前者不能宣称疗效）；有没有明确的禁忌和适用人群；这东西和你妈现在吃的药会不会冲突。纯属假设：「群友说有效那就有效」「贵一点的总归靠谱一些」「我不管她她就不会自己买」——最后这条最危险。',
+    counter:'最可能让你判断错的是：你把它当成一道信息真假题，其实它是一道关系题。你赢了论证，她背着你偷偷买了，你就丢掉了下一次的知情权。更常见的有效做法是陪她去看一次门诊，让医生说一遍你已经说过的话——同样的内容，从穿白大褂的人嘴里说出来，效果不一样。'
+  }
+}
+];
+
+var Q6 = [
+  '我在赌什么？',
+  '这种事一般是什么结果？',
+  '哪些是我确认的，哪些是我猜的？',
+  '什么信息会让我改主意？',
+  '一年后我最可能后悔的原因是什么？',
+  '我现在饿 / 累 / 急 / 上头了吗？'
+];
+
+var MOODS = ['急','焦虑','兴奋','FOMO','疲惫','怕尴尬','嘴硬'];
+var TAGS  = ['消费','人际','职场','信息','健康','时间','金钱'];
+
+/* ---------- 示例数据（首次打开时写入，带「示例」标记，可一键清空） ---------- */
+function seedDemo(){
+  if(DB.get(K.seed, 0) === 1) return;
+  var t = todayStr();
+  DB.set(K.calib, [
+    { id:'demo-c1', event:'项目需求会在周三评审前又加一条', by:addDays(t,-6), conf:70, tag:'职场', outcome:'yes', createdAt:addDays(t,-14), reviewedAt:addDays(t,-5), demo:true },
+    { id:'demo-c2', event:'我这个月外卖支出会超过一千五', by:addDays(t,-3), conf:85, tag:'消费', outcome:'no', createdAt:addDays(t,-32), reviewedAt:addDays(t,-2), demo:true },
+    { id:'demo-c3', event:'我发消息问他那件事，他当天会回我', by:addDays(t,4), conf:60, tag:'人际', outcome:null, createdAt:addDays(t,-1), reviewedAt:null, demo:true }
+  ]);
+  DB.set(K.ledger, [
+    {
+      id:'demo-l1', scene:'大学同学开口借三万，说是周转两个月，他做装修生意最近回款慢。我们毕业后联系不多，去年聚过一次。',
+      options:'借三万 / 不借 / 借一部分', choice:'借一万，说自己也紧',
+      reason:'全借出去我心里不踏实，但一分不借这段关系基本就没了。折中一下，就算收不回来，一万我还能承受。',
+      moods:['怕尴尬','焦虑'], expect:'半年内还清，关系维持现状',
+      createdAt:addDays(t,-35), demo:true, review:null
+    },
+    {
+      id:'demo-l2', scene:'家长群在推一款三百九十八的降血糖产品，我妈问了我两次要不要买。',
+      options:'买 / 不买 / 陪她去看门诊', choice:'先不买，周末陪她去门诊',
+      reason:'我查了一下是蓝帽子保健食品，不能宣称治病。但直接说骗人她不听，还是让医生跟她说一遍。',
+      moods:['焦虑'], expect:'她会接受医生的说法，不再催买',
+      createdAt:addDays(t,-9), demo:true, review:null
+    },
+    {
+      id:'demo-l3', scene:'领导问谁能接一个跨部门的活，会占用接下来两个月晚上，做成了算述职里的亮点，做砸了要背。',
+      options:'接 / 不接 / 先问清资源再接', choice:'接了',
+      reason:'我今年述职确实缺一个亮点，晚上本来也在刷手机。但我没问清资源和边界，这是个漏洞。',
+      moods:['急','嘴硬'], expect:'两个月能收尾，述职时拿得出手',
+      createdAt:addDays(t,-40), demo:true,
+      review:{ result:'项目延了一个月，中间加了两次需求，但最后是我主导收尾的。',
+        reasonStill:'部分成立：亮点确实拿到了，但「晚上本来也在刷手机」这个假设不成立，实际挤掉的是睡眠。',
+        quality:'good', outcome:'good' }
+    }
+  ]);
+  DB.set(K.seed, 1);
+}
+/* ============================================================
+   3. 新手引导（3 屏）
+   ============================================================ */
+var OB = [
+  { icon:'⏸', h:'你不是判断得不对，是根本没发现自己在判断',
+    p:'刷手机、买东西、答应别人的请求、转发一条消息——这些动作里都藏着判断。它们太快了，快到你不觉得需要停下来。<br><br>这个工具要练的第一件事，不是更聪明，而是先认出：「哦，这里其实是个需要停下来的地方。」' },
+  { icon:'🧭', h:'判断力分三层，从察觉开始',
+    p:'<b>L1 察觉力</b>：在一段流水账里认出哪些是判断点。<br><b>L2 拆解力</b>：把模糊的感觉拆成预测、证据、假设。<br><b>L3 校准力</b>：记住自己说过多少把握，回头看看准不准。<br><br>前两个是热身，第三个才是唯一能被量化的硬指标。' },
+  { icon:'📓', h:'先承诺，后揭晓',
+    p:'所有练习都必须是：先选、先写下理由，然后才解锁解析。没有这一步，它就退化成刷资讯了。<br><br>数据只存在你这台设备的浏览器里，不上传、不需要账号、不用登录。换设备可以在「我」里导出 JSON。' }
+];
+var obIdx = 0;
+
+function showOnboard(){
+  obIdx = 0;
+  var box = document.getElementById('onboard');
+  box.hidden = false;
+  paintOnboard();
+}
+function paintOnboard(){
+  var box = document.getElementById('onboard');
+  var s = OB[obIdx];
+  var dots = OB.map(function(_, i){ return '<i class="'+(i===obIdx?'on':'')+'"></i>'; }).join('');
+  box.innerHTML =
+    '<div class="onboard-in">'+
+      '<div class="row"><button class="ob-skip" id="obSkip">跳过</button></div>'+
+      '<div class="ob-body">'+
+        '<div class="ob-icon">'+s.icon+'</div>'+
+        '<div class="ob-h">'+s.h+'</div>'+
+        '<div class="ob-p">'+s.p+'</div>'+
+      '</div>'+
+      '<div class="ob-dots">'+dots+'</div>'+
+      '<button class="btn primary block" id="obNext">'+(obIdx===OB.length-1?'开始使用':'下一步')+'</button>'+
+    '</div>';
+  document.getElementById('obSkip').onclick = finishOnboard;
+  document.getElementById('obNext').onclick = function(){
+    if(obIdx === OB.length-1){ finishOnboard(); return; }
+    obIdx++; paintOnboard();
+  };
+}
+function finishOnboard(){
+  document.getElementById('onboard').hidden = true;
+  DB.set(K.onboard, true);
+}
+
+/* ============================================================
+   4. 路由 / 底部 Tab
+   ============================================================ */
+var ICON = {
+  scan  : '<circle cx="11" cy="11" r="7"/><path d="M11 4v14M4 11h14"/>',
+  lab   : '<path d="M9 3h6M10 3v6l-4.6 8.4A2 2 0 0 0 7.2 21h9.6a2 2 0 0 0 1.8-3.6L14 9V3"/><path d="M8 15h8"/>',
+  calib : '<path d="M4 19a8 8 0 1 1 16 0"/><path d="M12 19l4.2-5.4"/><circle cx="12" cy="19" r="1.4"/>',
+  ledger: '<path d="M5 4a2 2 0 0 1 2-2h11v18H7a2 2 0 0 1-2-2z"/><path d="M9 2v18"/>',
+  me    : '<circle cx="12" cy="8" r="3.6"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/>'
+};
+var TABS = [
+  { id:'scan',   label:'今日扫描', title:'今日扫描',      sub:'L1 察觉力 · 认出「此刻我在做判断」' },
+  { id:'lab',    label:'实验室',   title:'微决策实验室',  sub:'L2 拆解力 · 把感觉拆成预测、证据、假设' },
+  { id:'calib',  label:'校准',     title:'校准日记',      sub:'L3 校准力 · 我说的把握，到底准不准' },
+  { id:'ledger', label:'账本',     title:'判断账本',      sub:'记录决策本身，而不是结果' },
+  { id:'me',     label:'我',       title:'我',            sub:'三个维度 · 看得见的进步' }
+];
+var state = { tab:'scan' };
+
+function renderTabs(){
+  document.getElementById('tabbar').innerHTML = TABS.map(function(t){
+    return '<button class="tab'+(state.tab===t.id?' active':'')+'" data-tab="'+t.id+'">'+
+      '<svg viewBox="0 0 24 24">'+ICON[t.id]+'</svg><span>'+t.label+'</span></button>';
+  }).join('');
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function(b){
+    b.onclick = function(){ go(b.getAttribute('data-tab')); };
+  });
+}
+function go(tab){
+  state.tab = tab;
+  var t = TABS.filter(function(x){ return x.id===tab; })[0] || TABS[0];
+  document.getElementById('pageTitle').textContent = t.title;
+  document.getElementById('pageSub').textContent = t.sub;
+  renderTabs();
+  window.scrollTo(0,0);
+  var view = document.getElementById('view');
+  document.getElementById('app').className = 'app v-' + tab;
+  if(tab==='scan')   view.innerHTML = viewScan();
+  if(tab==='lab')    view.innerHTML = viewLab();
+  if(tab==='calib')  view.innerHTML = viewCalib();
+  if(tab==='ledger') view.innerHTML = viewLedger();
+  if(tab==='me')     view.innerHTML = viewMe();
+  var bind = { scan:bindScan, lab:bindLab, calib:bindCalib, ledger:bindLedger, me:bindMe }[tab];
+  if(bind) bind();
+}
+
+/* ============================================================
+   5. 模块一：今日扫描（L1 察觉力）
+   ============================================================ */
+var scanNoJp = false;
+
+function currentScanText(){
+  var all = DB.get(K.scan, {});
+  var today = todayStr();
+  var rec = all[today];
+  if(rec && rec.textId){
+    var hit = SCAN_TEXTS.filter(function(x){ return x.id===rec.textId; })[0];
+    if(hit) return hit;
+  }
+  return SCAN_TEXTS[hashStr(today) % SCAN_TEXTS.length];
+}
+function scanRecord(){ return DB.get(K.scan, {})[todayStr()] || null; }
+function saveScanRec(rec){
+  var all = DB.get(K.scan, {});
+  all[todayStr()] = rec;
+  DB.set(K.scan, all);
+}
+function scanFeedback(f, m, fa, total, noJp){
+  if(noJp && total>0) return '你选了「这段没有判断点」，但这里面其实藏着 '+total+' 处。它们不是让你纠结的大事，恰恰相反——它们快得像呼吸，所以最难被看见。';
+  if(f===total && fa===0 && total>0) return '全中，一个没多标。这不是运气好，是你真的停下来了。';
+  if(m>0 && fa===0) return '你标出来的都算数，但还有 '+m+' 处，你其实已经替自己做完了判断，只是没意识到。判断不一定要纠结，很多时候它快得像个习惯。';
+  if(m===0 && fa>0) return '判断点一个没漏。多标的 '+fa+' 句属于自动驾驶的部分——你把它们也算成了判断。这是警觉过头，比漏掉好治。';
+  if(m===0 && fa===0) return '这段里藏了 '+total+' 个判断点，你一个都没标出来。第一次做基本都是这样——不是你迟钝，是这些判断太快了。';
+  return '找到 '+f+' 个，漏掉 '+m+' 个，多标 '+fa+' 个。多标的是习惯动作，漏掉的是「太快了，快到不觉得需要停」。';
+}
+
+function viewScan(){
+  var text = currentScanText();
+  var rec = scanRecord();
+  var marked = (rec && rec.marked) || [];
+  var submitted = !!(rec && rec.submitted);
+  scanNoJp = !!(rec && rec.noJp);
+  var total = text.lines.filter(function(l){ return l.j; }).length;
+
+  var head = '<div class="card">'+
+    '<div class="row" style="justify-content:space-between;align-items:flex-start">'+
+      '<div class="card-h">'+esc(text.title)+'</div>'+
+      '<span class="badge">'+esc(text.tag)+'</span>'+
+    '</div>'+
+    '<div class="card-sub">'+(submitted
+      ? '逐句对照一下：绿色的你标对了，橙色的你漏了，浅红的你标多了。'
+      : '点一下你觉得「这里其实是判断点」的句子（可多选）。判断点不一定让你纠结，它可能只是一个很快的预测。')+'</div>'+
+  '</div>';
+
+  var list = text.lines.map(function(l, i){
+    var on = marked.indexOf(i) >= 0;
+    var cls = 'sent', mark = '';
+    if(submitted){
+      if(l.j && on){ cls += ' found'; mark = '<span class="badge g">判断点 · 找到了</span>'; }
+      else if(l.j && !on){ cls += ' missed'; mark = '<span class="badge o">判断点 · 漏掉了</span>'; }
+      else if(!l.j && on){ cls += ' false'; mark = '<span class="badge r">自动驾驶 · 多标了</span>'; }
+      else { cls += ' plain'; mark = '<span class="badge n">自动驾驶</span>'; }
+    } else if(on){ cls += ' marked'; }
+
+    var html = '<button class="'+cls+'" data-i="'+i+'"'+(submitted?' disabled':'')+'>'+
+      (on && !submitted ? '✓ ' : '') + esc(l.t) + '</button>';
+
+    if(submitted){
+      html += '<div class="why reveal" style="animation-delay:'+(i*45)+'ms">'+
+        mark +
+        '<span class="lbl" style="margin-top:6px">'+(l.j ? '这里你其实在赌什么' : '为什么这不算判断')+'</span>'+
+        esc(l.why)+'</div>';
+    }
+    return html;
+  }).join('');
+
+  if(!submitted){
+    return head +
+      '<div class="sec-t">今天的流水账 · 约 200 字</div>' + list +
+      '<button class="chip'+(scanNoJp?' on':'')+'" id="noJp" style="width:100%;margin-bottom:10px">这段没有判断点</button>'+
+      '<button class="btn primary block" id="submitScan"'+(marked.length||scanNoJp?'':' disabled')+'>提交，逐句对答案</button>'+
+      '<div class="mini" style="text-align:center;margin-top:8px">先标记，再揭晓。不标记是看不到解析的。</div>'+
+      '<div class="btn-row"><button class="btn" id="nextScan">换一段流水账</button></div>';
+  }
+
+  var f = rec.found||0, m = rec.missed||0, fa = rec.false||0;
+  return head +
+    '<div class="sec-t">逐句对照</div>' + list +
+    '<div class="card tight">'+
+      '<div class="score">'+
+        '<div class="score-i"><div class="score-n">'+f+'</div><div class="score-l">找到</div></div>'+
+        '<div class="score-i"><div class="score-n">'+m+'</div><div class="score-l">漏掉</div></div>'+
+        '<div class="score-i"><div class="score-n">'+fa+'</div><div class="score-l">多标</div></div>'+
+      '</div>'+
+      '<div class="fb">'+esc(scanFeedback(f, m, fa, total, rec.noJp))+'</div>'+
+      '<div class="mini" style="margin-top:10px">这段一共 '+total+' 个判断点。今天已经练完，明天会换一段新的（内容库第 2 步补到 20 段）。</div>'+
+    '</div>'+
+    '<div class="btn-row"><button class="btn" id="nextScan">换一段</button><button class="btn" id="resetScan">清空重做</button></div>';
+}
+
+function bindScan(){
+  var text = currentScanText();
+  Array.prototype.forEach.call(document.querySelectorAll('.sent:not([disabled])'), function(b){
+    b.onclick = function(){
+      var i = +b.getAttribute('data-i');
+      var rec = scanRecord() || { textId:text.id, marked:[], submitted:false };
+      var p = rec.marked.indexOf(i);
+      if(p>=0) rec.marked.splice(p,1); else rec.marked.push(i);
+      rec.noJp = false;
+      saveScanRec(rec);
+      go('scan');
+    };
+  });
+  var nj = document.getElementById('noJp');
+  if(nj) nj.onclick = function(){
+    var rec = scanRecord() || { textId:text.id, marked:[], submitted:false };
+    rec.noJp = !rec.noJp;
+    if(rec.noJp) rec.marked = [];
+    saveScanRec(rec);
+    go('scan');
+  };
+  var sb = document.getElementById('submitScan');
+  if(sb) sb.onclick = function(){
+    var rec = scanRecord() || { textId:text.id, marked:[], submitted:false };
+    var f=0, m=0, fa=0;
+    text.lines.forEach(function(l, i){
+      var on = rec.marked.indexOf(i) >= 0;
+      if(l.j && on) f++;
+      if(l.j && !on) m++;
+      if(!l.j && on) fa++;
+    });
+    rec.submitted = true; rec.found = f; rec.missed = m; rec.false = fa;
+    saveScanRec(rec);
+    markActive();
+    go('scan');
+  };
+  var ns = document.getElementById('nextScan');
+  if(ns) ns.onclick = function(){
+    var i = SCAN_TEXTS.indexOf(currentScanText());
+    var nx = SCAN_TEXTS[(i+1) % SCAN_TEXTS.length];
+    saveScanRec({ textId:nx.id, marked:[], submitted:false, noJp:false });
+    go('scan');
+  };
+  var rs = document.getElementById('resetScan');
+  if(rs) rs.onclick = function(){
+    saveScanRec({ textId:text.id, marked:[], submitted:false, noJp:false });
+    go('scan');
+  };
+}
+
+/* ============================================================
+   6. 模块二：微决策实验室（L2 拆解力）
+   ============================================================ */
+var labSel = { choice:null, reason:'' };
+var labIdx = 0;
+
+function viewLab(){
+  var today = todayStr();
+  var recs = DB.get(K.lab, []);
+  if(!labIdx) labIdx = hashStr(today) % LAB_CARDS.length;
+  var card = LAB_CARDS[labIdx % LAB_CARDS.length];
+  var rec = recs.filter(function(r){ return r.scenarioId===card.id; })[0];
+
+  var head = '<div class="card">'+
+    '<div class="row" style="justify-content:space-between;align-items:flex-start">'+
+      '<div class="card-h">'+esc(card.title)+'</div>'+
+      '<span class="badge">'+esc(card.tag)+'</span>'+
+    '</div>'+
+    '<div class="card-sub">'+esc(card.scene)+'</div>'+
+  '</div>';
+
+  if(rec){
+    var opts = card.options.map(function(o, i){
+      var on = rec.choice === i;
+      return '<div class="opt'+(on?' on':'')+'"><span class="k">'+'ABCD'[i]+'</span>'+esc(o)+(on?' <span class="badge" style="margin-left:4px">你选的</span>':'')+'</div>';
+    }).join('');
+    var a = card.analysis;
+    return head + opts +
+      '<div class="card"><div class="card-h">你当时的理由</div><div class="card-sub">'+esc(rec.reason)+'</div></div>'+
+      '<div class="sec-t">解析 · 你在赌什么</div>'+
+      '<div class="card"><div class="card-h">a. 你在赌什么</div><div class="card-sub reveal">'+esc(a.bet)+'</div></div>'+
+      '<div class="card"><div class="card-h">b. 基率提示 <span class="mini">粗略经验值，仅供参考</span></div><div class="card-sub reveal">'+esc(a.base)+'</div></div>'+
+      '<div class="card"><div class="card-h">c. 关键变量：哪些是事实，哪些是假设</div><div class="card-sub reveal">'+esc(a.vars)+'</div></div>'+
+      '<div class="card"><div class="card-h">d. 反方视角</div><div class="card-sub reveal">'+esc(a.counter)+'</div></div>'+
+      '<div class="card">'+
+        '<div class="card-h">六问拆解卡（下次遇到决定，照着过一遍）</div>'+
+        '<div class="q6">'+Q6.map(function(q,i){ return '<div>'+(i+1)+'. '+q+'</div>'; }).join('')+'</div>'+
+      '</div>'+
+      '<div class="btn-row"><button class="btn" id="labNext">换一题</button></div>';
+  }
+
+  labSel = { choice:null, reason:'' };
+  var opts2 = card.options.map(function(o, i){
+    return '<button class="opt" data-opt="'+i+'"><span class="k">'+'ABCD'[i]+'</span>'+esc(o)+'</button>';
+  }).join('');
+  return head +
+    '<div class="sec-t">先选，再揭晓</div>' + opts2 +
+    '<div class="card tight" style="margin-top:4px">'+
+      '<div class="card-h">一句话理由（必填）</div>'+
+      '<div class="mini" style="margin-bottom:8px">写你真实的直觉就行，不用写得对。写完才能解锁解析——这是这个工具唯一不能砍的机制。</div>'+
+      '<textarea id="labReason" placeholder="我选它，是因为……"></textarea>'+
+      '<button class="btn primary block" id="labSubmit" disabled style="margin-top:12px">提交并揭晓解析</button>'+
+    '</div>'+
+    '<div class="btn-row"><button class="btn" id="labNext">换一题</button></div>';
+}
+
+function bindLab(){
+  var today = todayStr();
+  if(!labIdx) labIdx = hashStr(today) % LAB_CARDS.length;
+  var card = LAB_CARDS[labIdx % LAB_CARDS.length];
+  var ta = document.getElementById('labReason');
+  var sb = document.getElementById('labSubmit');
+  function check(){
+    if(!sb) return;
+    sb.disabled = !(labSel.choice !== null && labSel.reason.trim().length >= 4);
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.opt[data-opt]'), function(b){
+    b.onclick = function(){
+      labSel.choice = +b.getAttribute('data-opt');
+      Array.prototype.forEach.call(document.querySelectorAll('.opt[data-opt]'), function(x){ x.classList.remove('on'); });
+      b.classList.add('on');
+      check();
+    };
+  });
+  if(ta) ta.oninput = function(){ labSel.reason = ta.value; check(); };
+  if(sb) sb.onclick = function(){
+    var recs = DB.get(K.lab, []);
+    recs.push({ scenarioId:card.id, choice:labSel.choice, reason:labSel.reason.trim(), at:new Date().toISOString(), date:todayStr() });
+    DB.set(K.lab, recs);
+    markActive();
+    go('lab');
+  };
+  var nx = document.getElementById('labNext');
+  if(nx) nx.onclick = function(){ labIdx = (labIdx+1) % LAB_CARDS.length; go('lab'); };
+}
+/* ============================================================
+   7. 模块三：校准日记（L3 校准力）
+   ============================================================ */
+function viewCalib(){
+  var recs = DB.get(K.calib, []);
+  var today = todayStr();
+  var due  = recs.filter(function(r){ return !r.outcome && r.by < today; });
+  var pend = recs.filter(function(r){ return !r.outcome && r.by >= today; });
+  var done = recs.filter(function(r){ return !!r.outcome; });
+
+  var form = '<div class="card">'+
+    '<div class="card-h">写一条能被验证的预测</div>'+
+    '<div class="card-sub">句式：「____ 会在 ____ 之前发生」。别写「希望」「觉得」，写到时候能点头或摇头的事。</div>'+
+    '<label class="f">会发生的事</label>'+
+    '<input type="text" id="cEvent" placeholder="例：这周需求会在评审前又加一条">'+
+    '<label class="f">在此之前</label>'+
+    '<input type="date" id="cBy" value="'+addDays(today,7)+'">'+
+    '<label class="f">你有多少把握</label>'+
+    '<div class="pct" id="cPct">70%</div>'+
+    '<div class="slider"><input type="range" id="cConf" min="50" max="95" step="5" value="70"></div>'+
+    '<div class="mini">50%–95%，5% 一档。超过 95% 就不叫把握了，那叫确信——而确信不值得记录。</div>'+
+    '<label class="f">标签</label>'+
+    '<select id="cTag">'+TAGS.map(function(t){ return '<option>'+t+'</option>'; }).join('')+'</select>'+
+    '<button class="btn primary block" id="cSave" style="margin-top:12px">保存预测</button>'+
+  '</div>';
+
+  var secDue = due.length ? '<div class="sec-t">该回访了（'+due.length+' 条）</div>' + due.map(function(r){ return calibItem(r, true); }).join('') : '';
+  var secPend = pend.length ? '<div class="sec-t">等结果</div>' + pend.map(function(r){ return calibItem(r, false); }).join('') : '';
+  var secDone = done.length ? '<div class="sec-t">已回访（'+done.length+' 条）</div>' + done.map(function(r){ return calibItem(r, false); }).join('') : '';
+
+  return form + secDue + secPend + secDone + chartCard(done, recs);
+}
+
+function calibItem(r, showBtns){
+  var t = todayStr();
+  var meta = '<span class="badge">'+esc(r.tag)+'</span>'+
+    '<span>把握 '+r.conf+'%</span>'+
+    '<span>截止 '+esc(r.by)+'</span>'+
+    (r.demo ? '<span class="badge n">示例</span>' : '');
+  var extra = '';
+  if(r.outcome === 'yes') extra = '<span class="badge g">发生了</span>';
+  if(r.outcome === 'no')  extra = '<span class="badge o">没发生</span>';
+  if(!r.outcome && r.by >= t) extra = '<span class="mini">还有 '+daysBetween(t, r.by)+' 天</span>';
+  var btns = showBtns
+    ? '<div class="btn-row"><button class="btn sm" data-cy="'+r.id+'">发生了</button><button class="btn sm" data-cn="'+r.id+'">没发生</button></div>'
+    : '';
+  return '<div class="item"><div class="item-t">'+esc(r.event)+'</div><div class="item-m">'+meta+' '+extra+'</div>'+btns+'</div>';
+}
+
+function bucketOf(conf){ return Math.floor(conf/5)*5; }
+
+function chartCard(done, all){
+  if(!done.length){
+    return '<div class="card">'+
+      '<div class="card-h">校准曲线</div>'+
+      '<div class="empty"><b>还没有回访过的预测</b>等你第一次点下「发生了」或「没发生」，这里就会开始长东西。<br>现在上面那些「示例」条目，是为了让你先看到形状——可以在「我」里一键清空。</div>'+
+    '</div>';
+  }
+  var n = done.length;
+  var hits = done.filter(function(r){ return r.outcome==='yes'; }).length;
+  var rate = hits/n;
+  var avgConf = done.reduce(function(s,r){ return s+r.conf; },0)/n;
+  var err = done.reduce(function(s,r){ return s + Math.abs(r.conf/100 - (r.outcome==='yes'?1:0)); },0)/n;
+  var gap = avgConf/100 - rate;
+
+  var verdict;
+  if(gap > 0.12) verdict = '按你自己报的把握，这些事本该发生 '+Math.round(avgConf)+'% 的次数。实际少了 '+(Math.round(avgConf)-Math.round(rate*100))+' 个百分点——你比实际情况更有把握，而且是有系统的。';
+  else if(gap < -0.12) verdict = '你比自己以为的保守：说 '+Math.round(avgConf)+'% 把握的事，实际发生了 '+Math.round(rate*100)+'%。留意你是不是习惯性给自己留后路，以至于不敢下判断。';
+  else verdict = '你报的把握和实际发生的频率差得不多。这不是说你判断得好，而是说——你对自己有多大把握这件事，心里是有数的。';
+
+  var buckets = {};
+  done.forEach(function(r){
+    var b = bucketOf(r.conf);
+    buckets[b] = buckets[b] || { n:0, hit:0 };
+    buckets[b].n++; if(r.outcome==='yes') buckets[b].hit++;
+  });
+  var keys = Object.keys(buckets).map(Number).sort(function(a,b){ return a-b; });
+  var bars = keys.map(function(b){
+    var x = buckets[b], actual = Math.round(x.hit/x.n*100);
+    return '<div class="bar-row">'+
+      '<div class="bar-lab"><span>你说 '+b+'% 把握 · '+x.n+' 条</span><span>实际 '+actual+'%</span></div>'+
+      '<div class="bar b"><i style="width:'+b+'%"></i></div>'+
+      '<div class="bar g" style="margin-top:4px"><i style="width:'+actual+'%"></i></div>'+
+    '</div>';
+  }).join('');
+
+  var tagRows = TAGS.map(function(tg){
+    var arr = done.filter(function(r){ return r.tag===tg; });
+    if(!arr.length) return '';
+    var h = arr.filter(function(r){ return r.outcome==='yes'; }).length;
+    var ac = arr.reduce(function(s,r){ return s+r.conf; },0)/arr.length;
+    var d = Math.round(ac) - Math.round(h/arr.length*100);
+    var word = d > 12 ? '最容易高估' : (d < -12 ? '最容易低估' : '比较稳');
+    return '<div class="bar-lab" style="margin-bottom:2px"><span>'+tg+' · '+arr.length+' 条 · 平均报 '+Math.round(ac)+'%</span><span>实际 '+Math.round(h/arr.length*100)+'%（'+word+'）</span></div>'+
+           '<div class="bar '+(d>12?'':'g')+'"><i style="width:'+Math.round(h/arr.length*100)+'%"></i></div>';
+  }).join('');
+
+  return '<div class="card">'+
+    '<div class="card-h">校准曲线</div>'+
+    '<div class="card-sub">蓝条 = 你声称的把握度，绿条 = 实际发生的比例。两条一样长，说明你心里那杆秤是准的。</div>'+
+    '<div style="margin-top:12px">'+bars+'</div>'+
+    '<div class="hr"></div>'+
+    '<div class="card-h">大白话结论</div>'+
+    '<div class="card-sub">你平均说 '+Math.round(avgConf)+'% 把握的事，实际发生了 '+Math.round(rate*100)+'%。<br>'+verdict+'</div>'+
+    '<div class="mini" style="margin-top:8px">平均校准误差 '+(err*100).toFixed(0)+' 个百分点（越小越准）。粗略经验值，仅供参考：样本少于 20 条时，这个数字本身也不太稳。</div>'+
+    (tagRows ? '<div class="hr"></div><div class="card-h">按领域看</div>'+tagRows : '')+
+  '</div>';
+}
+
+function bindCalib(){
+  var conf = document.getElementById('cConf');
+  var pct  = document.getElementById('cPct');
+  if(conf) conf.oninput = function(){ pct.textContent = conf.value+'%'; };
+  var sv = document.getElementById('cSave');
+  if(sv) sv.onclick = function(){
+    var ev = document.getElementById('cEvent').value.trim();
+    var by = document.getElementById('cBy').value;
+    if(ev.length < 4 || !by) return;
+    var recs = DB.get(K.calib, []);
+    recs.unshift({
+      id:'c'+Date.now(), event:ev, by:by, conf:+conf.value,
+      tag:document.getElementById('cTag').value,
+      outcome:null, createdAt:todayStr(), reviewedAt:null
+    });
+    DB.set(K.calib, recs);
+    markActive();
+    go('calib');
+  };
+  Array.prototype.forEach.call(document.querySelectorAll('[data-cy],[data-cn]'), function(b){
+    b.onclick = function(){
+      var id = b.getAttribute('data-cy') || b.getAttribute('data-cn');
+      var val = b.getAttribute('data-cy') ? 'yes' : 'no';
+      var recs = DB.get(K.calib, []);
+      recs.forEach(function(r){ if(r.id===id){ r.outcome = val; r.reviewedAt = todayStr(); } });
+      DB.set(K.calib, recs);
+      markActive();
+      go('calib');
+    };
+  });
+}
+
+/* ============================================================
+   8. 模块四：判断账本
+   ============================================================ */
+var ledMoods = [];
+var revDraft = {};
+
+function viewLedger(){
+  var recs = DB.get(K.ledger, []);
+  var today = todayStr();
+
+  var matrix = '<div class="card">'+
+    '<div class="card-h">决策质量 ≠ 结果好坏</div>'+
+    '<div class="card-sub">结果好，不代表你当时判断得对；结果差，也不代表你当时错了。这两样必须分开记，否则你学到的全是运气。</div>'+
+    '<div class="matrix">'+
+      '<div class="matrix-i"><b>决策好 · 结果好</b>判断到位，继续保持</div>'+
+      '<div class="matrix-i"><b>决策好 · 结果差</b>对的判断，差的运气。别自责</div>'+
+      '<div class="matrix-i hl"><b>决策差 · 结果好</b>运气救了你。最容易学坏习惯</div>'+
+      '<div class="matrix-i"><b>决策差 · 结果差</b>该复盘的是过程，不是运气</div>'+
+    '</div>'+
+  '</div>';
+
+  var form = '<div class="card">'+
+    '<div class="card-h">记一个正在做的决定</div>'+
+    '<div class="card-sub">趁还没出结果的时候记。出了结果再写，你的记忆会自动帮你改理由。</div>'+
+    '<label class="f">背景</label><textarea id="lScene" placeholder="发生了什么，你手上有什么信息"></textarea>'+
+    '<label class="f">选项</label><input type="text" id="lOptions" placeholder="借三万 / 不借 / 借一部分">'+
+    '<label class="f">你最终选了</label><input type="text" id="lChoice" placeholder="借一万，说自己也紧">'+
+    '<label class="f">当时的理由</label><textarea id="lReason" placeholder="写真实的那句，包括不太好意思说的那句"></textarea>'+
+    '<label class="f">当时的情绪（可多选）</label>'+
+    '<div class="chips" id="lMoods">'+MOODS.map(function(m){ return '<button class="chip" data-mood="'+m+'">'+m+'</button>'; }).join('')+'</div>'+
+    '<label class="f">你预期会发生什么</label><input type="text" id="lExpect" placeholder="例：半年内还清，关系维持现状">'+
+    '<button class="btn primary block" id="lSave" style="margin-top:12px">存进账本</button>'+
+  '</div>';
+
+  var list = recs.length ? recs.map(function(r){ return ledgerItem(r, today); }).join('')
+    : '<div class="card"><div class="empty"><b>账本还是空的</b>记下的决定，30 天后会自动提醒你回来复盘。<br>先记今天这一个，别等想清楚了再记。</div></div>';
+
+  return matrix + form + (recs.length ? '<div class="sec-t">我的决定（'+recs.length+' 条）</div>' : '') + list;
+}
+
+function ledgerItem(r, today){
+  var age = daysBetween(r.createdAt, today);
+  var left = 30 - age;
+  var head = '<div class="item"><div class="item-t">'+esc(r.scene)+'</div>'+
+    '<div class="item-m">'+
+      '<span class="badge">'+esc(r.choice)+'</span>'+
+      (r.moods||[]).map(function(m){ return '<span class="badge n">'+esc(m)+'</span>'; }).join('')+
+      '<span class="mini">'+esc(r.createdAt)+' 记</span>'+
+      (r.demo ? '<span class="badge n">示例</span>' : '')+
+    '</div>'+
+    '<div class="kv" style="margin-top:8px"><b>选项：</b>'+esc(r.options)+'<br><b>当时的理由：</b>'+esc(r.reason)+'<br><b>预期：</b>'+esc(r.expect||'—')+'</div>';
+
+  if(r.review){
+    var q = r.review.quality, o = r.review.outcome;
+    var label = (q==='good' && o==='good') ? '判断到位'
+      : (q==='good' && o==='bad') ? '对的判断，差的运气'
+      : (q==='bad' && o==='good') ? '运气救了你 —— 别把这次当成能力' : '该复盘的是过程';
+    return head +
+      '<div class="hr"></div>'+
+      '<div class="kv"><b>结果：</b>'+esc(r.review.result)+'<br><b>当初的理由现在还成立吗：</b>'+esc(r.review.reasonStill)+'</div>'+
+      '<div class="item-m" style="margin-top:8px"><span class="badge '+(q==='good'?'g':'o')+'">决策'+(q==='good'?'好':'差')+'</span><span class="badge '+(o==='good'?'g':'o')+'">结果'+(o==='good'?'好':'坏')+'</span><span class="mini">'+label+'</span></div>'+
+    '</div>';
+  }
+
+  var d = revDraft[r.id] || (revDraft[r.id] = { quality:null, outcome:null });
+  var reviewBox = '';
+  if(age >= 30){
+    reviewBox = '<div class="hr"></div>'+
+      '<div class="card-h">30 天到了，回来复盘</div>'+
+      '<div class="card-sub">结果如何？当初的理由现在还成立吗？</div>'+
+      '<label class="f">结果</label><textarea id="rv_'+r.id+'" placeholder="实际发生了什么"></textarea>'+
+      '<label class="f">当初的理由现在还成立吗</label><textarea id="rw_'+r.id+'" placeholder="哪条成立，哪条其实是我当时哄自己的"></textarea>'+
+      '<label class="f">决策质量（不是结果）</label>'+
+      '<div class="chips"><button class="chip'+(d.quality==='good'?' on':'')+'" data-q="good" data-id="'+r.id+'">决策好</button>'+
+      '<button class="chip'+(d.quality==='bad'?' on':'')+'" data-q="bad" data-id="'+r.id+'">决策差</button></div>'+
+      '<label class="f">结果好坏</label>'+
+      '<div class="chips"><button class="chip'+(d.outcome==='good'?' on':'')+'" data-o="good" data-id="'+r.id+'">结果好</button>'+
+      '<button class="chip'+(d.outcome==='bad'?' on':'')+'" data-o="bad" data-id="'+r.id+'">结果差</button></div>'+
+      '<button class="btn primary block" id="rs_'+r.id+'" style="margin-top:12px">保存复盘</button>';
+  } else {
+    reviewBox = '<div class="mini" style="margin-top:8px">还有 '+left+' 天提醒你复盘。到时候再看「当初的理由还成立吗」，比现在猜有用得多。</div>';
+  }
+  return head + reviewBox + '</div>';
+}
+
+function bindLedger(){
+  ledMoods = [];
+  Array.prototype.forEach.call(document.querySelectorAll('[data-mood]'), function(b){
+    b.onclick = function(){
+      var m = b.getAttribute('data-mood');
+      var i = ledMoods.indexOf(m);
+      if(i>=0){ ledMoods.splice(i,1); b.classList.remove('on'); }
+      else { ledMoods.push(m); b.classList.add('on'); }
+    };
+  });
+  var sv = document.getElementById('lSave');
+  if(sv) sv.onclick = function(){
+    var scene = document.getElementById('lScene').value.trim();
+    var choice = document.getElementById('lChoice').value.trim();
+    var reason = document.getElementById('lReason').value.trim();
+    if(scene.length < 4 || choice.length < 1 || reason.length < 4) return;
+    var recs = DB.get(K.ledger, []);
+    recs.unshift({
+      id:'l'+Date.now(), scene:scene,
+      options:document.getElementById('lOptions').value.trim() || '—',
+      choice:choice, reason:reason, moods:ledMoods.slice(),
+      expect:document.getElementById('lExpect').value.trim(),
+      createdAt:todayStr(), review:null
+    });
+    DB.set(K.ledger, recs);
+    markActive();
+    ledMoods = [];
+    go('ledger');
+  };
+  Array.prototype.forEach.call(document.querySelectorAll('[data-q],[data-o]'), function(b){
+    b.onclick = function(){
+      var id = b.getAttribute('data-id');
+      var d = revDraft[id] || (revDraft[id] = { quality:null, outcome:null });
+      if(b.hasAttribute('data-q')) d.quality = b.getAttribute('data-q');
+      else d.outcome = b.getAttribute('data-o');
+      go('ledger');
+    };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[id^="rs_"]'), function(b){
+    b.onclick = function(){
+      var id = b.id.slice(3);
+      var d = revDraft[id] || {};
+      var res = document.getElementById('rv_'+id).value.trim();
+      var why = document.getElementById('rw_'+id).value.trim();
+      if(!d.quality || !d.outcome || res.length < 2) return;
+      var recs = DB.get(K.ledger, []);
+      recs.forEach(function(r){
+        if(r.id===id) r.review = { result:res, reasonStill:why||'—', quality:d.quality, outcome:d.outcome };
+      });
+      DB.set(K.ledger, recs);
+      markActive();
+      go('ledger');
+    };
+  });
+}
+/* ============================================================
+   9. 模块五：我（成长仪表盘）
+   ============================================================ */
+function clamp(v){ return Math.max(0, Math.min(100, Math.round(v))); }
+
+function scoreAll(){
+  var scanAll = DB.get(K.scan, {});
+  var jpTotal = 0, missed = 0, fa = 0, scanN = 0;
+  Object.keys(scanAll).forEach(function(k){
+    var r = scanAll[k]; if(!r || !r.submitted) return;
+    var t = SCAN_TEXTS.filter(function(x){ return x.id===r.textId; })[0];
+    if(!t) return;
+    scanN++;
+    jpTotal += t.lines.filter(function(l){ return l.j; }).length;
+    missed += (r.missed||0); fa += (r.false||0);
+  });
+  var labN = DB.get(K.lab, []).length;
+  var st = streakDays();
+  var calAll = DB.get(K.calib, []);
+  var done = calAll.filter(function(r){ return !!r.outcome; });
+  var ledAll = DB.get(K.ledger, []);
+
+  var aware = null, missRate = null;
+  if(jpTotal){ missRate = missed/jpTotal; aware = clamp(100 - missRate*100 - (fa/Math.max(1,jpTotal))*40); }
+  var dec = clamp(labN*15 + Math.min(20, st*4));
+  var cal = null, calErr = null;
+  if(done.length){
+    calErr = done.reduce(function(s, r){ return s + Math.abs(r.conf/100 - (r.outcome==='yes'?1:0)); }, 0) / done.length;
+    cal = clamp(100 - calErr*150);
+  }
+  return { aware:aware, missRate:missRate, scanN:scanN, jpTotal:jpTotal, fa:fa,
+           dec:dec, labN:labN, streak:st, cal:cal, calErr:calErr, doneN:done.length,
+           total: scanN + labN + calAll.length + ledAll.length };
+}
+
+function radarSVG(vals){
+  var cx = 110, cy = 104, R = 68, ang = [-90, 30, 150];
+  function pt(i, r){
+    var a = ang[i]*Math.PI/180;
+    return [cx + Math.cos(a)*r, cy + Math.sin(a)*r];
+  }
+  var out = '<svg class="radar" viewBox="-14 -8 248 234" width="100%" height="212" role="img" aria-label="判断力三维雷达图">';
+  [0.25,0.5,0.75,1].forEach(function(k){
+    var p = []; for(var i=0;i<3;i++){ var q = pt(i,R*k); p.push(q[0].toFixed(1)+','+q[1].toFixed(1)); }
+    out += '<polygon points="'+p.join(' ')+'" class="rd-grid"/>';
+  });
+  for(var i=0;i<3;i++){
+    var q = pt(i,R);
+    out += '<line x1="'+cx+'" y1="'+cy+'" x2="'+q[0].toFixed(1)+'" y2="'+q[1].toFixed(1)+'" class="rd-axis"/>';
+  }
+  var dp = [], dots = '';
+  for(var j=0;j<3;j++){
+    var v = Math.max(0, Math.min(100, vals[j]||0))/100;
+    var q2 = pt(j, R*v);
+    dp.push(q2[0].toFixed(1)+','+q2[1].toFixed(1));
+    dots += '<circle cx="'+q2[0].toFixed(1)+'" cy="'+q2[1].toFixed(1)+'" r="3.4" class="rd-dot"/>';
+  }
+  out += '<polygon points="'+dp.join(' ')+'" class="rd-shape"/>'+dots;
+  var labs = ['察觉力','拆解力','校准力'];
+  for(var k2=0;k2<3;k2++){
+    var q3 = pt(k2, R+26);
+    var anchor = Math.abs(q3[0]-cx) < 6 ? 'middle' : (q3[0] > cx ? 'start' : 'end');
+    var dy = q3[1] < cy ? -2 : 12;
+    out += '<text x="'+q3[0].toFixed(1)+'" y="'+(q3[1]+dy).toFixed(1)+'" text-anchor="'+anchor+'" class="rd-lab">'+labs[k2]+'</text>';
+    } 
+  out += '</svg>';
+  return out;
+}
+
+function barLine(label, val, note){
+  var w = val===null ? 0 : val;
+  return '<div class="bar-row">'+
+    '<div class="bar-lab"><span><b>'+label+'</b> · '+note+'</span><span>'+(val===null?'—':val)+'</span></div>'+
+    '<div class="bar'+(val===null?' is-null':' b')+'"><i style="width:'+w+'%"></i></div>'+
+  '</div>';
+}
+
+function viewMe(){
+  var s = scoreAll();
+  var awareNote = s.jpTotal
+    ? ('漏报率 '+Math.round(s.missRate*100)+'% · 多标 '+s.fa+' 处 · 练了 '+s.scanN+' 段')
+    : '还没有做过今日扫描';
+  var decNote = s.labN ? ('拆解 '+s.labN+' 个场景 · 连续 '+s.streak+' 天') : '还没有拆解过场景';
+  var calNote = s.doneN ? ('回访 '+s.doneN+' 条 · 平均误差 '+(s.calErr*100).toFixed(0)+' 个百分点') : '还没有回访过的预测';
+
+  return '<div class="stat">'+
+      '<div class="stat-i"><div class="stat-n">'+s.streak+'</div><div class="stat-l">连续打卡（天）</div></div>'+
+      '<div class="stat-i"><div class="stat-n">'+s.total+'</div><div class="stat-l">累计记录（条）</div></div>'+
+      '<div class="stat-i"><div class="stat-n">'+s.labN+'</div><div class="stat-l">完成场景</div></div>'+
+    '</div>'+
+    '<div class="sec-t">判断力雷达</div>'+
+    '<div class="card">'+ radarSVG([s.aware||0, s.dec||0, s.cal||0]) +
+      '<div class="hr"></div>'+
+      barLine('察觉力', s.aware, awareNote)+
+      barLine('拆解力', s.dec, decNote)+
+      barLine('校准力', s.cal, calNote)+
+      '<div class="mini" style="margin-top:6px">三个分数都是练出来的，不是天生的。察觉力看漏报率有没有往下走，校准力看误差有没有收窄——短期数字上下跳很正常，看趋势。</div>'+
+    '</div>'+
+    '<div class="quote">「好的判断不是不犯错，而是知道自己有多可能犯错。」<span>—— 记着这句就能少交很多学费</span></div>'+
+    '<div class="sec-t">数据</div>'+
+    '<div class="card">'+
+      '<div class="card-sub">全部数据只存在这台设备的浏览器里（localStorage，jt_ 前缀）。换手机、换浏览器的时候就靠这个 JSON 搬家。</div>'+
+      '<div class="btn-row"><button class="btn" id="exportBtn">导出 JSON</button><button class="btn" id="obBtn">重看引导</button></div>'+
+      '<div class="btn-row"><button class="btn" id="clearDemo">清空示例数据</button><button class="btn" id="clearAll">清空全部</button></div>'+
+      '<div class="mini" style="margin-top:8px">JSON 导入、校准曲线用 Chart.js 画（带 CDN 失败降级）会在第 2、3 步补上。</div>'+
+    '</div>';
+}
+
+function exportJSON(){
+  var data = { app:'判断力训练器', version:1, exportedAt:new Date().toISOString() };
+  [K.onboard, K.scan, K.lab, K.calib, K.ledger, K.days].forEach(function(k){ data[k] = DB.get(k, null); });
+  try{
+    var blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'jt-export-'+todayStr()+'.json';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 600);
+  }catch(e){ alert('这台浏览器不支持直接下载，可以打开控制台复制 localStorage 里的数据。'); }
+}
+
+function bindMe(){
+  var e = document.getElementById('exportBtn');
+  if(e) e.onclick = exportJSON;
+  var o = document.getElementById('obBtn');
+  if(o) o.onclick = showOnboard;
+  var cd = document.getElementById('clearDemo');
+  if(cd) cd.onclick = function(){
+    if(!confirm('只清掉三条示例预测和三条示例决定，你自己的记录会留下。')) return;
+    DB.set(K.calib, DB.get(K.calib, []).filter(function(r){ return !r.demo; }));
+    DB.set(K.ledger, DB.get(K.ledger, []).filter(function(r){ return !r.demo; }));
+    go('me');
+  };
+  var ca = document.getElementById('clearAll');
+  if(ca) ca.onclick = function(){
+    if(!confirm('会删掉全部记录、打卡和引导状态，且无法恢复。确定吗？')) return;
+    [K.onboard, K.scan, K.lab, K.calib, K.ledger, K.days, K.seed].forEach(DB.del);
+    location.reload();
+  };
+}
+
+/* ============================================================
+   10. 启动
+   ============================================================ */
+function applyTheme(mode){
+  var dark = (mode === 'dark');
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  var m = document.querySelector('meta[name="theme-color"]');
+  if(m) m.setAttribute('content', dark ? '#0E131C' : '#3D5A80');
+}
+function initTheme(){
+  applyTheme(DB.get(K.theme, 'light') === 'dark' ? 'dark' : 'light');
+}
+function init(){
+  initTheme();
+  seedDemo();
+  document.getElementById('themeBtn').onclick = function(){
+    var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    DB.set(K.theme, next);
+  };
+  document.getElementById('helpBtn').onclick = showOnboard;
+  renderTabs();
+  go('scan');
+  if(!DB.get(K.onboard, false)) showOnboard();
+}
+init();
+
+})();
+</script>
+</body>
+</html>

@@ -106,6 +106,11 @@ app.include_router(ocr_router)
 from bayes_diary import router as bayes_diary_router  # noqa: E402
 app.include_router(bayes_diary_router)
 
+# 附加功能：判断力小工具（在流水账里认出判断点 -> 拆解决策 -> 记录决策账本 -> 回看校准，纯前端）
+# 浏览器访问 http://127.0.0.1:8000/judgement-trainer 即可使用。
+from judgement_trainer import router as judgement_trainer_router  # noqa: E402
+app.include_router(judgement_trainer_router)
+
 
 
 # =========================================================
