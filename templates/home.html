@@ -86,10 +86,55 @@ h2.sec{font-size:15px;color:#b8c4da;letter-spacing:3px;margin:0 0 14px;font-weig
   border-radius:16px;padding:42px 16px;margin-top:8px;line-height:1.9}
 .hide{display:none!important}
 @media(max-width:760px){.grid{grid-template-columns:1fr}.wrap{padding:34px 16px 60px}}
+
+.acct{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:24px}
+.who{display:inline-flex;align-items:center;gap:9px;font-size:13.5px;color:#c3cde3;padding:6px 15px 6px 7px;
+  border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.avatar{width:26px;height:26px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:12.5px;
+  font-weight:700;color:#08101f;background:linear-gradient(135deg,#818cf8,#5eead4)}
+.acct-right{display:flex;gap:8px}
+.abtn{font-family:inherit;font-size:13px;padding:8px 15px;border-radius:10px;cursor:pointer;color:#c3cde3;
+  background:rgba(255,255,255,.06);border:1px solid var(--line);transition:background .15s ease,color .15s ease,border-color .15s ease}
+.abtn:hover{background:rgba(255,255,255,.11);color:#fff}
+.abtn.danger:hover{color:#fda4af;border-color:rgba(251,113,133,.45);background:rgba(251,113,133,.12)}
+.abtn.primary{color:#08101f;font-weight:700;border-color:transparent;background:linear-gradient(135deg,#818cf8,#5eead4)}
+.pwbox{margin-bottom:26px;padding:18px 20px;border-radius:16px;border:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.025))}
+.pwgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.pwrow label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px}
+.pwrow input{width:100%;padding:11px 13px;font-size:14.5px;font-family:inherit;color:var(--text);
+  background:rgba(8,12,26,.6);border:1px solid rgba(255,255,255,.12);border-radius:11px;outline:none}
+.pwrow input:focus{border-color:rgba(109,124,255,.7);box-shadow:0 0 0 3px rgba(109,124,255,.15)}
+.pwmsg{display:none;font-size:13px;line-height:1.7;margin-top:12px}
+.pwmsg.show{display:block}
+.pwmsg.err{color:#fda4af}
+.pwmsg.ok{color:#6ee7b7}
+.pwact{display:flex;gap:10px;margin-top:14px}
+@media(max-width:760px){.pwgrid{grid-template-columns:1fr}.acct{margin-bottom:18px}}
 </style>
+<script src="/static/auth-guard.js"></script>
 </head>
 <body>
 <div class="wrap">
+  <div class="acct">
+    <!--USER_CHIP-->
+    <div class="acct-right">
+      <button class="abtn" id="pwBtn" type="button">修改密码</button>
+      <button class="abtn danger" id="logoutBtn" type="button">退出登录</button>
+    </div>
+  </div>
+  <div class="pwbox hide" id="pwBox">
+    <div class="pwgrid">
+      <div class="pwrow"><label for="pwOld">原密码</label><input id="pwOld" type="password" autocomplete="current-password"></div>
+      <div class="pwrow"><label for="pwNew">新密码</label><input id="pwNew" type="password" autocomplete="new-password"></div>
+      <div class="pwrow"><label for="pwNew2">再输一遍</label><input id="pwNew2" type="password" autocomplete="new-password"></div>
+    </div>
+    <div class="pwmsg" id="pwMsg"></div>
+    <div class="pwact">
+      <button class="abtn primary" id="pwSave" type="button">保存新密码</button>
+      <button class="abtn" id="pwCancel" type="button">取消</button>
+    </div>
+  </div>
   <div class="hero">
     <div class="brand">
       <div class="mark">🧰</div>
@@ -235,6 +280,45 @@ h2.sec{font-size:15px;color:#b8c4da;letter-spacing:3px;margin:0 0 14px;font-weig
   }
   input.addEventListener('input', apply);
   apply();
+})();
+</script>
+<script>
+(function(){
+  'use strict';
+  var $ = function(id){ return document.getElementById(id); };
+  var msg = $('pwMsg');
+  function show(text, kind){ msg.textContent = text || ''; msg.className = text ? ('pwmsg show ' + kind) : 'pwmsg'; }
+
+  $('pwBtn').onclick = function(){ $('pwBox').classList.toggle('hide'); };
+  $('pwCancel').onclick = function(){ $('pwBox').classList.add('hide'); show(''); };
+
+  $('logoutBtn').onclick = function(){
+    fetch('/api/auth/logout', { method: 'POST' })
+      .then(function(){ window.location.replace('/login'); })
+      .catch(function(){ window.location.replace('/login'); });
+  };
+
+  $('pwSave').onclick = function(){
+    var btn = $('pwSave');
+    var oldv = $('pwOld').value, nv = $('pwNew').value, nv2 = $('pwNew2').value;
+    if(!oldv || !nv){ show('三个框都要填', 'err'); return; }
+    if(nv !== nv2){ show('两次输入的新密码不一样', 'err'); return; }
+    btn.disabled = true;
+    fetch('/api/auth/password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ old: oldv, new: nv, confirm: nv2 })
+    }).then(function(r){
+      return r.json().catch(function(){ return null; }).then(function(d){
+        if(!r.ok){ throw new Error((d && d.detail) || ('请求失败（' + r.status + '）')); }
+        return d;
+      });
+    }).then(function(d){
+      show((d && d.detail) || '密码已更新', 'ok');
+      $('pwOld').value = ''; $('pwNew').value = ''; $('pwNew2').value = '';
+    }).catch(function(e){ show(e.message, 'err'); })
+      .then(function(){ btn.disabled = false; });
+  };
 })();
 </script>
 </body>

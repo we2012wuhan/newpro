@@ -7,7 +7,8 @@
 
 | 文件 | 作用 |
 | --- | --- |
-| `main.py` | FastAPI 接口代码，每个接口融合一个 Python 知识点 |
+| `main.py` | FastAPI 接口代码，每个接口融合一个 Python 知识点；入口挂了登录门禁中间件 |
+| `auth.py` | 登录 / 会话 / 访问控制（PBKDF2 密码哈希 + HMAC 签名 Cookie + 中间件，只用标准库） |
 | `python_basics.py` | Python 基础语法速查（可直接运行） |
 | `python_advanced.py` | Python 进阶知识点速查（可直接运行） |
 | `run.py` | PyCharm 调试入口（直接用 Debug 按钮启动服务） |
@@ -22,7 +23,7 @@
 | `bayes_math.py` | 贝叶斯数学内核（似然比 / 后验 / Brier / 对数损失 / ECE / AUC / Murphy 分解 + 认知提醒，无第三方依赖，可单独跑） |
 | `judgement_trainer.py` | 判断力小工具（页面在 `/judgement-trainer`：认出判断点 -> 拆解决策 -> 记录账本 -> 校准回访，纯浏览器计算） |
 | `sdd_decomposer.py` | SDD 需求拆解器（页面在 `/sdd-decomposer`：把模糊想法按七段式逼成结构化规格，实时编译成可丢给 agent 的提示词，纯浏览器计算） |
-| `templates/` 与 `static/` | 工具箱主页 / AI 图表 / 比价助手 页面模板与本地静态资源 |
+| `templates/` 与 `static/` | 各工具页面模板与本地静态资源（含登录页 `templates/login.html`、会话兜底 `static/auth-guard.js`） |
 | `requirements.txt` | 项目依赖（fastapi + uvicorn + requests + yt-dlp + playwright + openpyxl） |
 
 ## 怎么运行
@@ -54,9 +55,10 @@ python douyin_downloader.py
 python video_downloader.py
 ```
 
-然后在浏览器打开：
+然后在浏览器打开（**首次会先跳到登录页，创建账号后才能进**）：
 
-- `http://127.0.0.1:8000/` **工具箱主页**：集中放置 AI 生成图表、抖音下载器 两个入口
+- `http://127.0.0.1:8000/login` **登录 / 首次创建账号**
+- `http://127.0.0.1:8000/` **工具箱主页**：所有工具入口，右上角可改密码 / 退出登录
 - `http://127.0.0.1:8000/hello/小明` 路径参数
 - `http://127.0.0.1:8000/items/42?q=abc` 路径参数 + 查询参数
 - `http://127.0.0.1:8000/calc?a=10&b=3&op=div` 四则运算
@@ -70,6 +72,29 @@ python video_downloader.py
 - `http://127.0.0.1:8000/bayes-diary` **贝叶斯日记**：给日常预测下注，记证据看后验怎么动，结算后由 Python 出一份校准报告（Brier / ECE / AUC + 认知提醒）
 - `http://127.0.0.1:8000/judgement-trainer` **判断力小工具**：在流水账里认出判断点、拆解决策、记决策账本并回看校准，纯浏览器计算
 - `http://127.0.0.1:8000/sdd-decomposer` **SDD 需求拆解器**：一句粗糙需求进去，沿七段式逼问痛点 / 目标与非目标 / 用户 / 功能 / 交互 / 技术 / 验收，实时编译成提示词，纯浏览器计算
+
+## 登录与访问控制
+
+打开 `http://127.0.0.1:8000/` 会先跳到 `/login`：**第一次使用先创建账号**（用户名 + 密码），之后每次进来都要登录。
+没登录的人既看不到页面，也调不到任何接口。
+
+怎么实现（都在 `auth.py`）：
+
+- **密码**：PBKDF2-HMAC-SHA256，20 万轮 + 每条账号独立随机盐，存 `data/auth.json`，文件里没有明文；
+- **会话**：HMAC-SHA256 签名的令牌放在 HttpOnly Cookie（`tb_session`）里，服务端不存 session 表；
+  签名密钥首次启动自动生成到 `data/secret.key`，所以重启服务不会把已登录的人踢下线；
+- **门禁**：`LoginGate` 中间件在所有路由之前执行 —— 页面请求没登录就 303 跳 `/login?next=原地址`，
+  接口请求没登录就返回 401 JSON；白名单只有 `/login`、`/api/auth/*` 和 `/static/`；
+- **兜底**：`static/auth-guard.js` 挂在每个页面里，任何请求拿到 401 会自动回到登录页（并记住原地址）。
+
+另外三条防护：
+
+- 连续输错 6 次密码，同一 IP 锁 5 分钟（`429`）；
+- 跨站发来的写请求（`Origin` / `Sec-Fetch-Site` 不匹配）直接 `403`，防 CSRF；
+- 改密码会让所有旧会话立即失效（令牌里带了密码指纹），改完当前设备自动续期。
+
+数据文件都在 `data/`（已在 `.gitignore` 里）：`auth.json` 账号、`secret.key` 签名密钥、`bayes.db` 贝叶斯日记。
+忘了密码就删掉 `data/auth.json`，刷新页面会回到「创建账号」。
 
 ## 抖音视频下载工具
 

@@ -42,7 +42,7 @@ FastAPI 入门 Demo —— 边写接口边学 Python
 import asyncio  # Python 标准库：异步编程支持
 from typing import Annotated, Optional  # typing：类型注解工具
 
-from fastapi import Depends, FastAPI, HTTPException, Path, Query
+from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request
 from pydantic import BaseModel, Field  # pydantic：数据校验库
 from fastapi.responses import HTMLResponse  # 用于返回主页 HTML
 
@@ -59,6 +59,19 @@ app = FastAPI(
 )
 
 # =========================================================
+# 登录门禁：没登录的人只能停在 /login
+# ---------------------------------------------------------
+# LoginGate 是一个 ASGI 中间件，它在所有路由之前执行：
+#   - 没登录访问页面 -> 303 跳 /login?next=原来想去的地址
+#   - 没登录调用接口 -> 401 JSON，前端 static/auth-guard.js 会接管跳转
+# 白名单只有登录页、登录相关接口和 /static 静态资源，其余一律要登录。
+# 会话令牌是 HMAC 签名的，放在 HttpOnly Cookie 里，服务端不存 session。
+# =========================================================
+from auth import LoginGate, router as auth_router  # noqa: E402
+app.include_router(auth_router)
+app.add_middleware(LoginGate)
+
+# =========================================================
 # 附加功能：抖音视频下载器
 # ---------------------------------------------------------
 # 把独立的 douyin_downloader.py 里的 router 挂载到本应用上，
@@ -70,6 +83,7 @@ app.include_router(douyin_router)
 # 附加功能：AI 数据图表分析（输入主题 -> 调用大模型 -> ECharts 图表 + Excel 导出）
 # 浏览器访问 http://127.0.0.1:8000/ai-chart 即可使用。
 from pathlib import Path  # noqa: E402
+from html import escape  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 _static_dir = Path(__file__).resolve().parent / 'static'
 app.mount('/static', StaticFiles(directory=str(_static_dir), check_dir=False), name='static')  # noqa: E402
@@ -138,19 +152,31 @@ _HOME_FALLBACK = (
 )
 
 
-def _home_html() -> str:
+def _user_chip(username: str) -> str:
+    # 右上角的登录身份。username 来自中间件验签后的会话，不会是用户直接传进来的值；
+    # 仍然做一次转义，是因为用户名本身可以带特殊字符。
+    name = str(username or '').strip()
+    if not name:
+        return ''
+    initial = escape(name[:1].upper())
+    return ('<span class="who"><span class="avatar">%s</span>%s</span>' % (initial, escape(name)))
+
+
+def _home_html(username: str = '') -> str:
     # 工具与本主页部署在同一个 FastAPI 应用里，链接统一用相对路径：
     # 本地运行是 http://127.0.0.1:8000/...，部署到 Vercel / 其它域名后会自动跟随当前域名，
     # 不再写死 127.0.0.1，因此换环境也不需要改代码。
     if _HOME_TEMPLATE.exists():
-        return _HOME_TEMPLATE.read_text(encoding='utf-8')
+        html = _HOME_TEMPLATE.read_text(encoding='utf-8')
+        return html.replace('<!--USER_CHIP-->', _user_chip(username))
     return _HOME_FALLBACK
 
 
 @app.get("/", response_class=HTMLResponse)
-def home() -> str:
+def home(request: Request) -> str:
     # 返回工具箱主页 HTML（页面里的工具卡片地址由浏览器按当前域名动态补全）
-    return _home_html()
+    # request.state.user 由 LoginGate 中间件写入，能走到这里说明一定已经登录了
+    return _home_html(getattr(request.state, "user", ""))
 
 
 # =========================================================
