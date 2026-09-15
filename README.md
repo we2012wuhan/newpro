@@ -96,6 +96,23 @@ python video_downloader.py
 数据文件都在 `data/`（已在 `.gitignore` 里）：`auth.json` 账号、`secret.key` 签名密钥、`bayes.db` 贝叶斯日记。
 忘了密码就删掉 `data/auth.json`，刷新页面会回到「创建账号」。
 
+### 部署到 Vercel 这类只读环境
+
+云函数的文件系统除 `/tmp` 外是只读的，`data/` 写不进去（创建账号会 500）。
+所以 `auth.py` 支持「用环境变量当账号」，配了环境变量就不再读写任何文件：
+
+| 变量 | 必填 | 说明 |
+| --- | --- | --- |
+| `TB_USERNAME` | 是 | 登录名 |
+| `TB_PASSWORD` | 是 | 登录密码（首尾空格会被忽略） |
+| `TB_SECRET` | 否 | 会话签名密钥，随便一串长随机字符；不配就从账号凭据派生 |
+| `TB_PASSWORD_DIGEST` / `TB_PASSWORD_SALT` / `TB_PASSWORD_ROUNDS` | 否 | 只想放摘要、不想放明文时用，可替代 `TB_PASSWORD` |
+
+配好之后：登录页自动变成「登录」而不是「创建账号」，`/api/auth/setup` 和改密码接口会明确拒绝
+（而不是 500）。改了变量要**重新部署**才生效；一个变量都不配时，退回本机 `data/auth.json` 那套，本地开发流程不变。
+
+注意：`bayes_diary` 用的是 SQLite（`data/bayes.db`），在 Vercel 上依然写不进去。
+
 ## 抖音视频下载工具
 
 浏览器打开 `http://127.0.0.1:8000/douyin-download`：

@@ -10,6 +10,8 @@
   1. 密码不落明文 —— PBKDF2-HMAC-SHA256 + 每条账号独立随机盐，存 data/auth.json
   2. 会话不落库   —— HMAC-SHA256 签名的令牌放在 HttpOnly Cookie 里，服务端只验签
   3. 密钥不硬编码 —— data/secret.key 首次启动自动生成，重启后已登录的人不会被踢下线
+  4. 上云靠环境变量 —— 部署到 Vercel 这种只读文件系统时，TB_USERNAME / TB_PASSWORD
+     直接当账号、TB_SECRET 当签名密钥，一个字节都不落盘（详见下面 env_account）
 
 三条安全底线：
   - 改密码会把所有旧会话作废（令牌里带了密码指纹）
@@ -22,6 +24,7 @@ import base64
 import hashlib
 import hmac
 import json
+import os
 import secrets
 import time
 from pathlib import Path
@@ -35,6 +38,21 @@ _TEMPLATE_FILE = _BASE_DIR / 'templates' / 'login.html'
 _DATA_DIR = _BASE_DIR / 'data'
 _ACCOUNT_FILE = _DATA_DIR / 'auth.json'
 _SECRET_FILE = _DATA_DIR / 'secret.key'
+
+# ---------------------------------------------------------------
+# 环境变量优先：Vercel / 云函数的文件系统除 /tmp 外是只读的，
+# 账号和密钥都没法落盘，所以给一条「配置即账号」的路：
+#   TB_USERNAME + TB_PASSWORD             必配，服务端 PBKDF2 后比对
+#   TB_PASSWORD_DIGEST / _SALT / _ROUNDS  只想放摘要时用，可替代 TB_PASSWORD
+#   TB_SECRET                             可选，会话签名密钥；不配就从账号派生
+# 一个都没配 -> 退回本机 data/auth.json，本地开发流程完全不变。
+# ---------------------------------------------------------------
+ENV_USER = 'TB_USERNAME'
+ENV_PASSWORD = 'TB_PASSWORD'
+ENV_DIGEST = 'TB_PASSWORD_DIGEST'
+ENV_SALT = 'TB_PASSWORD_SALT'
+ENV_ROUNDS = 'TB_PASSWORD_ROUNDS'
+ENV_SECRET = 'TB_SECRET'
 
 COOKIE_NAME = 'tb_session'
 PBKDF2_ROUNDS = 200_000
@@ -64,8 +82,71 @@ def _data_dir() -> Path:
 
 # ---------------------------------------------------------------
 # 账号：只存盐和摘要，不存明文
+#   配了环境变量 -> 用环境变量那份（只读文件系统上唯一可行的办法）
+#   没配         -> 读本机的 data/auth.json
 # ---------------------------------------------------------------
+def _env(name: str) -> str:
+    return (os.environ.get(name) or '').strip()
+
+
+def _env_rounds() -> int:
+    try:
+        return int(_env(ENV_ROUNDS) or PBKDF2_ROUNDS)
+    except ValueError:
+        return PBKDF2_ROUNDS
+
+
+def _env_salt(username: str) -> str:
+    """没给 TB_PASSWORD_SALT 时的固定盐。
+
+    这个盐不落盘也不对外，作用只是把「明文比明文」换成「摘要比摘要」。
+    关键是它必须每次进程启动都一样：盐一变，令牌里的密码指纹就变，
+    多实例之间、冷启动前后就会互相把对方踢下线。
+    """
+    return hashlib.sha256(('tb-env-salt:' + username).encode('utf-8')).hexdigest()[:32]
+
+
+_ENV_CACHE: dict = {}
+
+
+def env_mode() -> bool:
+    """环境变量里有没有提到账号（决定还能不能走网页建号）。"""
+    return bool(_env(ENV_USER) or _env(ENV_PASSWORD) or _env(ENV_DIGEST))
+
+
+def env_account() -> dict | None:
+    """账号来自环境变量时返回它，否则 None。"""
+    username = _env(ENV_USER)
+    if not username:
+        return None
+    digest = _env(ENV_DIGEST)
+    salt = _env(ENV_SALT) or _env_salt(username)
+    rounds = _env_rounds()
+    if digest:
+        key = ('d', username, digest, salt, rounds)
+    else:
+        password = _env(ENV_PASSWORD)
+        if not password:
+            return None
+        key = ('p', username, password, salt, rounds)
+    # PBKDF2 一次要一百多毫秒，进程内缓存住，别每个请求都算一遍
+    if _ENV_CACHE.get('key') == key:
+        return _ENV_CACHE['account']
+    if not digest:
+        digest = _digest(password, salt, rounds)
+    account = {
+        'username': username, 'salt': salt, 'digest': digest, 'rounds': rounds,
+        'created_at': None, 'updated_at': None, 'from_env': True,
+    }
+    _ENV_CACHE['key'] = key
+    _ENV_CACHE['account'] = account
+    return account
+
+
 def load_account() -> dict | None:
+    account = env_account()
+    if account is not None:
+        return account
     try:
         data = json.loads(_ACCOUNT_FILE.read_text(encoding='utf-8'))
     except (OSError, ValueError):
@@ -116,6 +197,16 @@ def _fingerprint(account: dict) -> str:
 # 会话令牌：base64(用户名|过期时间|密码指纹|随机数) + HMAC 签名
 # ---------------------------------------------------------------
 def _secret() -> bytes:
+    # 1) TB_SECRET：换成 32 字节摘要，填多长都行
+    value = _env(ENV_SECRET)
+    if value:
+        return hashlib.sha256(('tb-session-key:' + value).encode('utf-8')).digest()
+    # 2) 没给就从账号凭据派生：每个实例算出来都一样，登录态才不会飘
+    account = env_account()
+    if account:
+        base = '|'.join([account['username'], account['salt'], account['digest']])
+        return hashlib.sha256(('tb-session-key:' + base).encode('utf-8')).digest()
+    # 3) 本机：data/secret.key 里那份随机密钥
     try:
         raw = _SECRET_FILE.read_bytes()
         if len(raw) >= 32:
@@ -393,8 +484,13 @@ def api_me(request: Request) -> JSONResponse:
 
 @router.post('/api/auth/setup')
 def api_setup(request: Request, payload: dict = Body(...)) -> JSONResponse:
+    if env_mode() and env_account() is None:
+        raise HTTPException(status_code=400,
+                            detail='环境变量只配了一半：TB_USERNAME 和 TB_PASSWORD 要一起配')
     if load_account() is not None:
-        raise HTTPException(status_code=400, detail='账号已经创建过了，直接登录就行')
+        detail = ('账号已经由环境变量配好了，直接登录就行' if env_mode()
+                  else '账号已经创建过了，直接登录就行')
+        raise HTTPException(status_code=400, detail=detail)
     username = str(payload.get('username') or '').strip()[:32]
     password = str(payload.get('password') or '')
     if len(username) < 2:
@@ -450,6 +546,9 @@ def api_change_password(request: Request, payload: dict = Body(...)) -> JSONResp
     user = getattr(request.state, 'user', None)
     if not user:
         raise HTTPException(status_code=401, detail='请先登录')
+    if env_mode():
+        raise HTTPException(status_code=400,
+                            detail='密码来自环境变量，要改就去改 TB_PASSWORD，改完重新部署')
     account = load_account()
     if not verify_password(account, str(payload.get('old') or '')):
         raise HTTPException(status_code=400, detail='原密码不对')
