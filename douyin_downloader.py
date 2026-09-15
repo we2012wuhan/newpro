@@ -98,6 +98,9 @@ _PAGE_HTML = r"""<!DOCTYPE html>
   .card { background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.06); padding:22px; margin-top:18px; }
   h1 { font-size:24px; margin:0 0 6px; }
   .sub { color:#777; font-size:14px; margin-bottom:6px; }
+  .back { display:inline-flex; align-items:center; gap:6px; color:#777; font-size:13px;
+    text-decoration:none; margin-bottom:10px; }
+  .back:hover { color:#111; }
   label { font-weight:600; }
   .row { display:flex; gap:10px; flex-wrap:wrap; }
   input[type=text] { flex:1; min-width:260px; padding:12px 14px; font-size:15px;
@@ -127,6 +130,7 @@ _PAGE_HTML = r"""<!DOCTYPE html>
 </head>
 <body>
 <div class="wrap">
+  <a class="back" href="/">&larr; 返回工具箱</a>
   <h1>🎬 抖音视频下载器</h1>
   <p class="sub">粘贴抖音分享链接 → 自动解析 → 保存无水印视频（支持 <code>v.douyin.com</code> 短链接）</p>
 

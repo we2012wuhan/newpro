@@ -175,6 +175,14 @@ label.f{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 5px}
   .v-work.mode-form .work-side{display:none}
 }
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
+/* 返回工具箱 */
+.back{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 13px 0 10px;border-radius:10px;
+  border:1px solid var(--line);background:var(--surface);color:var(--muted);font-size:12.5px;
+  text-decoration:none;white-space:nowrap;flex:0 0 auto}
+.back svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.back:hover{color:var(--ink);border-color:var(--blue-line);background:var(--blue-l)}
+/* 小屏带不下标题，只留箭头 */
+@media (max-width:479px){.back{width:36px;padding:0;gap:0;justify-content:center}.back span{display:none}}
 </style>
 <script src="/static/auth-guard.js"></script>
 </head>
@@ -182,6 +190,7 @@ label.f{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 5px}
 <div id="app" class="app v-work">
   <header class="topbar">
     <div class="topbar-in">
+      <a class="back" href="/" aria-label="返回工具箱"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>返回工具箱</span></a>
       <div>
         <div class="ttl" id="pageTitle">拆解工作台</div>
         <div class="sub" id="pageSub"></div>
