@@ -12,14 +12,12 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
 
-from ai_chart import _api_key, _endpoint
+from model_config import MISSING_KEY_HINT, llm_endpoint, llm_key, llm_model
 
 router = APIRouter()
 
 _BASE_DIR = Path(__file__).resolve().parent
 _TEMPLATE_FILE = _BASE_DIR / 'templates' / 'study_assistant.html'
-_DEFAULT_BASE = 'https://api.deepseek.com'
-_DEFAULT_MODEL = 'deepseek-chat'
 _MAX_DEPTH = 4
 _MAX_CHILDREN = 10
 _BT = chr(96)  # 反引号，清理 Markdown 代码块标记
@@ -189,17 +187,16 @@ def _normalize(data):
     return {'summary': summary, 'maps': maps, 'checklist': checklist}
 
 
-def _do_analyze(topic, base, model, key):
+def _do_analyze(topic):
     topic = str(topic or '').strip()
     if not topic:
         return JSONResponse({'ok': False, 'message': '请先描述你想学什么或想解决的问题'})
     if len(topic) > 800:
         return JSONResponse({'ok': False, 'message': '输入太长了，请控制在 800 字以内'})
-    model = str(model or _DEFAULT_MODEL).strip() or _DEFAULT_MODEL
-    base = str(base or _DEFAULT_BASE).strip() or _DEFAULT_BASE
-    key = _api_key(key)
+    model = llm_model()
+    key = llm_key()
     if not key:
-        return JSONResponse({'ok': False, 'message': '缺少 API Key：请在页面「模型设置」里填写，或设置环境变量 DEEPSEEK_API_KEY'})
+        return JSONResponse({'ok': False, 'message': MISSING_KEY_HINT})
 
     started = time.time()
     headers = {'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'}
@@ -215,7 +212,7 @@ def _do_analyze(topic, base, model, key):
     }
     raw = ''
     try:
-        resp = requests.post(_endpoint(base), json=body, headers=headers, timeout=(15, 240))
+        resp = requests.post(llm_endpoint(), json=body, headers=headers, timeout=(15, 240))
     except requests.exceptions.Timeout:
         return JSONResponse({'ok': False, 'message': '请求大模型超时，请稍后重试或检查网络'})
     except requests.exceptions.RequestException as exc:
@@ -256,7 +253,4 @@ async def study_assistant_analyze(request: Request):
     except Exception:
         payload = {}
     topic = payload.get('topic') or ''
-    base = payload.get('base') or ''
-    model = payload.get('model') or ''
-    key = payload.get('key') or ''
-    return await run_in_threadpool(_do_analyze, topic, base, model, key)
+    return await run_in_threadpool(_do_analyze, topic)

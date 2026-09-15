@@ -14,8 +14,8 @@
 | `run.py` | PyCharm 调试入口（直接用 Debug 按钮启动服务） |
 | `douyin_downloader.py` | 抖音视频下载网页工具（页面在 `/douyin-download`） |
 | `launcher.py` | EXE 启动入口：启动服务并自动打开浏览器 |
-| `ai_chart.py` | AI 数据图表分析（页面在 `/ai-chart`，需 API Key） |
-| `buy_helper.py` | 购物比价助手（页面在 `/buy-helper`，需 API Key；无 Key 也可直接跳平台搜索） |
+| `ai_chart.py` | AI 数据图表分析（页面在 `/ai-chart`，模型 Key 见下方「模型配置」） |
+| `buy_helper.py` | 购物比价助手（页面在 `/buy-helper`；没配 Key 也能直接跳平台搜索） |
 | `bill_analysis.py` | 账单分析（上传月度账单 Excel/CSV 到 `/bill-analysis`，DeepSeek 分类汇总消费并给省钱建议） |
 | `translator.py` | 翻译助手（页面在 `/translator`：输入中文 -> 免费接口返回英文，并转换小写/大写/驼峰命名格式） |
 | `ocr.py` | OCR图片识别（页面在 `/ocr`：粘贴截图或上传图片 -> 免费云端接口 OCR.space 识别成文字，无需本地模型，部署体积小） |
@@ -113,6 +113,29 @@ python video_downloader.py
 
 注意：`bayes_diary` 用的是 SQLite（`data/bayes.db`），在 Vercel 上依然写不进去。
 
+## 模型配置（本地 .env / 线上环境变量）
+
+所有需要大模型或第三方 Key 的页面（`/ai-chart`、`/buy-helper`、`/bill-analysis`、`/study-assistant`、`/ocr`）
+都不再让用户手填 Key，统一由服务端读取。读取顺序：**真实环境变量 > 项目根目录 `.env` > 代码默认值**。
+
+本地开发：
+
+```bash
+cp .env.example .env     # Windows: copy .env.example .env
+# 然后编辑 .env，把 DEEPSEEK_API_KEY 换成你自己的
+```
+
+线上部署：变量名完全一样，加到平台的环境变量面板里（`.env` 不会进仓库，Vercel 上也读不到）。
+
+| 变量 | 必填 | 说明 |
+| --- | --- | --- |
+| `DEEPSEEK_API_KEY` | 是 | 大模型 Key，四个大模型工具共用；没配时页面会明确提示缺 Key |
+| `DEEPSEEK_BASE_URL` | 否 | 默认 `https://api.deepseek.com`，填任何 OpenAI 兼容接口都行，会自动补 `/chat/completions` |
+| `DEEPSEEK_MODEL` | 否 | 默认 `deepseek-chat`，可换 `deepseek-reasoner` 等 |
+| `OCR_SPACE_API_KEY` | 否 | 不填就用 OCR.space 公共免费 Key（高峰期会被限流） |
+
+改完 `.env` 要重启服务（`uvicorn` 的 `--reload` 会在改动 `.py` 时重启，改 `.env` 后手动重启一次最稳）。
+
 ## 抖音视频下载工具
 
 浏览器打开 `http://127.0.0.1:8000/douyin-download`：
@@ -144,14 +167,7 @@ python video_downloader.py
 - 若维度是“月份 / 年份 / 日期”等时间序列且只有单指标，散点 / 雷达会自动隐藏——
   折线图已足够表达趋势，避免画出无信息量的图表。
 
-调用大模型需要 API Key，三种方式任选其一：
-
-- 在页面「模型设置」里填写（Key 只保存在本机浏览器 localStorage，不会发送给第三方）；
-- 设置环境变量 `DEEPSEEK_API_KEY`；
-- 在程序目录放一个 `ai_chart_key.txt`，内容就是 Key。
-
-默认接口为 DeepSeek 官方 OpenAI 兼容地址（模型 `deepseek-chat`）；若使用其它服务商，
-在页面里修改 Base URL 与模型名称即可。
+调用大模型的 Key / 接口地址 / 模型名统一从服务端读（见下方「模型配置」），页面上不再手填。
 
 ### 数据来源与准确性（重要）
 
@@ -205,7 +221,7 @@ python video_downloader.py
 说明：
 
 - 识别调用免费的云端接口 OCR.space，本机不装任何模型，只依赖 `requests`，因此在 Vercel 等平台部署时体积很小；
-- 默认使用公共免费 Key，无需注册即可用，但高峰期会被限流；在页面「自定义 Key」里填入自己申请的免费 Key（https://ocr.space/ocrapi ，每月 25000 次）即可稳定使用，也可以在服务端配置环境变量 `OCR_SPACE_API_KEY`；
+- 默认使用公共免费 Key，无需注册即可用，但高峰期会被限流；想稳定就申请一个免费 Key（https://ocr.space/ocrapi ，每月 25000 次）配到 `.env` 或环境变量 `OCR_SPACE_API_KEY`；
 - 免费额度单张图片上限 1 MB，中文简体（同时兼顾英文与数字）识别效果最好。
 
 ## 贝叶斯日记

@@ -67,16 +67,7 @@ textarea#topic:focus{border-color:rgba(139,92,246,.7);box-shadow:0 0 0 3px rgba(
 .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;
   animation:spin .8s linear infinite;display:none}
 .spinner.on{display:inline-block}
-details.cfg{margin-top:16px;border-top:1px dashed rgba(255,255,255,.1);padding-top:12px}
-details.cfg summary{font-size:13px;color:#aab8d6;cursor:pointer;user-select:none}
-details.cfg summary:hover{color:#fff}
-.cfg-body{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:12px;margin-top:12px}
-.cfg-body .field{display:block;font-size:12px;color:#9fb0cd;margin:0 0 5px}
-.cfg-body input{width:100%;padding:8px 10px;border-radius:9px;border:1px solid rgba(255,255,255,.12);
-  background:rgba(8,12,26,.6);color:var(--text);outline:none;font-size:13px;font-family:inherit}
-.cfg-body input:focus{border-color:rgba(139,92,246,.6)}
 .cfg-note{font-size:11.5px;color:#7c8db0;line-height:1.7;margin-top:10px}
-@media(max-width:900px){.cfg-body{grid-template-columns:1fr}}
 #status{margin-top:14px;font-size:13.5px;line-height:1.8;display:none}
 #status.show{display:block}
 #status.err{color:var(--err);background:rgba(251,113,133,.08);border:1px solid rgba(251,113,133,.25);padding:10px 14px;border-radius:10px}
@@ -134,24 +125,7 @@ details.cfg summary:hover{color:#fff}
       </button>
       <span class="hint">一次会从 3 个角度拆解，约 30~90 秒</span>
     </div>
-    <details class="cfg">
-      <summary>⚙️ 模型设置（API Key 仅保存在本地浏览器）</summary>
-      <div class="cfg-body">
-        <div>
-          <span class="field">接口地址</span>
-          <input id="cfgBase" placeholder="https://api.deepseek.com">
-        </div>
-        <div>
-          <span class="field">模型</span>
-          <input id="cfgModel" placeholder="deepseek-chat">
-        </div>
-        <div>
-          <span class="field">API Key</span>
-          <input id="cfgKey" type="password" placeholder="sk-…">
-        </div>
-      </div>
-      <p class="cfg-note">默认使用 DeepSeek（deepseek-chat）。也可填写任意 OpenAI 兼容接口；或设置环境变量 DEEPSEEK_API_KEY。</p>
-    </details>
+    <p class="cfg-note">模型与 API Key 由服务端配置：本地写进项目根目录的 .env，线上配环境变量。</p>
     <div id="status"></div>
   </section>
 
@@ -174,7 +148,6 @@ details.cfg summary:hover{color:#fff}
 (function(){
 'use strict';
 function $(id){ return document.getElementById(id); }
-var CFG_KEY = 'study_assistant_cfg';
 var EXAMPLES = [
   '我想系统学会机器学习，该怎么入门、怎么安排学习顺序？',
   '我想学会看懂上市公司财报，该先学哪些财务知识？',
@@ -183,21 +156,6 @@ var EXAMPLES = [
   '我经常学了就忘，想找到一套真正有效的学习方法。'
 ];
 
-function loadCfg(){
-  var d = {};
-  try { d = JSON.parse(localStorage.getItem(CFG_KEY) || '{}'); } catch(e){}
-  $('cfgBase').value = d.base || 'https://api.deepseek.com';
-  $('cfgModel').value = d.model || 'deepseek-chat';
-  $('cfgKey').value = d.key || '';
-}
-function persistCfg(){
-  var d = {
-    base: $('cfgBase').value.trim(),
-    model: $('cfgModel').value.trim(),
-    key: $('cfgKey').value.trim()
-  };
-  try { localStorage.setItem(CFG_KEY, JSON.stringify(d)); } catch(e){}
-}
 
 function fillChips(){
   var host = $('chips');
@@ -369,19 +327,13 @@ function renderResult(data){
 function run(){
   var topic = $('topic').value.trim();
   if(!topic){ setStatus('请先描述你想学什么或想解决的问题', 'err'); return; }
-  persistCfg();
   busy(true);
   clearStatus();
   setStatus('正在从「第一性原理 · 金字塔原理 · 贝叶斯定理」三个角度拆解你的问题…', 'info');
   fetch('/study-assistant/api/analyze', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      topic: topic,
-      base: $('cfgBase').value.trim(),
-      model: $('cfgModel').value.trim(),
-      key: $('cfgKey').value.trim()
-    })
+    body: JSON.stringify({ topic: topic })
   })
   .then(function(r){ return r.json(); })
   .then(function(data){
@@ -401,11 +353,7 @@ function run(){
 }
 
 function init(){
-  loadCfg();
   fillChips();
-  $('cfgBase').addEventListener('input', persistCfg);
-  $('cfgModel').addEventListener('input', persistCfg);
-  $('cfgKey').addEventListener('input', persistCfg);
   $('btnRun').addEventListener('click', run);
   window.addEventListener('resize', function(){
     Object.keys(chartMap).forEach(function(k){ if(chartMap[k]) chartMap[k].resize(); });

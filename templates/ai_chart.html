@@ -99,24 +99,13 @@ h2.rtitle{margin:0 0 6px;font-size:21px}
 .span-line{grid-column:span 12}
 @media(max-width:900px){.span-bar,.span-pie{grid-column:span 12}}
 .note{font-size:12px;color:#9db0d0;margin-top:2px;padding:0 6px}
-details.settings{margin-top:18px}
-summary.settings-sum{list-style:none;cursor:pointer;font-weight:700;font-size:15px;display:flex;align-items:center;gap:10px}
-summary.settings-sum::-webkit-details-marker{display:none}
-summary.settings-sum .arr{transition:transform .18s ease;display:inline-block}
-details[open] summary.settings-sum .arr{transform:rotate(90deg)}
-.settings-body{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.settings-body .full{grid-column:1/-1}
-.settings-body input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);
-  background:rgba(8,12,26,.55);color:var(--text);outline:none;font-size:14px}
-.settings-body input:focus{border-color:rgba(109,124,255,.6)}
-.settings-body label{display:block;font-size:12.5px;color:#9fb0cf;margin-bottom:6px}
 .hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.8}
 table.data{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
 table.data th{text-align:left;color:#c3cfe6;background:rgba(255,255,255,.05);padding:9px 12px;border-bottom:1px solid var(--line);font-weight:600}
 table.data td{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.055);color:#d4dcec}
 table.data tr:hover td{background:rgba(109,124,255,.06)}
 .table-scroll{max-height:340px;overflow:auto;border:1px solid rgba(255,255,255,.08);border-radius:12px}
-@media(max-width:720px){.settings-body{grid-template-columns:1fr}.actions .btn{flex:1;justify-content:center}}
+@media(max-width:720px){.actions .btn{flex:1;justify-content:center}}
 
 /* ---- added: data source card + adaptive extra charts ---- */
 .span-radar{grid-column:span 6}
@@ -208,28 +197,7 @@ table.data tr:hover td{background:rgba(109,124,255,.06)}
     <div id="status"></div>
   </div>
 
-  <details class="card settings">
-    <summary class="settings-sum"><span class="arr">▶</span>&nbsp;模型设置（API Key 只保存在本机浏览器）</summary>
-    <div class="settings-body">
-      <div>
-        <label>API Base URL</label>
-        <input id="cfgBase" type="text" autocomplete="off">
-      </div>
-      <div>
-        <label>模型名称</label>
-        <input id="cfgModel" type="text" autocomplete="off">
-      </div>
-      <div class="full">
-        <label>API Key</label>
-        <input id="cfgKey" type="password" autocomplete="off" placeholder="粘贴你的 DeepSeek API Key">
-      </div>
-    </div>
-    <div class="hint">
-      默认调用 DeepSeek 官方接口（https://api.deepseek.com，模型 deepseek-chat）。若你的服务商用了其它模型名
-      （例如 deepseek-v3.2 / deepseek-reasoner），在“模型名称”里修改即可；Base URL 会自动拼接 /chat/completions。
-      除了在页面上填写，也可设置环境变量 DEEPSEEK_API_KEY，或在程序同目录放 ai_chart_key.txt。Key 不会被上传到其它地方。
-    </div>
-  </details>
+  <div class="hint">模型与 API Key 由服务端配置：本地写进项目根目录的 .env，线上配环境变量。</div>
 
   <div id="resultWrap">
     <div class="card">
@@ -321,33 +289,12 @@ var AXIS_COLOR = '#8ea0c0';
 var SPLIT_LINE = 'rgba(255,255,255,.07)';
 var state = { data: null };
 var chartMap = { bar:null, pie:null, line:null, radar:null, scatter:null, rank:null };
-var CFG_KEY = 'aiChartCfg_v1';
 var HIST_KEY = 'aiChartHist_v1';
 var HIST_MAX = 10;
 var histList = [];
 var histActiveId = null;
 
 function $(id){ return document.getElementById(id); }
-
-function loadCfg(){
-  try { return JSON.parse(localStorage.getItem(CFG_KEY) || '{}') || {}; } catch(e){ return {}; }
-}
-function saveCfg(c){
-  try { localStorage.setItem(CFG_KEY, JSON.stringify(c)); } catch(e){}
-}
-function currentCfg(){
-  return {
-    base: $('cfgBase').value.trim() || 'https://api.deepseek.com',
-    model: $('cfgModel').value.trim() || 'deepseek-chat',
-    key: $('cfgKey').value.trim()
-  };
-}
-function applyCfgToInputs(c){
-  $('cfgBase').value = c.base || 'https://api.deepseek.com';
-  $('cfgModel').value = c.model || 'deepseek-chat';
-  $('cfgKey').value = c.key || '';
-}
-function persistCfg(){ saveCfg(currentCfg()); }
 
 function setStatus(html, type){
   var el = $('status');
@@ -965,19 +912,13 @@ async function runQuery(){
     setStatus('请先输入要分析的主题或数据。', 'err');
     return;
   }
-  var cfg = currentCfg();
-  if(!cfg.key){
-    $('resultWrap').className = '';
-    setStatus('缺少 API Key：请展开「模型设置」粘贴你的 Key（仅保存在本机浏览器）。', 'err');
-    return;
-  }
   setBusy(true);
   setStatus('<span class="spinner on"></span> 正在调用大模型，请稍候（通常 10 ~ 60 秒）…', 'info');
   try{
     var resp = await fetch('/ai-chart/api/query', {
       method:'POST',
       headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({ prompt: promptText, base: cfg.base, model: cfg.model, key: cfg.key })
+      body: JSON.stringify({ prompt: promptText })
     });
     var data = await resp.json();
     if(!data.ok){ throw new Error(data.message || '未知错误'); }
@@ -1095,7 +1036,6 @@ function restoreRecord(item){
 
 function init(){
   histList = loadHistory().slice(0, HIST_MAX);
-  applyCfgToInputs(loadCfg());
   $('btnRun').addEventListener('click', runQuery);
   $('btnExport').addEventListener('click', exportExcel);
   $('btnClearHistory').addEventListener('click', clearHistory);
@@ -1104,9 +1044,6 @@ function init(){
   }
   $('btnHistToggle').addEventListener('click', function(){ setHistCollapsed(true); });
   $('btnHistOpen').addEventListener('click', function(){ setHistCollapsed(false); });
-  $('cfgBase').addEventListener('input', persistCfg);
-  $('cfgModel').addEventListener('input', persistCfg);
-  $('cfgKey').addEventListener('input', persistCfg);
   renderHistoryList();
   window.addEventListener('resize', function(){
     Object.keys(chartMap).forEach(function(k){ if(chartMap[k]){ chartMap[k].resize(); } });

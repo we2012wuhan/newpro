@@ -3,7 +3,6 @@
 # 输入分析主题 -> 调用 OpenAI 兼容协议的大模型(DeepSeek 等) ->
 # 返回结构化数据 -> 前端 ECharts 绘制柱状/饼/折线图，并支持一键导出 Excel。
 import json
-import os
 import re
 import time
 from pathlib import Path
@@ -13,15 +12,14 @@ from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
 
+from model_config import MISSING_KEY_HINT, llm_endpoint, llm_key, llm_model
+
 router = APIRouter()
 
 _BASE_DIR = Path(__file__).resolve().parent
 _STATIC_DIR = _BASE_DIR / 'static'
 _TEMPLATE_FILE = _BASE_DIR / 'templates' / 'ai_chart.html'
-_KEY_FILE = _BASE_DIR / 'ai_chart_key.txt'
 _MAX_ROWS = 50
-_DEFAULT_BASE = 'https://api.deepseek.com'
-_DEFAULT_MODEL = 'deepseek-chat'
 _BT = chr(96)  # 反引号，用于清理 Markdown 代码块标记
 
 _SCHEMA = {
@@ -73,24 +71,6 @@ SYSTEM_PROMPT = chr(10).join(_PROMPT_LINES)
 SYSTEM_PROMPT += chr(10) + chr(10) + '请只输出一个 JSON 对象，键名严格与下面的示例一致：' + chr(10)
 SYSTEM_PROMPT += json.dumps(_SCHEMA, ensure_ascii=False)
 SYSTEM_PROMPT += chr(10) + chr(10) + '不要输出 Markdown 代码块标记，不要输出 JSON 之外的任何内容。'
-
-
-def _api_key(req_key):
-    if req_key and str(req_key).strip():
-        return str(req_key).strip()
-    env_key = os.environ.get('DEEPSEEK_API_KEY', '').strip()
-    if env_key:
-        return env_key
-    if _KEY_FILE.exists():
-        return _KEY_FILE.read_text(encoding='utf-8').strip()
-    return ''
-
-
-def _endpoint(base):
-    base = (base or _DEFAULT_BASE).strip().rstrip('/')
-    if base.endswith('/chat/completions'):
-        return base
-    return base + '/chat/completions'
 
 
 def _extract_json(text):
@@ -204,11 +184,10 @@ def _do_query(payload):
     prompt = str(payload.get('prompt') or '').strip()
     if not prompt:
         return JSONResponse({'ok': False, 'message': '请输入要分析的主题或数据'})
-    model = str(payload.get('model') or _DEFAULT_MODEL).strip() or _DEFAULT_MODEL
-    base = str(payload.get('base') or _DEFAULT_BASE).strip() or _DEFAULT_BASE
-    key = _api_key(payload.get('key'))
+    model = llm_model()
+    key = llm_key()
     if not key:
-        return JSONResponse({'ok': False, 'message': '缺少 API Key：请在页面「模型设置」里填写，或设置环境变量 DEEPSEEK_API_KEY'})
+        return JSONResponse({'ok': False, 'message': MISSING_KEY_HINT})
     started = time.time()
     headers = {'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'}
     body = {
@@ -223,7 +202,7 @@ def _do_query(payload):
     }
     raw = ''
     try:
-        resp = requests.post(_endpoint(base), json=body, headers=headers, timeout=(15, 150))
+        resp = requests.post(llm_endpoint(), json=body, headers=headers, timeout=(15, 150))
     except requests.exceptions.Timeout:
         return JSONResponse({'ok': False, 'message': '请求大模型超时，请稍后重试或检查网络'})
     except requests.exceptions.RequestException as exc:

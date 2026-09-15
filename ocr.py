@@ -2,15 +2,16 @@
 # OCR 图片识别：粘贴截图 / 上传图片 -> 调用免费的云端 OCR 接口（OCR.space）-> 输出可编辑文字。
 # 本地不装任何模型，只依赖 requests，部署体积很小；
 # 默认用公共免费 Key（无需注册，但会被限流），也可填自己申请的免费 Key 提升额度。
-import os
 import re
 import time
 from pathlib import Path
 
 import requests
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, File, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
+
+from model_config import ENV_OCR_KEY, ocr_key
 
 router = APIRouter()
 
@@ -18,17 +19,10 @@ _BASE_DIR = Path(__file__).resolve().parent
 _TEMPLATE_FILE = _BASE_DIR / 'templates' / 'ocr.html'
 _API_URL = 'https://api.ocr.space/parse/image'
 _DEMO_KEY = 'helloworld'        # OCR.space 公共免费 Key：免注册，但高峰期会被限流
-_ENV_KEY = 'OCR_SPACE_API_KEY'  # 也可用环境变量配置自己的免费 Key（Vercel 里加到环境变量即可）
 _MAX_BYTES = 1024 * 1024        # 免费额度单张 1 MB
 _ALLOWED_EXT = ('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tif', '.tiff', '.pdf')
-_KEY_HINT = '也可以在页面「自定义 Key」里填入自己申请的免费 Key（ocr.space/ocrapi，每月 25000 次）。'
-
-
-def _api_key(req_key):
-    """优先级：页面填写的 Key > 环境变量 > 公共免费 Key。"""
-    if req_key and str(req_key).strip():
-        return str(req_key).strip()
-    return os.environ.get(_ENV_KEY, '').strip() or _DEMO_KEY
+_KEY_HINT = ('想额度更稳，就申请一个免费 Key（ocr.space/ocrapi，每月 25000 次）'
+              '配到环境变量 %s。' % ENV_OCR_KEY)
 
 
 def _friendly_error(status, text):
@@ -48,7 +42,7 @@ def _friendly_error(status, text):
     return 'OCR 接口返回错误 %d：%s' % (status, plain[:200] or '未知错误')
 
 
-def run_ocr(filename: str, data: bytes, key: str = ''):
+def run_ocr(filename: str, data: bytes):
     """把图片交给云端 OCR 接口识别 -> {ok, text, lines, count, elapsed, provider}。"""
     data = data or b''
     if not data:
@@ -61,7 +55,7 @@ def run_ocr(filename: str, data: bytes, key: str = ''):
         raise ValueError('不支持 %s 格式，请用 png / jpg / gif / bmp / tiff 图片' % ext)
 
     payload = {
-        'apikey': _api_key(key),
+        'apikey': ocr_key(_DEMO_KEY),
         'language': 'chs',          # 简体中文（同时也能识别英文与数字）
         'OCREngine': '2',           # 引擎 2：对中文与混排文字更准
         'scale': 'true',
@@ -132,10 +126,10 @@ def ocr_page():
 
 
 @router.post('/ocr/api/recognize')
-async def ocr_recognize(file: UploadFile = File(...), key: str = Form('')):
+async def ocr_recognize(file: UploadFile = File(...)):
     try:
         data = await file.read()
-        return await run_in_threadpool(run_ocr, file.filename or 'screenshot.png', data, key)
+        return await run_in_threadpool(run_ocr, file.filename or 'screenshot.png', data)
     except ValueError as exc:
         return JSONResponse({'ok': False, 'message': str(exc)})
     except Exception as exc:

@@ -71,14 +71,7 @@ label.field{display:block;font-size:13px;color:#b8c4da;margin-bottom:8px}
 #status.ok{background:rgba(52,211,153,.1);color:#86efac;border:1px solid rgba(52,211,153,.3)}
 #status.err{background:rgba(251,113,133,.1);color:#fda4af;border:1px solid rgba(251,113,133,.35)}
 #status.info{background:rgba(109,124,255,.1);color:#b9c3ff;border:1px solid rgba(109,124,255,.3)}
-details.settings summary{cursor:pointer;font-size:13.5px;color:#b8c4da;user-select:none}
-details.settings .arr{font-size:10px;color:var(--acc2);transition:transform .15s}
-details.settings[open] .arr{transform:rotate(90deg)}
-.settings-body{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:14px}
-.settings-body label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
-.settings-body input{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text);
-  border-radius:10px;padding:9px 11px;font-size:13px;outline:none}
-.settings-body input:focus{border-color:rgba(109,124,255,.6)}
+.cfg-note{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.8}
 #resultWrap{display:none}
 #resultWrap.show{display:block}
 .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
@@ -128,7 +121,7 @@ details.settings[open] .arr{transform:rotate(90deg)}
 @media(max-width:700px){.neutral-list{grid-template-columns:1fr}}
 @media(max-width:900px){.summary-grid.with-neutral{grid-template-columns:1fr 1fr}}
 @media(max-width:1180px){.span-4,.span-5,.span-6,.span-7,.span-8{grid-column:span 12}}
-@media(max-width:900px){.summary-grid{grid-template-columns:1fr 1fr}.settings-body{grid-template-columns:1fr}}
+@media(max-width:900px){.summary-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.summary-grid{grid-template-columns:1fr}}
 @media(max-width:560px){.summary-grid.with-neutral{grid-template-columns:1fr}}
 .layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
@@ -201,14 +194,7 @@ details.settings[open] .arr{transform:rotate(90deg)}
     <div id="status"></div>
   </div>
 
-  <details class="card settings">
-    <summary class="settings-sum"><span class="arr">▶</span>&nbsp;模型设置（API Key 只保存在本机浏览器，也可用服务器环境变量 DEEPSEEK_API_KEY）</summary>
-    <div class="settings-body">
-      <div><label>API Base URL</label><input id="cfgBase" type="text" autocomplete="off"></div>
-      <div><label>模型名称</label><input id="cfgModel" type="text" autocomplete="off"></div>
-      <div><label>API Key</label><input id="cfgKey" type="password" autocomplete="off" placeholder="粘贴你的 DeepSeek API Key"></div>
-    </div>
-  </details>
+  <p class="cfg-note">模型与 API Key 由服务端配置：本地写进项目根目录的 .env，线上配环境变量。</p>
 
   <div id="notes" class="notes"></div>
 
@@ -265,7 +251,6 @@ details.settings[open] .arr{transform:rotate(90deg)}
 var PALETTE = ['#6d7cff','#2dd4bf','#ffb454','#f472b6','#a78bfa','#34d399','#fb923c','#e879f9','#38bdf8','#f59e0b','#94a3b8','#f43f5e','#22d3ee','#a3e635'];
 var AXIS_COLOR = '#8ea0c0';
 var SPLIT_LINE = 'rgba(255,255,255,.07)';
-var CFG_KEY = 'billCfg_v1';
 var HIST_KEY = 'billHist_v1';
 var HIST_MAX = 10;
 var histList = [];
@@ -282,21 +267,6 @@ function fmtNum(v){
 }
 function shortDay(d){ return d ? d.slice(5) : ''; }
 function esc(s){ return String(s == null ? '' : s); }
-
-function loadCfg(){
-  try { return JSON.parse(localStorage.getItem(CFG_KEY) || '{}') || {}; } catch(e){ return {}; }
-}
-function saveCfg(c){
-  try { localStorage.setItem(CFG_KEY, JSON.stringify(c)); } catch(e){}
-}
-function currentCfg(){
-  return {
-    base: $('cfgBase').value.trim() || 'https://api.deepseek.com',
-    model: $('cfgModel').value.trim() || 'deepseek-chat',
-    key: $('cfgKey').value.trim()
-  };
-}
-function persistCfg(){ saveCfg(currentCfg()); }
 
 function setStatus(html, type){
   var el = $('status');
@@ -642,14 +612,10 @@ function analyze(){
     setStatus('请先选择要分析的账单文件。', 'err');
     return;
   }
-  var cfg = currentCfg();
   setBusy(true);
   setStatus('<span class="spinner on"></span> 正在解析账单并调用大模型分类（通常 30 ~ 90 秒）…', 'info');
   var fd = new FormData();
   fd.append('file', file);
-  fd.append('base', cfg.base);
-  fd.append('model', cfg.model);
-  fd.append('key', cfg.key);
   fetch('/bill-analysis/api/analyze', { method: 'POST', body: fd })
     .then(function(r){ return r.json(); })
     .then(function(data){
@@ -777,13 +743,6 @@ function restoreRecord(item){
 
 function init(){
   histList = loadHistory().slice(0, HIST_MAX);
-  var c = loadCfg();
-  $('cfgBase').value = c.base || 'https://api.deepseek.com';
-  $('cfgModel').value = c.model || 'deepseek-chat';
-  $('cfgKey').value = c.key || '';
-  $('cfgBase').addEventListener('input', persistCfg);
-  $('cfgModel').addEventListener('input', persistCfg);
-  $('cfgKey').addEventListener('input', persistCfg);
   $('btnAnalyze').addEventListener('click', analyze);
   $('btnClearHistory').addEventListener('click', clearHistory);
   function setHistCollapsed(collapsed){

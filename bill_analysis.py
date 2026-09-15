@@ -10,18 +10,16 @@ import time
 from pathlib import Path
 
 import requests
-from fastapi import APIRouter, File, Form, Request, UploadFile
+from fastapi import APIRouter, File, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
 
-from ai_chart import _api_key, _endpoint
+from model_config import MISSING_KEY_HINT, llm_base, llm_endpoint, llm_key, llm_model
 
 router = APIRouter()
 
 _BASE_DIR = Path(__file__).resolve().parent
 _TEMPLATE_FILE = _BASE_DIR / 'templates' / 'bill_analysis.html'
-_DEFAULT_BASE = 'https://api.deepseek.com'
-_DEFAULT_MODEL = 'deepseek-chat'
 _MAX_ROWS = 500
 _MAX_RANK = 12
 _CATEGORIES = [
@@ -345,7 +343,7 @@ def _classify_with_llm(rows, key, base, model):
         'stream': False,
     }
     try:
-        resp = requests.post(_endpoint(base), json=body, headers=headers, timeout=(15, 240))
+        resp = requests.post(llm_endpoint(base), json=body, headers=headers, timeout=(15, 240))
     except requests.exceptions.Timeout:
         raise ValueError('请求大模型超时，请稍后重试或检查网络')
     except requests.exceptions.RequestException as exc:
@@ -534,15 +532,15 @@ def build_result(rows, categories, methods, suggestions, notes=None, meta_extra=
     }
 
 
-def run_analyze(filename: str, data: bytes, key: str, base: str = '', model: str = ''):
-    base = (base or _DEFAULT_BASE).strip() or _DEFAULT_BASE
-    model = (model or _DEFAULT_MODEL).strip() or _DEFAULT_MODEL
+def run_analyze(filename: str, data: bytes):
+    base = llm_base()
+    model = llm_model()
     rows, neutral, notes = parse_bill(filename, data)
     if len(rows) > _MAX_ROWS:
         raise ValueError('检测到 %d 笔支出，单次最多分析 %d 笔。请把账单按月拆分后再上传。' % (len(rows), _MAX_ROWS))
-    key = _api_key(key)
+    key = llm_key()
     if not key:
-        raise ValueError('缺少 API Key：请在页面「模型设置」填写，或设置环境变量 DEEPSEEK_API_KEY')
+        raise ValueError(MISSING_KEY_HINT)
     started = time.time()
     categories, methods, suggestions = _classify_with_llm(rows, key, base, model)
     result = build_result(rows, categories, methods, suggestions, notes=notes, neutral_rows=neutral)
@@ -568,16 +566,13 @@ def bill_page():
 async def bill_analyze(
     request: Request,
     file: UploadFile = File(...),
-    key: str = Form(''),
-    base: str = Form(''),
-    model: str = Form(''),
 ):
     try:
         data = await file.read()
         if not data:
             return JSONResponse({'ok': False, 'message': '上传的文件是空的'})
         filename = file.filename or 'bill.xlsx'
-        return await run_in_threadpool(run_analyze, filename, data, key, base, model)
+        return await run_in_threadpool(run_analyze, filename, data)
     except ValueError as exc:
         return JSONResponse({'ok': False, 'message': str(exc)})
     except Exception as exc:

@@ -12,14 +12,13 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
 
-from ai_chart import _api_key, _endpoint, _extract_json
+from ai_chart import _extract_json
+from model_config import MISSING_KEY_HINT, llm_endpoint, llm_key, llm_model
 
 router = APIRouter()
 
 _BASE_DIR = Path(__file__).resolve().parent
 _TEMPLATE_FILE = _BASE_DIR / 'templates' / 'buy_helper.html'
-_DEFAULT_BASE = 'https://api.deepseek.com'
-_DEFAULT_MODEL = 'deepseek-chat'
 _MAX_PRODUCTS = 10
 
 # 示例返回结构（页面会按此渲染）
@@ -116,11 +115,10 @@ def _do_analyze(payload: dict):
     user_content = '想买的商品：' + product
     if needs:
         user_content += chr(10) + '我的需求/预算/偏好：' + needs
-    model = str(payload.get('model') or _DEFAULT_MODEL).strip() or _DEFAULT_MODEL
-    base = str(payload.get('base') or _DEFAULT_BASE).strip() or _DEFAULT_BASE
-    key = _api_key(payload.get('key'))
+    model = llm_model()
+    key = llm_key()
     if not key:
-        return JSONResponse({'ok': False, 'message': '缺少 API Key：请在页面「模型设置」填写，或设置环境变量 DEEPSEEK_API_KEY'})
+        return JSONResponse({'ok': False, 'message': MISSING_KEY_HINT})
     started = time.time()
     headers = {'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'}
     body = {
@@ -134,7 +132,7 @@ def _do_analyze(payload: dict):
         'stream': False,
     }
     try:
-        resp = requests.post(_endpoint(base), json=body, headers=headers, timeout=(15, 180))
+        resp = requests.post(llm_endpoint(), json=body, headers=headers, timeout=(15, 180))
     except requests.exceptions.Timeout:
         return JSONResponse({'ok': False, 'message': '请求大模型超时，请稍后重试或检查网络'})
     except requests.exceptions.RequestException as exc:
