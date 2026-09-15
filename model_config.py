@@ -33,9 +33,8 @@ ENV_OCR_KEY = 'OCR_SPACE_API_KEY'
 _DEFAULT_BASE = 'https://api.deepseek.com'
 _DEFAULT_MODEL = 'deepseek-chat'
 
-# 没配 Key 时给页面看的提示：告诉他去哪儿配，而不是「请在页面上填写」
-MISSING_KEY_HINT = ('服务端没有配置模型 Key：本地开发请把 DEEPSEEK_API_KEY 写进项目根目录的 .env，'
-                    '线上部署则加到环境变量里，改完重启服务')
+# 没配 Key 时接口返回的错误文案：只说缺哪个变量，页面上不放解释性说明
+MISSING_KEY_HINT = '服务端没有配置模型 Key（%s）' % ENV_KEY
 
 
 def load_env_file(path=None) -> int:
