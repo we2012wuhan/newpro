@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>登录 · 我的工具箱</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<style>
+:root{
+  --bg:#0a0f1e;
+  --line:rgba(255,255,255,.09);
+  --text:#e8edf7;
+  --muted:#93a0ba;
+  --acc1:#6d7cff;
+  --acc2:#2dd4bf;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;padding:0}
+body{
+  color:var(--text);
+  font-family:"Segoe UI","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:
+    radial-gradient(1100px 520px at 12% -10%, rgba(109,124,255,.26), transparent 60%),
+    radial-gradient(900px 480px at 105% 0%, rgba(45,212,191,.17), transparent 55%),
+    radial-gradient(700px 600px at 50% 120%, rgba(167,139,250,.13), transparent 60%),
+    linear-gradient(160deg,#0a0f1e 0%,#0c1427 55%,#0a0f1e 100%);
+  background-attachment:fixed;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{width:100%;max-width:430px;padding:32px 20px 44px}
+.card{
+  background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.03));
+  border:1px solid var(--line);border-radius:22px;padding:30px 26px 26px;
+  backdrop-filter:blur(8px);box-shadow:0 24px 60px rgba(0,0,0,.36);
+}
+.brand{display:flex;align-items:center;gap:15px;margin-bottom:26px}
+.mark{width:56px;height:56px;flex:none;border-radius:18px;display:grid;place-items:center;font-size:27px;
+  background:linear-gradient(135deg,#6d7cff,#2dd4bf);box-shadow:0 14px 34px rgba(109,124,255,.4)}
+h1{margin:0;font-size:22px;letter-spacing:.6px}
+.f{display:block;font-size:12.5px;color:var(--muted);margin:16px 0 7px}
+.input{
+  width:100%;padding:13px 14px;font-size:15px;font-family:inherit;color:var(--text);
+  background:rgba(8,12,26,.6);border:1px solid rgba(255,255,255,.12);border-radius:13px;outline:none;
+  transition:border-color .18s ease,box-shadow .18s ease;
+}
+.input:focus{border-color:rgba(109,124,255,.75);box-shadow:0 0 0 3px rgba(109,124,255,.16)}
+.input::placeholder{color:#66748f}
+.remember{display:flex;align-items:center;gap:9px;margin-top:16px;font-size:13.5px;color:#c3cde3;cursor:pointer;user-select:none}
+.remember input{width:17px;height:17px;accent-color:#6d7cff;cursor:pointer}
+.btn{
+  width:100%;margin-top:22px;padding:13px 20px;border:0;border-radius:13px;cursor:pointer;
+  font-family:inherit;font-size:15.5px;font-weight:700;color:#080d1c;
+  background:linear-gradient(135deg,#818cf8,#5eead4);
+  box-shadow:0 12px 30px rgba(109,124,255,.34);
+  transition:transform .12s ease,box-shadow .18s ease,opacity .18s ease;
+}
+.btn:hover:not(:disabled){box-shadow:0 14px 36px rgba(109,124,255,.5)}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.err{
+  display:none;margin-top:16px;padding:11px 14px;border-radius:12px;font-size:13.5px;line-height:1.7;
+  color:#fecdd3;background:rgba(251,113,133,.12);border:1px solid rgba(251,113,133,.36);
+}
+.err.show{display:block}
+@media(max-width:420px){
+  .wrap{padding:20px 14px 30px}
+  .card{padding:24px 18px 22px;border-radius:18px}
+  h1{font-size:20px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="brand">
+      <div class="mark" id="mark">🔐</div>
+      <div>
+        <h1 id="title">我的工具箱</h1>
+      </div>
+    </div>
+
+    <form id="form" novalidate>
+      <label class="f" for="username">用户名</label>
+      <input id="username" class="input" type="text" autocomplete="username" placeholder="你的用户名" required>
+
+      <label class="f" for="password">密码</label>
+      <input id="password" class="input" type="password" autocomplete="current-password" placeholder="••••••" required>
+
+      <div id="confirmWrap" hidden>
+        <label class="f" for="confirm">再输一遍密码</label>
+        <input id="confirm" class="input" type="password" autocomplete="new-password" placeholder="••••••">
+      </div>
+
+      <label class="remember" id="rememberWrap">
+        <input type="checkbox" id="remember">记住我 30 天
+      </label>
+
+      <button class="btn" id="submit" type="submit">登录</button>
+      <div class="err" id="err"></div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var BOOT = "__AUTH_BOOT__";
+  var $ = function (id) { return document.getElementById(id); };
+  var setupMode = !!BOOT.setup;
+
+  function apply() {
+    if (setupMode) {
+      $('mark').textContent = '🛠';
+      $('title').textContent = '创建你的账号';
+      $('confirmWrap').hidden = false;
+      $('rememberWrap').hidden = true;
+      $('submit').textContent = '创建并进入';
+      $('password').setAttribute('autocomplete', 'new-password');
+      $('username').focus();
+    } else {
+      $('username').value = BOOT.username || '';
+      $('submit').textContent = '登录';
+      ($('username').value ? $('password') : $('username')).focus();
+    }
+  }
+
+  function showErr(text) {
+    var box = $('err');
+    box.textContent = text || '';
+    box.className = text ? 'err show' : 'err';
+  }
+
+  function post(url, body) {
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function (res) {
+      return res.json().catch(function () { return null; }).then(function (data) {
+        if (!res.ok) {
+          throw new Error((data && data.detail) || ('请求失败（' + res.status + '）'));
+        }
+        return data;
+      });
+    });
+  }
+
+  $('form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var username = $('username').value.trim();
+    var password = $('password').value;
+    if (!username || !password) { showErr('用户名和密码都要填'); return; }
+
+    var payload = { username: username, password: password };
+    var url = '/api/auth/login';
+    if (setupMode) {
+      payload.confirm = $('confirm').value;
+      url = '/api/auth/setup';
+    } else {
+      payload.remember = $('remember').checked;
+    }
+
+    var btn = $('submit');
+    btn.disabled = true;
+    showErr('');
+    post(url, payload).then(function () {
+      window.location.replace(BOOT.next || '/');
+    }).catch(function (err) {
+      showErr(err.message);
+      btn.disabled = false;
+      $('password').select();
+    });
+  });
+
+  apply();
+})();
+</script>
+</body>
+</html>
