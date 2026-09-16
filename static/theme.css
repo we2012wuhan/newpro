@@ -1,0 +1,236 @@
+/* ==========================================================================
+   全局主题（浅色 / 深色），所有页面共用
+   --------------------------------------------------------------------------
+   默认浅色；在 <html> 上写 data-theme="dark" 即切到深色。
+   颜色一律走这里的 --tb-* 变量，页面自己的 :root 只需要把局部变量
+   别名到 --tb-* 上，切主题时整站一起变，不用每个工具单独设。
+   ========================================================================== */
+
+:root{
+  color-scheme: light;
+
+  --tb-bg:#f4f6fb;              /* 页面底色 */
+  --tb-bg-2:#e8edf7;            /* 底色渐变第二档 */
+  --tb-card:#ffffff;            /* 卡片 / 面 */
+  --tb-card-2:#fafbfe;          /* 卡片渐变第二档 */
+  --tb-field:#ffffff;           /* 输入框底 */
+  --tb-line:#e4e9f1;            /* 描边 */
+  --tb-line-2:#d3dae7;          /* 强描边 / 输入框边框 */
+
+  --tb-ink:#152033;             /* 标题 */
+  --tb-text:#42506a;            /* 正文 */
+  --tb-muted:#7e8ca3;           /* 次要文字 */
+  --tb-muted-2:#8d99ae;         /* 更次要 */
+  --tb-faint:#a7b1c2;           /* 最淡（占位、提示） */
+
+  --tb-acc1:#4c5aa8;            /* 主强调 */
+  --tb-acc2:#0e8f79;            /* 次强调 */
+  --tb-acc-on:#ffffff;          /* 压在强调色上的文字 */
+
+  --tb-hover:rgba(21,32,51,.05);      /* 悬停底 */
+  --tb-hover-2:rgba(21,32,51,.09);
+  --tb-glow-soft:0 12px 30px -20px rgba(16,24,40,.3);
+  --tb-shadow:0 12px 30px -18px rgba(16,24,40,.22);
+
+  --tb-page-glow-1:rgba(109,124,255,.16);
+  --tb-page-glow-2:rgba(45,212,191,.12);
+  --tb-page-glow-3:rgba(167,139,250,.12);
+}
+
+[data-theme="dark"]{
+  color-scheme: dark;
+
+  --tb-bg:#0a0f1e;
+  --tb-bg-2:#0c1427;
+  --tb-card:rgba(255,255,255,.06);
+  --tb-card-2:rgba(255,255,255,.025);
+  --tb-field:rgba(8,12,26,.6);
+  --tb-line:rgba(255,255,255,.09);
+  --tb-line-2:rgba(255,255,255,.14);
+
+  --tb-ink:#e8edf7;
+  --tb-text:#c3cde3;
+  --tb-muted:#93a0ba;
+  --tb-muted-2:#8ea0c0;
+  --tb-faint:rgba(255,255,255,.35);
+
+  --tb-acc1:#6d7cff;
+  --tb-acc2:#2dd4bf;
+  --tb-acc-on:#08101f;
+
+  --tb-hover:rgba(255,255,255,.08);
+  --tb-hover-2:rgba(255,255,255,.11);
+  --tb-glow-soft:0 18px 40px -22px rgba(0,0,0,.6);
+  --tb-shadow:0 18px 40px -22px rgba(0,0,0,.55);
+
+  --tb-page-glow-1:rgba(109,124,255,.26);
+  --tb-page-glow-2:rgba(45,212,191,.17);
+  --tb-page-glow-3:rgba(167,139,250,.13);
+}
+
+html{background:var(--tb-bg)}
+body{transition:background-color .18s ease,color .18s ease}
+@media (prefers-reduced-motion:reduce){body{transition:none}}
+
+/* 原生控件跟随主题（下拉、滚动条、日期选择器等） */
+input,textarea,select,button{color:inherit}
+input::placeholder,textarea::placeholder{color:var(--tb-faint)}
+select option{background:var(--tb-card);color:var(--tb-ink)}
+
+/* ==========================================================================
+   主题切换按钮：太阳 = 浅色，月亮 = 深色
+   ========================================================================== */
+.tb-tbtn{
+  display:inline-flex;align-items:center;gap:7px;font-family:inherit;font-size:13px;
+  padding:8px 14px;border-radius:10px;cursor:pointer;line-height:1;
+  color:var(--tb-text);background:var(--tb-card);border:1px solid var(--tb-line);
+  transition:background .15s ease,color .15s ease,border-color .15s ease;
+}
+.tb-tbtn:hover{background:var(--tb-hover);color:var(--tb-ink)}
+.tb-tbtn .tb-ico{font-size:15px;line-height:1}
+.tb-tbtn .tb-txt{white-space:nowrap}
+@media (max-width:520px){.tb-tbtn .tb-txt{display:none}.tb-tbtn{padding:8px 11px}}
+/* ==========================================================================
+   第二组 token：语义色（成功 / 警告 / 出错 / 信息）与阴影、浮层
+   深色页原本把这些颜色写死在 CSS 和 JS 里，现在统一走变量，
+   浅色模式下自动换成对比度够用的深色版。
+   ========================================================================== */
+:root{
+  --tb-sh:rgba(16,24,40,.16);
+  --tb-tip-bg:#ffffff;
+  --tb-tip-line:#e4e9f1;
+
+  --tb-ok:#1c7a58;
+  --tb-ok-bg:rgba(28,122,88,.09);
+  --tb-ok-line:rgba(28,122,88,.26);
+
+  --tb-warn:#8a6516;
+  --tb-warn-bg:rgba(138,101,22,.09);
+  --tb-warn-line:rgba(138,101,22,.26);
+
+  --tb-gold:#a8631c;
+
+  --tb-err:#b23a52;
+  --tb-err-bg:rgba(178,58,82,.08);
+  --tb-err-line:rgba(178,58,82,.26);
+
+  --tb-info:#1c6f92;
+}
+
+[data-theme="dark"]{
+  --tb-sh:rgba(0,0,0,.5);
+  --tb-tip-bg:rgba(13,19,37,.94);
+  --tb-tip-line:rgba(255,255,255,.15);
+
+  --tb-ok:#34d399;
+  --tb-ok-bg:rgba(52,211,153,.08);
+  --tb-ok-line:rgba(52,211,153,.3);
+
+  --tb-warn:#fbbf24;
+  --tb-warn-bg:rgba(251,191,36,.1);
+  --tb-warn-line:rgba(251,191,36,.3);
+
+  --tb-gold:#ffb454;
+
+  --tb-err:#fb7185;
+  --tb-err-bg:rgba(251,113,133,.1);
+  --tb-err-line:rgba(251,113,133,.3);
+
+  --tb-info:#38bdf8;
+}
+
+/* 深色页里为深底设计的彩色文字，浅色模式下的深色版（按原色自动生成） */
+:root{
+  --c-34d399:#21976c;
+  --c-6d7cff:#1c299c;
+  --c-6ee7b7:#1c9c69;
+  --c-7da2ff:#1c409c;
+  --c-7dd3fc:#1c739c;
+  --c-7e8cac:#485470;
+  --c-86efac:#1c9c4a;
+  --c-8ea0c0:#425476;
+  --c-93a0ba:#485570;
+  --c-9db0d0:#3c547c;
+  --c-9fc0ff:#1c489c;
+  --c-9fefce:#1c9c67;
+  --c-a5b4fc:#1c329c;
+  --c-a7f3d0:#1c9c61;
+  --c-a99455:#7a6b3d;
+  --c-a9b8d4:#3d537a;
+  --c-aab8d6:#3c507c;
+  --c-b7c3da:#3e5379;
+  --c-b8c4da:#3f5379;
+  --c-b9c3ff:#1c2e9c;
+  --c-b9c4d8:#425476;
+  --c-b9c6dd:#3c537c;
+  --c-bbf7d0:#1c9c49;
+  --c-bfe9ff:#1c709c;
+  --c-c3cde3:#3a4f7d;
+  --c-c3cfe6:#365082;
+  --c-c4b5fd:#361c9c;
+  --c-c7d2fe:#1c359c;
+  --c-c9bdda:#574276;
+  --c-cdd7ea:#365081;
+  --c-cfd9ea:#385280;
+  --c-d1fae5:#1c9c5a;
+  --c-d6cbe6:#563c7c;
+  --c-d9e2ff:#1c3a9c;
+  --c-e879f9:#8b1c9c;
+  --c-e9d5ff:#591c9c;
+  --c-fb7185:#9c1c2e;
+  --c-fbbf24:#9c781c;
+  --c-fcd34d:#9c7e1c;
+  --c-fcd9c9:#9c441c;
+  --c-fda4af:#9c1c2b;
+  --c-fde68a:#9c821c;
+  --c-fecdd3:#9c1c2b;
+  --c-ffb454:#9c641c;
+  --c-ffd9a8:#9c641c;
+}
+[data-theme="dark"]{
+  --c-34d399:#34d399;
+  --c-6d7cff:#6d7cff;
+  --c-6ee7b7:#6ee7b7;
+  --c-7da2ff:#7da2ff;
+  --c-7dd3fc:#7dd3fc;
+  --c-7e8cac:#7e8cac;
+  --c-86efac:#86efac;
+  --c-8ea0c0:#8ea0c0;
+  --c-93a0ba:#93a0ba;
+  --c-9db0d0:#9db0d0;
+  --c-9fc0ff:#9fc0ff;
+  --c-9fefce:#9fefce;
+  --c-a5b4fc:#a5b4fc;
+  --c-a7f3d0:#a7f3d0;
+  --c-a99455:#a99455;
+  --c-a9b8d4:#a9b8d4;
+  --c-aab8d6:#aab8d6;
+  --c-b7c3da:#b7c3da;
+  --c-b8c4da:#b8c4da;
+  --c-b9c3ff:#b9c3ff;
+  --c-b9c4d8:#b9c4d8;
+  --c-b9c6dd:#b9c6dd;
+  --c-bbf7d0:#bbf7d0;
+  --c-bfe9ff:#bfe9ff;
+  --c-c3cde3:#c3cde3;
+  --c-c3cfe6:#c3cfe6;
+  --c-c4b5fd:#c4b5fd;
+  --c-c7d2fe:#c7d2fe;
+  --c-c9bdda:#c9bdda;
+  --c-cdd7ea:#cdd7ea;
+  --c-cfd9ea:#cfd9ea;
+  --c-d1fae5:#d1fae5;
+  --c-d6cbe6:#d6cbe6;
+  --c-d9e2ff:#d9e2ff;
+  --c-e879f9:#e879f9;
+  --c-e9d5ff:#e9d5ff;
+  --c-fb7185:#fb7185;
+  --c-fbbf24:#fbbf24;
+  --c-fcd34d:#fcd34d;
+  --c-fcd9c9:#fcd9c9;
+  --c-fda4af:#fda4af;
+  --c-fde68a:#fde68a;
+  --c-fecdd3:#fecdd3;
+  --c-ffb454:#ffb454;
+  --c-ffd9a8:#ffd9a8;
+}

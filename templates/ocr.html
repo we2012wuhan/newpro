@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OCR图片识别</title>
 <link rel="icon" href="data:,">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
 <style>
 :root{
-  --bg:#0a0f1e;
-  --line:rgba(255,255,255,.09);
-  --text:#e8edf7;
-  --muted:#93a0ba;
+  --bg:var(--tb-bg);
+  --line:var(--tb-line);
+  --text:var(--tb-ink);
+  --muted:var(--tb-muted);
   --acc1:#22d3ee;
   --acc2:#6366f1;
-  --ok:#34d399;
-  --err:#fb7185;
+  --ok:var(--tb-ok);
+  --err:var(--tb-err);
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -26,31 +29,31 @@ body{
     radial-gradient(1100px 520px at 10% -10%, rgba(34,211,238,.2), transparent 60%),
     radial-gradient(900px 480px at 105% 0%, rgba(99,102,241,.18), transparent 55%),
     radial-gradient(700px 600px at 50% 120%, rgba(56,189,248,.12), transparent 60%),
-    linear-gradient(160deg,#0a0f1e 0%,#0c1427 55%,#0a0f1e 100%);
+    linear-gradient(160deg,var(--tb-bg) 0%,var(--tb-bg-2) 55%,var(--tb-bg) 100%);
   background-attachment:fixed;
 }
 .wrap{max-width:980px;margin:0 auto;padding:26px 20px 80px}
 .back{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:13px;text-decoration:none;margin-bottom:14px}
-.back:hover{color:#fff}
+.back:hover{color:var(--tb-ink)}
 header.top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px}
 .logo{display:flex;align-items:center;gap:13px}
 .mark{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;font-size:23px;
   background:linear-gradient(135deg,#22d3ee 0%,#6366f1 100%);
   box-shadow:0 10px 28px rgba(34,211,238,.4)}
 h1{margin:0;font-size:23px;letter-spacing:.4px}
-.card{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.035));
+.card{background:linear-gradient(180deg,var(--tb-card),var(--tb-card-2));
   border:1px solid var(--line);border-radius:18px;padding:20px;backdrop-filter:blur(8px);
-  box-shadow:0 20px 46px rgba(0,0,0,.28)}
+  box-shadow:0 20px 46px var(--tb-sh)}
 .card + .card{margin-top:16px}
 .drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
-  padding:34px 20px;border:1.5px dashed rgba(255,255,255,.18);border-radius:14px;cursor:pointer;
-  background:rgba(8,12,26,.35);transition:border-color .18s,background .18s;text-align:center}
+  padding:34px 20px;border:1.5px dashed var(--tb-line);border-radius:14px;cursor:pointer;
+  background:var(--tb-field);transition:border-color .18s,background .18s;text-align:center}
 .drop:hover,.drop.over{border-color:rgba(34,211,238,.7);background:rgba(34,211,238,.07)}
 .drop-ico{font-size:34px;line-height:1}
 .drop-main{font-size:16px;font-weight:600}
 .drop-sub{font-size:13px;color:var(--muted)}
-.stage{display:flex;align-items:center;justify-content:center;background:rgba(8,12,26,.55);
-  border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:12px;max-height:420px;overflow:auto}
+.stage{display:flex;align-items:center;justify-content:center;background:var(--tb-field);
+  border:1px solid var(--tb-line);border-radius:14px;padding:12px;max-height:420px;overflow:auto}
 .stage img{max-width:100%;max-height:396px;border-radius:8px;display:block}
 .actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
 .btn{border:0;border-radius:11px;padding:11px 22px;font-size:15px;cursor:pointer;font-weight:700;display:inline-flex;
@@ -59,22 +62,22 @@ h1{margin:0;font-size:23px;letter-spacing:.4px}
 .btn:disabled{opacity:.6;cursor:not-allowed}
 .btn-main{color:#04211b;background:linear-gradient(135deg,#22d3ee,#34d399);box-shadow:0 10px 26px rgba(34,211,238,.32)}
 .btn-main:hover:not(:disabled){box-shadow:0 12px 32px rgba(34,211,238,.48)}
-.btn-ghost{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:var(--text)}
-.btn-ghost:hover:not(:disabled){background:rgba(255,255,255,.11)}
+.btn-ghost{background:var(--tb-card);border:1px solid var(--tb-line);color:var(--text)}
+.btn-ghost:hover:not(:disabled){background:var(--tb-hover)}
 .btn.sm{padding:8px 15px;font-size:13.5px}
-.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#04211b;border-radius:50%;
+.spinner{width:16px;height:16px;border:2px solid var(--tb-line);border-top-color:var(--tb-line);border-radius:50%;
   animation:spin .8s linear infinite;display:none}
 .spinner.on{display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
 #msg{margin-top:14px;font-size:13.5px;line-height:1.8;display:none}
 #msg.show{display:block}
 #msg.err{color:var(--err);background:rgba(251,113,133,.08);border:1px solid rgba(251,113,133,.25);padding:10px 14px;border-radius:10px}
-#msg.info{color:#bfe9ff;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);padding:10px 14px;border-radius:10px}
+#msg.info{color:var(--c-bfe9ff);background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);padding:10px 14px;border-radius:10px}
 .res-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .stats{font-size:13px;color:var(--muted)}
 .res-btns{display:flex;gap:8px;flex-wrap:wrap}
 textarea#out{width:100%;min-height:230px;resize:vertical;padding:13px 14px;font-size:15px;line-height:1.9;color:var(--text);
-  background:rgba(8,12,26,.6);border:1px solid rgba(255,255,255,.12);border-radius:12px;outline:none;
+  background:var(--tb-field);border:1px solid var(--tb-line);border-radius:12px;outline:none;
   font-family:"Segoe UI","Microsoft YaHei UI",system-ui,sans-serif}
 textarea#out:focus{border-color:rgba(34,211,238,.7);box-shadow:0 0 0 3px rgba(34,211,238,.14)}
 [hidden]{display:none !important}

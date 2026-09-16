@@ -91,41 +91,44 @@ _PAGE_HTML = r"""<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>抖音视频下载器</title>
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
 <style>
   * { box-sizing: border-box; }
-  body { margin:0; background:#f5f6fa; color:#222; font-family:"Microsoft YaHei",system-ui,sans-serif; }
+  body { margin:0; background:var(--tb-bg); color:var(--tb-text); font-family:"Microsoft YaHei",system-ui,sans-serif; }
   .wrap { max-width: 780px; margin: 0 auto; padding: 24px 16px 60px; }
-  .card { background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.06); padding:22px; margin-top:18px; }
-  h1 { font-size:24px; margin:0 0 6px; }
-  .sub { color:#777; font-size:14px; margin-bottom:6px; }
-  .back { display:inline-flex; align-items:center; gap:6px; color:#777; font-size:13px;
+  .card { background:var(--tb-card); border-radius:14px; box-shadow:0 2px 12px var(--tb-sh); padding:22px; margin-top:18px; }
+  h1 { font-size:24px; margin:0 0 6px; color:var(--tb-ink); }
+  .sub { color:var(--tb-muted); font-size:14px; margin-bottom:6px; }
+  .back { display:inline-flex; align-items:center; gap:6px; color:var(--tb-muted); font-size:13px;
     text-decoration:none; margin-bottom:10px; }
-  .back:hover { color:#111; }
+  .back:hover { color:var(--tb-ink); }
   label { font-weight:600; }
   .row { display:flex; gap:10px; flex-wrap:wrap; }
   input[type=text] { flex:1; min-width:260px; padding:12px 14px; font-size:15px;
-    border:1px solid #d9dde5; border-radius:10px; outline:none; }
+    border:1px solid var(--tb-line-2); border-radius:10px; outline:none; background:var(--tb-field); color:inherit; }
   input[type=text]:focus { border-color:#3b82f6; }
   .btn { padding:12px 22px; font-size:15px; border:0; border-radius:10px; cursor:pointer; }
   .btn-primary { background:#ff3b6b; color:#fff; }
   .btn-primary:hover { background:#e6355f; }
   .btn-primary:disabled { background:#f2a8bd; cursor:not-allowed; }
-  .btn-ghost { background:#eef1f6; color:#333; }
-  .btn-ghost:hover { background:#e2e7ef; }
-  .opts { margin:14px 0 0; font-size:13px; color:#555; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .btn-ghost { background:var(--tb-hover); color:var(--tb-ink); }
+  .btn-ghost:hover { background:var(--tb-hover-2); }
+  .opts { margin:14px 0 0; font-size:13px; color:var(--tb-muted); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   #status { margin-top:16px; font-size:14px; line-height:1.8; }
-  .err { color:#dc2626; }
-  .info { color:#2563eb; }
-  .spinner { display:inline-block; width:16px; height:16px; border:2px solid #cbd5e1;
+  .err { color:var(--tb-err); }
+  .info { color:var(--tb-info); }
+  .spinner { display:inline-block; width:16px; height:16px; border:2px solid var(--tb-line-2);
     border-top-color:#ff3b6b; border-radius:50%; animation:spin .8s linear infinite; vertical-align:-3px; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  details { margin-top:22px; background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.06); padding:4px 20px 18px; }
+  details { margin-top:22px; background:var(--tb-card); border-radius:14px; box-shadow:0 2px 12px var(--tb-sh); padding:4px 20px 18px; }
   summary { cursor:pointer; font-weight:600; padding:14px 0; }
-  .step { margin:8px 0; font-size:14px; color:#444; }
+  .step { margin:8px 0; font-size:14px; color:var(--tb-text); }
   textarea { width:100%; min-height:90px; padding:10px; font-size:13px; font-family:Consolas,monospace;
-    border:1px solid #d9dde5; border-radius:10px; resize:vertical; }
-  .save-note { font-size:13px; color:#666; margin-top:8px; }
-  .result-box { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:12px 14px; }
+    border:1px solid var(--tb-line-2); border-radius:10px; resize:vertical; background:var(--tb-field); color:inherit; }
+  .save-note { font-size:13px; color:var(--tb-muted); margin-top:8px; }
+  .result-box { background:var(--tb-ok-bg); border:1px solid var(--tb-ok-line); border-radius:10px; padding:12px 14px; }
 </style>
 </head>
 <body>
@@ -229,10 +232,10 @@ async function saveCookie() {
     });
     var data = await resp.json();
     st.textContent = data.message || '';
-    st.style.color = data.ok ? '#16a34a' : '#dc2626';
+    st.style.color = data.ok ? TBc('--tb-ok') : TBc('--tb-err');
   } catch (e) {
     st.textContent = '保存失败：' + e;
-    st.style.color = '#dc2626';
+    st.style.color = TBc('--tb-err');
   }
 }
 

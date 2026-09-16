@@ -23,6 +23,7 @@
 | `bayes_math.py` | 贝叶斯数学内核（似然比 / 后验 / Brier / 对数损失 / ECE / AUC / Murphy 分解 + 认知提醒，无第三方依赖，可单独跑） |
 | `judgement_trainer.py` | 判断力小工具（页面在 `/judgement-trainer`：认出判断点 -> 拆解决策 -> 记录账本 -> 校准回访，纯浏览器计算） |
 | `sdd_decomposer.py` | SDD 需求拆解器（页面在 `/sdd-decomposer`：把模糊想法按七段式逼成结构化规格，实时编译成可丢给 agent 的提示词，纯浏览器计算） |
+| `socratic.py` | 苏格拉底提问（页面在 `/socratic`：一句结论进去，用六类问题追问到底，出题优先走大模型，没配 Key 走内置题库，纯浏览器计算） |
 | `templates/` 与 `static/` | 各工具页面模板与本地静态资源（含登录页 `templates/login.html`、会话兜底 `static/auth-guard.js`） |
 | `requirements.txt` | 项目依赖（fastapi + uvicorn + requests + yt-dlp + playwright + openpyxl） |
 
@@ -72,6 +73,7 @@ python video_downloader.py
 - `http://127.0.0.1:8000/bayes-diary` **贝叶斯日记**：给日常预测下注，记证据看后验怎么动，结算后由 Python 出一份校准报告（Brier / ECE / AUC + 认知提醒）
 - `http://127.0.0.1:8000/judgement-trainer` **判断力小工具**：在流水账里认出判断点、拆解决策、记决策账本并回看校准，纯浏览器计算
 - `http://127.0.0.1:8000/sdd-decomposer` **SDD 需求拆解器**：一句粗糙需求进去，沿七段式逼问痛点 / 目标与非目标 / 用户 / 功能 / 交互 / 技术 / 验收，实时编译成提示词，纯浏览器计算
+- `http://127.0.0.1:8000/socratic` **苏格拉底提问**：写下你已经认定的一句话，用澄清 / 前提 / 证据 / 视角 / 推演 / 反思六类问题追问到底，最后汇成一份复盘
 
 ## 登录与访问控制
 
@@ -112,6 +114,16 @@ python video_downloader.py
 （而不是 500）。改了变量要**重新部署**才生效；一个变量都不配时，退回本机 `data/auth.json` 那套，本地开发流程不变。
 
 注意：`bayes_diary` 用的是 SQLite（`data/bayes.db`），在 Vercel 上依然写不进去。
+
+## 浅色 / 深色主题
+
+首页右上角有个太阳 / 月亮按钮：默认浅色（太阳），点一下整站变深色（月亮）。
+
+- 状态存在浏览器 `localStorage['tb_theme']`，按域名共享，所以**在首页切一次，所有工具页都跟着变**，不用每个工具再切一遍；
+- 颜色全部收在 `static/theme.css` 的 `--tb-*` 变量里（浅色一组，`[data-theme="dark"]` 一组），`static/theme.js` 负责切换、画按钮和多标签页同步；
+- 每个页面 `<head>` 里先跑一段内联脚本把 `data-theme` 写上，所以不会出现「先白一下再变黑」的闪烁；
+- 图表（ECharts）的颜色改成 `TBc('--tb-muted')` 这种写法，渲染时取当前主题的值，切主题后重新出图就是新配色；
+- 判断力小工具和 SDD 拆解器自带的主题按钮也写到同一个 key 上，在哪切都是整站生效。
 
 ## 模型配置（本地 .env / 线上环境变量）
 

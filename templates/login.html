@@ -5,12 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>登录 · 我的工具箱</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
 <style>
 :root{
-  --bg:#0a0f1e;
-  --line:rgba(255,255,255,.09);
-  --text:#e8edf7;
-  --muted:#93a0ba;
+  --bg:var(--tb-bg);
+  --line:var(--tb-line);
+  --text:var(--tb-ink);
+  --muted:var(--tb-muted);
   --acc1:#6d7cff;
   --acc2:#2dd4bf;
 }
@@ -25,15 +28,15 @@ body{
     radial-gradient(1100px 520px at 12% -10%, rgba(109,124,255,.26), transparent 60%),
     radial-gradient(900px 480px at 105% 0%, rgba(45,212,191,.17), transparent 55%),
     radial-gradient(700px 600px at 50% 120%, rgba(167,139,250,.13), transparent 60%),
-    linear-gradient(160deg,#0a0f1e 0%,#0c1427 55%,#0a0f1e 100%);
+    linear-gradient(160deg,var(--tb-bg) 0%,var(--tb-bg-2) 55%,var(--tb-bg) 100%);
   background-attachment:fixed;
   -webkit-font-smoothing:antialiased;
 }
 .wrap{width:100%;max-width:430px;padding:32px 20px 44px}
 .card{
-  background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.03));
+  background:linear-gradient(180deg,var(--tb-card),var(--tb-card-2));
   border:1px solid var(--line);border-radius:22px;padding:30px 26px 26px;
-  backdrop-filter:blur(8px);box-shadow:0 24px 60px rgba(0,0,0,.36);
+  backdrop-filter:blur(8px);box-shadow:0 24px 60px var(--tb-sh);
 }
 .brand{display:flex;align-items:center;gap:15px;margin-bottom:26px}
 .mark{width:56px;height:56px;flex:none;border-radius:18px;display:grid;place-items:center;font-size:27px;
@@ -42,13 +45,13 @@ h1{margin:0;font-size:22px;letter-spacing:.6px}
 .f{display:block;font-size:12.5px;color:var(--muted);margin:16px 0 7px}
 .input{
   width:100%;padding:13px 14px;font-size:15px;font-family:inherit;color:var(--text);
-  background:rgba(8,12,26,.6);border:1px solid rgba(255,255,255,.12);border-radius:13px;outline:none;
+  background:var(--tb-field);border:1px solid var(--tb-line);border-radius:13px;outline:none;
   transition:border-color .18s ease,box-shadow .18s ease;
 }
 .input:focus{border-color:rgba(109,124,255,.75);box-shadow:0 0 0 3px rgba(109,124,255,.16)}
 .input::placeholder{color:#66748f}
-.remember{display:flex;align-items:center;gap:9px;margin-top:16px;font-size:13.5px;color:#c3cde3;cursor:pointer;user-select:none}
-.remember input{width:17px;height:17px;accent-color:#6d7cff;cursor:pointer}
+.remember{display:flex;align-items:center;gap:9px;margin-top:16px;font-size:13.5px;color:var(--c-c3cde3);cursor:pointer;user-select:none}
+.remember input{width:17px;height:17px;accent-color:var(--c-6d7cff);cursor:pointer}
 .btn{
   width:100%;margin-top:22px;padding:13px 20px;border:0;border-radius:13px;cursor:pointer;
   font-family:inherit;font-size:15.5px;font-weight:700;color:#080d1c;
@@ -61,7 +64,7 @@ h1{margin:0;font-size:22px;letter-spacing:.6px}
 .btn:disabled{opacity:.55;cursor:not-allowed}
 .err{
   display:none;margin-top:16px;padding:11px 14px;border-radius:12px;font-size:13.5px;line-height:1.7;
-  color:#fecdd3;background:rgba(251,113,133,.12);border:1px solid rgba(251,113,133,.36);
+  color:var(--c-fecdd3);background:rgba(251,113,133,.12);border:1px solid rgba(251,113,133,.36);
 }
 .err.show{display:block}
 @media(max-width:420px){

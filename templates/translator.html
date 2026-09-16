@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>翻译助手</title>
 <link rel="icon" href="data:,">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
 <style>
 :root{
-  --bg:#0a0f1e;
-  --line:rgba(255,255,255,.09);
-  --text:#e8edf7;
-  --muted:#93a0ba;
+  --bg:var(--tb-bg);
+  --line:var(--tb-line);
+  --text:var(--tb-ink);
+  --muted:var(--tb-muted);
   --acc1:#2dd4bf;
   --acc2:#fbbf24;
-  --ok:#34d399;
-  --err:#fb7185;
+  --ok:var(--tb-ok);
+  --err:var(--tb-err);
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -26,12 +29,12 @@ body{
     radial-gradient(1100px 520px at 10% -10%, rgba(45,212,191,.22), transparent 60%),
     radial-gradient(900px 480px at 105% 0%, rgba(251,191,36,.14), transparent 55%),
     radial-gradient(700px 600px at 50% 120%, rgba(56,189,248,.12), transparent 60%),
-    linear-gradient(160deg,#0a0f1e 0%,#0c1427 55%,#0a0f1e 100%);
+    linear-gradient(160deg,var(--tb-bg) 0%,var(--tb-bg-2) 55%,var(--tb-bg) 100%);
   background-attachment:fixed;
 }
 .wrap{max-width:980px;margin:0 auto;padding:26px 20px 80px}
 .back{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:13px;text-decoration:none;margin-bottom:14px}
-.back:hover{color:#fff}
+.back:hover{color:var(--tb-ink)}
 header.top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px}
 .logo{display:flex;align-items:center;gap:13px}
 .mark{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;font-size:23px;
@@ -39,14 +42,14 @@ header.top{display:flex;align-items:center;justify-content:space-between;gap:14p
   box-shadow:0 10px 28px rgba(45,212,191,.4)}
 h1{margin:0;font-size:23px;letter-spacing:.4px}
 .sub{color:var(--muted);font-size:13px;margin-top:4px}
-.card{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.035));
+.card{background:linear-gradient(180deg,var(--tb-card),var(--tb-card-2));
   border:1px solid var(--line);border-radius:18px;padding:20px;backdrop-filter:blur(8px);
-  box-shadow:0 20px 46px rgba(0,0,0,.28)}
+  box-shadow:0 20px 46px var(--tb-sh)}
 .card + .card{margin-top:16px}
 .card h2{margin:0 0 6px;font-size:17px}
 .card .desc{color:var(--muted);font-size:13px;line-height:1.9;margin:0 0 14px}
 textarea#zhText{width:100%;min-height:96px;resize:vertical;padding:13px 14px;font-size:15px;line-height:1.9;color:var(--text);
-  background:rgba(8,12,26,.6);border:1px solid rgba(255,255,255,.12);border-radius:12px;outline:none;font-family:inherit}
+  background:var(--tb-field);border:1px solid var(--tb-line);border-radius:12px;outline:none;font-family:inherit}
 textarea#zhText:focus{border-color:rgba(45,212,191,.7);box-shadow:0 0 0 3px rgba(45,212,191,.14)}
 .actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
 .btn{border:0;border-radius:11px;padding:11px 22px;font-size:15px;cursor:pointer;font-weight:700;display:inline-flex;
@@ -55,32 +58,32 @@ textarea#zhText:focus{border-color:rgba(45,212,191,.7);box-shadow:0 0 0 3px rgba
 .btn:disabled{opacity:.6;cursor:not-allowed}
 .btn-main{color:#04211b;background:linear-gradient(135deg,#2dd4bf,#34d399);box-shadow:0 10px 26px rgba(45,212,191,.35)}
 .btn-main:hover:not(:disabled){box-shadow:0 12px 32px rgba(45,212,191,.5)}
-.btn-ghost{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)}
-.btn-ghost:hover:not(:disabled){background:rgba(255,255,255,.11)}
-.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;
+.btn-ghost{background:var(--tb-card);border:1px solid var(--tb-line)}
+.btn-ghost:hover:not(:disabled){background:var(--tb-hover)}
+.spinner{width:16px;height:16px;border:2px solid var(--tb-line);border-top-color:#fff;border-radius:50%;
   animation:spin .8s linear infinite;display:none}
 .spinner.on{display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
 #msg{margin-top:14px;font-size:13.5px;line-height:1.8;display:none}
 #msg.show{display:block}
 #msg.err{color:var(--err);background:rgba(251,113,133,.08);border:1px solid rgba(251,113,133,.25);padding:10px 14px;border-radius:10px}
-#msg.info{color:#bfe9ff;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);padding:10px 14px;border-radius:10px}
+#msg.info{color:var(--c-bfe9ff);background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);padding:10px 14px;border-radius:10px}
 #result{display:none}
 #result.show{display:block}
 .row-in{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
-textarea#enText{flex:1;min-width:260px;min-height:84px;resize:vertical;padding:12px 14px;font-size:16px;line-height:1.8;color:#d1fae5;
-  background:rgba(8,12,26,.6);border:1px solid rgba(255,255,255,.12);border-radius:12px;outline:none;font-family:Consolas,Menlo,monospace}
+textarea#enText{flex:1;min-width:260px;min-height:84px;resize:vertical;padding:12px 14px;font-size:16px;line-height:1.8;color:var(--c-d1fae5);
+  background:var(--tb-field);border:1px solid var(--tb-line);border-radius:12px;outline:none;font-family:Consolas,Menlo,monospace}
 textarea#enText:focus{border-color:rgba(45,212,191,.7)}
 .variants{margin-top:6px}
-.var{display:flex;align-items:center;gap:14px;border:1px solid rgba(255,255,255,.08);background:rgba(8,12,26,.45);
+.var{display:flex;align-items:center;gap:14px;border:1px solid var(--tb-line);background:var(--tb-field);
   border-radius:12px;padding:12px 16px;cursor:pointer;transition:border-color .15s,background .15s}
 .var + .var{margin-top:10px}
 .var:hover{border-color:rgba(45,212,191,.5);background:rgba(45,212,191,.06)}
-.var .tag{width:118px;flex:none;font-size:13px;color:#aab8d6;font-weight:700}
-.var .val{flex:1;min-width:0;font-family:Consolas,Menlo,monospace;font-size:16px;color:#e8fdf5;word-break:break-all;line-height:1.5}
+.var .tag{width:118px;flex:none;font-size:13px;color:var(--c-aab8d6);font-weight:700}
+.var .val{flex:1;min-width:0;font-family:Consolas,Menlo,monospace;font-size:16px;color:var(--tb-ink);word-break:break-all;line-height:1.5}
 .var .copy-ico{flex:none;font-size:12px;color:var(--muted)}
 .var.copied{border-color:rgba(52,211,153,.7)}
-.var.copied .copy-ico{color:#34d399}
+.var.copied .copy-ico{color:var(--c-34d399)}
 @media(max-width:640px){.var .tag{width:96px}}
 </style>
 <script src="/static/auth-guard.js"></script>

@@ -5,12 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>我的工具箱</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
 <style>
 :root{
-  --bg:#0a0f1e;
-  --line:rgba(255,255,255,.09);
-  --text:#e8edf7;
-  --muted:#93a0ba;
+  --bg:var(--tb-bg);
+  --line:var(--tb-line);
+  --text:var(--tb-ink);
+  --muted:var(--tb-muted);
   --acc1:#6d7cff;
   --acc2:#2dd4bf;
 }
@@ -24,7 +27,7 @@ body{
     radial-gradient(1100px 520px at 12% -10%, rgba(109,124,255,.26), transparent 60%),
     radial-gradient(900px 480px at 105% 0%, rgba(45,212,191,.17), transparent 55%),
     radial-gradient(700px 600px at 50% 120%, rgba(167,139,250,.13), transparent 60%),
-    linear-gradient(160deg,#0a0f1e 0%,#0c1427 55%,#0a0f1e 100%);
+    linear-gradient(160deg,var(--tb-bg) 0%,var(--tb-bg-2) 55%,var(--tb-bg) 100%);
   background-attachment:fixed;
 }
 .wrap{max-width:1020px;margin:0 auto;padding:56px 22px 80px}
@@ -33,17 +36,17 @@ body{
 .mark{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;font-size:32px;
   background:linear-gradient(135deg,#6d7cff,#2dd4bf);box-shadow:0 14px 34px rgba(109,124,255,.4)}
 h1{margin:0;font-size:30px;letter-spacing:1px}
-h2.sec{font-size:15px;color:#b8c4da;letter-spacing:3px;margin:0 0 14px;font-weight:600}
+h2.sec{font-size:15px;color:var(--c-b8c4da);letter-spacing:3px;margin:0 0 14px;font-weight:600}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .tool{
   display:flex;gap:16px;padding:22px;border-radius:20px;text-decoration:none;color:var(--text);
-  background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.03));
+  background:linear-gradient(180deg,var(--tb-card),var(--tb-card-2));
   border:1px solid var(--line);backdrop-filter:blur(8px);
-  box-shadow:0 18px 42px rgba(0,0,0,.26);transition:transform .16s ease,border-color .2s ease,box-shadow .2s ease;
+  box-shadow:0 18px 42px var(--tb-sh);transition:transform .16s ease,border-color .2s ease,box-shadow .2s ease;
 }
 .tool:hover{transform:translateY(-4px);border-color:rgba(109,124,255,.55);box-shadow:0 24px 52px rgba(109,124,255,.24)}
 .t-icon{width:58px;height:58px;flex:none;border-radius:16px;display:grid;place-items:center;font-size:27px;
-  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)}
+  background:var(--tb-card);border:1px solid var(--tb-line)}
 .t-info{flex:1;min-width:0}
 .t-info h3{margin:2px 0 8px;font-size:20px}
 .t-info .desc{font-size:13px;color:var(--muted);line-height:1.8;margin:0 0 14px}
@@ -74,10 +77,12 @@ h2.sec{font-size:15px;color:#b8c4da;letter-spacing:3px;margin:0 0 14px;font-weig
 .t-jt .go{background:linear-gradient(135deg,#34d399,#10b981);box-shadow:0 8px 20px rgba(52,211,153,.3)}
 .tool.t-sdd:hover{border-color:rgba(129,140,248,.55);box-shadow:0 24px 52px rgba(129,140,248,.22)}
 .t-sdd .go{background:linear-gradient(135deg,#818cf8,#6366f1);box-shadow:0 8px 20px rgba(129,140,248,.32)}
+.tool.t-soc:hover{border-color:rgba(91,141,239,.55);box-shadow:0 24px 52px rgba(91,141,239,.22)}
+.t-soc .go{background:linear-gradient(135deg,#5b8def,#3b82f6);box-shadow:0 8px 20px rgba(91,141,239,.32)}
 .search-col{display:flex;flex-direction:column;align-items:stretch;gap:7px;flex:1;max-width:480px;min-width:260px;margin-left:auto}
 .search-box{position:relative;width:100%}
 .search-box .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none;font-size:15px}
-#toolSearch{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--text);
+#toolSearch{width:100%;background:var(--tb-card);border:1px solid var(--line);color:var(--text);
   border-radius:14px;padding:12px 14px 12px 40px;font-size:15px;outline:none;
   transition:border-color .2s,box-shadow .2s}
 #toolSearch:focus{border-color:rgba(109,124,255,.65);box-shadow:0 0 0 3px rgba(109,124,255,.18)}
@@ -88,27 +93,27 @@ h2.sec{font-size:15px;color:#b8c4da;letter-spacing:3px;margin:0 0 14px;font-weig
 @media(max-width:760px){.grid{grid-template-columns:1fr}.wrap{padding:34px 16px 60px}}
 
 .acct{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:24px}
-.who{display:inline-flex;align-items:center;gap:9px;font-size:13.5px;color:#c3cde3;padding:6px 15px 6px 7px;
-  border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.who{display:inline-flex;align-items:center;gap:9px;font-size:13.5px;color:var(--c-c3cde3);padding:6px 15px 6px 7px;
+  border-radius:999px;background:var(--tb-card);border:1px solid var(--line)}
 .avatar{width:26px;height:26px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:12.5px;
   font-weight:700;color:#08101f;background:linear-gradient(135deg,#818cf8,#5eead4)}
 .acct-right{display:flex;gap:8px}
-.abtn{font-family:inherit;font-size:13px;padding:8px 15px;border-radius:10px;cursor:pointer;color:#c3cde3;
-  background:rgba(255,255,255,.06);border:1px solid var(--line);transition:background .15s ease,color .15s ease,border-color .15s ease}
-.abtn:hover{background:rgba(255,255,255,.11);color:#fff}
-.abtn.danger:hover{color:#fda4af;border-color:rgba(251,113,133,.45);background:rgba(251,113,133,.12)}
+.abtn{font-family:inherit;font-size:13px;padding:8px 15px;border-radius:10px;cursor:pointer;color:var(--c-c3cde3);
+  background:var(--tb-card);border:1px solid var(--line);transition:background .15s ease,color .15s ease,border-color .15s ease}
+.abtn:hover{background:var(--tb-hover);color:var(--tb-ink)}
+.abtn.danger:hover{color:var(--c-fda4af);border-color:rgba(251,113,133,.45);background:rgba(251,113,133,.12)}
 .abtn.primary{color:#08101f;font-weight:700;border-color:transparent;background:linear-gradient(135deg,#818cf8,#5eead4)}
 .pwbox{margin-bottom:26px;padding:18px 20px;border-radius:16px;border:1px solid var(--line);
-  background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.025))}
+  background:linear-gradient(180deg,var(--tb-card),var(--tb-card-2))}
 .pwgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .pwrow label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px}
 .pwrow input{width:100%;padding:11px 13px;font-size:14.5px;font-family:inherit;color:var(--text);
-  background:rgba(8,12,26,.6);border:1px solid rgba(255,255,255,.12);border-radius:11px;outline:none}
+  background:var(--tb-field);border:1px solid var(--tb-line);border-radius:11px;outline:none}
 .pwrow input:focus{border-color:rgba(109,124,255,.7);box-shadow:0 0 0 3px rgba(109,124,255,.15)}
 .pwmsg{display:none;font-size:13px;line-height:1.7;margin-top:12px}
 .pwmsg.show{display:block}
-.pwmsg.err{color:#fda4af}
-.pwmsg.ok{color:#6ee7b7}
+.pwmsg.err{color:var(--c-fda4af)}
+.pwmsg.ok{color:var(--c-6ee7b7)}
 .pwact{display:flex;gap:10px;margin-top:14px}
 @media(max-width:760px){.pwgrid{grid-template-columns:1fr}.acct{margin-bottom:18px}}
 </style>
@@ -119,6 +124,7 @@ h2.sec{font-size:15px;color:#b8c4da;letter-spacing:3px;margin:0 0 14px;font-weig
   <div class="acct">
     <!--USER_CHIP-->
     <div class="acct-right">
+      <span class="tb-mount"></span>
       <button class="abtn" id="pwBtn" type="button">修改密码</button>
       <button class="abtn danger" id="logoutBtn" type="button">退出登录</button>
     </div>
@@ -254,6 +260,14 @@ h2.sec{font-size:15px;color:#b8c4da;letter-spacing:3px;margin:0 0 14px;font-weig
       <div class="t-info">
         <h3>SDD 需求拆解器</h3>
         <p class="desc">把「我想做个小工具」这团模糊的念头，按七段式逼成一份结构化规格，实时编译成可直接丢给 agent 的提示词。</p>
+        <span class="go">立即打开</span>
+      </div>
+    </a>
+    <a class="tool t-soc" href="/socratic">
+      <div class="t-icon">🏛️</div>
+      <div class="t-info">
+        <h3>苏格拉底提问</h3>
+        <p class="desc">写下一句你已经认定的结论，用澄清、前提、证据、视角、推演、反思六类问题追问到底，看看自己漏掉了什么。</p>
         <span class="go">立即打开</span>
       </div>
     </a>

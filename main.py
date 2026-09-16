@@ -131,6 +131,11 @@ app.include_router(judgement_trainer_router)
 from sdd_decomposer import router as sdd_decomposer_router  # noqa: E402
 app.include_router(sdd_decomposer_router)
 
+# 附加功能：苏格拉底提问（写下一句结论 -> 六类问题追问到底 -> 汇成一份复盘，
+# 出题优先走大模型，没配 Key 时自动用内置题库）
+# 浏览器访问 http://127.0.0.1:8000/socratic 即可使用。
+from socratic import router as socratic_router  # noqa: E402
+app.include_router(socratic_router)
 
 
 # =========================================================

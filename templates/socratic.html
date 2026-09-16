@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#4C5AA8">
+<title>苏格拉底提问</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<script src="/static/theme.js"></script>
+<style>
+:root{
+  --acc:#4C5AA8; --acc-d:#3B4685; --acc-l:#EEF0FA; --acc-line:#CBD2EC;
+  --ink:#1F2A37; --text:#3B4859; --muted:#8492A3;
+  --bg:#F6F7FA; --card:#FFFFFF; --line:#E6EAF0;
+  --ok:#3F7A5B; --ok-l:#EDF6F1;
+  --warn:#9E6A2C; --warn-l:#FBF3E8;
+  --r:16px;
+  --sh:0 1px 2px rgba(16,24,40,.04), 0 10px 24px -14px rgba(16,24,40,.18);
+  --bg-blur:var(--bg-blur); --field:#FFFFFF; --soft:#F3F5F8;
+  --done-bg:#FCFEFD; --done-line:#D6E6DD; --err:#C0392B; --disabled:#B9C2D8;
+  --spin-track:#C9D0E0; --tip-bg:rgba(31,42,55,.94); --tip-ink:#FFFFFF;
+  --focus-ring:0 0 0 3px rgba(76,90,168,.1);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased;
+}
+button,input,textarea{font-family:inherit;font-size:15px;color:inherit}
+h1,h2,h3{margin:0;font-weight:600;color:var(--ink)}
+p{margin:0}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px calc(48px + env(safe-area-inset-bottom))}
+
+.topbar{position:sticky;top:0;z-index:20;background:var(--bg-blur);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:760px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px}
+.ttl{font-size:17px;font-weight:600;color:var(--ink);line-height:1.3}
+.sub{font-size:12px;color:var(--muted);line-height:1.4;margin-top:2px}
+.back{margin-left:auto;flex:0 0 auto;font-size:13px;color:var(--muted);text-decoration:none;
+  border:1px solid var(--line);background:var(--field);border-radius:999px;padding:8px 14px;white-space:nowrap}
+.back:hover{color:var(--ink);border-color:var(--acc-line)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;
+  box-shadow:var(--sh);margin-top:14px}
+.card-h{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.card-sub{font-size:12.5px;color:var(--muted);line-height:1.6}
+.sec-t{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.02em;margin:20px 2px 8px}
+
+textarea,input[type=text]{width:100%;border:1px solid var(--line);border-radius:12px;padding:11px 12px;
+  background:var(--field);outline:none;font-size:15px;line-height:1.6}
+textarea{min-height:88px;resize:vertical}
+#claim{min-height:76px;font-size:15.5px}
+textarea:focus,input:focus{border-color:var(--acc-line);box-shadow:var(--focus-ring)}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{min-height:38px;padding:0 13px;border-radius:999px;border:1px solid var(--line);background:var(--field);
+  color:var(--text);font-size:13.5px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.chip.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc);font-weight:600}
+.chip .ic{font-size:14px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:0 18px;
+  border-radius:12px;border:1px solid var(--line);background:var(--field);color:var(--text);font-size:15px;cursor:pointer}
+.btn:active{background:var(--soft)}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.primary:active{background:var(--acc-d)}
+.btn.primary:disabled{background:var(--disabled);border-color:var(--disabled);cursor:not-allowed}
+.btn.ghost{background:var(--field)}
+.btn.block{width:100%}
+.btn-row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.btn-row .btn{flex:1 1 140px}
+
+.note{font-size:12.5px;color:var(--muted);margin-top:10px;min-height:18px}
+.note.err{color:var(--err)}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--spin-track);border-top-color:var(--acc);
+  border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.up{animation:up .3s ease-out both}
+@media (prefers-reduced-motion:reduce){.up,.spin{animation:none}}
+
+.qhead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:20px 2px 0}
+.qhead b{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+.qhead span{font-size:12.5px;color:var(--muted)}
+.q{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;
+  box-shadow:var(--sh);margin-top:10px}
+.q.done{border-color:var(--done-line);background:var(--done-bg)}
+.q-h{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:11.5px;
+  line-height:1.8;background:var(--acc-l);color:var(--acc);border:1px solid var(--acc-line);font-weight:600}
+.q-n{font-size:12px;color:var(--muted);margin-left:auto}
+.q-t{font-size:15.5px;color:var(--ink);line-height:1.7}
+.q-a{margin-top:10px;min-height:72px;font-size:14.5px;background:var(--done-bg)}
+.q.done .q-a{border-color:var(--done-line)}
+
+.quote{background:var(--acc-l);border:1px solid var(--acc-line);border-radius:12px;padding:12px 14px;
+  font-size:15px;color:var(--ink);line-height:1.7}
+.mini{font-size:12px;color:var(--muted);line-height:1.6}
+.hr{height:1px;background:var(--line);margin:14px 0}
+
+.rec{display:flex;gap:10px;align-items:flex-start;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:12px 14px;margin-top:9px}
+.rec-b{flex:1;min-width:0}
+.rec-t{font-size:14.5px;color:var(--ink);line-height:1.6;word-break:break-word}
+.rec-m{font-size:12px;color:var(--muted);margin-top:4px}
+.rec-a{display:flex;gap:6px;flex:0 0 auto}
+.iconbtn{border:1px solid var(--line);background:var(--field);border-radius:9px;min-height:36px;padding:0 10px;
+  font-size:13px;color:var(--muted);cursor:pointer}
+.iconbtn:hover{color:var(--ink);border-color:var(--acc-line)}
+.empty{text-align:center;color:var(--muted);font-size:13.5px;padding:16px 8px;line-height:1.8}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:50;
+  background:var(--tip-bg);color:var(--tip-ink);font-size:13.5px;padding:9px 16px;border-radius:999px;
+  opacity:0;pointer-events:none;transition:opacity .2s ease}
+.toast.on{opacity:1}
+
+@media (min-width:640px){
+  .wrap,.topbar-in{padding-left:24px;padding-right:24px}
+  .card{padding:20px 22px}
+}
+
+html[data-theme="dark"]{
+  --acc:#93A9F0; --acc-d:#B4BFF9; --acc-l:#1D2338; --acc-line:#333C5E;
+  --ink:#E8ECF8; --text:#C2CBDE; --muted:#8593A9;
+  --bg:#0E1119; --card:#161B26; --line:#272E3D;
+  --ok:#7CC79E; --ok-l:#152A20;
+  --warn:#E0A868; --warn-l:#2B2113;
+  --sh:0 1px 2px rgba(0,0,0,.3), 0 10px 24px -14px rgba(0,0,0,.5);
+  --bg-blur:rgba(14,17,25,.92); --field:#131822; --soft:#1C2231;
+  --done-bg:#131C18; --done-line:#2C4A3A; --err:#FF9B8F; --disabled:#3A4356;
+  --spin-track:#39415A; --tip-bg:rgba(232,238,248,.96); --tip-ink:#0E1119;
+  --focus-ring:0 0 0 3px rgba(147,169,240,.16);
+  color-scheme:dark;
+}
+/* 深色下主按钮是浅底，文字反过来用深色 */
+html[data-theme="dark"] .btn.primary,html[data-theme="dark"] .btn.primary:active{color:#0E1119}
+
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div>
+      <div class="ttl">苏格拉底提问</div>
+      <div class="sub">把你已经认定的一句话，追问到底</div>
+    </div>
+    <a class="back" href="/">← 返回工具箱</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="card">
+    <div class="card-h">写下你现在的结论</div>
+    <div class="card-sub">一句就够。越像你心里那句原话越好，别先把它修饰圆。</div>
+    <textarea id="claim" placeholder="例：我应该辞职去做独立开发"></textarea>
+    <div class="chips" id="lenses"></div>
+    <div class="btn-row">
+      <button class="btn primary" id="go">开始追问</button>
+      <button class="btn ghost" id="reroll">换一组问题</button>
+    </div>
+    <div class="note" id="note"></div>
+  </div>
+
+  <div id="qWrap"></div>
+
+  <div class="card" id="wrapCard" hidden>
+    <div class="card-h">答完之后</div>
+    <div class="card-sub">原来的那句话，现在你还这么看吗？</div>
+    <div class="quote" id="claimEcho" style="margin-top:10px"></div>
+    <textarea id="after" placeholder="一句话：现在你怎么看" style="margin-top:12px"></textarea>
+    <div class="btn-row">
+      <button class="btn" id="copyAll">复制全文</button>
+      <button class="btn" id="dlMd">下载 .md</button>
+      <button class="btn primary" id="saveRec">存进记录</button>
+    </div>
+  </div>
+
+  <div id="recWrap"></div>
+</main>
+
+<div class="toast" id="toast"></div>
+<script>(function(){
+'use strict';
+
+var LENSES = [
+  { k:'clarify',     l:'澄清', i:'🔍' },
+  { k:'assume',      l:'前提', i:'🧱' },
+  { k:'evidence',    l:'证据', i:'⚖️' },
+  { k:'viewpoint',   l:'视角', i:'🔄' },
+  { k:'implication', l:'推演', i:'🌊' },
+  { k:'meta',        l:'反思', i:'🪞' }
+];
+var K_DRAFT = 'soc_draft', K_RECS = 'soc_records';
+var BASE = '';
+
+var state = { claim:'', items:[], after:'', seed:0, sel: LENSES.map(function(x){ return x.k; }) };
+var busy = false;
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function iconOf(label){
+  for (var i=0;i<LENSES.length;i++){ if (LENSES[i].l === label) return LENSES[i].i; }
+  return '•';
+}
+function store(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function load(k, fb){ try{ var v = localStorage.getItem(k); return v===null? fb : JSON.parse(v); }catch(e){ return fb; } }
+function del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+
+var toastTimer = null;
+function toast(msg){
+  var t = $('toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove('on'); }, 1800);
+}
+function setNote(html, isErr){
+  var n = $('note');
+  n.className = 'note' + (isErr ? ' err' : '');
+  n.innerHTML = html;
+}
+function todayStr(){
+  var d = new Date(), m = d.getMonth()+1, day = d.getDate();
+  return d.getFullYear() + '-' + (m<10?'0':'') + m + '-' + (day<10?'0':'') + day;
+}
+function stamp(){
+  var d = new Date(), p = function(n){ return (n<10?'0':'') + n; };
+  return todayStr() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
+/* ---------- 透镜选择 ---------- */
+function renderChips(){
+  $('lenses').innerHTML = LENSES.map(function(x){
+    var on = state.sel.indexOf(x.k) >= 0;
+    return '<button class="chip' + (on?' on':'') + '" data-k="' + x.k + '" type="button">' +
+      '<span class="ic">' + x.i + '</span>' + x.l + '</button>';
+  }).join('');
+  Array.prototype.forEach.call($('lenses').querySelectorAll('.chip'), function(b){
+    b.addEventListener('click', function(){
+      var k = b.getAttribute('data-k'), i = state.sel.indexOf(k);
+      if (i >= 0){
+        if (state.sel.length === 1){ toast('至少留一类问题'); return; }
+        state.sel.splice(i,1);
+      } else {
+        state.sel.push(k);
+      }
+      renderChips(); saveDraft();
+    });
+  });
+}
+
+/* ---------- 题目渲染 ---------- */
+function renderQuestions(){
+  var wrap = $('qWrap');
+  if (!state.items.length){ wrap.innerHTML = ''; refreshWrap(); return; }
+  var done = state.items.filter(function(x){ return (x.a||'').trim().length; }).length;
+  var head = '<div class="qhead"><b>追问</b><span id="prog">已答 ' + done + ' / ' + state.items.length + '</span></div>';
+  var body = state.items.map(function(it, i){
+    var a = it.a || '';
+    return '<div class="q' + (a.trim() ? ' done' : '') + ' up" style="animation-delay:' + (i*35) + 'ms" data-i="' + i + '">' +
+      '<div class="q-h"><span class="badge">' + (it.icon || iconOf(it.cat)) + ' ' + esc(it.cat) + '</span>' +
+      '<span class="q-n">第 ' + (i+1) + ' 问</span></div>' +
+      '<p class="q-t">' + esc(it.q) + '</p>' +
+      '<textarea class="q-a" data-i="' + i + '" placeholder="写下你的回答（跳过也没关系）">' + esc(a) + '</textarea>' +
+    '</div>';
+  }).join('');
+  wrap.innerHTML = head + body;
+  Array.prototype.forEach.call(wrap.querySelectorAll('.q-a'), function(ta){
+    ta.addEventListener('input', function(){
+      var i = +ta.getAttribute('data-i');
+      state.items[i].a = ta.value;
+      var card = ta.parentNode;
+      if (ta.value.trim()) card.classList.add('done'); else card.classList.remove('done');
+      updateProgress(); saveDraft();
+    });
+  });
+  refreshWrap();
+}
+function updateProgress(){
+  var p = $('prog');
+  if (!p) return;
+  var done = state.items.filter(function(x){ return (x.a||'').trim().length; }).length;
+  p.textContent = '已答 ' + done + ' / ' + state.items.length;
+  refreshWrap();
+}
+function answeredCount(){
+  return state.items.filter(function(x){ return (x.a||'').trim().length; }).length;
+}
+function refreshWrap(){
+  var card = $('wrapCard');
+  if (!state.items.length){ card.hidden = true; return; }
+  card.hidden = false;
+  $('claimEcho').textContent = state.claim || '（还没写）';
+}
+
+/* ---------- 出题 ---------- */
+async function ask(mode){
+  var claim = $('claim').value.trim();
+  if (claim.length < 2){ setNote('先写下一句你现在的看法', true); $('claim').focus(); return; }
+  if (busy) return;
+  busy = true;
+  $('go').disabled = true; $('reroll').disabled = true;
+  setNote('<span class="spin"></span> ' + (mode === 'bank' ? '从题库取题…' : '正在针对你的原话出题…'));
+  try {
+    var resp = await fetch(BASE + '/socratic/api/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ claim: claim, lenses: state.sel, mode: mode || 'auto', seed: state.seed })
+    });
+    var data = await resp.json();
+    if (!data.ok){
+      setNote(esc(data.message || '出题失败'), true);
+      return;
+    }
+    state.claim = claim;
+    state.items = (data.questions || []).map(function(x){ return { cat:x.cat, icon:x.icon, q:x.q, a:'' }; });
+    var label = data.source === 'llm' ? '模型针对你的原话出题' : '题库出题';
+    setNote(label + ' · 共 ' + data.count + ' 问' + (data.note ? ' · ' + esc(data.note) : ''));
+    renderQuestions();
+    saveDraft();
+    var first = document.querySelector('.q-a');
+    if (first && window.innerWidth < 900) first.scrollIntoView({ block:'center', behavior:'smooth' });
+  } catch (e) {
+    setNote('请求失败：' + esc(e), true);
+  } finally {
+    busy = false;
+    $('go').disabled = false; $('reroll').disabled = false;
+  }
+}
+
+/* ---------- 汇总 / 导出 ---------- */
+function buildMd(){
+  var out = ['# 苏格拉底提问 · ' + todayStr(), '', '**我原来的说法**：' + (state.claim || ''), '', '## 追问', ''];
+  state.items.forEach(function(it, i){
+    out.push('**' + (i+1) + '. ' + it.cat + '**');
+    out.push('问：' + it.q);
+    out.push('答：' + ((it.a || '').trim() || '（没写）'));
+    out.push('');
+  });
+  if ((state.after || '').trim()){
+    out.push('## 答完之后');
+    out.push(state.after.trim());
+  }
+  return out.join('\n');
+}
+async function copyText(text, okMsg){
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(okMsg);
+  } catch (e) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); toast(okMsg); }
+    catch (e2) { toast('这台浏览器不让复制，请手动选中'); }
+    ta.remove();
+  }
+}
+function downloadFile(name, text){
+  try {
+    var blob = new Blob([text], { type:'text/markdown;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 600);
+  } catch (e) { toast('这台浏览器不支持直接下载'); }
+}
+function saveDraft(){
+  if (!state.items.length && !state.claim) { del(K_DRAFT); return; }
+  store(K_DRAFT, {
+    claim: state.claim || $('claim').value.trim(),
+    items: state.items, after: state.after, seed: state.seed, sel: state.sel, at: stamp()
+  });
+}
+
+/* ---------- 记录 ---------- */
+function saveRecord(){
+  if (!state.items.length){ toast('先出题再存'); return; }
+  if (answeredCount() === 0){ toast('一个都没答，先写两句'); return; }
+  var recs = load(K_RECS, []);
+  recs.unshift({
+    id: 'r' + Date.now(), at: stamp(),
+    claim: state.claim, items: state.items, after: state.after
+  });
+  store(K_RECS, recs.slice(0, 100));
+  renderRecords();
+  toast('已存进记录');
+}
+function renderRecords(){
+  var recs = load(K_RECS, []);
+  var wrap = $('recWrap');
+  if (!recs.length){ wrap.innerHTML = ''; return; }
+  wrap.innerHTML = '<div class="sec-t">我的记录（' + recs.length + '）</div>' + recs.map(function(r){
+    var n = r.items.length;
+    var done = r.items.filter(function(x){ return (x.a||'').trim().length; }).length;
+    return '<div class="rec" data-id="' + r.id + '">' +
+      '<div class="rec-b"><div class="rec-t">' + esc(r.claim) + '</div>' +
+      '<div class="rec-m">' + esc(r.at) + ' · 答了 ' + done + ' / ' + n + ' 问</div></div>' +
+      '<div class="rec-a">' +
+        '<button class="iconbtn" data-open="' + r.id + '">打开</button>' +
+        '<button class="iconbtn" data-del="' + r.id + '">删除</button>' +
+      '</div></div>';
+  }).join('');
+  Array.prototype.forEach.call(wrap.querySelectorAll('[data-open]'), function(b){
+    b.addEventListener('click', function(){ openRecord(b.getAttribute('data-open')); });
+  });
+  Array.prototype.forEach.call(wrap.querySelectorAll('[data-del]'), function(b){
+    b.addEventListener('click', function(){
+      var id = b.getAttribute('data-del');
+      if (!confirm('删掉这条记录？')) return;
+      store(K_RECS, load(K_RECS, []).filter(function(r){ return r.id !== id; }));
+      renderRecords();
+    });
+  });
+}
+function openRecord(id){
+  var r = load(K_RECS, []).filter(function(x){ return x.id === id; })[0];
+  if (!r) return;
+  state.claim = r.claim;
+  state.items = r.items;
+  state.after = r.after || '';
+  $('claim').value = r.claim;
+  $('after').value = state.after;
+  setNote('已载入记录 · ' + esc(r.at));
+  renderQuestions();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ---------- 事件绑定 ---------- */
+$('go').addEventListener('click', function(){
+  state.seed = 0;
+  ask('auto');
+});
+$('reroll').addEventListener('click', function(){
+  if (answeredCount() > 0 && !confirm('换一组会清掉已经写的回答，继续吗？')) return;
+  state.seed += 1;
+  ask('bank');
+});
+$('claim').addEventListener('keydown', function(e){
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); ask('auto'); }
+});
+$('claim').addEventListener('input', function(){ state.claim = $('claim').value; saveDraft(); });
+$('after').addEventListener('input', function(){ state.after = $('after').value; saveDraft(); });
+$('copyAll').addEventListener('click', function(){ copyText(buildMd(), '已复制全文'); });
+$('dlMd').addEventListener('click', function(){
+  downloadFile('苏格拉底提问-' + todayStr() + '.md', buildMd());
+});
+$('saveRec').addEventListener('click', saveRecord);
+
+/* ---------- 启动 ---------- */
+(function init(){
+  var d = load(K_DRAFT, null);
+  if (d && d.claim){
+    state.claim = d.claim || '';
+    state.items = d.items || [];
+    state.after = d.after || '';
+    state.seed = d.seed || 0;
+    state.sel = (d.sel && d.sel.length) ? d.sel : state.sel;
+    $('claim').value = state.claim;
+    $('after').value = state.after;
+    setNote('上次写到一半，已经接着放回来了');
+  }
+  renderChips();
+  renderQuestions();
+  renderRecords();
+})();
+
+})();
+</script>
+</body>
+</html>

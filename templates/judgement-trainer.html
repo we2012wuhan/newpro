@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#3D5A80">
-<script>(function(){try{var v=JSON.parse(localStorage.getItem('jt_theme'));if(v==='dark'){document.documentElement.setAttribute('data-theme','dark');}}catch(e){}})();</script>
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<script src="/static/theme.js"></script>
 <title>判断力小工具</title>
 <style>
 :root{
@@ -1248,7 +1249,7 @@ function applyTheme(mode){
   if(m) m.setAttribute('content', dark ? '#0E131C' : '#3D5A80');
 }
 function initTheme(){
-  applyTheme(DB.get(K.theme, 'light') === 'dark' ? 'dark' : 'light');
+  applyTheme(window.TBTheme ? TBTheme.get() : 'light');
 }
 function init(){
   initTheme();
@@ -1256,7 +1257,7 @@ function init(){
   document.getElementById('themeBtn').onclick = function(){
     var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
     applyTheme(next);
-    DB.set(K.theme, next);
+    if (window.TBTheme) { TBTheme.set(next); }
   };
   document.getElementById('helpBtn').onclick = showOnboard;
   renderTabs();
