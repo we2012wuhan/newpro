@@ -137,6 +137,12 @@ app.include_router(sdd_decomposer_router)
 from socratic import router as socratic_router  # noqa: E402
 app.include_router(socratic_router)
 
+# 附加功能：写作选题（给一点线索 -> 大模型出一批选题 -> 挑一个深挖成写作启动包，
+# 没配 Key 时用内置「角度 x 素材」配方兜底）
+# 浏览器访问 http://127.0.0.1:8000/writing-ideas 即可使用。
+from writing_ideas import router as writing_ideas_router  # noqa: E402
+app.include_router(writing_ideas_router)
+
 
 # =========================================================
 # 附加功能：工具箱主页（根路径 "/"）

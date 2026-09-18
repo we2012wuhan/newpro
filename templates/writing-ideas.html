@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#B4652F">
+<title>写作选题</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<style>
+:root{
+  --acc:#B4652F; --acc-d:#97521F; --acc-l:#FBF1E8; --acc-line:#EBD5C0;
+  --ink:#1F2A37; --text:#3B4859; --muted:#8492A3;
+  --bg:#F7F6F4; --card:#FFFFFF; --line:#E8E4DE;
+  --ok:#3F7A5B; --ok-l:#EDF6F1;
+  --warn:#9E6A2C; --warn-l:#FBF3E8;
+  --r:16px;
+  --sh:0 1px 2px rgba(16,24,40,.04), 0 10px 24px -14px rgba(16,24,40,.18);
+  --bg-blur:rgba(247,246,244,.92); --field:#FFFFFF; --soft:#F4F1ED;
+  --err:#C0392B; --disabled:#CFC3B8;
+  --spin-track:#E2D6C9; --tip-bg:rgba(31,42,55,.94); --tip-ink:#FFFFFF;
+  --focus-ring:0 0 0 3px rgba(180,101,47,.12);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:transparent; color:var(--text);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased;
+}
+button,input,textarea{font-family:inherit;font-size:15px;color:inherit}
+h1,h2,h3{margin:0;font-weight:600;color:var(--ink)}
+p{margin:0}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px calc(48px + env(safe-area-inset-bottom))}
+
+.topbar{position:sticky;top:0;z-index:20;background:var(--bg-blur);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:760px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px}
+.ttl{font-size:17px;font-weight:600;color:var(--ink);line-height:1.3}
+.sub{font-size:12px;color:var(--muted);line-height:1.4;margin-top:2px}
+.back{margin-left:auto;flex:0 0 auto;font-size:13px;color:var(--muted);text-decoration:none;
+  border:1px solid var(--line);background:var(--field);border-radius:999px;padding:8px 14px;white-space:nowrap}
+.back:hover{color:var(--ink);border-color:var(--acc-line)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;
+  box-shadow:var(--sh);margin-top:14px}
+.card-h{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.card-sub{font-size:12.5px;color:var(--muted);line-height:1.6}
+.sec-t{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.02em;margin:20px 2px 8px}
+.sec-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:22px 2px 8px}
+.sec-head b{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+.sec-head .btn{flex:0 0 auto}
+
+label.f{display:block;font-size:12.5px;color:var(--muted);margin:14px 0 6px}
+textarea,input[type=text]{width:100%;border:1px solid var(--line);border-radius:12px;padding:11px 12px;
+  background:var(--field);outline:none;font-size:15px;line-height:1.6}
+textarea{min-height:72px;resize:vertical}
+textarea:focus,input:focus{border-color:var(--acc-line);box-shadow:var(--focus-ring)}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.chip{min-height:38px;padding:0 13px;border-radius:999px;border:1px solid var(--line);background:var(--field);
+  color:var(--text);font-size:13.5px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.chip.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc);font-weight:600}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:0 18px;
+  border-radius:12px;border:1px solid var(--line);background:var(--field);color:var(--text);font-size:15px;cursor:pointer}
+.btn:active{background:var(--soft)}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.primary:active{background:var(--acc-d)}
+.btn.primary:disabled{background:var(--disabled);border-color:var(--disabled);cursor:not-allowed}
+.btn.ghost{background:var(--field)}
+.btn.block{width:100%}
+.btn.sm{min-height:36px;padding:0 13px;font-size:13.5px;border-radius:10px}
+.btn-row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.btn-row .btn{flex:1 1 140px}
+
+.note{font-size:12.5px;color:var(--muted);margin-top:10px;min-height:18px}
+.note.err{color:var(--err)}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--spin-track);border-top-color:var(--acc);
+  border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.up{animation:up .3s ease-out both}
+@media (prefers-reduced-motion:reduce){.up,.spin{animation:none}}
+
+.badge{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:11.5px;
+  line-height:1.8;background:var(--acc-l);color:var(--acc);border:1px solid var(--acc-line)}
+.badge.b-n{background:var(--soft);color:var(--muted);border-color:var(--line)}
+.badge.b-ok{background:var(--ok-l);color:var(--ok);border-color:#CBE3D8}
+.badge.b-warn{background:var(--warn-l);color:var(--warn);border-color:#EBD7B8}
+
+.idea{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:15px 16px;
+  box-shadow:var(--sh);margin-top:12px}
+.idea-t{font-size:16px;font-weight:600;color:var(--ink);line-height:1.5}
+.idea-claim{font-size:14px;line-height:1.75;color:var(--text);margin-top:6px}
+.meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px}
+.line{font-size:13.5px;line-height:1.75;color:#4A5866;margin-top:9px}
+.line>b{display:block;font-size:11.5px;font-weight:600;color:var(--muted);letter-spacing:.02em;margin-bottom:2px}
+.hook{background:var(--soft);border-radius:10px;padding:8px 11px;font-size:13.5px;line-height:1.7;color:var(--text)}
+.outline{margin:2px 0 0;padding-left:20px}
+.outline li{margin-bottom:3px}
+.fold{margin-top:10px}
+.fold>summary{cursor:pointer;font-size:12.5px;color:var(--muted);list-style:none;padding:6px 0}
+.fold>summary::-webkit-details-marker{display:none}
+.fold>summary::before{content:"▸ ";color:var(--muted)}
+.fold[open]>summary::before{content:"▾ "}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.iconbtn{font-size:13px;padding:7px 12px;border-radius:9px;border:1px solid var(--line);background:var(--field);
+  color:var(--text);cursor:pointer;min-height:34px}
+.iconbtn:hover{border-color:var(--acc-line);color:var(--acc)}
+.iconbtn.danger:hover{border-color:#E8A9A0;color:var(--err)}
+
+.pk-sec{border-left:2px solid var(--acc-line);padding:2px 0 2px 12px;margin-top:12px}
+.pk-h{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:4px}
+.pk-ul{margin:0;padding-left:18px;font-size:13.5px;line-height:1.8;color:#4A5866}
+.pk-ul li{margin-bottom:3px}
+.tbtn{display:block;width:100%;text-align:left;background:var(--field);border:1px solid var(--line);
+  border-radius:10px;padding:9px 12px;font-size:13.5px;color:var(--text);cursor:pointer;margin-top:6px}
+.tbtn:hover{border-color:var(--acc-line)}
+.series{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.series-item{display:flex;align-items:center;gap:8px;background:var(--field);border:1px solid var(--line);
+  border-radius:10px;padding:7px 10px;font-size:13.5px}
+.series-item span{flex:1;min-width:0}
+.series-item .iconbtn{flex:0 0 auto}
+
+.mine-item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;
+  box-shadow:var(--sh);margin-top:10px}
+.mine-t{font-size:14.5px;font-weight:600;color:var(--ink);line-height:1.55}
+.mine-m{font-size:12px;color:var(--muted);margin-top:5px;display:flex;flex-wrap:wrap;gap:8px}
+.empty{text-align:center;padding:26px 12px;color:var(--muted);font-size:13.5px;line-height:1.9}
+.empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:6px}
+
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:50;
+  background:var(--tip-bg);color:var(--tip-ink);font-size:13.5px;padding:9px 16px;border-radius:999px;
+  opacity:0;pointer-events:none;transition:opacity .2s ease;max-width:86vw;text-align:center}
+.toast.on{opacity:1}
+
+@media (min-width:640px){
+  .wrap,.topbar-in{padding-left:24px;padding-right:24px}
+  .card{padding:20px 22px}
+}
+
+html[data-theme="dark"]{
+  --acc:#FFB454; --acc-d:#FFCB84; --acc-l:#2A2114; --acc-line:#4A3A22;
+  --ink:#E8ECF8; --text:#C2CBDE; --muted:#8593A9;
+  --bg:#0E1119; --card:#161B26; --line:#272E3D;
+  --ok:#7CC79E; --ok-l:#152A20;
+  --warn:#E0A868; --warn-l:#2B2113;
+  --sh:0 1px 2px rgba(0,0,0,.3), 0 10px 24px -14px rgba(0,0,0,.5);
+  --bg-blur:rgba(14,17,25,.92); --field:#131822; --soft:#1C2231;
+  --err:#FF9B8F; --disabled:#3A4356;
+  --spin-track:#39415A; --tip-bg:rgba(232,238,248,.96); --tip-ink:#0E1119;
+  --focus-ring:0 0 0 3px rgba(255,180,84,.18);
+  color-scheme:dark;
+}
+/* 深色下主按钮是浅底，文字反过来用深色 */
+html[data-theme="dark"] .btn.primary,html[data-theme="dark"] .btn.primary:active{color:#0E1119}
+html[data-theme="dark"] .line,html[data-theme="dark"] .pk-ul{color:var(--text)}
+html[data-theme="dark"] .badge.b-ok{border-color:rgba(124,199,158,.3)}
+html[data-theme="dark"] .badge.b-warn{border-color:rgba(224,168,104,.3)}
+html[data-theme="dark"] .iconbtn.danger:hover{border-color:#7A3A38}
+
+/* 动态粒子背景铺在内容背后，底色由 html 出（body 已被置为透明） */
+html{background-color:var(--bg);background-image:
+  radial-gradient(1100px 520px at 12% -10%, var(--tb-page-glow-1), transparent 60%),
+  radial-gradient(900px 480px at 105% 0%, var(--tb-page-glow-2), transparent 55%),
+  radial-gradient(760px 620px at 50% 118%, var(--tb-page-glow-3), transparent 60%);
+  background-attachment:fixed}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div>
+      <div class="ttl">写作选题</div>
+      <div class="sub">没灵感也能开始</div>
+    </div>
+    <a class="back" href="/">← 返回工具箱</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="card">
+    <div class="card-h">给我一点线索</div>
+    <div class="card-sub">想到什么写什么。写不出来就空着，直接点按钮。</div>
+    <label class="f">我正在做 / 关心的事</label>
+    <textarea id="seed" placeholder="例：在做一个内部工具，天天被同事问同样的问题"></textarea>
+    <label class="f">想写给谁看</label>
+    <input type="text" id="audience" placeholder="例：刚入行的产品经理">
+    <label class="f">最近让我有反应的一件事</label>
+    <textarea id="trigger" placeholder="例：会上提的方案被否了，理由只有一句「不太合适」" style="min-height:64px"></textarea>
+    <label class="f">体裁（可多选，不选就都行）</label>
+    <div class="chips" id="forms"></div>
+    <label class="f">味道（可多选，不选就都行）</label>
+    <div class="chips" id="flavors"></div>
+    <label class="f">出几个</label>
+    <div class="chips" id="nums">
+      <button class="chip" type="button" data-n="6">6 个</button>
+      <button class="chip on" type="button" data-n="8">8 个</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn primary" id="go">给我一批选题</button>
+      <button class="btn ghost" id="clear">清空</button>
+    </div>
+    <div class="note" id="note"></div>
+  </div>
+
+  <div class="card" id="hintCard">
+    <div class="card-h">没头绪就先挑一句</div>
+    <div class="chips" id="hints"></div>
+  </div>
+
+  <div id="listWrap"></div>
+  <div id="packWrap"></div>
+  <div id="mineWrap"></div>
+</main>
+
+<div class="toast" id="toast"></div>
+<script>(function(){
+'use strict';
+
+var BASE = '';
+var K_DRAFT = 'wr_draft', K_SAVED = 'wr_saved';
+
+var FORMS = [
+  { k:'wechat',      l:'公众号长文', i:'📰' },
+  { k:'xiaohongshu', l:'小红书',     i:'📕' },
+  { k:'tech',        l:'技术博客',   i:'🧩' },
+  { k:'zhihu',       l:'知乎回答',   i:'💬' },
+  { k:'note',        l:'短评 / 朋友圈', i:'💭' },
+  { k:'review',      l:'复盘',       i:'🔁' },
+  { k:'email',       l:'邮件 / 汇报', i:'✉️' },
+  { k:'newsletter',  l:'周报 / Newsletter', i:'📮' }
+];
+var FLAVORS = [
+  { k:'contrarian', l:'反常识' },
+  { k:'story',      l:'讲故事' },
+  { k:'howto',      l:'干货方法' },
+  { k:'rant',       l:'吐槽' },
+  { k:'reflect',    l:'反思' },
+  { k:'data',       l:'用数据说话' },
+  { k:'explain',    l:'讲清一件事' },
+  { k:'warm',       l:'温柔陪伴' }
+];
+var HINTS = [
+  { f:'trigger', t:'一次返工' },
+  { f:'trigger', t:'我以为很简单、结果很麻烦的一个任务' },
+  { f:'seed',    t:'一件我每天都在重复做的小事' },
+  { f:'seed',    t:'带新人 / 被新人问住的时候' },
+  { f:'audience',t:'跟我在同一个坑里的人' },
+  { f:'audience',t:'一年前的我自己' }
+];
+var FIELD_LABEL = { seed:'我正在做 / 关心的事', audience:'想写给谁看', trigger:'最近让我有反应的一件事' };
+
+var state = {
+  forms: [], flavors: [], n: 8,
+  ideas: [], source: '', pack: null, packIdea: null, busy: false
+};
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function store(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function load(k, fb){ try{ var v = localStorage.getItem(k); return v===null? fb : JSON.parse(v); }catch(e){ return fb; } }
+
+var toastTimer = null;
+function toast(msg){
+  var t = $('toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove('on'); }, 1800);
+}
+function setNote(html, isErr){
+  var n = $('note');
+  n.className = 'note' + (isErr ? ' err' : '');
+  n.innerHTML = html || '';
+}
+function stamp(){
+  var d = new Date(), p = function(x){ return (x<10?'0':'')+x; };
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+
+/* ---------- 输入区 ---------- */
+function chipHTML(list, kind){
+  return list.map(function(x){
+    var on = state[kind].indexOf(x.k) >= 0;
+    return '<button class="chip'+(on?' on':'')+'" type="button" data-'+kind+'="'+x.k+'">'+
+      (x.i ? '<span>'+x.i+'</span>' : '') + esc(x.l) + '</button>';
+  }).join('');
+}
+function renderChips(){
+  $('forms').innerHTML = chipHTML(FORMS, 'forms');
+  $('flavors').innerHTML = chipHTML(FLAVORS, 'flavors');
+  $('hints').innerHTML = HINTS.map(function(h, i){
+    return '<button class="chip" type="button" data-hint="'+i+'">「'+esc(h.t)+'」</button>';
+  }).join('');
+  Array.prototype.forEach.call(document.querySelectorAll('[data-forms]'), function(b){
+    b.onclick = function(){
+      var k = b.getAttribute('data-forms'), i = state.forms.indexOf(k);
+      if(i>=0) state.forms.splice(i,1); else state.forms.push(k);
+      renderChips(); saveDraft();
+    };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-flavors]'), function(b){
+    b.onclick = function(){
+      var k = b.getAttribute('data-flavors'), i = state.flavors.indexOf(k);
+      if(i>=0) state.flavors.splice(i,1); else state.flavors.push(k);
+      renderChips(); saveDraft();
+    };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-hint]'), function(b){
+    b.onclick = function(){
+      var h = HINTS[+b.getAttribute('data-hint')];
+      var el = $(h.f);
+      el.value = el.value.trim() ? (el.value.replace(/\s+$/,'') + '；' + h.t) : h.t;
+      el.focus(); saveDraft();
+      toast('已填进「' + FIELD_LABEL[h.f] + '」');
+    };
+  });
+}
+function renderNums(){
+  Array.prototype.forEach.call(document.querySelectorAll('#nums .chip'), function(b){
+    b.classList.toggle('on', +b.getAttribute('data-n') === state.n);
+    b.onclick = function(){ state.n = +b.getAttribute('data-n'); renderNums(); saveDraft(); };
+  });
+}
+function saveDraft(){
+  store(K_DRAFT, {
+    seed: $('seed').value, audience: $('audience').value, trigger: $('trigger').value,
+    forms: state.forms, flavors: state.flavors, n: state.n
+  });
+}
+function loadDraft(){
+  var d = load(K_DRAFT, null);
+  if(!d) return;
+  $('seed').value = d.seed || '';
+  $('audience').value = d.audience || '';
+  $('trigger').value = d.trigger || '';
+  state.forms = d.forms || [];
+  state.flavors = d.flavors || [];
+  state.n = d.n === 6 ? 6 : 8;
+}
+function collect(){
+  return {
+    seed: $('seed').value.trim(),
+    audience: $('audience').value.trim(),
+    trigger: $('trigger').value.trim(),
+    forms: state.forms, flavors: state.flavors, n: state.n
+  };
+}
+
+/* ---------- 出题 ---------- */
+function ask(extra){
+  if(state.busy) return;
+  state.busy = true;
+  $('go').disabled = true;
+  setNote('<span class="spin"></span> 正在找选题…');
+  var body = collect();
+  body.exclude = (extra && extra.exclude) || [];
+  fetch(BASE + '/writing-ideas/api/ideas', {
+    method:'POST', headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify(body)
+  }).then(function(r){
+    var ct = r.headers.get('content-type') || '';
+    if(ct.indexOf('json') < 0) throw new Error('登录状态可能已失效，刷新页面重新登录');
+    return r.json();
+  }).then(function(d){
+    if(!d || !d.ok) throw new Error((d && (d.detail || d.message)) || '没生成出来，再试一次');
+    state.ideas = d.ideas || [];
+    state.source = d.source || '';
+    if(!state.ideas.length) throw new Error('这次没凑出选题，把线索写多一点再试');
+    $('hintCard').hidden = true;
+    renderIdeas();
+    setNote('');
+  }).catch(function(e){
+    setNote(esc(e && e.message ? e.message : '生成失败，再试一次'), true);
+  }).then(function(){
+    state.busy = false;
+    $('go').disabled = false;
+  });
+}
+
+function ideaCard(it, idx){
+  var lvl = it.level || '中等';
+  var cls = lvl === '好写' ? 'b-ok' : (lvl === '要下功夫' ? 'b-warn' : 'b-n');
+  var h = '<div class="idea up" style="animation-delay:' + (idx*40) + 'ms">' +
+    '<div class="idea-t">' + esc(it.title) + '</div>' +
+    '<div class="idea-claim">' + esc(it.claim) + '</div>' +
+    '<div class="meta">' +
+      (it.form ? '<span class="badge b-n">' + esc(it.form) + '</span>' : '') +
+      (it.flavor ? '<span class="badge b-n">' + esc(it.flavor) + '</span>' : '') +
+      '<span class="badge ' + cls + '">' + esc(lvl) + '</span>' +
+    '</div>';
+  if(it.angle) h += '<div class="line"><b>怎么切</b>' + esc(it.angle) + '</div>';
+  if(it.why_now) h += '<div class="line"><b>为什么值得写</b>' + esc(it.why_now) + '</div>';
+  if(it.hook) h += '<div class="line"><b>开头第一句</b><div class="hook">' + esc(it.hook) + '</div></div>';
+  var extra = '';
+  if(it.outline && it.outline.length){
+    extra += '<div class="line"><b>提纲</b><ol class="outline">' + it.outline.map(function(x){
+      return '<li>' + esc(x) + '</li>'; }).join('') + '</ol></div>';
+  }
+  if(it.material) extra += '<div class="line"><b>要补的素材</b>' + esc(it.material) + '</div>';
+  if(extra) h += '<details class="fold"><summary>提纲与素材</summary>' + extra + '</details>';
+  h += '<div class="actions">' +
+      '<button class="iconbtn" type="button" data-dev="' + idx + '">深挖成提纲</button>' +
+      '<button class="iconbtn" type="button" data-save="' + idx + '">收进我的选题</button>' +
+      '<button class="iconbtn" type="button" data-copy="' + idx + '">复制</button>' +
+    '</div></div>';
+  return h;
+}
+
+function renderIdeas(){
+  var w = $('listWrap');
+  if(!state.ideas.length){ w.innerHTML = ''; return; }
+  var src = state.source === 'recipe' ? ' <span class="badge b-n">内置配方</span>' : '';
+  w.innerHTML = '<div class="sec-head"><b>这 ' + state.ideas.length + ' 个方向' + src + '</b>' +
+    '<button class="btn sm" type="button" id="reroll">换一批</button></div>' +
+    state.ideas.map(ideaCard).join('');
+  $('reroll').onclick = function(){
+    ask({ exclude: state.ideas.map(function(x){ return x.title; }) });
+  };
+  Array.prototype.forEach.call(w.querySelectorAll('[data-dev]'), function(b){
+    b.onclick = function(){ develop(state.ideas[+b.getAttribute('data-dev')]); };
+  });
+  Array.prototype.forEach.call(w.querySelectorAll('[data-save]'), function(b){
+    b.onclick = function(){ saveIdea(state.ideas[+b.getAttribute('data-save')]); };
+  });
+  Array.prototype.forEach.call(w.querySelectorAll('[data-copy]'), function(b){
+    b.onclick = function(){ copyText(ideaMd(state.ideas[+b.getAttribute('data-copy')]), '选题已复制'); };
+  });
+}
+
+/* ---------- 深挖 ---------- */
+function develop(it){
+  if(!it || state.busy) return;
+  state.busy = true;
+  setNote('<span class="spin"></span> 正在拆成提纲…');
+  fetch(BASE + '/writing-ideas/api/develop', {
+    method:'POST', headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ idea: it, seed: $('seed').value.trim(),
+      audience: $('audience').value.trim(), trigger: $('trigger').value.trim(),
+      forms: state.forms, flavors: state.flavors })
+  }).then(function(r){
+    var ct = r.headers.get('content-type') || '';
+    if(ct.indexOf('json') < 0) throw new Error('登录状态可能已失效，刷新页面重新登录');
+    return r.json();
+  }).then(function(d){
+    if(!d || !d.ok) throw new Error((d && (d.detail || d.message)) || '没拆出来，再试一次');
+    state.pack = d.pack;
+    state.packIdea = it;
+    state.packSource = d.source || '';
+    renderPack();
+    setNote('');
+    var el = $('packWrap');
+    if(el && el.scrollIntoView) el.scrollIntoView({ behavior:'smooth', block:'start' });
+  }).catch(function(e){
+    setNote(esc(e && e.message ? e.message : '拆解失败，再试一次'), true);
+  }).then(function(){
+    state.busy = false;
+  });
+}
+
+function renderPack(){
+  var p = state.pack, it = state.packIdea || {};
+  var w = $('packWrap');
+  if(!p){ w.innerHTML = ''; return; }
+  var h = '<div class="card up" id="packCard">' +
+    '<div class="sec-head" style="margin:0 0 6px"><b>写作启动包</b>' +
+    '<button class="btn sm" type="button" id="closePack">收起</button></div>' +
+    '<div class="idea-t">' + esc(it.title || '') + '</div>' +
+    (it.claim ? '<div class="idea-claim">' + esc(it.claim) + '</div>' : '');
+  if(p.audience) h += '<div class="pk-sec"><div class="pk-h">写给谁</div><div class="pk-ul">' + esc(p.audience) + '</div></div>';
+  if(p.titles && p.titles.length){
+    h += '<div class="pk-sec"><div class="pk-h">备选标题 · 点一下复制</div>' +
+      p.titles.map(function(t){ return '<button class="tbtn" type="button" data-tt="' + esc(t) + '">' + esc(t) + '</button>'; }).join('') +
+    '</div>';
+  }
+  if(p.outline && p.outline.length){
+    h += '<div class="pk-sec"><div class="pk-h">结构</div>' + p.outline.map(function(s, i){
+      return '<div style="margin-top:8px"><div style="font-size:13.5px;font-weight:600;color:var(--ink)">' +
+        (i+1) + '. ' + esc(s.h) + '</div>' +
+        '<ul class="pk-ul">' + (s.points||[]).map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
+    }).join('') + '</div>';
+  }
+  if(p.evidence && p.evidence.length){
+    h += '<div class="pk-sec"><div class="pk-h">要准备的证据</div><ul class="pk-ul">' +
+      p.evidence.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
+  }
+  if(p.objections && p.objections.length){
+    h += '<div class="pk-sec"><div class="pk-h">可能被反驳</div><ul class="pk-ul">' +
+      p.objections.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
+  }
+  if(p.ending) h += '<div class="pk-sec"><div class="pk-h">结尾怎么收</div><div class="pk-ul">' + esc(p.ending) + '</div></div>';
+  if(p.series && p.series.length){
+    h += '<div class="pk-sec"><div class="pk-h">还能往下写</div><div class="series">' +
+      p.series.map(function(x){
+        return '<div class="series-item"><span>' + esc(x) + '</span>' +
+          '<button class="iconbtn" type="button" data-more="' + esc(x) + '">再出一批</button></div>';
+      }).join('') + '</div></div>';
+  }
+  h += '<div class="actions">' +
+      '<button class="iconbtn" type="button" id="copyPack">复制全文</button>' +
+      '<button class="iconbtn" type="button" id="dlPack">下载 .md</button>' +
+      '<button class="iconbtn" type="button" id="savePack">收进我的选题</button>' +
+    '</div></div>';
+  w.innerHTML = h;
+
+  $('closePack').onclick = function(){ state.pack = null; renderPack(); };
+  $('copyPack').onclick = function(){ copyText(packMd(p, it), '启动包已复制'); };
+  $('dlPack').onclick = function(){ download('选题-' + (it.title || '未命名') + '.md', packMd(p, it)); };
+  $('savePack').onclick = function(){ saveIdea(it, p); };
+  Array.prototype.forEach.call(w.querySelectorAll('[data-tt]'), function(b){
+    b.onclick = function(){ copyText(b.getAttribute('data-tt'), '标题已复制'); };
+  });
+  Array.prototype.forEach.call(w.querySelectorAll('[data-more]'), function(b){
+    b.onclick = function(){
+      $('seed').value = b.getAttribute('data-more');
+      saveDraft();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      ask({ exclude: state.ideas.map(function(x){ return x.title; }) });
+    };
+  });
+}
+
+/* ---------- 我的选题 ---------- */
+function saveIdea(it, pack){
+  if(!it || !it.title) return;
+  var recs = load(K_SAVED, []);
+  var has = recs.filter(function(r){ return r.title === it.title; })[0];
+  if(has){
+    if(pack){ has.pack = pack; store(K_SAVED, recs); renderMine(); toast('已把启动包存进这条'); return; }
+    toast('这条已经在里面了');
+    return;
+  }
+  recs.unshift({
+    id:'w' + Date.now(), at: stamp(),
+    title: it.title, claim: it.claim || '', angle: it.angle || '',
+    form: it.form || '', flavor: it.flavor || '', level: it.level || '',
+    outline: it.outline || [], hook: it.hook || '', material: it.material || '',
+    pack: pack || null
+  });
+  store(K_SAVED, recs.slice(0, 200));
+  renderMine();
+  toast('已收进我的选题');
+}
+
+function renderMine(){
+  var recs = load(K_SAVED, []);
+  var w = $('mineWrap');
+  if(!recs.length){ w.innerHTML = ''; return; }
+  w.innerHTML = '<div class="sec-head"><b>我的选题（' + recs.length + '）</b>' +
+      '<button class="btn sm" type="button" id="dlAll">下载全部 .md</button></div>' +
+    recs.map(function(r, i){
+      return '<div class="mine-item">' +
+        '<div class="mine-t">' + esc(r.title) + '</div>' +
+        (r.claim ? '<div class="line" style="margin-top:4px">' + esc(r.claim) + '</div>' : '') +
+        '<div class="mine-m">' +
+          (r.form ? '<span>' + esc(r.form) + '</span>' : '') +
+          (r.flavor ? '<span>' + esc(r.flavor) + '</span>' : '') +
+          (r.angle ? '<span>' + esc(r.angle) + '</span>' : '') +
+          '<span>' + esc(r.at) + '</span>' +
+          (r.pack ? '<span class="badge b-ok">有启动包</span>' : '') +
+        '</div>' +
+        '<div class="actions">' +
+          '<button class="iconbtn" type="button" data-sdev="' + i + '">' + (r.pack ? '看启动包' : '深挖成提纲') + '</button>' +
+          '<button class="iconbtn" type="button" data-scopy="' + i + '">复制</button>' +
+          '<button class="iconbtn danger" type="button" data-sdel="' + i + '">删除</button>' +
+        '</div></div>';
+    }).join('') +
+    '<div class="btn-row"><button class="btn" type="button" id="clearAll">清空我的选题</button></div>';
+
+  $('dlAll').onclick = function(){
+    download('我的选题-' + stamp().slice(0,10) + '.md', recs.map(function(r){
+      return ideaMd(r) + (r.pack ? '\n\n' + packMd(r.pack, r) : '');
+    }).join('\n\n---\n\n'));
+  };
+  $('clearAll').onclick = function(){
+    if(!confirm('清空「我的选题」？已经复制和下载的不受影响。')) return;
+    store(K_SAVED, []);
+    renderMine();
+    toast('已清空');
+  };
+  Array.prototype.forEach.call(w.querySelectorAll('[data-sdev]'), function(b){
+    b.onclick = function(){
+      var r = recs[+b.getAttribute('data-sdev')];
+      if(r.pack){ state.pack = r.pack; state.packIdea = r; renderPack();
+        $('packWrap').scrollIntoView({ behavior:'smooth', block:'start' }); return; }
+      develop(r);
+    };
+  });
+  Array.prototype.forEach.call(w.querySelectorAll('[data-scopy]'), function(b){
+    b.onclick = function(){
+      var r = recs[+b.getAttribute('data-scopy')];
+      copyText(ideaMd(r) + (r.pack ? '\n\n' + packMd(r.pack, r) : ''), '已复制');
+    };
+  });
+  Array.prototype.forEach.call(w.querySelectorAll('[data-sdel]'), function(b){
+    b.onclick = function(){
+      var r = recs[+b.getAttribute('data-sdel')];
+      store(K_SAVED, load(K_SAVED, []).filter(function(x){ return x.id !== r.id; }));
+      renderMine();
+      toast('已删除');
+    };
+  });
+}
+
+/* ---------- 文本输出 ---------- */
+function ideaMd(it){
+  var L = ['## ' + (it.title || '')];
+  if(it.claim) L.push('', '**核心观点**：' + it.claim);
+  if(it.angle) L.push('', '**怎么切**：' + it.angle);
+  if(it.form) L.push('', '**体裁**：' + it.form);
+  if(it.hook) L.push('', '**开头第一句**：' + it.hook);
+  if(it.outline && it.outline.length){
+    L.push('', '**提纲**');
+    it.outline.forEach(function(x, i){ L.push((i+1) + '. ' + x); });
+  }
+  if(it.material) L.push('', '**要补的素材**：' + it.material);
+  return L.join('\n');
+}
+function packMd(p, it){
+  var L = ['# ' + ((it && it.title) || '写作启动包')];
+  if(it && it.claim) L.push('', '> ' + it.claim);
+  if(p.audience) L.push('', '**写给谁**：' + p.audience);
+  if(p.titles && p.titles.length){
+    L.push('', '**备选标题**');
+    p.titles.forEach(function(t, i){ L.push((i+1) + '. ' + t); });
+  }
+  if(p.outline && p.outline.length){
+    L.push('', '**结构**');
+    p.outline.forEach(function(s, i){
+      L.push('', (i+1) + '. ' + s.h);
+      (s.points || []).forEach(function(x){ L.push('   - ' + x); });
+    });
+  }
+  if(p.evidence && p.evidence.length){
+    L.push('', '**要准备的证据**');
+    p.evidence.forEach(function(x){ L.push('- ' + x); });
+  }
+  if(p.objections && p.objections.length){
+    L.push('', '**可能被反驳**');
+    p.objections.forEach(function(x){ L.push('- ' + x); });
+  }
+  if(p.ending) L.push('', '**结尾怎么收**：' + p.ending);
+  if(p.series && p.series.length){
+    L.push('', '**还能往下写**');
+    p.series.forEach(function(x){ L.push('- ' + x); });
+  }
+  return L.join('\n');
+}
+function copyText(text, msg){
+  function fallback(){
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.top = '-1000px';
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand('copy'); toast(msg || '已复制'); }
+    catch(e){ toast('复制失败，手动选中再复制'); }
+    ta.remove();
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ toast(msg || '已复制'); }, fallback);
+  } else { fallback(); }
+}
+function download(name, text){
+  try{
+    var blob = new Blob([text], { type:'text/markdown;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 600);
+  }catch(e){ toast('这台浏览器不支持直接下载'); }
+}
+
+/* ---------- 绑定 ---------- */
+$('go').onclick = function(){ ask(); };
+$('clear').onclick = function(){
+  $('seed').value = ''; $('audience').value = ''; $('trigger').value = '';
+  state.forms = []; state.flavors = [];
+  saveDraft(); renderChips();
+  setNote('');
+  toast('已清空');
+};
+['seed','audience','trigger'].forEach(function(id){
+  $(id).addEventListener('input', saveDraft);
+});
+$('seed').addEventListener('keydown', function(e){
+  if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)) ask();
+});
+
+loadDraft();
+renderChips();
+renderNums();
+renderMine();
+
+})();
+</script>
+</body>
+</html>
