@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0E7490">
+<title>ECS SSH 管理</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<style>
+:root{
+  --acc:#0E7490; --acc-d:#0B5C73; --acc-l:#EAF6F9; --acc-line:#BFE0E8;
+  --ink:#1F2A37; --text:#3B4859; --muted:#8492A3;
+  --bg:#F5F7F8; --card:#FFFFFF; --line:#E4E9EC;
+  --ok:#3F7A5B; --ok-l:#EDF6F1; --ok-line:#CBE3D8;
+  --warn:#9E6A2C; --warn-l:#FBF3E8; --warn-line:#EBD7B8;
+  --danger:#B23A52; --danger-l:#FBEDF0; --danger-line:#EFC9D2;
+  --r:16px;
+  --sh:0 1px 2px rgba(16,24,40,.04), 0 10px 24px -14px rgba(16,24,40,.18);
+  --bg-blur:rgba(245,247,248,.92); --field:#FFFFFF; --soft:#F1F4F6;
+  --term-bg:#0C1522; --term-ink:#D8E6F2; --term-dim:#7E93A8; --term-line:#1E2B3D;
+  --err:#C0392B; --disabled:#C3CBCF;
+  --spin-track:#D5DEE3; --tip-bg:rgba(31,42,55,.94); --tip-ink:#FFFFFF;
+  --focus-ring:0 0 0 3px rgba(14,116,144,.12);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:transparent; color:var(--text);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased;
+}
+button,input,textarea{font-family:inherit;font-size:15px;color:inherit}
+h1,h2,h3{margin:0;font-weight:600;color:var(--ink)}
+p{margin:0}
+.wrap{max-width:860px;margin:0 auto;padding:0 16px calc(48px + env(safe-area-inset-bottom))}
+code,pre,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace}
+
+.topbar{position:sticky;top:0;z-index:20;background:var(--bg-blur);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:860px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px}
+.ttl{font-size:17px;font-weight:600;color:var(--ink);line-height:1.3}
+.sub{font-size:12px;color:var(--muted);line-height:1.4;margin-top:2px}
+.back{margin-left:auto;flex:0 0 auto;font-size:13px;color:var(--muted);text-decoration:none;
+  border:1px solid var(--line);background:var(--field);border-radius:999px;padding:8px 14px;white-space:nowrap}
+.back:hover{color:var(--ink);border-color:var(--acc-line)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;
+  box-shadow:var(--sh);margin-top:14px}
+.card-h{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.card-sub{font-size:12.5px;color:var(--muted);line-height:1.6}
+.sec-t{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.02em;margin:20px 2px 8px}
+.sec-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:22px 2px 8px}
+.sec-head b{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+
+label.f{display:block;font-size:12.5px;color:var(--muted);margin:14px 0 6px}
+input[type=text],input[type=password],input[type=number],textarea{width:100%;border:1px solid var(--line);
+  border-radius:12px;padding:11px 12px;background:var(--field);outline:none;font-size:15px;line-height:1.6}
+textarea{min-height:70px;resize:vertical}
+input:focus,textarea:focus{border-color:var(--acc-line);box-shadow:var(--focus-ring)}
+.grid3{display:grid;grid-template-columns:1.6fr .8fr 1fr;gap:10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:560px){.grid3,.grid2{grid-template-columns:1fr}}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.chip{min-height:38px;padding:0 13px;border-radius:999px;border:1px solid var(--line);background:var(--field);
+  color:var(--text);font-size:13.5px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.chip.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc);font-weight:600}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:0 18px;
+  border-radius:12px;border:1px solid var(--line);background:var(--field);color:var(--text);font-size:15px;cursor:pointer}
+.btn:active{background:var(--soft)}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.primary:active{background:var(--acc-d)}
+.btn.primary:disabled{background:var(--disabled);border-color:var(--disabled);cursor:not-allowed}
+.btn.danger{border-color:var(--danger-line);color:var(--danger);background:var(--danger-l)}
+.btn.ghost{background:var(--field)}
+.btn.block{width:100%}
+.btn.sm{min-height:36px;padding:0 13px;font-size:13.5px;border-radius:10px}
+.btn-row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.btn-row .btn{flex:1 1 140px}
+
+.note{font-size:12.5px;color:var(--muted);margin-top:10px;min-height:18px}
+.note.err{color:var(--err)}
+.note.ok{color:var(--ok)}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--spin-track);border-top-color:var(--acc);
+  border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.up{animation:up .28s ease-out both}
+@media (prefers-reduced-motion:reduce){.up,.spin{animation:none}}
+
+.badge{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:11.5px;
+  line-height:1.8;background:var(--soft);color:var(--muted);border:1px solid var(--line);white-space:nowrap}
+.badge.b-acc{background:var(--acc-l);color:var(--acc);border-color:var(--acc-line)}
+.badge.b-ok{background:var(--ok-l);color:var(--ok);border-color:var(--ok-line)}
+.badge.b-warn{background:var(--warn-l);color:var(--warn);border-color:var(--warn-line)}
+.badge.b-danger{background:var(--danger-l);color:var(--danger);border-color:var(--danger-line)}
+
+.status{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.status .grow{flex:1 1 auto}
+.status .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px var(--ok-l)}
+.status .who{font-weight:600;color:var(--ink);font-size:14.5px}
+
+.fpbox{border:1px solid var(--acc-line);background:var(--acc-l);border-radius:14px;padding:14px;margin-top:14px}
+.fpbox.warn{border-color:var(--danger-line);background:var(--danger-l)}
+.fpbox .fp-h{font-size:14.5px;font-weight:600;color:var(--ink);margin-bottom:4px}
+.fpbox .fp-sub{font-size:12.5px;color:var(--text);line-height:1.7}
+.fp{margin-top:10px;font-size:13px;line-height:1.7;word-break:break-all;background:var(--field);
+  border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--ink)}
+.fp-meta{font-size:12px;color:var(--muted);margin-top:6px}
+
+.step{border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-top:10px;background:var(--field)}
+.step.blocked{border-color:var(--danger-line);background:var(--danger-l)}
+.step-top{display:flex;align-items:flex-start;gap:9px;flex-wrap:wrap}
+.step-top input[type=checkbox]{width:17px;height:17px;margin:3px 0 0;flex:0 0 auto;accent-color:var(--acc)}
+.cmd{flex:1 1 220px;min-width:0;word-break:break-all;font-size:13px;line-height:1.65;color:var(--ink);
+  background:var(--soft);border-radius:8px;padding:6px 9px}
+.step-why{font-size:12.5px;color:var(--muted);line-height:1.65;margin-top:7px}
+.step-act{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+
+.term{background:var(--term-bg);color:var(--term-ink);border-radius:12px;padding:11px 13px;margin:0;
+  font-size:12.5px;line-height:1.65;white-space:pre-wrap;word-break:break-word;overflow:auto;max-height:420px}
+.term.err{color:#FFB4B4;margin-top:6px;max-height:220px}
+.out-item{border:1px solid var(--line);border-radius:14px;background:var(--card);padding:12px;margin-top:10px;
+  box-shadow:var(--sh)}
+.out-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.out-h .cmd{background:transparent;padding:0;font-size:13px;color:var(--ink);flex:1 1 100%}
+.out-h .meta{font-size:11.5px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+.riskbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.empty{text-align:center;padding:22px 12px;color:var(--muted);font-size:13.5px;line-height:1.9}
+.mini{font-size:11.5px;color:var(--muted)}
+.hr{height:1px;background:var(--line);margin:12px 0}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:50;
+  background:var(--tip-bg);color:var(--tip-ink);font-size:13.5px;padding:9px 16px;border-radius:999px;
+  opacity:0;pointer-events:none;transition:opacity .2s ease;max-width:86vw;text-align:center}
+.toast.on{opacity:1}
+@media (min-width:640px){
+  .wrap,.topbar-in{padding-left:24px;padding-right:24px}
+  .card{padding:20px 22px}
+}
+
+html[data-theme="dark"]{
+  --acc:#38BDF8; --acc-d:#7DD3FC; --acc-l:#10222E; --acc-line:#244A5E;
+  --ink:#E8ECF8; --text:#C2CBDE; --muted:#8593A9;
+  --bg:#0E1119; --card:#161B26; --line:#272E3D;
+  --ok:#7CC79E; --ok-l:#152A20; --ok-line:#2C4A3A;
+  --warn:#E0A868; --warn-l:#2B2113; --warn-line:#4A3A22;
+  --danger:#FF9B8F; --danger-l:#2C1618; --danger-line:#5A2A2E;
+  --sh:0 1px 2px rgba(0,0,0,.3), 0 10px 24px -14px rgba(0,0,0,.5);
+  --bg-blur:rgba(14,17,25,.92); --field:#131822; --soft:#1C2231;
+  --term-bg:#080D16; --term-ink:#D8E6F2; --term-dim:#6F8298; --term-line:#1B2534;
+  --err:#FF9B8F; --disabled:#3A4356;
+  --spin-track:#39415A; --tip-bg:rgba(232,238,248,.96); --tip-ink:#0E1119;
+  --focus-ring:0 0 0 3px rgba(56,189,248,.18);
+  color-scheme:dark;
+}
+html[data-theme="dark"] .btn.primary,html[data-theme="dark"] .btn.primary:active{color:#0E1119}
+html[data-theme="dark"] .step .cmd,html[data-theme="dark"] .out-h .cmd{background:transparent}
+html[data-theme="dark"] .step .cmd{background:var(--soft)}
+
+/* 动态粒子背景铺在内容背后，底色由 html 出（body 已被置为透明） */
+html{background-color:var(--bg);background-image:
+  radial-gradient(1100px 520px at 12% -10%, var(--tb-page-glow-1), transparent 60%),
+  radial-gradient(900px 480px at 105% 0%, var(--tb-page-glow-2), transparent 55%),
+  radial-gradient(760px 620px at 50% 118%, var(--tb-page-glow-3), transparent 60%);
+  background-attachment:fixed}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div>
+      <div class="ttl">ECS SSH 管理</div>
+      <div class="sub">AI 出方案，你点执行</div>
+    </div>
+    <a class="back" href="/">← 返回工具箱</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="card" id="connCard">
+    <div class="card-h">连接服务器</div>
+    <div class="card-sub">凭据只存在服务端内存里，断开就没了；不写盘、不回传、页面也不存。刷新本页即断开。</div>
+
+<div class="grid3" style="margin-top:12px">
+      <div>
+        <label class="f">主机 IP / 域名</label>
+        <input type="text" id="host" placeholder="47.98.x.x" autocomplete="off" spellcheck="false">
+      </div>
+      <div>
+        <label class="f">端口</label>
+        <input type="number" id="port" value="22" min="1" max="65535">
+      </div>
+      <div>
+        <label class="f">用户名</label>
+        <input type="text" id="user" value="root" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+
+<label class="f">认证方式</label>
+    <div class="chips" id="authChips"></div>
+
+<div id="pwBox">
+      <label class="f">密码</label>
+      <input type="password" id="password" autocomplete="new-password">
+    </div>
+
+<div id="keyBox" hidden>
+      <label class="f">私钥内容（整段贴进来）</label>
+      <textarea id="key" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" spellcheck="false"></textarea>
+      <label class="f">私钥口令（没有就留空）</label>
+      <input type="password" id="passphrase" autocomplete="new-password">
+    </div>
+
+<div id="keyfileBox" hidden>
+      <label class="f">本机密钥文件路径（私钥不出本机，推荐）</label>
+      <input type="text" id="keyfile" placeholder="~/.ssh/id_ed25519" spellcheck="false">
+    </div>
+
+<label class="f">会话设置</label>
+    <div class="chips">
+      <button type="button" class="chip on" id="roChip">只读模式 · 开</button>
+      <button type="button" class="chip" id="sudoChip">允许 sudo · 关</button>
+      <button type="button" class="chip" id="toChip">命令超时 · 30s</button>
+    </div>
+    <div class="mini" style="margin-top:8px">只读模式是一道护栏（白名单 + 拒绝重定向），不是沙箱。真正的边界是你点执行前看一眼命令。</div>
+
+<div class="btn-row">
+      <button class="btn primary" id="connBtn">连接</button>
+      <button class="btn ghost" id="resetBtn">清空</button>
+    </div>
+    <div class="note" id="connNote"></div>
+    <div id="trustBox"></div>
+  </section>
+
+<section id="liveBox" hidden>
+    <div class="card">
+      <div class="status" id="statusBar"></div>
+    </div>
+
+<div class="card">
+      <div class="card-h">AI 助手</div>
+      <div class="card-sub">说你要干什么。它只出命令清单，执行与否由你决定。</div>
+      <div class="chips" id="aiPresets" style="margin-top:10px"></div>
+      <textarea id="aiPrompt" style="margin-top:10px" placeholder="例：磁盘好像满了，帮我看看是哪儿的锅"></textarea>
+      <div class="btn-row"><button class="btn primary" id="aiBtn">让 AI 出方案</button></div>
+      <div class="note" id="aiNote"></div>
+      <div id="aiPlan"></div>
+    </div>
+
+<div class="card">
+      <div class="card-h">手动执行</div>
+      <div class="chips" id="quickCmds" style="margin-top:10px"></div>
+      <div class="btn-row" style="align-items:stretch">
+        <input type="text" id="cmd" placeholder="ls -la /var/log" style="flex:1 1 260px" spellcheck="false">
+        <button class="btn primary" id="runBtn" style="flex:0 0 auto;min-width:96px">执行</button>
+      </div>
+      <div class="note" id="cmdNote"></div>
+    </div>
+
+<div class="sec-head"><b>输出（本次会话）</b><button class="btn sm" id="clearOut">清屏</button></div>
+    <div id="outWrap"></div>
+    <div class="card" id="auditCard">
+      <div class="card-sub" id="auditText"></div>
+      <div class="btn-row"><button class="btn danger" id="discBtn">断开连接</button></div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+<script>(function(){
+'use strict';
+
+var AUTH = [
+  { k:'keyfile',  l:'本机密钥文件', i:'🔑' },
+  { k:'password', l:'密码',        i:'🔒' },
+  { k:'key',      l:'粘贴私钥',    i:'📄' }
+];
+var PRESETS = [
+  '磁盘好像满了，帮我看看是哪儿的锅',
+  '内存和负载正不正常，谁在吃资源',
+  '这个服务起不来，帮我排查一下',
+  '端口通不通，防火墙有没有拦',
+  '看看最近的登录记录，有没有可疑的',
+  '这台机器还健康吗，给个体检清单'
+];
+var QUICK = [
+  'df -h', 'free -h', 'uptime', 'ps aux --sort=-%cpu | head -12', 'ss -lntp',
+  'systemctl --failed', 'journalctl -n 50 --no-pager', 'docker ps',
+  'du -sh /var/* 2>/dev/null | sort -h | tail -5', 'last -n 8'
+];
+
+var S = { token:'', auth:'keyfile', readonly:true, allowSudo:false, timeout:30, info:null, plan:[] };
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function post(path, body){
+  return fetch(path, {
+    method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body || {})
+  }).then(function(r){
+    var ct = r.headers.get('content-type') || '';
+    if(ct.indexOf('json') < 0) throw new Error('登录状态可能已失效，刷新页面重新登录');
+    return r.json();
+  });
+}
+var toastTimer = null;
+function toast(msg){
+  var t = $('toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove('on'); }, 1800);
+}
+function setNote(id, html, isErr, isOk){
+  var n = $(id);
+  n.className = 'note' + (isErr ? ' err' : (isOk ? ' ok' : ''));
+  n.innerHTML = html || '';
+}
+function levelBadge(level){
+  if(level === 'low')         return '<span class="badge b-ok">查看</span>';
+  if(level === 'high')        return '<span class="badge b-warn">会改状态</span>';
+  if(level === 'destructive') return '<span class="badge b-danger">破坏性</span>';
+  if(level === 'blocked')     return '<span class="badge b-danger">工具禁止</span>';
+  return '';
+}
+function copyText(text, msg){
+  function fallback(){
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.top = '-1000px';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); toast(msg || '已复制'); }catch(e){ toast('复制失败'); }
+    ta.remove();
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ toast(msg || '已复制'); }, fallback);
+  } else { fallback(); }
+}
+
+/* ---------- 连接表单 ---------- */
+function renderAuth(kind){
+  S.auth = kind;
+  $('authChips').innerHTML = AUTH.map(function(a){
+    return '<button type="button" class="chip' + (S.auth === a.k ? ' on' : '') + '" data-auth="' + a.k + '">' +
+      '<span>' + a.i + '</span>' + a.l + '</button>';
+  }).join('');
+  Array.prototype.forEach.call(document.querySelectorAll('[data-auth]'), function(b){
+    b.onclick = function(){ renderAuth(b.getAttribute('data-auth')); };
+  });
+  $('pwBox').hidden = S.auth !== 'password';
+  $('keyBox').hidden = S.auth !== 'key';
+  $('keyfileBox').hidden = S.auth !== 'keyfile';
+}
+function bindToggles(){
+  $('roChip').onclick = function(){
+    S.readonly = !S.readonly;
+    $('roChip').className = 'chip' + (S.readonly ? ' on' : '');
+    $('roChip').textContent = '只读模式 · ' + (S.readonly ? '开' : '关');
+    if(!S.readonly) toast('只读关闭：会改状态的命令需要你二次确认');
+  };
+  $('sudoChip').onclick = function(){
+    S.allowSudo = !S.allowSudo;
+    $('sudoChip').className = 'chip' + (S.allowSudo ? ' on' : '');
+    $('sudoChip').textContent = '允许 sudo · ' + (S.allowSudo ? '开' : '关');
+  };
+  $('toChip').onclick = function(){
+    var opts = [15, 30, 60, 120], i = opts.indexOf(S.timeout);
+    S.timeout = opts[(i + 1) % opts.length];
+    $('toChip').textContent = '命令超时 · ' + S.timeout + 's';
+  };
+}
+
+function connect(trustFp){
+  var body = {
+    host: $('host').value.trim(), port: +$('port').value || 22, user: $('user').value.trim() || 'root',
+    auth: S.auth, password: $('password').value, key: $('key').value,
+    passphrase: $('passphrase').value, keyfile: $('keyfile').value.trim(),
+    readonly: S.readonly, allow_sudo: S.allowSudo, timeout: S.timeout
+  };
+  if(!body.host){ setNote('connNote', '主机地址填一下', true); return Promise.resolve(); }
+  if(trustFp) body.trust_fingerprint = trustFp;
+  setNote('connNote', '<span class="spin"></span> 正在连接…');
+  $('connBtn').disabled = true;
+  return post('/ecs-ssh/api/connect', body).then(function(d){
+    if(!d.ok){
+      if(d.need_trust){ renderTrust(d); setNote('connNote', ''); return; }
+      setNote('connNote', esc(d.message || '连接失败'), true);
+      return;
+    }
+    onConnected(d);
+  }).catch(function(e){
+    setNote('connNote', esc(e && e.message ? e.message : '连接失败'), true);
+  }).then(function(){ $('connBtn').disabled = false; });
+}
+
+function renderTrust(d){
+  var changed = !!d.changed;
+  $('trustBox').innerHTML =
+    '<div class="fpbox' + (changed ? ' warn' : '') + '">' +
+      '<div class="fp-h">' + (changed ? '⚠ 主机密钥和上次记录的不一样' : '第一次连这台机器，先核对指纹') + '</div>' +
+      '<div class="fp-sub">' +
+        (changed
+          ? '这可能是对方重装了系统，也可能是有人在中间冒充。核对方法：去云控制台连一次终端，执行下面这条命令，把结果和这里比。'
+          : '指纹对不上就绝对不要继续。核对方法：在云控制台的远程连接里执行下面这条命令，把结果和这里比。') +
+        '<br><code>ssh-keygen -lf /etc/ssh/ssh_host_' + String(d.key_type || 'ed25519').replace('ssh-', '') + '_key.pub</code>' +
+      '</div>' +
+      '<div class="fp">' + esc(d.fingerprint) + '</div>' +
+      '<div class="fp-meta">' + esc(d.key_type || '') + ' · ' + esc(d.host) +
+        (changed && d.saved_fingerprint ? '<br>上次记录：' + esc(d.saved_fingerprint) : '') + '</div>' +
+      '<div class="btn-row">' +
+        '<button class="btn ' + (changed ? 'danger' : 'primary') + '" id="trustYes">' +
+          (changed ? '我知道风险，仍然信任并连接' : '一致，信任并连接') + '</button>' +
+        '<button class="btn ghost" id="trustNo">取消</button>' +
+      '</div>' +
+    '</div>';
+  $('trustYes').onclick = function(){ connect(d.fingerprint); };
+  $('trustNo').onclick = function(){ $('trustBox').innerHTML = ''; setNote('connNote', '已取消，没有连接'); };
+}
+
+function onConnected(d){
+  S.token = d.session;
+  S.readonly = !!d.readonly;
+  S.allowSudo = !!d.allow_sudo;
+  S.timeout = d.timeout || 30;
+  S.info = d;
+  S.count = 0;
+  $('password').value = ''; $('key').value = ''; $('passphrase').value = '';
+  $('trustBox').innerHTML = '';
+  $('connCard').hidden = true;
+  $('liveBox').hidden = false;
+  $('outWrap').innerHTML = '';
+  $('aiPlan').innerHTML = '';
+  renderStatus();
+  setNote('connNote', '');
+  toast('已连上 ' + d.host);
+}
+
+function renderStatus(){
+  var d = S.info || {};
+  var os = (d.os && (d.os.os || '')) || '';
+  if(os.length > 58) os = os.slice(0, 58) + '…';
+  $('statusBar').innerHTML =
+    '<span class="dot"></span>' +
+    '<span class="who">' + esc(d.user) + '@' + esc(d.host) + ':' + esc(d.port) + '</span>' +
+    (os ? '<span class="badge">' + esc(os) + '</span>' : '') +
+    '<button type="button" class="chip' + (S.readonly ? ' on' : '') + '" id="roLive">只读 · ' + (S.readonly ? '开' : '关') + '</button>' +
+    '<span class="badge">sudo · ' + (S.allowSudo ? '开' : '关') + '</span>' +
+    '<span class="badge">超时 ' + S.timeout + 's</span>' +
+    '<span class="badge">已执行 ' + (S.count || 0) + ' 条</span>' +
+    '<span class="grow"></span><button type="button" class="btn sm" id="discTop">断开</button>';
+  $('roLive').onclick = function(){
+    var v = !S.readonly;
+    post('/ecs-ssh/api/readonly', { session: S.token, readonly: v }).then(function(r){
+      if(!r.ok){ toast(r.message || '改不了'); return; }
+      S.readonly = r.readonly;
+      renderStatus();
+      toast(S.readonly ? '只读模式已开' : '只读模式已关，小心操作');
+    });
+  };
+  $('discTop').onclick = disconnect;
+}
+
+function disconnect(){
+  var token = S.token;
+  S = { token:'', auth:S.auth, readonly:true, allowSudo:false, timeout:30, info:null, plan:[], count:0 };
+  if(token){ post('/ecs-ssh/api/disconnect', { session: token }).catch(function(){}); }
+  $('liveBox').hidden = true;
+  $('connCard').hidden = false;
+  $('trustBox').innerHTML = '';
+  setNote('connNote', '已断开，凭据已从服务端内存里清掉', false, true);
+  renderAuth(S.auth);
+  bindToggles();
+  $('roChip').className = 'chip on';
+  $('roChip').textContent = '只读模式 · 开';
+  $('sudoChip').className = 'chip';
+  $('sudoChip').textContent = '允许 sudo · 关';
+  $('toChip').textContent = '命令超时 · 30s';
+}
+
+/* ---------- 执行 ---------- */
+function renderOut(cmd, d){
+  var failed = d.ok === false;
+  var html = '<div class="out-item up">' +
+    '<div class="out-h"><code class="cmd">$ ' + esc(cmd) + '</code><div class="meta">' +
+      (failed ? '<span class="badge b-danger">被拦下</span>' : '') +
+      (!failed && d.exit_code !== null && d.exit_code !== undefined
+        ? '<span class="badge' + (d.exit_code === 0 ? ' b-ok' : ' b-warn') + '">exit ' + d.exit_code + '</span>' : '') +
+      (d.duration ? '<span>' + d.duration + 's</span>' : '') +
+      (d.timed_out ? '<span class="badge b-warn">超时</span>' : '') +
+      (d.truncated ? '<span class="badge b-warn">输出截断</span>' : '') +
+      (d.level ? levelBadge(d.level) : '') +
+    '</div></div>';
+  if(failed){
+    html += '<pre class="term err">' + esc(d.message || '执行失败') + '</pre>';
+  } else {
+    html += '<pre class="term">' + esc((d.stdout || '').replace(/\s+$/, '') || '（没有输出）') + '</pre>';
+    if(d.stderr && d.stderr.trim()) html += '<pre class="term err">' + esc(d.stderr.replace(/\s+$/, '')) + '</pre>';
+  }
+  html += '</div>';
+  $('outWrap').insertAdjacentHTML('afterbegin', html);
+}
+
+function runCmd(cmd, ack){
+  if(!cmd) return Promise.resolve();
+  if(!S.token){ toast('先连接服务器'); return Promise.resolve(); }
+  setNote('cmdNote', '<span class="spin"></span> 执行中…');
+  return post('/ecs-ssh/api/exec', { session:S.token, command:cmd, ack:!!ack }).then(function(d){
+    if(!d.ok){
+      if(d.needs_confirm){
+        if(confirm('这条会改动服务器：\n\n' + d.command + '\n\n' + d.message)){
+          return runCmd(d.command, true);
+        }
+        setNote('cmdNote', '已取消');
+        return;
+      }
+      setNote('cmdNote', esc(d.message || '执行失败'), true);
+      renderOut(cmd, d);
+      if(d.readonly_blocked || d.blocked) toast('被安全闸门拦下了');
+      return;
+    }
+    setNote('cmdNote', '');
+    S.count = d.count;
+    renderOut(d.command, d);
+    renderStatus();
+  }).catch(function(e){
+    setNote('cmdNote', esc(e && e.message ? e.message : '执行失败'), true);
+  });
+}
+function runSeq(list){
+  var i = 0;
+  function next(){
+    if(i >= list.length) return Promise.resolve();
+    return runCmd(list[i++], false).then(next);
+  }
+  return next();
+}
+
+/* ---------- AI 方案 ---------- */
+function aiPlan(){
+  var p = $('aiPrompt').value.trim();
+  if(!p){ setNote('aiNote', '先说要干什么', true); return; }
+  setNote('aiNote', '<span class="spin"></span> 正在想方案…');
+  $('aiBtn').disabled = true;
+  post('/ecs-ssh/api/ai', { session:S.token, prompt:p }).then(function(d){
+    if(!d.ok){
+      $('aiPlan').innerHTML = '';
+      setNote('aiNote', esc(d.message || '没出方案'), true);
+      return;
+    }
+    S.plan = d.steps;
+    renderPlan(d);
+    setNote('aiNote', '');
+  }).catch(function(e){
+    setNote('aiNote', esc(e && e.message ? e.message : '没出方案'), true);
+  }).then(function(){ $('aiBtn').disabled = false; });
+}
+
+function stepHTML(s, i){
+  var noRun = s.blocked || s.interactive;
+  return '<div class="step' + (s.blocked ? ' blocked' : '') + '">' +
+    '<div class="step-top">' +
+      (noRun ? '' : '<input type="checkbox" data-ck="' + i + '"' + (s.readonly ? ' checked' : '') + '>') +
+      '<code class="cmd">' + esc(s.cmd) + '</code>' + levelBadge(s.level) +
+      (s.readonly && !noRun ? '<span class="badge b-ok">只读</span>' : '') +
+    '</div>' +
+    (s.why ? '<div class="step-why">' + esc(s.why) + '</div>' : '') +
+    (s.blocked ? '<div class="step-why">' + esc(s.level_reason) + '</div>' : '') +
+    (s.interactive ? '<div class="step-why">' + esc(s.interactive) + '</div>' : '') +
+    '<div class="step-act">' +
+      (noRun ? '' : '<button type="button" class="btn sm" data-run="' + i + '">执行这条</button>') +
+    '</div></div>';
+}
+
+function renderPlan(d){
+  $('aiPlan').innerHTML =
+    '<div class="card" style="margin-top:12px">' +
+      '<div class="card-h">方案</div>' +
+      (d.summary ? '<div class="card-sub">' + esc(d.summary) + '</div>' : '') +
+      d.steps.map(stepHTML).join('') +
+      '<div class="riskbar">' +
+        '<button type="button" class="btn primary sm" id="runSel">执行勾选的</button>' +
+        '<button type="button" class="btn sm" id="copyPlan">复制命令</button>' +
+        '<span class="mini">默认只勾了查看类；执行前自己看一眼命令</span>' +
+      '</div>' +
+    '</div>';
+  Array.prototype.forEach.call(document.querySelectorAll('#aiPlan [data-run]'), function(b){
+    b.onclick = function(){ runCmd(S.plan[+b.getAttribute('data-run')].cmd, false); };
+  });
+  $('runSel').onclick = function(){
+    var picked = [];
+    Array.prototype.forEach.call(document.querySelectorAll('#aiPlan [data-ck]'), function(b){
+      if(b.checked) picked.push(S.plan[+b.getAttribute('data-ck')].cmd);
+    });
+    if(!picked.length){ toast('先勾一条'); return; }
+    runSeq(picked);
+  };
+  $('copyPlan').onclick = function(){
+    copyText(S.plan.map(function(s){ return s.cmd; }).join('\n'), '命令已复制');
+  };
+}
+
+/* ---------- 绑定 ---------- */
+renderAuth('keyfile');
+bindToggles();
+$('aiPresets').innerHTML = PRESETS.map(function(p, i){
+  return '<button type="button" class="chip" data-pre="' + i + '">' + esc(p) + '</button>';
+}).join('');
+Array.prototype.forEach.call(document.querySelectorAll('[data-pre]'), function(b){
+  b.onclick = function(){ $('aiPrompt').value = PRESETS[+b.getAttribute('data-pre')]; };
+});
+$('quickCmds').innerHTML = QUICK.map(function(c, i){
+  return '<button type="button" class="chip" data-qc="' + i + '">' + esc(c) + '</button>';
+}).join('');
+Array.prototype.forEach.call(document.querySelectorAll('[data-qc]'), function(b){
+  b.onclick = function(){ $('cmd').value = QUICK[+b.getAttribute('data-qc')]; $('cmd').focus(); };
+});
+$('connBtn').onclick = function(){ connect(); };
+$('resetBtn').onclick = function(){
+  ['host','port','user','password','key','keyfile','passphrase'].forEach(function(id){ $(id).value = ''; });
+  $('port').value = '22'; $('user').value = 'root';
+  $('trustBox').innerHTML = '';
+  setNote('connNote', '');
+};
+$('runBtn').onclick = function(){ runCmd($('cmd').value.trim(), false); $('cmd').value = ''; };
+$('cmd').addEventListener('keydown', function(e){ if(e.key === 'Enter'){ $('runBtn').click(); } });
+$('aiBtn').onclick = aiPlan;
+$('clearOut').onclick = function(){ $('outWrap').innerHTML = ''; toast('清了'); };
+$('discBtn').onclick = disconnect;
+
+if(location.protocol === 'http:' && ['localhost','127.0.0.1'].indexOf(location.hostname) < 0){
+  setNote('connNote', '⚠ 现在走的是 HTTP，密码是明文送上来的，别在公网上这么用。', true);
+}
+
+})();
+</script>
+</body>
+</html>

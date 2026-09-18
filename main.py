@@ -143,6 +143,12 @@ app.include_router(socratic_router)
 from writing_ideas import router as writing_ideas_router  # noqa: E402
 app.include_router(writing_ideas_router)
 
+# 附加功能：ECS SSH 管理（网页上连服务器，AI 出命令方案，人点确认才执行；
+# 凭据只在服务端内存，主机指纹首次连接要人工核对，只读模式默认开）
+# 浏览器访问 http://127.0.0.1:8000/ecs-ssh 即可使用。
+from ecs_ssh import router as ecs_ssh_router  # noqa: E402
+app.include_router(ecs_ssh_router)
+
 
 # =========================================================
 # 附加功能：工具箱主页（根路径 "/"）

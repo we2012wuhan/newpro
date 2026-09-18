@@ -25,6 +25,7 @@
 | `sdd_decomposer.py` | SDD 需求拆解器（页面在 `/sdd-decomposer`：把模糊想法按七段式逼成结构化规格，实时编译成可丢给 agent 的提示词，纯浏览器计算） |
 | `socratic.py` | 苏格拉底提问（页面在 `/socratic`：一句结论进去，用六类问题追问到底，出题优先走大模型，没配 Key 走内置题库，纯浏览器计算） |
 | `writing_ideas.py` | 写作选题（页面在 `/writing-ideas`：给一点线索或什么都不给，大模型一次出一批选题，挑中一个拆成启动包（标题 / 结构 / 证据 / 反驳），没配 Key 走内置配方，数据存浏览器） |
+| `ecs_ssh.py` | ECS SSH 管理（页面在 `/ecs-ssh`：网页上连 ECS，AI 出命令方案、人点确认才执行；凭据只在服务端内存，主机指纹首次连接人工核对，只读模式默认开，灾难级命令永久禁止） |
 | `templates/` 与 `static/` | 各工具页面模板与本地静态资源（含登录页 `templates/login.html`、会话兜底 `static/auth-guard.js`） |
 | `requirements.txt` | 项目依赖（fastapi + uvicorn + requests + yt-dlp + playwright + openpyxl） |
 
@@ -76,6 +77,7 @@ python video_downloader.py
 - `http://127.0.0.1:8000/sdd-decomposer` **SDD 需求拆解器**：一句粗糙需求进去，沿七段式逼问痛点 / 目标与非目标 / 用户 / 功能 / 交互 / 技术 / 验收，实时编译成提示词，纯浏览器计算
 - `http://127.0.0.1:8000/socratic` **苏格拉底提问**：写下你已经认定的一句话，用澄清 / 前提 / 证据 / 视角 / 推演 / 反思六类问题追问到底，最后汇成一份复盘
 - `http://127.0.0.1:8000/writing-ideas` **写作选题**：没灵感也能开始，给一点线索（或留空）就出一批选题，挑中一个再深挖成写作启动包（可导出 .md）
+- `http://127.0.0.1:8000/ecs-ssh` **ECS SSH 管理**：填主机 / 用户名就能连上服务器，用大白话让 AI 出命令清单，勾选后自己点执行；危险命令要二次确认，几条灾难级命令直接禁止
 
 ## 登录与访问控制
 
