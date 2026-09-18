@@ -121,14 +121,33 @@ input:focus,textarea:focus{border-color:var(--acc-line);box-shadow:var(--focus-r
 .step-why{font-size:12.5px;color:var(--muted);line-height:1.65;margin-top:7px}
 .step-act{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
 
-.term{background:var(--term-bg);color:var(--term-ink);border-radius:12px;padding:11px 13px;margin:0;
-  font-size:12.5px;line-height:1.65;white-space:pre-wrap;word-break:break-word;overflow:auto;max-height:420px}
-.term.err{color:#FFB4B4;margin-top:6px;max-height:220px}
-.out-item{border:1px solid var(--line);border-radius:14px;background:var(--card);padding:12px;margin-top:10px;
-  box-shadow:var(--sh)}
-.out-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
-.out-h .cmd{background:transparent;padding:0;font-size:13px;color:var(--ink);flex:1 1 100%}
-.out-h .meta{font-size:11.5px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.term-body{background:var(--term-bg);color:var(--term-ink);border-radius:12px 12px 0 0;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace;
+  font-size:12.5px;line-height:1.7;padding:12px 13px;height:min(52vh,440px);min-height:240px;
+  overflow:auto;white-space:pre-wrap;word-break:break-word;overscroll-behavior:contain}
+.term-body:focus{outline:none}
+.term-ln{white-space:pre-wrap;word-break:break-word}
+.term-echo{white-space:pre-wrap;word-break:break-word}
+.term-echo .p{color:#6EE7B7}
+.term-err{color:#FFB4B4}
+.term-dim{color:var(--term-dim)}
+.term-line{display:flex;align-items:center;gap:8px;background:var(--term-bg);
+  border-radius:0 0 12px 12px;border-top:1px solid var(--term-line);padding:4px 13px 10px}
+.term-line .ps1{color:#6EE7B7;font-size:12.5px;white-space:nowrap;flex:0 0 auto;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.term-line input[type=text]{flex:1 1 auto;min-width:0;background:transparent;border:0;border-radius:0;
+  padding:8px 0;color:var(--term-ink);font-size:12.5px;min-height:34px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.term-line input[type=text]:focus{border:0;box-shadow:none}
+.term-line input[type=text]::placeholder{color:var(--term-dim)}
+.term-line .btn{flex:0 0 auto;white-space:nowrap;padding:0 16px}
+.term-bar{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.term-bar .term-title{font-size:15px;font-weight:600;color:var(--ink)}
+.term-bar .mini{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.term-head{display:flex;align-items:center;gap:8px;background:var(--term-line);color:#93A7BC;
+  border-radius:12px 12px 0 0;padding:7px 13px;font-size:11.5px}
+.term-wrap{border-radius:12px;overflow:hidden;border:1px solid var(--term-line)}
+.term-wrap .term-body{border-radius:0}
 
 .riskbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
 .empty{text-align:center;padding:22px 12px;color:var(--muted);font-size:13.5px;line-height:1.9}
@@ -138,6 +157,9 @@ input:focus,textarea:focus{border-color:var(--acc-line);box-shadow:var(--focus-r
   background:var(--tip-bg);color:var(--tip-ink);font-size:13.5px;padding:9px 16px;border-radius:999px;
   opacity:0;pointer-events:none;transition:opacity .2s ease;max-width:86vw;text-align:center}
 .toast.on{opacity:1}
+@media (max-width:560px){
+  .term-body{height:min(42vh,320px);min-height:190px}
+}
 @media (min-width:640px){
   .wrap,.topbar-in{padding-left:24px;padding-right:24px}
   .card{padding:20px 22px}
@@ -159,7 +181,6 @@ html[data-theme="dark"]{
   color-scheme:dark;
 }
 html[data-theme="dark"] .btn.primary,html[data-theme="dark"] .btn.primary:active{color:#0E1119}
-html[data-theme="dark"] .step .cmd,html[data-theme="dark"] .out-h .cmd{background:transparent}
 html[data-theme="dark"] .step .cmd{background:var(--soft)}
 
 /* 动态粒子背景铺在内容背后，底色由 html 出（body 已被置为透明） */
@@ -253,17 +274,23 @@ html{background-color:var(--bg);background-image:
     </div>
 
 <div class="card">
-      <div class="card-h">手动执行</div>
-      <div class="chips" id="quickCmds" style="margin-top:10px"></div>
-      <div class="btn-row" style="align-items:stretch">
-        <input type="text" id="cmd" placeholder="ls -la /var/log" style="flex:1 1 260px" spellcheck="false">
-        <button class="btn primary" id="runBtn" style="flex:0 0 auto;min-width:96px">执行</button>
+      <div class="term-bar">
+        <span class="term-title">终端</span>
+        <span class="mini" id="termState"></span>
+        <button type="button" class="btn sm" id="clearOut" style="margin-left:auto">清屏</button>
       </div>
-      <div class="note" id="cmdNote"></div>
+      <div class="chips" id="quickCmds"></div>
+      <div class="term-wrap" style="margin-top:12px">
+        <div class="term-head"><span id="termHost">未连接</span></div>
+        <div class="term-body" id="term"></div>
+        <div class="term-line">
+          <span class="ps1" id="ps1">$</span>
+          <input type="text" id="cmd" autocomplete="off" spellcheck="false" placeholder="输入命令，回车执行">
+          <button type="button" class="btn primary sm" id="runBtn">执行</button>
+        </div>
+      </div>
     </div>
 
-<div class="sec-head"><b>输出（本次会话）</b><button class="btn sm" id="clearOut">清屏</button></div>
-    <div id="outWrap"></div>
     <div class="card" id="auditCard">
       <div class="card-sub" id="auditText"></div>
       <div class="btn-row"><button class="btn danger" id="discBtn">断开连接</button></div>
@@ -294,7 +321,7 @@ var QUICK = [
   'du -sh /var/* 2>/dev/null | sort -h | tail -5', 'last -n 8'
 ];
 
-var S = { token:'', auth:'keyfile', readonly:true, allowSudo:false, timeout:30, info:null, plan:[] };
+var S = { token:'', auth:'keyfile', readonly:true, allowSudo:false, timeout:30, info:null, plan:[], cwd:'~' };
 
 function $(id){ return document.getElementById(id); }
 function esc(s){
@@ -400,22 +427,16 @@ function connect(trustFp){
 }
 
 function renderTrust(d){
-  var changed = !!d.changed;
+  // 只有「主机密钥和上次记录的不一样」才会走到这里；第一次连接是静默记下的
   $('trustBox').innerHTML =
-    '<div class="fpbox' + (changed ? ' warn' : '') + '">' +
-      '<div class="fp-h">' + (changed ? '⚠ 主机密钥和上次记录的不一样' : '第一次连这台机器，先核对指纹') + '</div>' +
-      '<div class="fp-sub">' +
-        (changed
-          ? '这可能是对方重装了系统，也可能是有人在中间冒充。核对方法：去云控制台连一次终端，执行下面这条命令，把结果和这里比。'
-          : '指纹对不上就绝对不要继续。核对方法：在云控制台的远程连接里执行下面这条命令，把结果和这里比。') +
-        '<br><code>ssh-keygen -lf /etc/ssh/ssh_host_' + String(d.key_type || 'ed25519').replace('ssh-', '') + '_key.pub</code>' +
-      '</div>' +
+    '<div class="fpbox warn">' +
+      '<div class="fp-h">⚠ 主机密钥和上次记录的不一样</div>' +
+      '<div class="fp-sub">这台机器以前不是这个密钥。如果它刚重装过系统，点下面继续；否则先别连。</div>' +
       '<div class="fp">' + esc(d.fingerprint) + '</div>' +
       '<div class="fp-meta">' + esc(d.key_type || '') + ' · ' + esc(d.host) +
-        (changed && d.saved_fingerprint ? '<br>上次记录：' + esc(d.saved_fingerprint) : '') + '</div>' +
+        (d.saved_fingerprint ? '<br>上次记录：' + esc(d.saved_fingerprint) : '') + '</div>' +
       '<div class="btn-row">' +
-        '<button class="btn ' + (changed ? 'danger' : 'primary') + '" id="trustYes">' +
-          (changed ? '我知道风险，仍然信任并连接' : '一致，信任并连接') + '</button>' +
+        '<button class="btn danger" id="trustYes">仍然信任并连接</button>' +
         '<button class="btn ghost" id="trustNo">取消</button>' +
       '</div>' +
     '</div>';
@@ -434,11 +455,17 @@ function onConnected(d){
   $('trustBox').innerHTML = '';
   $('connCard').hidden = true;
   $('liveBox').hidden = false;
-  $('outWrap').innerHTML = '';
   $('aiPlan').innerHTML = '';
+  S.history = [];
+  S.histIdx = 0;
   renderStatus();
+  clearTerm();
+  S.cwd = d.cwd || '~';
+  syncPrompt();
+  termBanner(d);
   setNote('connNote', '');
   toast('已连上 ' + d.host);
+  setTimeout(function(){ $('cmd').focus(); }, 50);
 }
 
 function renderStatus(){
@@ -460,6 +487,7 @@ function renderStatus(){
       if(!r.ok){ toast(r.message || '改不了'); return; }
       S.readonly = r.readonly;
       renderStatus();
+      termWrite('只读模式已' + (S.readonly ? '开' : '关'), 'term-dim');
       toast(S.readonly ? '只读模式已开' : '只读模式已关，小心操作');
     });
   };
@@ -473,6 +501,10 @@ function disconnect(){
   $('liveBox').hidden = true;
   $('connCard').hidden = false;
   $('trustBox').innerHTML = '';
+  clearTerm();
+  S.cwd = '~';
+  $('ps1').textContent = '$';
+  $('termHost').textContent = '未连接';
   setNote('connNote', '已断开，凭据已从服务端内存里清掉', false, true);
   renderAuth(S.auth);
   bindToggles();
@@ -484,54 +516,176 @@ function disconnect(){
 }
 
 /* ---------- 执行 ---------- */
-function renderOut(cmd, d){
-  var failed = d.ok === false;
-  var html = '<div class="out-item up">' +
-    '<div class="out-h"><code class="cmd">$ ' + esc(cmd) + '</code><div class="meta">' +
-      (failed ? '<span class="badge b-danger">被拦下</span>' : '') +
-      (!failed && d.exit_code !== null && d.exit_code !== undefined
-        ? '<span class="badge' + (d.exit_code === 0 ? ' b-ok' : ' b-warn') + '">exit ' + d.exit_code + '</span>' : '') +
-      (d.duration ? '<span>' + d.duration + 's</span>' : '') +
-      (d.timed_out ? '<span class="badge b-warn">超时</span>' : '') +
-      (d.truncated ? '<span class="badge b-warn">输出截断</span>' : '') +
-      (d.level ? levelBadge(d.level) : '') +
-    '</div></div>';
-  if(failed){
-    html += '<pre class="term err">' + esc(d.message || '执行失败') + '</pre>';
-  } else {
-    html += '<pre class="term">' + esc((d.stdout || '').replace(/\s+$/, '') || '（没有输出）') + '</pre>';
-    if(d.stderr && d.stderr.trim()) html += '<pre class="term err">' + esc(d.stderr.replace(/\s+$/, '')) + '</pre>';
+/* ---------- 终端 ---------- */
+function cleanOut(text){
+  return String(text == null ? '' : text)
+    .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '')      // ANSI 颜色 / 光标控制
+    .replace(/\x1b\][^\x07]*\x07/g, '')          // OSC 标题一类
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n');
+}
+function scrollTerm(){
+  var t = $('term');
+  t.scrollTop = t.scrollHeight;
+}
+function termAdd(node){
+  $('term').appendChild(node);
+  scrollTerm();
+}
+function termWrite(text, cls){
+  var div = document.createElement('div');
+  div.className = 'term-ln' + (cls ? ' ' + cls : '');
+  div.textContent = cleanOut(text);
+  termAdd(div);
+}
+function termEcho(cmd){
+  var div = document.createElement('div');
+  div.className = 'term-echo';
+  var p = document.createElement('span');
+  p.className = 'p';
+  p.textContent = ps1Text() + ' ';
+  div.appendChild(p);
+  div.appendChild(document.createTextNode(cmd));
+  termAdd(div);
+}
+function ps1Text(){
+  var d = S.info || {};
+  var host = (d.os && d.os.host) || d.host || '';
+  return (d.user || 'user') + '@' + (host || 'host') + ':' + (S.cwd || '~') + '$';
+}
+function syncPrompt(){
+  var p = ps1Text(), d = S.info || {};
+  $('ps1').textContent = p;
+  $('termHost').textContent = d.host
+    ? p + '  (' + d.host + ':' + d.port + ')' : '未连接';
+}
+function clearTerm(){
+  $('term').innerHTML = '';
+  scrollTerm();
+}
+function termBanner(d){
+  var os = (d.os && d.os.os) || '';
+  termWrite('已连接 ' + d.user + '@' + d.host + ':' + d.port + (os ? '  ·  ' + os : ''), 'term-dim');
+  termWrite('只读模式 ' + (S.readonly ? '开' : '关') + ' · sudo ' + (S.allowSudo ? '开' : '关') +
+            ' · 超时 ' + S.timeout + 's · Tab 补全 · ↑↓ 翻历史 · Ctrl+L 清屏', 'term-dim');
+}
+
+function termResult(cmd, d){
+  if(d.ok === false){
+    termWrite(d.message || '执行失败', 'term-err');
+    return;
   }
-  html += '</div>';
-  $('outWrap').insertAdjacentHTML('afterbegin', html);
+  var out = (d.stdout || '').replace(/\s+$/, '');
+  var err = (d.stderr || '').replace(/\s+$/, '');
+  if(out) termWrite(out);
+  if(err) termWrite(err, 'term-err');
+  var meta = [];
+  if(!out && !err) meta.push('（无输出）');
+  if(d.exit_code !== null && d.exit_code !== undefined && d.exit_code !== 0) meta.push('exit ' + d.exit_code);
+  if(d.timed_out) meta.push('超时，已中断');
+  if(d.truncated) meta.push('输出太长，已截断');
+  if(meta.length) termWrite(meta.join(' · '), 'term-dim');
+}
+
+function pushHist(cmd){
+  S.history = S.history || [];
+  if(S.history[S.history.length - 1] !== cmd) S.history.push(cmd);
+  if(S.history.length > 100) S.history.shift();
+  S.histIdx = S.history.length;
+}
+function histMove(delta){
+  var h = S.history || [];
+  if(!h.length) return;
+  S.histIdx = Math.max(0, Math.min(h.length, (S.histIdx === undefined ? h.length : S.histIdx) + delta));
+  $('cmd').value = S.histIdx >= h.length ? '' : h[S.histIdx];
+  var el = $('cmd');
+  setTimeout(function(){ el.setSelectionRange(el.value.length, el.value.length); }, 0);
+}
+function submitCmd(){
+  var raw = $('cmd').value.trim();
+  if(!raw) return;
+  $('cmd').value = '';
+  if(raw === 'clear' || raw === 'cls'){ clearTerm(); return; }
+  runCmd(raw, false);
+}
+
+/* ---------- Tab 补全 ---------- */
+var compBusy = false;
+function applyComp(el, d, text, addSpace){
+  var line = el.value;
+  if(line !== compLine) return;                 // 补全回来时用户已经改了，就别动
+  var head = line.slice(0, d.start) + text + (addSpace ? ' ' : '');
+  el.value = head + line.slice(d.end);
+  var caret = head.length;
+  el.setSelectionRange(caret, caret);
+}
+var compLine = '';
+function complete(){
+  var el = $('cmd');
+  if(!S.token || compBusy) return;
+  compBusy = true;
+  compLine = el.value;
+  var line = compLine, pos = el.selectionStart;
+  if(pos === null || pos === undefined) pos = line.length;
+  post('/ecs-ssh/api/complete', { session:S.token, line:line, pos:pos }).then(function(d){
+    compBusy = false;
+    if(!d || !d.ok) return;
+    var items = d.items || [];
+    if(!items.length){
+      if(d.message) termWrite(d.message, 'term-dim');
+      return;
+    }
+    if(items.length === 1){
+      applyComp(el, d, items[0], items[0].slice(-1) !== '/');
+      return;
+    }
+    var common = items[0];
+    for(var i = 1; i < items.length; i++){
+      while(common && items[i].indexOf(common) !== 0) common = common.slice(0, -1);
+    }
+    if(common && common.length > (d.token || '').length) applyComp(el, d, common, false);
+    if(items.length > 48){
+      termWrite('共 ' + items.length + ' 个候选，多打几个字缩小范围', 'term-dim');
+    } else {
+      termWrite(items.join('   '), 'term-dim');
+    }
+  }).catch(function(){ compBusy = false; });
 }
 
 function runCmd(cmd, ack){
+  cmd = String(cmd || '').trim();
   if(!cmd) return Promise.resolve();
   if(!S.token){ toast('先连接服务器'); return Promise.resolve(); }
-  setNote('cmdNote', '<span class="spin"></span> 执行中…');
+  if(!ack){ termEcho(cmd); pushHist(cmd); }
+  $('termState').innerHTML = '<span class="spin"></span> 运行中';
+  $('runBtn').disabled = true;
   return post('/ecs-ssh/api/exec', { session:S.token, command:cmd, ack:!!ack }).then(function(d){
     if(!d.ok){
       if(d.needs_confirm){
+        termWrite(d.message, 'term-dim');
         if(confirm('这条会改动服务器：\n\n' + d.command + '\n\n' + d.message)){
           return runCmd(d.command, true);
         }
-        setNote('cmdNote', '已取消');
+        termWrite('已取消，没有执行。', 'term-dim');
         return;
       }
-      setNote('cmdNote', esc(d.message || '执行失败'), true);
-      renderOut(cmd, d);
+      termResult(cmd, d);
       if(d.readonly_blocked || d.blocked) toast('被安全闸门拦下了');
       return;
     }
-    setNote('cmdNote', '');
     S.count = d.count;
-    renderOut(d.command, d);
+    termResult(d.command, d);
+    if(d.cwd){ S.cwd = d.cwd; syncPrompt(); }
     renderStatus();
   }).catch(function(e){
-    setNote('cmdNote', esc(e && e.message ? e.message : '执行失败'), true);
+    termWrite(e && e.message ? e.message : '执行失败', 'term-err');
+  }).then(function(){
+    $('termState').innerHTML = '';
+    $('runBtn').disabled = false;
+    $('cmd').focus();
   });
 }
+
 function runSeq(list){
   var i = 0;
   function next(){
@@ -618,7 +772,7 @@ $('quickCmds').innerHTML = QUICK.map(function(c, i){
   return '<button type="button" class="chip" data-qc="' + i + '">' + esc(c) + '</button>';
 }).join('');
 Array.prototype.forEach.call(document.querySelectorAll('[data-qc]'), function(b){
-  b.onclick = function(){ $('cmd').value = QUICK[+b.getAttribute('data-qc')]; $('cmd').focus(); };
+  b.onclick = function(){ runCmd(QUICK[+b.getAttribute('data-qc')], false); };
 });
 $('connBtn').onclick = function(){ connect(); };
 $('resetBtn').onclick = function(){
@@ -627,10 +781,17 @@ $('resetBtn').onclick = function(){
   $('trustBox').innerHTML = '';
   setNote('connNote', '');
 };
-$('runBtn').onclick = function(){ runCmd($('cmd').value.trim(), false); $('cmd').value = ''; };
-$('cmd').addEventListener('keydown', function(e){ if(e.key === 'Enter'){ $('runBtn').click(); } });
+$('runBtn').onclick = submitCmd;
+$('cmd').addEventListener('keydown', function(e){
+  if(e.key === 'Enter'){ e.preventDefault(); submitCmd(); return; }
+  if(e.key === 'ArrowUp'){ e.preventDefault(); histMove(-1); return; }
+  if(e.key === 'ArrowDown'){ e.preventDefault(); histMove(1); return; }
+  if(e.key === 'Tab'){ e.preventDefault(); complete(); return; }
+  if((e.ctrlKey || e.metaKey) && (e.key === 'l' || e.key === 'L')){ e.preventDefault(); clearTerm(); }
+});
+$('term').addEventListener('click', function(){ $('cmd').focus(); });
 $('aiBtn').onclick = aiPlan;
-$('clearOut').onclick = function(){ $('outWrap').innerHTML = ''; toast('清了'); };
+$('clearOut').onclick = function(){ clearTerm(); $('cmd').focus(); };
 $('discBtn').onclick = disconnect;
 
 if(location.protocol === 'http:' && ['localhost','127.0.0.1'].indexOf(location.hostname) < 0){

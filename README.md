@@ -1,4 +1,4 @@
-﻿﻿# Python + FastAPI 学习项目
+﻿﻿﻿# Python + FastAPI 学习项目
 
 一个「边写接口边学 Python」的演示项目：用中文注释把 Python 核心知识点串起来，
 每个知识点都配有可运行的示例，方便对照学习。
@@ -25,7 +25,7 @@
 | `sdd_decomposer.py` | SDD 需求拆解器（页面在 `/sdd-decomposer`：把模糊想法按七段式逼成结构化规格，实时编译成可丢给 agent 的提示词，纯浏览器计算） |
 | `socratic.py` | 苏格拉底提问（页面在 `/socratic`：一句结论进去，用六类问题追问到底，出题优先走大模型，没配 Key 走内置题库，纯浏览器计算） |
 | `writing_ideas.py` | 写作选题（页面在 `/writing-ideas`：给一点线索或什么都不给，大模型一次出一批选题，挑中一个拆成启动包（标题 / 结构 / 证据 / 反驳），没配 Key 走内置配方，数据存浏览器） |
-| `ecs_ssh.py` | ECS SSH 管理（页面在 `/ecs-ssh`：网页上连 ECS，AI 出命令方案、人点确认才执行；凭据只在服务端内存，主机指纹首次连接人工核对，只读模式默认开，灾难级命令永久禁止） |
+| `ecs_ssh.py` | ECS SSH 管理（页面在 `/ecs-ssh`：网页上连 ECS，AI 出命令方案、人点确认才执行；凭据只在服务端内存，主机指纹首次连接自动记下、变了会告警，只读模式默认开，灾难级命令永久禁止） |
 | `templates/` 与 `static/` | 各工具页面模板与本地静态资源（含登录页 `templates/login.html`、会话兜底 `static/auth-guard.js`） |
 | `requirements.txt` | 项目依赖（fastapi + uvicorn + requests + yt-dlp + playwright + openpyxl） |
 

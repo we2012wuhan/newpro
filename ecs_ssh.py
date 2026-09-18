@@ -7,9 +7,9 @@
 #   1. 凭据不落盘：主机密码 / 私钥只放在服务端内存里的会话对象中，断开或超时即销毁，
 #      不写数据库、不写日志、不回传给前端，前端也不存 localStorage。
 #      会话令牌是随机串，只活在当前页面的 JS 变量里，刷新页面即失效。
-#   2. 主机指纹 TOFU：第一次连某台机器必须人工核对指纹（SHA256）后才写进
-#      data/ssh_known_hosts（0600，标准 known_hosts 格式）。指纹变了会红字告警，
-#      必须显式 force 才继续，防中间人。
+#   2. 主机指纹：第一次连直接记下（accept-new，不再人工核对），之后每次连接都比对；
+#      指纹变了会告警，要你确认才继续，防中间人。记录在 data/ssh_known_hosts
+#      （0600，标准 known_hosts 格式）。
 #   3. AI 不自动执行：模型只输出命令清单，每条都由人在页面上点「执行」。
 #      模型给的 risk 标签一律不信，服务端用正则自己重新判定。
 #   4. 只读模式默认开：白名单校验每个管道/分号段的第一个命令，含重定向、$()、反引号
@@ -22,9 +22,12 @@ import hashlib
 import io
 import json
 import os
+import posixpath
 import re
 import select
+import shlex
 import socket
+import stat
 import threading
 import time
 from pathlib import Path
@@ -74,6 +77,15 @@ AI_STEP_MAX = 6
 _ID_RE = re.compile(r'^[A-Za-z0-9._\-]{1,253}$')
 # 行首或分隔符之后的 sudo（管道、分号、&& 后面也算）
 SUDO_RE = re.compile(r'(^|[;&|]\s*)sudo(?!\s+-n)\b\s*')
+# cd 的识别：命令名 + 可选参数 + 可选的分隔符（&& / ;）+ 后面的命令
+CD_RE = re.compile(r'''^\s*cd(?:\s+(?P<t>"[^"]*"|'[^']*'|(?:[^\s;&|<>\\]|\\.)+))?\s*(?P<sep>&&|;)?\s*(?P<rest>.*)$''')
+# 连 shell 都算不上、但补全时要能补出来的东西
+SHELL_BUILTINS = {
+    'cd', 'pwd', 'echo', 'printf', 'export', 'unset', 'alias', 'unalias', 'history',
+    'jobs', 'bg', 'fg', 'exit', 'logout', 'clear', 'reset', 'ulimit', 'umask', 'set',
+    'shift', 'source', 'true', 'false', 'test', 'time', 'help', 'sudo', 'su',
+}
+MAX_COMPLETE_ITEMS = 200       # 补全一次最多回多少个候选，防止刷屏
 
 
 class Session:
@@ -81,7 +93,8 @@ class Session:
 
     __slots__ = ('token', 'client', 'host', 'port', 'user', 'auth', 'os_info',
                  'created', 'last', 'lock', 'cmd_times', 'history',
-                 'readonly', 'allow_sudo', 'timeout', 'count')
+                 'readonly', 'allow_sudo', 'timeout', 'count',
+                 'cwd', 'prev_cwd', 'home', 'sftp', 'sftp_lock', 'cmd_cache')
 
     def __init__(self, client, host, port, user, auth, os_info, readonly, allow_sudo, timeout):
         self.token = base64.urlsafe_b64encode(os.urandom(32)).decode('ascii').rstrip('=')
@@ -100,6 +113,12 @@ class Session:
         self.allow_sudo = allow_sudo
         self.timeout = timeout
         self.count = 0
+        self.cwd = ''            # 会话当前目录（每条命令前自动 cd 回去）
+        self.prev_cwd = ''       # 给 cd - 用
+        self.home = ''           # 登录目录，ps1 里显示成 ~
+        self.sftp = None         # 复用的 SFTP 通道，只用来查路径 / 列目录
+        self.sftp_lock = threading.RLock()
+        self.cmd_cache = None    # PATH 里的命令名，第一次补全时抓一次
 
 
 _SESSIONS = {}
@@ -110,6 +129,11 @@ def _drop(token):
     with _SESS_LOCK:
         sess = _SESSIONS.pop(token, None)
     if sess is not None:
+        try:
+            if sess.sftp is not None:
+                sess.sftp.close()
+        except Exception:
+            pass
         try:
             sess.client.close()
         except Exception:
@@ -171,6 +195,7 @@ READONLY_CMDS = {
     'getent', 'dig', 'nslookup', 'host', 'systemctl', 'journalctl', 'service', 'dmesg',
     'last', 'lastlog', 'w', 'who', 'env', 'printenv', 'echo', 'which', 'whereis',
     'type', 'command', 'help', 'sysctl', 'docker', 'podman', 'kubectl', 'crictl',
+    'cd', 'pwd', 'pushd', 'popd',          # 只改会话自己的当前目录，不碰服务器
 }
 # 只读模式下也必须拒绝的参数（会真的动数据）
 READONLY_DENY_ARGS = ('-delete', '-exec', '-execdir', '-ok', '-fprint', '--delete')
@@ -317,7 +342,7 @@ def _audit(entry):
         pass          # 只读文件系统（比如 serverless）就只留内存记录
 
 # =========================================================
-# SSH 连接（含主机指纹 TOFU 校验）
+# SSH 连接（含主机指纹记录与变化告警）
 # =========================================================
 if paramiko is not None:
     class _HostKeyUnknown(Exception):
@@ -339,7 +364,8 @@ else:
 PROBE_CMD = (
     'sh -c \'echo "##uname"; uname -srm 2>/dev/null; echo "##id"; id 2>/dev/null; '
     'echo "##host"; hostname 2>/dev/null; echo "##cpu"; nproc 2>/dev/null; '
-    'echo "##os"; (cat /etc/os-release 2>/dev/null || cat /etc/system-release 2>/dev/null) | head -4\''
+    'echo "##os"; (cat /etc/os-release 2>/dev/null || cat /etc/system-release 2>/dev/null) | head -4; '
+    'echo "##path"; echo "$PATH"\''
 )
 
 
@@ -389,7 +415,7 @@ def _attempt(kwargs):
 
 
 def _remember_host(kh_name, key):
-    """把核对过的指纹写进 data/ssh_known_hosts（0600，标准 known_hosts 格式）。
+    """把主机指纹写进 data/ssh_known_hosts（0600，标准 known_hosts 格式）。
 
     先删掉这台机器的旧记录：对方换了密钥类型（比如 RSA 换 ed25519）时，
     留着旧条目会让下一次连接又被判成「密钥不一致」。
@@ -614,13 +640,12 @@ def _do_connect(p):
             if err:
                 return _fail(err.get('fatal') or '指纹刚更新就又变了，已中止（这件事不正常）。')
         else:
-            if trust_fp != fp:
-                return _fail('这台机器是第一次连，先核对下面的指纹。', need_trust=True,
-                             changed=False, fingerprint=fp, key_type=key_type, host=kh_name)
+            # 第一次连这台机器：直接记下指纹继续（OpenSSH accept-new 的做法），
+            # 之后每次连接都会比对；对不上才会告警。
             _remember_host(kh_name, key)
             client, err = _attempt(kwargs)
             if err:
-                return _fail(err.get('fatal') or '指纹刚记下就变了，已中止（这件事不正常）。')
+                return _fail(err.get('fatal') or '记下指纹后重连失败，已中止。')
 
     with _SESS_LOCK:
         if len(_SESSIONS) >= MAX_SESSIONS:
@@ -637,6 +662,7 @@ def _do_connect(p):
         pass
     os_info = _capture_env(client)
     sess = Session(client, host, port, user, auth, os_info, readonly, allow_sudo, timeout)
+    sess.cwd = _home(sess)          # 默认落在登录目录，提示符里显示成 ~
     with _SESS_LOCK:
         _SESSIONS[sess.token] = sess
     host_fp = _remote_fp(client) or saved_fp
@@ -645,7 +671,8 @@ def _do_connect(p):
     return JSONResponse({'ok': True, 'session': sess.token, 'host': host, 'port': port,
                          'user': user, 'auth': auth, 'os': os_info, 'readonly': readonly,
                          'allow_sudo': allow_sudo, 'timeout': timeout,
-                         'fingerprint': host_fp, 'idle_timeout': IDLE_TIMEOUT})
+                         'fingerprint': host_fp, 'idle_timeout': IDLE_TIMEOUT,
+                         'cwd': _display(sess, sess.cwd)})
 
 
 def _remote_fp(client):
@@ -676,6 +703,182 @@ def _stored_fps(client, kh_name):
 
 
 
+# =========================================================
+# 会话目录保持 + Tab 补全
+# 全部走 SFTP：路径只做字符串解析和列目录，一个字都不拼进 shell，
+# 所以补全本身没有注入面，只读模式下也能用。
+# =========================================================
+def _sftp(sess):
+    """每个会话复用一个 SFTP 通道；通道断了就重开一次。"""
+    with sess.sftp_lock:
+        cli = sess.sftp
+        if cli is not None:
+            try:
+                cli.stat('.')
+                return cli
+            except Exception:
+                try:
+                    cli.close()
+                except Exception:
+                    pass
+                sess.sftp = None
+        try:
+            cli = sess.client.open_sftp()
+        except Exception:
+            return None
+        try:
+            cli.get_channel().settimeout(10)
+        except Exception:
+            pass
+        sess.sftp = cli
+        return cli
+
+
+def _home(sess):
+    if not sess.home:
+        cli = _sftp(sess)
+        home = ''
+        if cli is not None:
+            try:
+                home = (cli.normalize('.') or '').strip()
+            except Exception:
+                home = ''
+        if not home.startswith('/'):
+            home = '/root' if sess.user == 'root' else '/home/' + sess.user
+        sess.home = home.rstrip('/') or '/'
+    return sess.home
+
+
+def _norm(path):
+    path = (path or '/').strip() or '/'
+    if not path.startswith('/'):
+        path = '/' + path
+    out = posixpath.normpath(path)
+    return '/' if out == '/' else (out.rstrip('/') or '/')
+
+
+def _unescape(text):
+    return (text.replace('\\ ', ' ').replace("\\'", "'")
+                .replace('\\"', '"').replace('\\\\', '\\'))
+
+
+def _resolve(sess, target, base=None):
+    """用户写的路径 -> 绝对路径。纯字符串运算，不碰服务器。"""
+    raw = (target or '').strip()
+    if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in ('"', "'"):
+        raw = raw[1:-1]
+    raw = _unescape(raw)
+    home = _home(sess)
+    here = base or sess.cwd or home
+    if raw == '':
+        return here
+    if raw == '~':
+        return home
+    if raw == '-':
+        return sess.prev_cwd or here
+    if raw.startswith('~'):
+        return _norm(home + '/' + raw[1:].lstrip('/'))
+    if raw.startswith('/'):
+        return _norm(raw)
+    return _norm(posixpath.join(here, raw))
+
+
+def _display(sess, path):
+    """绝对路径 -> 给人看的形式（登录目录显示成 ~）。"""
+    home = _home(sess)
+    if not path:
+        return '~'
+    if path == home:
+        return '~'
+    if path.startswith(home + '/'):
+        return '~' + path[len(home):]
+    return path
+
+
+def _stat(sess, path):
+    cli = _sftp(sess)
+    if cli is None:
+        return None
+    try:
+        return cli.stat(path)
+    except Exception:
+        try:
+            return cli.lstat(path)
+        except Exception:
+            return None
+
+
+def _entries(sess, path):
+    """列目录，返回 [(名字, 是否目录)]；读不了返回 None（和「空目录」区分开）。"""
+    cli = _sftp(sess)
+    if cli is None:
+        return None
+    try:
+        attrs = cli.listdir_attr(path)
+    except Exception:
+        return None
+    out = []
+    for a in attrs:
+        name = getattr(a, 'filename', '') or ''
+        if not name or name in ('.', '..'):
+            continue
+        mode = a.st_mode or 0
+        is_dir = stat.S_ISDIR(mode)
+        if not is_dir and stat.S_ISLNK(mode):
+            try:
+                is_dir = stat.S_ISDIR(cli.stat(posixpath.join(path, name)).st_mode or 0)
+            except Exception:
+                is_dir = False
+        out.append((name, is_dir))
+    out.sort(key=lambda x: (not x[1], x[0].lower()))
+    return out
+
+
+def _list_commands(sess):
+    """PATH 里的命令名，抓一次缓存在会话里。"""
+    if sess.cmd_cache is not None:
+        return sess.cmd_cache
+    names = set(SHELL_BUILTINS)
+    path = ''
+    with sess.sftp_lock:
+        info = sess.os_info or {}
+        path = str(info.get('path') or '')
+        for folder in path.split(':'):
+            folder = folder.strip()
+            if not folder:
+                continue
+            items = _entries(sess, _norm(folder))
+            if not items:
+                continue
+            for name, is_dir in items:
+                if not is_dir:
+                    names.add(name)
+    sess.cmd_cache = sorted(names)
+    return sess.cmd_cache
+
+
+def _cd_step(sess, target):
+    """切换会话目录。返回 (错误信息, 需要回显的目录)。"""
+    raw = (target or '').strip()
+    if not raw:
+        path = _home(sess)
+    else:
+        probe = raw.replace('\\ ', '\x00')          # 转义空格不算分隔
+        if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in ('"', "'"):
+            probe = ''
+        if len(probe.split()) > 1:
+            return 'cd: 参数太多了', ''
+        path = _resolve(sess, raw)
+    st = _stat(sess, path)
+    if st is None:
+        return 'cd: %s: 没有这个目录' % path, ''
+    if not stat.S_ISDIR(st.st_mode or 0):
+        return 'cd: %s: 不是目录' % path, ''
+    sess.prev_cwd = sess.cwd or _home(sess)
+    sess.cwd = path
+    return '', (_display(sess, path) if raw == '-' else '')
+
+
 def _alive(sess):
     try:
         tr = sess.client.get_transport()
@@ -695,6 +898,31 @@ def _do_exec(p):
         return _fail('命令太长了（上限 %d 字符）' % MAX_CMD_LEN)
     if '\n' in command or '\r' in command:
         return _fail('一次只执行一条命令，别带换行')
+
+    # ---- cd：会话自己记着当前目录（每条命令前自动 cd 回去）。
+    # 路径只做字符串解析 + SFTP 校验，永远不进 shell，所以没有注入面。
+    hit = CD_RE.match(command) if command.startswith('cd') else None
+    if hit is not None:
+        rest = hit.group('rest') or ''
+        if (rest and hit.group('sep') not in ('&&', ';')) or rest.lstrip().startswith('|'):
+            hit = None
+    if hit is not None:
+        err, echo_dir = _cd_step(sess, (hit.group('t') or '').strip())
+        rest = (hit.group('rest') or '').strip()
+        if err or not rest:
+            code = 1 if err else 0
+            sess.count += 1
+            sess.history.append({'cmd': command, 'out': err or echo_dir, 'code': code})
+            del sess.history[:-HISTORY_KEEP]
+            _audit({'at': time.strftime('%Y-%m-%d %H:%M:%S'), 'event': 'exec', 'host': sess.host,
+                    'user': sess.user, 'cmd': command, 'level': 'low', 'code': code,
+                    'dur': 0, 'timeout': False})
+            return JSONResponse({'ok': True, 'command': command, 'stdout': echo_dir,
+                                 'stderr': err, 'exit_code': code, 'duration': 0,
+                                 'timed_out': False, 'truncated': False, 'level': 'low',
+                                 'cwd': _display(sess, sess.cwd), 'count': sess.count})
+        command = rest
+
     why = _interactive_reason(command)
     if why:
         return _fail(why)
@@ -713,7 +941,9 @@ def _do_exec(p):
                      needs_confirm=True, command=command, level=level)
 
     # 统一改写成 sudo -n：非交互执行，宁可直接失败，也不让会话挂在密码提示上
-    run_cmd = SUDO_RE.sub(lambda m: m.group(1) + 'sudo -n ', command) if has_sudo else command
+    hist_cmd = SUDO_RE.sub(lambda m: m.group(1) + 'sudo -n ', command) if has_sudo else command
+    # 会话保持工作目录：每条命令前先 cd 回当前目录（路径走 shlex.quote，注入不了）
+    run_cmd = ('cd ' + shlex.quote(sess.cwd) + ' && ' + hist_cmd) if sess.cwd else hist_cmd
 
     now = time.time()
     with sess.lock:
@@ -731,7 +961,7 @@ def _do_exec(p):
             return _fail('命令没能跑起来：' + str(exc)[:200])
         dur = round(time.time() - start, 2)
         sess.count += 1
-        sess.history.append({'cmd': run_cmd, 'out': (out or err)[:600], 'code': code})
+        sess.history.append({'cmd': hist_cmd, 'out': (out or err)[:600], 'code': code})
         del sess.history[:-HISTORY_KEEP]
 
     if timed_out and not _alive(sess):
@@ -739,9 +969,10 @@ def _do_exec(p):
     _audit({'at': time.strftime('%Y-%m-%d %H:%M:%S'), 'event': 'exec', 'host': sess.host,
             'user': sess.user, 'cmd': run_cmd, 'level': level, 'code': code,
             'dur': dur, 'timeout': timed_out})
-    return JSONResponse({'ok': True, 'command': run_cmd, 'stdout': out, 'stderr': err,
+    return JSONResponse({'ok': True, 'command': hist_cmd, 'stdout': out, 'stderr': err,
                          'exit_code': code, 'duration': dur, 'timed_out': timed_out,
-                         'truncated': truncated, 'level': level, 'count': sess.count})
+                         'truncated': truncated, 'level': level, 'count': sess.count,
+                         'cwd': _display(sess, sess.cwd)})
 
 
 AI_SYSTEM = '\n'.join([
@@ -818,6 +1049,7 @@ def _do_ai(p):
         lines.append('内核：' + os_info['uname'][:100])
     if os_info.get('id'):
         lines.append('当前身份：' + os_info['id'][:100])
+    lines.append('当前目录：' + _display(sess, sess.cwd))
     lines.append('会话模式：' + ('只读（只能给查看类命令）' if sess.readonly else '可写（能改状态，谨慎）'))
     lines.append('是否允许 sudo：' + ('是' if sess.allow_sudo else '否'))
     if sess.history:
@@ -852,6 +1084,61 @@ def _do_ai(p):
                          'steps': steps, 'readonly': sess.readonly})
 
 
+def _do_complete(p):
+    """Tab 补全：命令名走 PATH，参数走目录列表。纯 SFTP，不执行任何命令。"""
+    sess = _get(p.get('session'))
+    if sess is None:
+        return _fail('会话已断开或超时了，重新连接一下。')
+    line = str(p.get('line') or '')
+    if len(line) > MAX_CMD_LEN:
+        line = line[:MAX_CMD_LEN]
+    try:
+        pos = int(p.get('pos'))
+    except (TypeError, ValueError):
+        pos = len(line)
+    pos = max(0, min(len(line), pos))
+    head = line[:pos]
+    start = pos
+    while start > 0 and head[start - 1] not in (' ', '\t'):
+        start -= 1
+    token = head[start:pos]
+    before = head[:start]
+    # 第一个词（sudo 后面那个也算）补命令名，其余补路径
+    at_cmd = bool(re.match(r'^\s*(sudo(\s+-\S+)*\s*)?$', before))
+    kind = 'cmd' if (at_cmd and '/' not in token) else 'path'
+    items = []
+    message = ''
+    with sess.sftp_lock:
+        if kind == 'cmd':
+            low = token.lower()
+            names = _list_commands(sess)
+            items = [c for c in names if c.startswith(token)] or \
+                    [c for c in names if c.lower().startswith(low) and c[0].islower()]
+        else:
+            if token.startswith('~') and '/' not in token:
+                dir_lit, name = '~/', token[1:]
+            elif '/' in token:
+                cut = token.rfind('/')
+                dir_lit, name = token[:cut + 1], token[cut + 1:]
+            else:
+                dir_lit, name = '', token
+            base = _resolve(sess, dir_lit) if dir_lit else (sess.cwd or _home(sess))
+            entries = _entries(sess, base)
+            if entries is None:
+                return JSONResponse({'ok': True, 'items': [], 'token': token, 'start': start,
+                                     'end': pos, 'kind': kind,
+                                     'message': '这个目录读不了：' + (dir_lit or _display(sess, base))})
+            want = _unescape(name)
+            for nm, is_dir in entries:
+                if want and not nm.startswith(want):
+                    continue
+                if not want and nm.startswith('.'):
+                    continue          # 隐藏文件要点一个 . 才列出来
+                items.append(dir_lit + nm.replace(' ', '\\ ') + ('/' if is_dir else ''))
+    return JSONResponse({'ok': True, 'items': items[:MAX_COMPLETE_ITEMS], 'token': token,
+                         'start': start, 'end': pos, 'kind': kind, 'message': message})
+
+
 def _do_state(token):
     sess = _get(token)
     if sess is None:
@@ -859,6 +1146,7 @@ def _do_state(token):
     return {'ok': True, 'connected': True, 'host': sess.host, 'port': sess.port,
             'user': sess.user, 'readonly': sess.readonly, 'allow_sudo': sess.allow_sudo,
             'timeout': sess.timeout, 'count': sess.count, 'os': sess.os_info,
+            'cwd': _display(sess, sess.cwd),
             'connected_for': int(time.time() - sess.created),
             'idle_left': max(0, int(IDLE_TIMEOUT - (time.time() - sess.last)))}
 
@@ -908,6 +1196,11 @@ async def ecs_ssh_exec(request: Request):
 @router.post('/ecs-ssh/api/ai')
 async def ecs_ssh_ai(request: Request):
     return await run_in_threadpool(_do_ai, await _payload(request))
+
+
+@router.post('/ecs-ssh/api/complete')
+async def ecs_ssh_complete(request: Request):
+    return await run_in_threadpool(_do_complete, await _payload(request))
 
 
 @router.post('/ecs-ssh/api/disconnect')
