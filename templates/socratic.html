@@ -7,7 +7,9 @@
 <title>苏格拉底提问</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
 <script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
 <style>
 :root{
   --acc:#4C5AA8; --acc-d:#3B4685; --acc-l:#EEF0FA; --acc-line:#CBD2EC;
@@ -135,6 +137,13 @@ html[data-theme="dark"]{
 /* 深色下主按钮是浅底，文字反过来用深色 */
 html[data-theme="dark"] .btn.primary,html[data-theme="dark"] .btn.primary:active{color:#0E1119}
 
+
+/* 动态粒子背景铺在内容背后，底色由 html 出（body 已被置为透明） */
+html{background-color:var(--bg);background-image:
+  radial-gradient(1100px 520px at 12% -10%, var(--tb-page-glow-1), transparent 60%),
+  radial-gradient(900px 480px at 105% 0%, var(--tb-page-glow-2), transparent 55%),
+  radial-gradient(760px 620px at 50% 118%, var(--tb-page-glow-3), transparent 60%);
+  background-attachment:fixed}
 </style>
 </head>
 <body>

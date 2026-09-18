@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#4B5FCC">
 <script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
 <script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
 <title>SDD 需求拆解器</title>
 <style>
 :root{
@@ -184,6 +186,13 @@ label.f{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 5px}
 .back:hover{color:var(--ink);border-color:var(--blue-line);background:var(--blue-l)}
 /* 小屏带不下标题，只留箭头 */
 @media (max-width:479px){.back{width:36px;padding:0;gap:0;justify-content:center}.back span{display:none}}
+
+/* 动态粒子背景铺在内容背后，底色由 html 出（body 已被置为透明） */
+html{background-color:var(--bg);background-image:
+  radial-gradient(1100px 520px at 12% -10%, var(--tb-page-glow-1), transparent 60%),
+  radial-gradient(900px 480px at 105% 0%, var(--tb-page-glow-2), transparent 55%),
+  radial-gradient(760px 620px at 50% 118%, var(--tb-page-glow-3), transparent 60%);
+  background-attachment:fixed}
 </style>
 <script src="/static/auth-guard.js"></script>
 </head>

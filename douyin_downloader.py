@@ -94,6 +94,7 @@ _PAGE_HTML = r"""<!DOCTYPE html>
 <script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
 <link rel="stylesheet" href="/static/theme.css">
 <script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
 <style>
   * { box-sizing: border-box; }
   body { margin:0; background:var(--tb-bg); color:var(--tb-text); font-family:"Microsoft YaHei",system-ui,sans-serif; }

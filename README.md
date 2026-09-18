@@ -125,6 +125,16 @@ python video_downloader.py
 - 图表（ECharts）的颜色改成 `TBc('--tb-muted')` 这种写法，渲染时取当前主题的值，切主题后重新出图就是新配色；
 - 判断力小工具和 SDD 拆解器自带的主题按钮也写到同一个 key 上，在哪切都是整站生效。
 
+## 动态背景（粒子星链）
+
+每个页面都挂着一层动态粒子背景，切到哪个工具都在，不用单独配。
+
+- `static/particles.js` 生成一个铺满视口的 canvas（`#tb-fx`），画在内容背后（`z-index:-1`，`pointer-events:none`，不挡点击）；
+- 四层叠出效果：星云光斑（缓慢游走的大色块）→ 星链连线（按距离连，鼠标靠近会推开粒子并点亮连线）→ 微粒光晕 → 每十几秒一颗流星；
+- 颜色跟着浅色 / 深色主题走，深色模式用更亮的颜色加 `lighter` 叠加，浅色模式用加深后的同色系；
+- 为了让它露出来，`static/theme.css` 里把 `body` 底色压成了透明，页面底色与氛围光斑改由 `html` 提供（`--tb-page-glow-1/2/3`）；
+- 尊重 `prefers-reduced-motion`（只静态画一帧）、标签页切到后台自动暂停、粒子数按视口面积自适应、DPR 上限 2。
+
 ## 模型配置（本地 .env / 线上环境变量）
 
 所有需要大模型或第三方 Key 的页面（`/ai-chart`、`/buy-helper`、`/bill-analysis`、`/study-assistant`、`/ocr`）
