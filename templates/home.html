@@ -97,6 +97,31 @@ h2.sec{font-size:15px;color:var(--c-b8c4da);letter-spacing:3px;margin:0 0 14px;f
 .no-result{display:block;text-align:center;color:#71809f;font-size:14px;border:1px dashed var(--line);
   border-radius:16px;padding:42px 16px;margin-top:8px;line-height:1.9}
 .hide{display:none!important}
+/* ===== 拖动排序 ===== */
+.tool{position:relative}
+.drag{position:absolute;top:9px;right:11px;width:30px;height:30px;border-radius:9px;
+  display:grid;place-items:center;font-size:15px;line-height:1;color:var(--muted);
+  opacity:0;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;
+  transition:opacity .15s ease,background .15s ease}
+.tool:hover .drag{opacity:.5}
+.drag:hover{opacity:1;background:var(--tb-hover)}
+.drag:active{cursor:grabbing}
+@media (hover:none){.drag{opacity:.45}}
+.grid.is-filtered .drag{opacity:.12;cursor:not-allowed}
+.tool.dragging{position:fixed;z-index:80;margin:0;pointer-events:none;transition:none;
+  transform:rotate(1.2deg) scale(1.02);border-color:rgba(109,124,255,.7);
+  box-shadow:0 30px 60px rgba(16,24,40,.32)}
+.tool-ph{border:1px dashed var(--tb-line);border-radius:20px;background:var(--tb-hover);opacity:.55}
+body.is-dragging{cursor:grabbing}
+body.is-dragging .tool:not(.dragging){transition:none}
+.sec-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.sec-row h2.sec{margin:0}
+.ord-side{display:flex;align-items:center;gap:10px}
+.ord-tip{font-size:12.5px;color:var(--muted)}
+.ord-reset{font-family:inherit;font-size:12.5px;padding:6px 12px;border-radius:9px;cursor:pointer;
+  color:var(--muted);background:var(--tb-card);border:1px solid var(--line);transition:color .15s,border-color .15s}
+.ord-reset:hover{color:var(--tb-ink);border-color:rgba(109,124,255,.55)}
+@media(max-width:760px){.ord-tip{display:none}}
 @media(max-width:760px){.grid{grid-template-columns:1fr}.wrap{padding:34px 16px 60px}}
 
 .acct{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:24px}
@@ -163,7 +188,13 @@ h2.sec{font-size:15px;color:var(--c-b8c4da);letter-spacing:3px;margin:0 0 14px;f
     </div>
   </div>
 
-  <h2 class="sec">— 工具列表 —</h2>
+  <div class="sec-row">
+    <h2 class="sec">— 工具列表 —</h2>
+    <div class="ord-side">
+      <span class="ord-tip">按住卡片右上角的 ⠿ 拖动可调整顺序</span>
+      <button class="ord-reset hide" id="ordReset" type="button">↺ 恢复默认顺序</button>
+    </div>
+  </div>
   <div class="grid">
     <a class="tool" href="/ai-chart">
       <div class="t-icon">📊</div>
@@ -303,6 +334,144 @@ h2.sec{font-size:15px;color:var(--c-b8c4da);letter-spacing:3px;margin:0 0 14px;f
       </div>
     </a>
   </div>
+<script>
+(function(){
+'use strict';
+
+var KEY = 'tb_tool_order';
+var grid = document.querySelector('.grid');
+if(!grid){ return; }
+
+// cards 这一份是「作者写死的默认顺序」，恢复默认时按它排回去
+var cards = Array.prototype.slice.call(grid.querySelectorAll('.tool'));
+var search = document.getElementById('toolSearch');
+var resetBtn = document.getElementById('ordReset');
+
+function keyOf(el){ return el.getAttribute('href') || ''; }
+
+/* ---- 1) 先还原上次拖的顺序（紧接着列表跑，页面不会先闪一下默认顺序） ---- */
+var saved = null;
+try{ saved = JSON.parse(localStorage.getItem(KEY) || 'null'); }catch(e){ saved = null; }
+if(saved && saved.length){
+  var map = {};
+  cards.forEach(function(c){ map[keyOf(c)] = c; });
+  saved.forEach(function(k){ if(map[k]){ grid.appendChild(map[k]); map[k] = null; } });
+  // 顺序表里没有的（后来新加的工具）保持原来的相对位置，接在后面
+  cards.forEach(function(c){ if(map[keyOf(c)]){ grid.appendChild(map[keyOf(c)]); } });
+  if(resetBtn){ resetBtn.classList.remove('hide'); }
+}
+
+/* ---- 2) 每张卡右上角挂一个拖动手柄 ---- */
+var drag = null;      // 正在拖的那张
+var pending = null;   // 按下了但还没动，超过 4px 才算拖
+
+function begin(card, e){
+  var r = card.getBoundingClientRect();
+  var ph = document.createElement('div');
+  ph.className = 'tool-ph';
+  ph.style.width = r.width + 'px';
+  ph.style.height = r.height + 'px';
+  grid.insertBefore(ph, card);
+
+  card.classList.add('dragging');
+  card.style.width = r.width + 'px';
+  card.style.height = r.height + 'px';
+  card.style.left = r.left + 'px';
+  card.style.top = r.top + 'px';
+
+  drag = { card: card, ph: ph, ox: e.clientX - r.left, oy: e.clientY - r.top, moved: false };
+  document.body.classList.add('is-dragging');
+}
+
+// 找离指针最近的那张卡，再按上下左右决定插到它前面还是后面
+function place(x, y){
+  var best = null, bestD = Infinity;
+  cards.forEach(function(c){
+    if(c === drag.card || c.classList.contains('hide')){ return; }
+    var r = c.getBoundingClientRect();
+    var dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
+    var d = dx * dx + dy * dy;
+    if(d < bestD){ bestD = d; best = c; }
+  });
+  if(!best){ return; }
+  var br = best.getBoundingClientRect();
+  var before = (y < br.top) ? true : (y > br.bottom) ? false : (x < br.left + br.width / 2);
+  grid.insertBefore(drag.ph, before ? best : best.nextSibling);
+}
+
+function move(e){
+  if(!drag){ return; }
+  drag.moved = true;
+  drag.card.style.left = (e.clientX - drag.ox) + 'px';
+  drag.card.style.top = (e.clientY - drag.oy) + 'px';
+  place(e.clientX, e.clientY);
+}
+
+function finish(){
+  pending = null;
+  if(!drag){ return; }
+  var d = drag;
+  drag = null;
+  document.body.classList.remove('is-dragging');
+  d.card.classList.remove('dragging');
+  d.card.style.left = d.card.style.top = d.card.style.width = d.card.style.height = '';
+  if(d.ph.parentNode){ d.ph.parentNode.insertBefore(d.card, d.ph); d.ph.remove(); }
+  if(!d.moved){ return; }
+  var order = Array.prototype.slice.call(grid.querySelectorAll('.tool')).map(keyOf);
+  try{ localStorage.setItem(KEY, JSON.stringify(order)); }catch(e){}
+  if(resetBtn){ resetBtn.classList.remove('hide'); }
+}
+
+cards.forEach(function(card){
+  var h = document.createElement('span');
+  h.className = 'drag';
+  h.textContent = '⠿';                 // ⠿
+  h.title = '按住拖动，调整顺序';
+  h.setAttribute('role', 'button');
+  h.setAttribute('aria-label', '拖动调整顺序');
+  h.setAttribute('tabindex', '-1');
+  card.appendChild(h);
+
+  h.addEventListener('pointerdown', function(e){
+    if(e.button){ return; }
+    if(search && (search.value || '').trim()){ return; }   // 搜索时列表是残缺的，先别拖
+    e.preventDefault();
+    try{ h.setPointerCapture(e.pointerId); }catch(err){}
+    pending = { card: card, e: e, x: e.clientX, y: e.clientY };
+  });
+  h.addEventListener('pointermove', function(e){
+    if(pending && !drag){
+      var dx = e.clientX - pending.x, dy = e.clientY - pending.y;
+      if(dx * dx + dy * dy < 16){ return; }               // 4px 以内当点击，不启动拖动
+      begin(pending.card, pending.e);
+      pending = null;
+    }
+    move(e);
+  });
+  h.addEventListener('pointerup', finish);
+  h.addEventListener('pointercancel', finish);
+  h.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); });
+  h.addEventListener('dragstart', function(e){ e.preventDefault(); });
+});
+
+/* ---- 3) 恢复默认顺序 ---- */
+if(resetBtn){
+  resetBtn.addEventListener('click', function(){
+    try{ localStorage.removeItem(KEY); }catch(e){}
+    cards.forEach(function(c){ grid.appendChild(c); });
+    resetBtn.classList.add('hide');
+  });
+}
+
+/* ---- 4) 搜索时把手柄压灰，省得边筛边拖拖乱 ---- */
+if(search){
+  var mark = function(){ grid.classList.toggle('is-filtered', !!(search.value || '').trim()); };
+  search.addEventListener('input', mark);
+  mark();
+}
+
+})();
+</script>
   <div id="noResult" class="no-result hide">没有找到匹配的工具，换个关键词试试吧～</div>
 
 </div>
