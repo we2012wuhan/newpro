@@ -25,6 +25,7 @@
 | `writing_ideas.py` | 写作选题（页面在 `/writing-ideas`：给一点线索或什么都不给，大模型一次出一批选题，挑中一个拆成启动包（标题 / 结构 / 证据 / 反驳），没配 Key 走内置配方，数据存浏览器） |
 | `ecs_ssh.py` | ECS SSH 管理（页面在 `/ecs-ssh`：网页上连 ECS，AI 出命令方案、人点确认才执行；凭据只在服务端内存，主机指纹首次连接自动记下、变了会告警，只读模式默认开，灾难级命令永久禁止） |
 | `predict_diary.py` | 预判日记（页面在 `/predict-diary`：写下你拿不准的一件事和现在几成把握，以后来一条新消息就更新一次；数字全在 Python 里用贝叶斯算，大模型只负责听懂人话；记录存浏览器） |
+| `langchain_learn.py` | LangChain 学习（页面在 `/langchain-learn`：七课入门实操，讲一个概念就跑一次真代码，invoke / 提示词模板 / LCEL 管道 / 结构化输出 / 少样本 / 工具调用 / 流式） |
 | `templates/` 与 `static/` | 各工具页面模板与本地静态资源（含登录页 `templates/login.html`、会话兜底 `static/auth-guard.js`） |
 | `requirements.txt` | 项目依赖（fastapi + uvicorn + requests + yt-dlp + playwright + openpyxl） |
 
@@ -77,6 +78,7 @@ python video_downloader.py
 - `http://127.0.0.1:8000/writing-ideas` **写作选题**：没灵感也能开始，给一点线索（或留空）就出一批选题，挑中一个再深挖成写作启动包（可导出 .md）
 - `http://127.0.0.1:8000/ecs-ssh` **ECS SSH 管理**：填主机 / 用户名就能连上服务器，用大白话让 AI 出命令清单，勾选后自己点执行；危险命令要二次确认，几条灾难级命令直接禁止
 - `http://127.0.0.1:8000/predict-diary` **预判日记**：写下你在赌什么 —— 一件事加现在几成把握，之后来一条新消息就更新一次，攒够 8 条有结果的记录就能看出你平时是不是容易高估自己
+- `http://127.0.0.1:8000/langchain-learn` **LangChain 学习**：七课入门实操，每一课都是「看一段最短的代码 → 改个输入 → 点一下真跑」，直接看模型真实返回
 
 ## 登录与访问控制
 
@@ -264,6 +266,27 @@ cp .env.example .env     # Windows: copy .env.example .env
 - 少于 8 条结算不给任何结论，样本太小全是噪音；
 - 记录只存在这台设备的浏览器里（localStorage，key `pd_bets_v1`），可导出 / 导入 JSON；
 - 没配 `DEEPSEEK_API_KEY` 也能用：改写赌注那步退回你写的原文，判断新消息那步改成你自己选方向。
+
+## LangChain 学习
+
+打开 `http://127.0.0.1:8000/langchain-learn`。七课，每课只教一个新东西：
+
+| 第几课 | 教什么 | 你会看到 |
+| --- | --- | --- |
+| 1 | `invoke()` | 模型返回的是 AIMessage，不是字符串；正文和 token 用量在哪 |
+| 2 | `ChatPromptTemplate` | 槽位怎么挖、`input_variables` 长什么样、真正发出去的消息是什么 |
+| 3 | LCEL 管道 | `prompt \| llm \| parser` 三段各是什么，拼完为什么还能继续接 |
+| 4 | `with_structured_output` | 拿到的直接是对象，能 `.mood`、`.score` 接着算 |
+| 5 | 少样本 | 3 个例子发出去时展开成什么样，模型怎么照着模仿 |
+| 6 | `bind_tools` | 模型只回「想调哪个函数」，真正执行的是你自己 |
+| 7 | `.stream()` | 一个字一个字往外蹦，前端打字机效果就是它 |
+
+说明：
+
+- 每课都有「跑一下」，**服务端真的在跑上面那段 LangChain 代码**，返回的是当前模型的真实输出，不是写死的示例；
+- 课程内容写在 `templates/langchain-learn.html` 的 `LESSONS` 数组里，服务端只留一张 `lesson id -> 函数` 的白名单表，页面传什么进来都只能跑到那几个函数，没有执行任意代码的口子；
+- 没配 `DEEPSEEK_API_KEY` 时页面会直接告诉你缺 Key，不会白屏；
+- 第 4 课有个坑值得记住：DeepSeek 这类接口必须写 `method="function_calling"`，用默认那种会报 400 `This response_format type is unavailable now`。
 
 ## 打包成 EXE（可选）
 

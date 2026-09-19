@@ -6,3 +6,5 @@ playwright
 openpyxl
 python-multipart
 paramiko
+langchain
+langchain-openai

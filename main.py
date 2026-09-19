@@ -150,6 +150,11 @@ app.include_router(ecs_ssh_router)
 from predict_diary import router as predict_diary_router  # noqa: E402
 app.include_router(predict_diary_router)
 
+# 附加功能：LangChain 学习（七课入门实操，页面上每一课都能真跑一次，看真实的模型输出）
+# 浏览器访问 http://127.0.0.1:8000/langchain-learn 即可使用。
+from langchain_learn import router as langchain_learn_router  # noqa: E402
+app.include_router(langchain_learn_router)
+
 
 # =========================================================
 # 附加功能：工具箱主页（根路径 "/"）
