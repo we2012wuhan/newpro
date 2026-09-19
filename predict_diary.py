@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# 预判日记（页面在 /predict-diary）
+# 贝叶斯日记（页面在 /predict-diary）
 # ------------------------------------------------------------
 # 写下「你在赌什么」（0-100% 的把握），之后每来一条新消息，让大模型判断它值几个点，
 # Python 做贝叶斯更新，把「判断被现实一点点修正」的过程记下来。
@@ -361,6 +361,6 @@ async def predict_summary(request: Request):
 if __name__ == '__main__':
     import uvicorn
     from fastapi import FastAPI
-    _standalone = FastAPI(title='预判日记', description='写下你在赌什么，让现实来更新它', version='1.0.0')
+    _standalone = FastAPI(title='贝叶斯日记', description='写下你在赌什么，让现实来更新它', version='1.0.0')
     _standalone.include_router(router)
     uvicorn.run(_standalone, host='127.0.0.1', port=8008)

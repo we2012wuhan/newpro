@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0E8F79">
-<title>预判日记</title>
+<title>贝叶斯日记</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
 <link rel="stylesheet" href="/static/theme.css">
@@ -189,7 +189,7 @@ html{background-color:var(--bg);background-image:
 <header class="topbar">
   <div class="topbar-in">
     <div>
-      <div class="ttl">预判日记</div>
+      <div class="ttl">贝叶斯日记</div>
       <div class="sub">写下你在赌什么，来了新消息就更新一下</div>
     </div>
     <a class="back" href="/">← 返回工具箱</a>
@@ -750,7 +750,7 @@ function settle(b, outcome){
 }
 
 function exportJSON(){
-  var data = { app: '预判日记', version: 1, exportedAt: new Date().toISOString(), bets: all() };
+  var data = { app: '贝叶斯日记', version: 1, exportedAt: new Date().toISOString(), bets: all() };
   try{
     var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     var a = document.createElement('a');

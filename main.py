@@ -144,7 +144,7 @@ app.include_router(writing_ideas_router)
 from ecs_ssh import router as ecs_ssh_router  # noqa: E402
 app.include_router(ecs_ssh_router)
 
-# 附加功能：预判日记（写下你在赌什么 -> 每来一条新消息让大模型判断它值几个点 ->
+# 附加功能：贝叶斯日记（写下你在赌什么 -> 每来一条新消息让大模型判断它值几个点 ->
 # Python 做贝叶斯更新 -> 结算后看自己准不准；数字全由后端算，数据存浏览器）
 # 浏览器访问 http://127.0.0.1:8000/predict-diary 即可使用。
 from predict_diary import router as predict_diary_router  # noqa: E402
