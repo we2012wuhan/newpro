@@ -115,11 +115,6 @@ app.include_router(translator_router)
 from ocr import router as ocr_router  # noqa: E402
 app.include_router(ocr_router)
 
-# 附加功能：贝叶斯日记（给日常预测下注 -> 记证据实时更新后验 -> 结算后画校准曲线，纯前端计算）
-# 浏览器访问 http://127.0.0.1:8000/bayes-diary 即可使用。
-from bayes_diary import router as bayes_diary_router  # noqa: E402
-app.include_router(bayes_diary_router)
-
 # 附加功能：判断力小工具（在流水账里认出判断点 -> 拆解决策 -> 记录决策账本 -> 回看校准，纯前端）
 # 浏览器访问 http://127.0.0.1:8000/judgement-trainer 即可使用。
 from judgement_trainer import router as judgement_trainer_router  # noqa: E402
@@ -148,6 +143,12 @@ app.include_router(writing_ideas_router)
 # 浏览器访问 http://127.0.0.1:8000/ecs-ssh 即可使用。
 from ecs_ssh import router as ecs_ssh_router  # noqa: E402
 app.include_router(ecs_ssh_router)
+
+# 附加功能：预判日记（写下你在赌什么 -> 每来一条新消息让大模型判断它值几个点 ->
+# Python 做贝叶斯更新 -> 结算后看自己准不准；数字全由后端算，数据存浏览器）
+# 浏览器访问 http://127.0.0.1:8000/predict-diary 即可使用。
+from predict_diary import router as predict_diary_router  # noqa: E402
+app.include_router(predict_diary_router)
 
 
 # =========================================================
