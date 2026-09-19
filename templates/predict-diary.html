@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0E8F79">
+<title>预判日记</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<style>
+:root{
+  --acc:#0E8F79; --acc-d:#0A7263; --acc-l:#E8F5F1; --acc-line:#BFDCD4;
+  --ink:#1F2A37; --text:#3B4859; --muted:#8492A3;
+  --bg:#F5F8F7; --card:#FFFFFF; --line:#E3EAE7;
+  --ok:#3F7A5B; --ok-l:#EDF6F1; --ok-line:#CBE3D8;
+  --warn:#9E6A2C; --warn-l:#FBF3E8; --warn-line:#EBD7B8;
+  --rose:#B4635A; --rose-l:#FBEFED; --rose-line:#EBD3D0;
+  --r:16px;
+  --sh:0 1px 2px rgba(16,24,40,.04), 0 10px 24px -14px rgba(16,24,40,.18);
+  --bg-blur:rgba(245,248,247,.9); --field:#FFFFFF; --soft:#F1F5F3;
+  --err:#C0392B; --disabled:#C3CFCB;
+  --spin-track:#D3E2DE; --tip-bg:rgba(31,42,55,.94); --tip-ink:#FFFFFF;
+  --focus-ring:0 0 0 3px rgba(14,143,121,.12);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:transparent; color:var(--text);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased;
+}
+button,input,textarea{font-family:inherit;font-size:15px;color:inherit}
+h1,h2,h3{margin:0;font-weight:600;color:var(--ink)}
+p{margin:0}
+.wrap{max-width:680px;margin:0 auto;padding:0 16px calc(56px + env(safe-area-inset-bottom))}
+.topbar{position:sticky;top:0;z-index:20;background:var(--bg-blur);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:680px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px}
+.ttl{font-size:17px;font-weight:600;color:var(--ink);line-height:1.3}
+.sub{font-size:12px;color:var(--muted);line-height:1.4;margin-top:2px}
+.back{margin-left:auto;flex:0 0 auto;font-size:13px;color:var(--muted);text-decoration:none;
+  border:1px solid var(--line);background:var(--field);border-radius:999px;padding:8px 14px;white-space:nowrap}
+.back:hover{color:var(--ink);border-color:var(--acc-line)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;
+  box-shadow:var(--sh);margin-top:14px}
+.card-h{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.card-sub{font-size:12.5px;color:var(--muted);line-height:1.6}
+.sec-t{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.02em;margin:22px 2px 0}
+.mini{font-size:11.5px;color:var(--muted);line-height:1.6}
+
+label.f{display:block;font-size:12.5px;color:var(--muted);margin:14px 0 6px}
+textarea,input[type=text]{width:100%;border:1px solid var(--line);border-radius:12px;padding:11px 12px;
+  background:var(--field);outline:none;font-size:15px;line-height:1.6}
+textarea{min-height:70px;resize:vertical}
+textarea:focus,input:focus{border-color:var(--acc-line);box-shadow:var(--focus-ring)}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.chip{min-height:38px;padding:0 13px;border-radius:999px;border:1px solid var(--line);background:var(--field);
+  color:var(--text);font-size:13.5px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.chip.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc);font-weight:600}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:0 18px;
+  border-radius:12px;border:1px solid var(--line);background:var(--field);color:var(--text);font-size:15px;cursor:pointer}
+.btn:active{background:var(--soft)}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.primary:active{background:var(--acc-d)}
+.btn.primary:disabled{background:var(--disabled);border-color:var(--disabled);cursor:not-allowed}
+.btn.block{width:100%}
+.btn.sm{min-height:38px;padding:0 13px;font-size:13.5px;border-radius:10px}
+.btn.yes{border-color:var(--ok-line);color:var(--ok);background:var(--ok-l)}
+.btn.no{border-color:var(--rose-line);color:var(--rose);background:var(--rose-l)}
+.btn-row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.btn-row .btn{flex:1 1 130px}
+
+.note{font-size:12.5px;color:var(--muted);margin-top:10px;min-height:18px}
+.note.err{color:var(--err)}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--spin-track);border-top-color:var(--acc);
+  border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.up{animation:up .3s ease-out both}
+@media (prefers-reduced-motion:reduce){.up,.spin{animation:none}.bar>i{transition:none !important}}
+
+.badge{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:11.5px;
+  line-height:1.8;background:var(--acc-l);color:var(--acc);border:1px solid var(--acc-line);flex:0 0 auto}
+.badge.n{background:var(--soft);color:var(--muted);border-color:var(--line)}
+.badge.ok{background:var(--ok-l);color:var(--ok);border-color:var(--ok-line)}
+.badge.warn{background:var(--warn-l);color:var(--warn);border-color:var(--warn-line)}
+
+.bet{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);
+  border-radius:var(--r);padding:14px 16px;box-shadow:var(--sh);margin-top:12px;cursor:pointer}
+.bet:hover{border-color:var(--acc-line)}
+.bet-top{display:flex;align-items:flex-start;gap:10px}
+.bet-t{flex:1;min-width:0;font-size:15.5px;font-weight:600;color:var(--ink);line-height:1.5}
+.bet-meta{display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:12px;color:var(--muted);margin-top:9px}
+.bet-meta b{color:var(--ink);font-weight:600}
+
+.bar{height:10px;border-radius:999px;background:var(--soft);overflow:hidden;margin-top:11px;position:relative}
+.bar>i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--acc-line),var(--acc));
+  transition:width .9s cubic-bezier(.22,.61,.36,1)}
+.bar.big{height:14px}
+.bar.up>i{background:linear-gradient(90deg,#8FD3C0,var(--acc))}
+.bar.down>i{background:linear-gradient(90deg,#E8B9B2,var(--rose))}
+
+.conf-big{display:flex;align-items:baseline;gap:10px;margin:14px 0 2px}
+.conf-big b{font-size:40px;font-weight:600;color:var(--ink);line-height:1;letter-spacing:-.02em}
+.conf-big span{font-size:13px;color:var(--muted)}
+.anchor{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px}
+
+.range{width:100%;height:38px;-webkit-appearance:none;appearance:none;background:transparent;outline:none;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:7px;border-radius:999px;
+  background:linear-gradient(90deg,var(--acc-line),var(--acc))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;margin-top:-10px;
+  border-radius:50%;background:#fff;border:3px solid var(--acc);box-shadow:0 1px 4px rgba(16,24,40,.22)}
+input[type=range]::-moz-range-track{height:7px;border-radius:999px;background:var(--acc-line)}
+input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:#fff;border:3px solid var(--acc)}
+
+.moved{background:var(--acc-l);border:1px solid var(--acc-line);border-radius:12px;padding:12px 14px;margin-top:12px}
+.moved b{font-size:18px;color:var(--ink)}
+.moved .d{font-size:13px;color:var(--muted);margin-top:2px}
+.fold{margin-top:8px}
+.fold>summary{cursor:pointer;font-size:12.5px;color:var(--acc);list-style:none;padding:4px 0}
+.fold>summary::-webkit-details-marker{display:none}
+.fold>summary::before{content:"▸ "}
+.fold[open]>summary::before{content:"▾ "}
+.fold .body{font-size:12.5px;line-height:1.85;color:var(--text);padding:4px 0 2px}
+
+.tl{margin-top:2px}
+.tl-item{display:flex;gap:11px;padding:12px 0;border-bottom:1px solid var(--line)}
+.tl-item:last-child{border-bottom:0}
+.tl-dot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;background:var(--acc-line);margin-top:8px}
+.tl-item.up .tl-dot{background:var(--acc)}
+.tl-item.down .tl-dot{background:var(--rose)}
+.tl-body{flex:1;min-width:0}
+.tl-t{font-size:14px;color:var(--ink);line-height:1.6;word-break:break-word}
+.tl-m{font-size:12px;color:var(--muted);margin-top:4px;display:flex;flex-wrap:wrap;gap:8px}
+.tl-why{font-size:12.5px;color:var(--muted);line-height:1.7;margin-top:5px;
+  border-left:2px solid var(--line);padding-left:9px}
+
+.empty{text-align:center;padding:26px 12px;color:var(--muted);font-size:13.5px;line-height:1.9}
+.empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:6px}
+
+.stat-row{display:flex;align-items:baseline;gap:8px;margin-top:12px;flex-wrap:wrap}
+.stat-row b{font-size:26px;font-weight:600;color:var(--ink);line-height:1.1}
+.stat-row span{font-size:13px;color:var(--muted)}
+.ai-line{font-size:13.5px;line-height:1.8;color:var(--text);background:var(--acc-l);
+  border:1px solid var(--acc-line);border-radius:12px;padding:11px 13px;margin-top:12px}
+.linkback{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;color:var(--muted);
+  background:none;border:0;padding:14px 2px 0;cursor:pointer}
+.linkback:hover{color:var(--acc)}
+
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:50;
+  background:var(--tip-bg);color:var(--tip-ink);font-size:13.5px;padding:9px 16px;border-radius:999px;
+  opacity:0;pointer-events:none;transition:opacity .2s ease;max-width:86vw;text-align:center}
+.toast.on{opacity:1}
+
+@media (min-width:640px){
+  .wrap,.topbar-in{padding-left:24px;padding-right:24px}
+  .card{padding:20px 22px}
+}
+
+html[data-theme="dark"]{
+  --acc:#2DD4BF; --acc-d:#7FE7D8; --acc-l:#102A28; --acc-line:#245A52;
+  --ink:#E8ECF8; --text:#C2CBDE; --muted:#8593A9;
+  --bg:#0E1119; --card:#161B26; --line:#272E3D;
+  --ok:#7CC79E; --ok-l:#152A20; --ok-line:#2C4A3A;
+  --warn:#E0A868; --warn-l:#2B2113; --warn-line:#4A3A22;
+  --rose:#FF9B8F; --rose-l:#2C1618; --rose-line:#5A2A2E;
+  --sh:0 1px 2px rgba(0,0,0,.3), 0 10px 24px -14px rgba(0,0,0,.5);
+  --bg-blur:rgba(14,17,25,.92); --field:#131822; --soft:#1C2231;
+  --err:#FF9B8F; --disabled:#3A4356;
+  --spin-track:#39415A; --tip-bg:rgba(232,238,248,.96); --tip-ink:#0E1119;
+  --focus-ring:0 0 0 3px rgba(45,212,191,.18);
+  color-scheme:dark;
+}
+html[data-theme="dark"] .btn.primary,html[data-theme="dark"] .btn.primary:active{color:#08101F}
+
+html{background-color:var(--bg);background-image:
+  radial-gradient(1100px 520px at 12% -10%, var(--tb-page-glow-1), transparent 60%),
+  radial-gradient(900px 480px at 105% 0%, var(--tb-page-glow-2), transparent 55%),
+  radial-gradient(760px 620px at 50% 118%, var(--tb-page-glow-3), transparent 60%);
+  background-attachment:fixed}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div>
+      <div class="ttl">预判日记</div>
+      <div class="sub">写下你在赌什么，来了新消息就更新一下</div>
+    </div>
+    <a class="back" href="/">← 返回工具箱</a>
+  </div>
+</header>
+
+<main class="wrap"><div id="view"></div></main>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+var KEY = 'pd_bets_v1';
+var S = { view:'list', id:'', step:0, raw:'', draft:null, weigh:null, preview:null,
+          move:null, summary:null, sumFor:-1, busy:false };
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function store(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function load(k, fb){ try{ var v = localStorage.getItem(k); return v===null? fb : JSON.parse(v); }catch(e){ return fb; } }
+
+var toastTimer = null;
+function toast(msg){
+  var t = $('toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove('on'); }, 1900);
+}
+function post(path, body){
+  return fetch(path, {
+    method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body || {})
+  }).then(function(r){
+    var ct = r.headers.get('content-type') || '';
+    if(ct.indexOf('json') < 0) throw new Error('登录状态可能已失效，刷新页面重新登录');
+    return r.json();
+  });
+}
+function uid(){ return 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function dayStr(d){
+  var t = d || new Date();
+  var m = t.getMonth() + 1, day = t.getDate();
+  return t.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+}
+function addDays(n){
+  var d = new Date();
+  d.setDate(d.getDate() + n);
+  return dayStr(d);
+}
+function daysLeft(by){
+  if(!by) return null;
+  var a = new Date(by + 'T00:00:00'), b = new Date(dayStr() + 'T00:00:00');
+  return Math.round((a - b) / 86400000);
+}
+function confWord(v){
+  if(v < 55) return '基本靠猜';
+  if(v < 70) return '有点把握';
+  if(v < 85) return '比较有把握';
+  return '几乎确定';
+}
+function all(){ var v = load(KEY, []); return Object.prototype.toString.call(v) === '[object Array]' ? v : []; }
+function put(list){ store(KEY, list); }
+function getBet(id){
+  var list = all();
+  for(var i = 0; i < list.length; i++){ if(list[i].id === id) return list[i]; }
+  return null;
+}
+function saveBet(b){
+  var list = all();
+  for(var i = 0; i < list.length; i++){ if(list[i].id === b.id){ list[i] = b; put(list); return; } }
+  list.unshift(b); put(list);
+}
+function nowConf(b){
+  return b.updates && b.updates.length ? b.updates[b.updates.length - 1].after : b.conf;
+}
+function isOverdue(b){ return !b.settled && b.by && daysLeft(b.by) <= 0; }
+function dirWord(d){ return d === 'support' ? '更可能发生' : (d === 'against' ? '更不可能发生' : '没影响'); }
+function strWord(n){ return {1:'很弱', 2:'偏弱', 3:'中等', 4:'偏强', 5:'很强'}[n] || ''; }
+
+/* ---------- 列表 ---------- */
+var SAMPLES = [
+  '下周三的评审会能过',
+  '这周会加班到晚上十点以后',
+  '我发消息问他，他当天会回我',
+  '我这个月的外卖开销会超过一千五'
+];
+
+function newCardHTML(){
+  if(S.step === 1 && S.draft){
+    var d = S.draft;
+    return '<section class="card">' +
+      '<div class="card-h">确认一下就记下来</div>' +
+      '<div class="card-sub">这句话到那天应该能明确判断成没成。不满意就直接改。</div>' +
+      '<label class="f">你在赌的事</label>' +
+      '<textarea id="betText">' + esc(d.bet) + '</textarea>' +
+      (d.need ? '<div class="note">AI 想先问一句：' + esc(d.need) + '</div>' : '') +
+      '<label class="f">你现在觉得有多可能</label>' +
+      '<div class="conf-big"><b id="confNum">' + d.conf + '%</b><span id="confWord">' + confWord(d.conf) + '</span></div>' +
+      '<input type="range" class="range" id="confRange" min="40" max="95" step="5" value="' + d.conf + '" aria-label="把握程度">' +
+      '<div class="anchor"><span>一半一半</span><span>很可能</span><span>几乎确定</span></div>' +
+      '<label class="f">什么时候能知道结果</label>' +
+      '<div class="chips" id="dayChips">' + dayChipsHTML(d.days) + '</div>' +
+      '<div class="btn-row"><button class="btn" id="backBtn">返回</button>' +
+      '<button class="btn primary" id="saveBtn">记下来</button></div>' +
+    '</section>';
+  }
+  return '<section class="card">' +
+    '<div class="card-h">你现在在赌什么？</div>' +
+    '<div class="card-sub">写一件你拿不准、过些天就有答案的事。说得越具体，将来越知道自己猜没猜对。</div>' +
+    '<textarea id="newText" placeholder="例：下周三的评审会能过">' + esc(S.raw) + '</textarea>' +
+    '<div class="chips" id="samples">' + SAMPLES.map(function(t){
+        return '<button class="chip" data-s="' + esc(t) + '">' + esc(t) + '</button>';
+      }).join('') + '</div>' +
+    '<div class="note" id="newNote"></div>' +
+    '<button class="btn primary block" id="shapeBtn" style="margin-top:12px">AI 帮我写清楚</button>' +
+  '</section>';
+}
+
+function dayChipsHTML(days){
+  var opts = [[3, '3 天后'], [7, '一周后'], [30, '一个月后'], [0, '先不定']];
+  return opts.map(function(o){
+    return '<button class="chip' + (o[0] === days ? ' on' : '') + '" data-day="' + o[0] + '">' + o[1] + '</button>';
+  }).join('');
+}
+
+function cardHTML(b){
+  var conf = nowConf(b);
+  var badge = b.settled ? '<span class="badge ok">已结算</span>'
+    : (isOverdue(b) ? '<span class="badge warn">该看结果了</span>' : '<span class="badge n">在等答案</span>');
+  var move = (b.updates && b.updates.length)
+    ? '<span>从 ' + b.conf + '% 走到 ' + conf + '%</span>'
+    : '<span>还没更新过</span>';
+  return '<button class="bet" data-id="' + b.id + '">' +
+    '<div class="bet-top"><span class="bet-t">' + esc(b.bet) + '</span>' +
+      (b.domain ? '<span class="badge n">' + esc(b.domain) + '</span>' : '') + '</div>' +
+    '<div class="bar"><i style="width:' + conf + '%"></i></div>' +
+    '<div class="bet-meta"><b>' + conf + '%</b>' + move +
+      '<span>' + (b.updates ? b.updates.length : 0) + ' 条消息</span>' + badge + '</div>' +
+  '</button>';
+}
+
+function summaryHTML(){
+  var done = all().filter(function(b){ return b.settled; });
+  var h = '<div class="sec-t">我的准头</div><section class="card">';
+  if(!done.length){
+    return h + '<div class="card-sub">还没有结算过的赌注。等一件你在赌的事有了结果，这里会开始告诉你，你平时是不是容易高估自己。</div></section>';
+  }
+  var s = S.summary;
+  if(!s || S.sumFor !== done.length){
+    return h + '<div class="card-sub"><span class="spin"></span> 正在算…</div></section>';
+  }
+  if(!s.enough){
+    return h + '<div class="stat-row"><b>' + s.n + '</b><span>条已经有结果</span></div>' +
+      '<div class="card-sub" style="margin-top:10px">再攒 ' + (8 - s.n) + ' 条就能看出你的准头。样本太少时，任何结论都可能是碰巧。</div></section>';
+  }
+  h += '<div class="stat-row"><b>' + s.rate + '%</b><span>你平均说 ' + s.avg + '% 把握的事，实际发生的比例（' + s.n + ' 条）</span></div>';
+  var gap = s.avg - s.rate;
+  if(gap > 12) h += '<div class="card-sub" style="margin-top:10px">你比自己以为的更没把握：嘴上说的把握，比实际发生的高出 ' + gap + ' 个百分点。</div>';
+  else if(gap < -12) h += '<div class="card-sub" style="margin-top:10px">你比自己以为的更保守：说 ' + s.avg + '% 的事，实际发生了 ' + s.rate + '%。</div>';
+  else h += '<div class="card-sub" style="margin-top:10px">你说的把握和实际发生的频率差得不多 —— 你对自己有多大把握，心里是有数的。</div>';
+  h += '<div class="mini" style="margin-top:6px">平均误差 ' + s.brier + '（每条判断差多少的平方取平均，0 最好，0.25 相当于闭眼瞎猜）</div>';
+  if(s.ev_n >= 8){
+    if(s.support_rate >= 75){
+      h += '<div class="note" style="margin-top:12px">你记的 ' + s.ev_n + ' 条消息里，' + s.support + ' 条都让你更相信原来的看法。你是在收集消息，还是在找支持自己的消息？</div>';
+    } else {
+      h += '<div class="mini" style="margin-top:10px">' + s.ev_n + ' 条消息里 ' + s.support + ' 条支持原来的看法、' + s.against + ' 条反对。</div>';
+    }
+  }
+  h += s.insight ? '<div class="ai-line">' + esc(s.insight) + '</div>'
+                 : '<div class="note" style="margin-top:10px">' + esc(s.message || '') + '</div>';
+  return h + '</section>';
+}
+
+/* ---------- 详情 ---------- */
+function metaLine(b){
+  var parts = ['你最开始说 ' + b.conf + '%'];
+  if(b.updates && b.updates.length) parts.push('记了 ' + b.updates.length + ' 条消息');
+  if(b.by){
+    var left = daysLeft(b.by);
+    parts.push(left > 0 ? (left + ' 天后能知道结果（' + b.by + '）') : ('结果该出来了（' + b.by + '）'));
+  } else {
+    parts.push('没定期限');
+  }
+  return parts.join(' · ');
+}
+
+function whyText(m){
+  if(!m.delta) return '这条消息没有改变你的把握。';
+  var times = m.lr >= 1 ? m.lr : Math.round(100 / m.lr) / 100;
+  var up = m.delta > 0;
+  var t = up
+    ? '你原本觉得 ' + m.before + '%。这条消息在「事情真的会发生」的时候冒出来的可能性，是在「不会发生」时候的 ' + times + ' 倍。'
+    : '你原本觉得 ' + m.before + '%。这条消息更像是「事情不会发生」时才会出现的东西 —— 它在那边冒出来的可能性是在这边的 ' + times + ' 倍。';
+  t += '把这个倍数乘到你原来的把握上，就从 ' + m.before + '% 走到了 ' + m.after + '%。';
+  if(m.after >= 95) t += ' 到 95% 以上就不太容易再往上走了：留一点余地，才可能被新消息推翻。';
+  if(m.after <= 5) t += ' 到 5% 以下同样不再往下压：几乎确定的事也可能有意外。';
+  return t;
+}
+
+function moveHTML(m){
+  var up = m.delta > 0;
+  return '<div class="moved up">' +
+    '<b>' + (up ? '+' : '') + m.delta + ' 个点</b>' +
+    '<div class="d">这条消息把把握从 ' + m.before + '% 变成了 ' + m.after + '%</div>' +
+    '<details class="fold"><summary>凭什么动这么多</summary>' +
+    '<div class="body">' + esc(whyText(m)) + '</div></details>' +
+  '</div>';
+}
+
+function updateHTML(b){
+  var h = '<section class="card">' +
+    '<div class="card-h">来了什么新消息？</div>' +
+    '<div class="card-sub">一句就够。让 AI 看看它值几个点，你有不同意见可以改。</div>' +
+    '<textarea id="evText" placeholder="例：老板在会上说这个先放放"></textarea>' +
+    '<div class="note" id="evNote"></div>' +
+    '<button class="btn primary block" id="weighBtn" style="margin-top:12px">AI 看看这条值几个点</button>' +
+    '<div id="weighBox"></div>' +
+  '</section>';
+  return h;
+}
+
+function weighBoxHTML(b){
+  var w = S.weigh || { dir:'support', strength:3, why:'' };
+  var h = '<div class="up" style="margin-top:16px">';
+  if(w.why) h += '<div class="tl-why" style="margin:0 0 12px">AI 的判断：' + esc(w.why) + '</div>';
+  h += '<label class="f">这条消息说明了什么</label><div class="chips" id="dirChips">' +
+    [['support', '更可能发生'], ['against', '更不可能发生'], ['none', '没什么影响']].map(function(o){
+      return '<button class="chip' + (w.dir === o[0] ? ' on' : '') + '" data-dir="' + o[0] + '">' + o[1] + '</button>';
+    }).join('') + '</div>';
+  if(w.dir !== 'none'){
+    h += '<label class="f">力度</label><div class="chips" id="strChips">' +
+      [5, 4, 3, 2, 1].map(function(n){
+        return '<button class="chip' + (w.strength === n ? ' on' : '') + '" data-str="' + n + '">' + strWord(n) + '</button>';
+      }).join('') + '</div>';
+  }
+  var p = S.preview;
+  h += '<div class="mini" id="preview" style="margin-top:12px">' +
+    (p ? ('按这个判断，把握会从 ' + p.before + '% 变成 ' + p.after + '%（' + (p.delta > 0 ? '+' : '') + p.delta + '）')
+       : '正在算…') + '</div>';
+  h += '<button class="btn primary block" id="applyBtn" style="margin-top:12px">就这样，更新</button>';
+  h += '</div>';
+  return h;
+}
+
+function settleCardHTML(b){
+  return '<section class="card">' +
+    '<div class="card-h">有结果了吗？</div>' +
+    '<div class="card-sub">结果出来就记一下 —— 这是这个工具唯一能给你打分的地方。</div>' +
+    '<div class="btn-row"><button class="btn yes" id="yesBtn">发生了</button>' +
+    '<button class="btn no" id="noBtn">没发生</button></div>' +
+    '<div class="note" id="setNote"></div>' +
+  '</section>';
+}
+
+function settledHTML(b){
+  var yes = b.settled.outcome === 'yes';
+  var h = '<section class="card">' +
+    '<div class="row"><span class="badge ' + (yes ? 'ok' : 'warn') + '">结果：' + (yes ? '发生了' : '没发生') + '</span>' +
+    '<span class="mini">当时你说 ' + b.settled.atConf + '%</span></div>';
+  h += b.settled.insight
+    ? '<div class="ai-line">' + esc(b.settled.insight) + '</div>'
+    : '<div class="card-sub" style="margin-top:10px">这次没生成复盘。' + esc(b.settled.note || '') + '</div>';
+  return h + '</section>';
+}
+
+function timelineHTML(b){
+  var ups = (b.updates || []).slice().reverse();
+  var h = '<div class="sec-t">这条赌注的变化</div><section class="card"><div class="tl">';
+  h += ups.map(function(u){
+    var up = u.delta > 0;
+    return '<div class="tl-item' + (u.delta > 0 ? ' up' : (u.delta < 0 ? ' down' : '')) + '">' +
+      '<div class="tl-dot"></div><div class="tl-body">' +
+      '<div class="tl-t">' + esc(u.text) + '</div>' +
+      '<div class="tl-m"><span>' + dirWord(u.dir) + (u.dir === 'none' ? '' : ' · ' + strWord(u.strength)) + '</span>' +
+        '<span>' + u.before + '% → ' + u.after + '%</span>' +
+        '<span>' + (u.delta > 0 ? '+' : '') + u.delta + '</span></div>' +
+      (u.why ? '<div class="tl-why">' + esc(u.why) + '</div>' : '') +
+      '<details class="fold"><summary>凭什么动这么多</summary><div class="body">' + esc(whyText(u)) + '</div></details>' +
+      '</div></div>';
+  }).join('');
+  h += '<div class="tl-item"><div class="tl-dot"></div><div class="tl-body">' +
+    '<div class="tl-t">下注：' + esc(b.bet) + '</div>' +
+    '<div class="tl-m"><span>当时你说 ' + b.conf + '%</span><span>' + esc(b.createdAt) + '</span></div>' +
+    '</div></div>';
+  return h + '</div></section>';
+}
+
+/* ---------- 渲染与绑定 ---------- */
+function listHTML(){
+  var list = all();
+  var active = list.filter(function(b){ return !b.settled; });
+  var done = list.filter(function(b){ return b.settled; });
+  var h = newCardHTML();
+  if(!list.length){
+    h += '<div class="empty"><b>还没有赌注</b>上面写一件你拿不准、过些天就有答案的事。<br>写下来，才谈得上"我早就说过"。</div>';
+  } else {
+    if(active.length) h += '<div class="sec-t">在等答案（' + active.length + '）</div>' + active.map(cardHTML).join('');
+    if(done.length) h += '<div class="sec-t">已经有结果（' + done.length + '）</div>' + done.map(cardHTML).join('');
+  }
+  h += summaryHTML();
+  h += '<div class="btn-row" style="margin-top:20px"><button class="btn sm" id="expBtn">导出数据</button>' +
+       '<button class="btn sm" id="impBtn">导入数据</button></div>' +
+       '<div class="mini" style="text-align:center;margin-top:10px">赌注只存在这台设备的浏览器里。</div>';
+  return h;
+}
+
+function render(scroll){
+  var v = $('view');
+  var b = S.view === 'detail' ? getBet(S.id) : null;
+  if(S.view === 'detail' && !b) S.view = 'list';
+  if(S.view === 'detail'){
+    v.innerHTML = detailHTML(b);
+    bindDetail(b);
+  } else {
+    v.innerHTML = listHTML();
+    bindList();
+  }
+  if(scroll) window.scrollTo(0, 0);
+}
+
+function detailHTML(b){
+  var conf = nowConf(b);
+  var h = '<button class="linkback" id="backBtn">← 全部赌注</button>';
+  h += '<section class="card">' +
+    '<div class="bet-t" style="font-size:17px">' + esc(b.bet) + '</div>' +
+    '<div class="conf-big"><b>' + conf + '%</b><span>' + confWord(conf) + '</span></div>' +
+    '<div class="bar big"><i style="width:' + conf + '%"></i></div>' +
+    '<div class="mini" style="margin-top:10px">' + esc(metaLine(b)) + '</div>' +
+  '</section>';
+  if(S.move && S.move.id === b.id) h += moveHTML(S.move);
+  if(b.settled) h += settledHTML(b);
+  else h += updateHTML(b) + settleCardHTML(b);
+  h += timelineHTML(b);
+  h += '<button class="linkback" id="delBtn" style="color:var(--muted)">删掉这条</button>';
+  return h;
+}
+
+function openBet(id){
+  S.id = id; S.view = 'detail'; S.move = null; S.weigh = null; S.preview = null; S.evText = '';
+  render(true);
+}
+
+function bindDetail(b){
+  var bb = $('backBtn');
+  if(bb) bb.onclick = function(){ S.view = 'list'; S.move = null; render(true); };
+  var wb = $('weighBtn');
+  if(wb) wb.onclick = function(){ doWeigh(b); };
+  var yb = $('yesBtn');
+  if(yb) yb.onclick = function(){ settle(b, 'yes'); };
+  var nb = $('noBtn');
+  if(nb) nb.onclick = function(){ settle(b, 'no'); };
+  var db = $('delBtn');
+  if(db) db.onclick = function(){
+    if(!confirm('删掉这条赌注？删了就找不回来了。')) return;
+    put(all().filter(function(x){ return x.id !== b.id; }));
+    S.summary = null; S.sumFor = -1; S.view = 'list'; S.move = null; S.weigh = null;
+    render(true);
+  };
+  if(S.weigh) paintWeigh(b);
+}
+
+function bindList(){
+  var st = $('samples');
+  if(st) Array.prototype.forEach.call(st.querySelectorAll('[data-s]'), function(el){
+    el.onclick = function(){ $('newText').value = el.getAttribute('data-s'); };
+  });
+  var sb = $('shapeBtn');
+  if(sb) sb.onclick = doShape;
+  var bb = $('backBtn');
+  if(bb) bb.onclick = function(){ S.step = 0; S.draft = null; render(false); };
+  var rg = $('confRange');
+  if(rg){
+    rg.oninput = function(){
+      S.draft.conf = +rg.value;
+      $('confNum').textContent = S.draft.conf + '%';
+      $('confWord').textContent = confWord(S.draft.conf);
+    };
+  }
+  var dc = $('dayChips');
+  if(dc) Array.prototype.forEach.call(dc.querySelectorAll('[data-day]'), function(el){
+    el.onclick = function(){ S.draft.days = +el.getAttribute('data-day'); render(false); };
+  });
+  var sv = $('saveBtn');
+  if(sv) sv.onclick = saveDraft;
+  Array.prototype.forEach.call(document.querySelectorAll('.bet[data-id]'), function(el){
+    el.onclick = function(){ openBet(el.getAttribute('data-id')); };
+  });
+  var eb = $('expBtn');
+  if(eb) eb.onclick = exportJSON;
+  var ib = $('impBtn');
+  if(ib) ib.onclick = importJSON;
+  loadSummary();
+}
+
+function doShape(){
+  var text = ($('newText').value || '').trim();
+  if(text.length < 2){ toast('先写一句你现在的想法'); return; }
+  S.raw = text;
+  var btn = $('shapeBtn');
+  btn.disabled = true;
+  $('newNote').innerHTML = '<span class="spin"></span> 正在帮你写清楚…';
+  post('/predict-diary/api/shape', { text: text }).then(function(d){
+    if(d.ok){
+      S.draft = { bet: d.bet, conf: d.conf, days: d.days, need: d.need || '', domain: d.domain || '' };
+    } else {
+      S.draft = { bet: d.bet || text, conf: d.conf || 60, days: 0, need: '', domain: '' };
+      if(d.source !== 'off' && d.message) toast(d.message);
+    }
+    S.step = 1;
+    render(true);
+  }).catch(function(e){
+    btn.disabled = false;
+    $('newNote').textContent = e.message || '出错了，直接按你写的记也行';
+  });
+}
+
+function saveDraft(){
+  var d = S.draft;
+  var bet = ($('betText').value || '').trim();
+  if(bet.length < 3){ toast('再补几个字，将来才好判断'); return; }
+  var days = d.days || 0;
+  saveBet({
+    id: uid(), bet: bet, conf: d.conf, by: days > 0 ? addDays(days) : '',
+    domain: d.domain || '', createdAt: dayStr(), updates: [], settled: null
+  });
+  S.step = 0; S.draft = null; S.raw = '';
+  toast('记下了，有消息就来更新');
+  render(true);
+}
+
+function loadSummary(){
+  var done = all().filter(function(b){ return b.settled; });
+  if(!done.length || S.sumFor === done.length) return;
+  var items = done.map(function(b){
+    return { conf: b.settled.atConf, outcome: b.settled.outcome,
+             dirs: (b.updates || []).map(function(u){ return u.dir; }) };
+  });
+  post('/predict-diary/api/summary', { items: items }).then(function(d){
+    if(!d || !d.ok) return;
+    S.summary = d.stats;
+    S.sumFor = done.length;
+    if(S.view === 'list') render(false);
+  }).catch(function(){});
+}
+
+function paintWeigh(b){
+  var box = $('weighBox');
+  if(!box || !S.weigh) return;
+  box.innerHTML = weighBoxHTML(b);
+  Array.prototype.forEach.call(box.querySelectorAll('[data-dir]'), function(el){
+    el.onclick = function(){
+      S.weigh.dir = el.getAttribute('data-dir');
+      if(S.weigh.dir === 'none') S.weigh.strength = 0;
+      else if(!S.weigh.strength) S.weigh.strength = 3;
+      S.preview = null;
+      paintWeigh(b);
+      applyPreview(b);
+    };
+  });
+  Array.prototype.forEach.call(box.querySelectorAll('[data-str]'), function(el){
+    el.onclick = function(){
+      S.weigh.strength = +el.getAttribute('data-str');
+      S.preview = null;
+      paintWeigh(b);
+      applyPreview(b);
+    };
+  });
+  var ab = $('applyBtn');
+  if(ab) ab.onclick = function(){ doApply(b); };
+}
+
+function applyPreview(b){
+  post('/predict-diary/api/apply', { conf: nowConf(b), dir: S.weigh.dir, strength: S.weigh.strength })
+    .then(function(d){
+      if(!d || !d.ok) return;
+      S.preview = d;
+      var el = $('preview');
+      if(el) el.textContent = '按这个判断，把握会从 ' + d.before + '% 变成 ' + d.after + '%（'
+        + (d.delta > 0 ? '+' : '') + d.delta + '）';
+    }).catch(function(){});
+}
+
+function doWeigh(b){
+  var text = ($('evText').value || '').trim();
+  if(text.length < 2){ toast('先写一句这条新消息'); return; }
+  S.evText = text;
+  var btn = $('weighBtn');
+  btn.disabled = true;
+  $('evNote').innerHTML = '<span class="spin"></span> 正在看这条消息…';
+  post('/predict-diary/api/weigh', { bet: b.bet, conf: nowConf(b), text: text }).then(function(d){
+    btn.disabled = false;
+    $('evNote').textContent = '';
+    if(d.ok){
+      S.weigh = { dir: d.dir, strength: d.dir === 'none' ? 0 : (d.strength || 3), why: d.why || '' };
+    } else {
+      S.weigh = { dir: 'support', strength: 3, why: '' };
+      $('evNote').textContent = (d.message || 'AI 这次没给出判断') + '，你自己选一个：';
+    }
+    S.preview = null;
+    paintWeigh(b);
+    applyPreview(b);
+  }).catch(function(e){
+    btn.disabled = false;
+    S.weigh = { dir: 'support', strength: 3, why: '' };
+    $('evNote').textContent = (e.message || '出错了') + '，你自己选一个：';
+    paintWeigh(b);
+    applyPreview(b);
+  });
+}
+
+function doApply(b){
+  if(!S.weigh) return;
+  var text = ($('evText') ? ($('evText').value || '') : (S.evText || '')).trim();
+  if(text.length < 2) text = S.evText || '（没写内容）';
+  var btn = $('applyBtn');
+  if(btn) btn.disabled = true;
+  post('/predict-diary/api/apply', { conf: nowConf(b), dir: S.weigh.dir, strength: S.weigh.strength })
+    .then(function(d){
+      if(!d || !d.ok) throw new Error((d && d.message) || '算不出来');
+      b.updates = b.updates || [];
+      b.updates.push({ text: text, dir: d.dir, strength: d.strength, lr: d.lr,
+                       before: d.before, after: d.after, delta: d.delta,
+                       why: S.weigh.why || '', at: dayStr() });
+      saveBet(b);
+      S.move = { id: b.id, before: d.before, after: d.after, delta: d.delta, lr: d.lr };
+      S.weigh = null; S.preview = null; S.evText = '';
+      render(true);
+    }).catch(function(e){
+      if(btn) btn.disabled = false;
+      toast(e.message || '更新失败');
+    });
+}
+
+function settle(b, outcome){
+  var atConf = nowConf(b);
+  var note = $('setNote');
+  var yb = $('yesBtn'), nb = $('noBtn');
+  if(yb) yb.disabled = true;
+  if(nb) nb.disabled = true;
+  if(note) note.innerHTML = '<span class="spin"></span> 正在看这次判断…';
+  post('/predict-diary/api/review', { bet: b.bet, prior: b.conf, final: atConf,
+      times: (b.updates || []).length, outcome: outcome }).then(function(d){
+    b.settled = { outcome: outcome, at: dayStr(), atConf: atConf,
+                  insight: (d && d.insight) || '', note: (d && d.message) || '' };
+    saveBet(b);
+    S.summary = null; S.sumFor = -1;
+    render(true);
+    toast(outcome === 'yes' ? '记下了：发生了' : '记下了：没发生');
+  }).catch(function(e){
+    if(yb) yb.disabled = false;
+    if(nb) nb.disabled = false;
+    if(note) note.textContent = e.message || '结算失败，再试一次';
+  });
+}
+
+function exportJSON(){
+  var data = { app: '预判日记', version: 1, exportedAt: new Date().toISOString(), bets: all() };
+  try{
+    var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'predict-diary-' + dayStr() + '.json';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 600);
+  }catch(e){ toast('这台浏览器不支持直接下载'); }
+}
+
+function importJSON(){
+  var inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = '.json,application/json';
+  inp.onchange = function(){
+    var f = inp.files && inp.files[0];
+    if(!f) return;
+    var fr = new FileReader();
+    fr.onload = function(){
+      var data = null;
+      try{ data = JSON.parse(fr.result); }catch(e){ toast('这个文件读不了'); return; }
+      var incoming = (data && data.bets) ? data.bets : data;
+      if(Object.prototype.toString.call(incoming) !== '[object Array]'){ toast('文件里没有赌注'); return; }
+      var list = all(), have = {}, added = 0;
+      list.forEach(function(b){ have[b.id] = 1; });
+      incoming.forEach(function(b){
+        if(b && b.id && b.bet && !have[b.id]){ list.push(b); added++; }
+      });
+      list.sort(function(a, c){ return String(c.createdAt).localeCompare(String(a.createdAt)); });
+      put(list);
+      S.sumFor = -1; S.summary = null;
+      render(true);
+      toast(added ? ('导入了 ' + added + ' 条') : '没有新的赌注');
+    };
+    fr.readAsText(f);
+  };
+  inp.click();
+}
+
+render(true);
+})();
+</script>
+</body>
+</html>

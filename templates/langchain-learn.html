@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0F6B52">
+<title>LangChain 学习</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<style>
+:root{
+  --acc:#0F6B52; --acc-d:#0B5340; --acc-l:#E8F5EF; --acc-line:#C2DED4;
+  --ink:#1F2A37; --text:#3B4859; --muted:#8492A3;
+  --bg:#F5F8F6; --card:#FFFFFF; --line:#E3EAE6;
+  --ok:#3F7A5B; --ok-l:#EDF6F1; --ok-line:#CBE3D8;
+  --warn:#9E6A2C; --warn-l:#FBF3E8; --warn-line:#EBD7B8;
+  --r:16px;
+  --sh:0 1px 2px rgba(16,24,40,.04), 0 10px 24px -14px rgba(16,24,40,.18);
+  --bg-blur:rgba(245,248,246,.9); --field:#FFFFFF; --soft:#F1F5F3;
+  --code-bg:#101A17; --code-ink:#DCEFE7; --code-cmt:#7C8F89;
+  --err:#C0392B; --disabled:#C3CFCB;
+  --spin-track:#D3E2DE; --tip-bg:rgba(31,42,55,.94); --tip-ink:#FFFFFF;
+  --focus-ring:0 0 0 3px rgba(15,107,82,.12);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none !important}
+html,body{margin:0;padding:0}
+body{
+  background:transparent; color:var(--text);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased;
+}
+button,input,textarea{font-family:inherit;font-size:15px;color:inherit}
+h1,h2,h3{margin:0;font-weight:600;color:var(--ink)}
+p{margin:0}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px calc(56px + env(safe-area-inset-bottom))}
+.topbar{position:sticky;top:0;z-index:20;background:var(--bg-blur);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:760px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px}
+.ttl{font-size:17px;font-weight:600;color:var(--ink);line-height:1.3}
+.sub{font-size:12px;color:var(--muted);line-height:1.4;margin-top:2px}
+.back{margin-left:auto;flex:0 0 auto;font-size:13px;color:var(--muted);text-decoration:none;
+  border:1px solid var(--line);background:var(--field);border-radius:999px;padding:8px 14px;white-space:nowrap}
+.back:hover{color:var(--ink);border-color:var(--acc-line)}
+
+/* 七课全都要一眼看得见：换行，不做横向滚动（横向滚动条一藏，后两课就没人发现） */
+.steps{display:flex;flex-wrap:wrap;gap:8px;padding:16px 2px 2px}
+.step{flex:0 0 auto;min-height:36px;padding:0 13px;border-radius:999px;border:1px solid var(--line);
+  background:var(--field);color:var(--muted);font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+.step b{font-weight:600;color:var(--acc);font-size:12.5px}
+.step.on{border-color:var(--acc);background:var(--acc-l);color:var(--ink)}
+.step.done b::after{content:"✓"}
+.step.done b{font-size:0}
+.step.done b::after{font-size:12.5px}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;
+  box-shadow:var(--sh);margin-top:14px}
+.card-h{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.card-sub{font-size:12.5px;color:var(--muted);line-height:1.6}
+.mini{font-size:11.5px;color:var(--muted);line-height:1.6}
+.sec-t{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.02em;margin:22px 2px 0}
+
+.lesson-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.lesson-h h2{font-size:19px;line-height:1.35}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:11.5px;
+  line-height:1.8;background:var(--acc-l);color:var(--acc);border:1px solid var(--acc-line);flex:0 0 auto}
+.one{font-size:14.5px;line-height:1.85;color:var(--text);margin-top:10px}
+.one code{background:var(--soft);border-radius:5px;padding:1px 5px;font-size:13px;color:var(--ink);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+.codebox{position:relative;margin-top:10px}
+pre.code{margin:0;background:var(--code-bg);color:var(--code-ink);border-radius:12px;padding:14px 14px;
+  overflow-x:auto;font-size:12.8px;line-height:1.75;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace;white-space:pre}
+pre.code .c{color:var(--code-cmt)}
+.copy{position:absolute;top:8px;right:8px;min-height:30px;padding:0 10px;border-radius:8px;
+  border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#CFE7DE;font-size:12px;cursor:pointer}
+.copy:hover{background:rgba(255,255,255,.16)}
+
+label.f{display:block;font-size:12.5px;color:var(--muted);margin:14px 0 6px}
+textarea,input[type=text],input[type=number]{width:100%;border:1px solid var(--line);border-radius:12px;
+  padding:11px 12px;background:var(--field);outline:none;font-size:15px;line-height:1.6}
+textarea{min-height:64px;resize:vertical}
+textarea:focus,input:focus{border-color:var(--acc-line);box-shadow:var(--focus-ring)}
+.row2{display:flex;gap:10px;align-items:flex-end}
+.row2>div{flex:1}
+.row2>div.n{flex:0 0 116px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:0 18px;
+  border-radius:12px;border:1px solid var(--line);background:var(--field);color:var(--text);font-size:15px;cursor:pointer}
+.btn:active{background:var(--soft)}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.primary:active{background:var(--acc-d)}
+.btn.primary:disabled{background:var(--disabled);border-color:var(--disabled);cursor:not-allowed}
+.btn.block{width:100%}
+.btn.sm{min-height:38px;padding:0 13px;font-size:13.5px;border-radius:10px}
+.btn-row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.btn-row .btn{flex:1 1 120px}
+.note{font-size:12.5px;color:var(--muted);margin-top:10px;min-height:18px;line-height:1.7}
+.note.err{color:var(--err)}
+.note.tip{background:var(--warn-l);border:1px solid var(--warn-line);color:var(--warn);
+  border-radius:12px;padding:11px 13px;margin-top:12px}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--spin-track);border-top-color:var(--acc);
+  border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.up{animation:up .3s ease-out both}
+@media (prefers-reduced-motion:reduce){.up,.spin{animation:none}}
+
+.out{margin-top:12px}
+.out-i{padding:12px 0;border-bottom:1px solid var(--line)}
+.out-i:last-child{border-bottom:0;padding-bottom:2px}
+.out-l{font-size:12px;color:var(--muted);margin-bottom:5px}
+pre.out-v{margin:0;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+  overflow-x:auto;font-size:13px;line-height:1.75;white-space:pre-wrap;word-break:break-word;color:var(--ink);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace}
+.stream-v{min-height:24px}
+.cursor{display:inline-block;width:8px;height:15px;background:var(--acc);vertical-align:-2px;margin-left:1px;
+  animation:bl .9s steps(1) infinite}
+@keyframes bl{50%{opacity:0}}
+.elapsed{font-size:11.5px;color:var(--muted);margin-top:8px}
+
+html[data-theme="dark"]{
+  --acc:#3DDC97; --acc-d:#8CE9BE; --acc-l:#10261F; --acc-line:#245444;
+  --ink:#E8ECF8; --text:#C2CBDE; --muted:#8593A9;
+  --bg:#0E1119; --card:#161B26; --line:#272E3D;
+  --ok:#7CC79E; --ok-l:#152A20; --ok-line:#2C4A3A;
+  --warn:#E0A868; --warn-l:#2B2113; --warn-line:#4A3A22;
+  --sh:0 1px 2px rgba(0,0,0,.3), 0 10px 24px -14px rgba(0,0,0,.5);
+  --bg-blur:rgba(14,17,25,.92); --field:#131822; --soft:#1C2231;
+  --code-bg:#0B1210; --code-ink:#D5EFE4; --code-cmt:#6E837C;
+  --err:#FF9B8F; --disabled:#3A4356;
+  --spin-track:#39415A; --tip-bg:rgba(232,238,248,.96); --tip-ink:#0E1119;
+  --focus-ring:0 0 0 3px rgba(61,220,151,.18);
+  color-scheme:dark;
+}
+html[data-theme="dark"] .btn.primary,html[data-theme="dark"] .btn.primary:active{color:#08120E}
+
+html{background-color:var(--bg);background-image:
+  radial-gradient(1100px 520px at 12% -10%, var(--tb-page-glow-1), transparent 60%),
+  radial-gradient(900px 480px at 105% 0%, var(--tb-page-glow-2), transparent 55%),
+  radial-gradient(760px 620px at 50% 118%, var(--tb-page-glow-3), transparent 60%);
+  background-attachment:fixed}
+
+@media (min-width:640px){
+  .wrap,.topbar-in{padding-left:24px;padding-right:24px}
+  .card{padding:20px 22px}
+  pre.code{font-size:13.2px}
+}
+
+/* 窄屏：代码太长，复制按钮会压住第一行，给它单开一条空白带 */
+@media (max-width:560px){
+  pre.code{padding-top:46px}
+  .copy{top:10px;right:10px}
+}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:50;
+  background:var(--tip-bg);color:var(--tip-ink);font-size:13.5px;padding:9px 16px;border-radius:999px;
+  opacity:0;pointer-events:none;transition:opacity .2s ease;max-width:86vw;text-align:center}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div>
+      <div class="ttl">LangChain 学习</div>
+      <div class="sub">七课，每一课都能点一下真跑，看真实输出</div>
+    </div>
+    <a class="back" href="/">← 返回工具箱</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="steps" id="steps"></nav>
+  <div id="view"></div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ============================================================
+   课程内容。改这一块就能改课，后端只认 id。
+   ============================================================ */
+var LESSONS = [
+{
+  id:'invoke', no:1, title:'跟模型说一句话',
+  one:'LangChain 里每个东西都能 <code>.invoke()</code>。模型返回的不是字符串，是一个 AIMessage 对象 —— 正文在 <code>.content</code>，这次花了多少 token 在 <code>.usage_metadata</code>。',
+  code:[
+    'from langchain_openai import ChatOpenAI',
+    '',
+    'llm = ChatOpenAI(',
+    '    model="deepseek-chat",      # 换模型只改这一行',
+    '    api_key=KEY, base_url=BASE,',
+    ')',
+    '',
+    'msg = llm.invoke("用一句话解释什么是链式调用")',
+    '',
+    'print(type(msg).__name__)   # AIMessage，不是 str',
+    'print(msg.content)          # 正文',
+    'print(msg.usage_metadata)   # 这次花了多少 token'
+  ].join('\n'),
+  fields:[{key:'text', label:'换成你想问的', value:'用一句话解释什么是链式调用'}],
+  run:'跑一下 invoke()'
+},
+{
+  id:'prompt', no:2, title:'把提示词做成模板',
+  one:'会变的部分挖成 <code>{槽位}</code>，调用的时候再填。同一个模板能喂不同的值，不用手拼字符串。',
+  code:[
+    'from langchain_core.prompts import ChatPromptTemplate',
+    '',
+    'prompt = ChatPromptTemplate.from_messages([',
+    '    ("system", "你是一个把话说短的人，只输出改写后的句子，不要解释。"),',
+    '    ("user",   "把这句话缩短到 {n} 个字：{text}"),',
+    '])',
+    '',
+    'print(prompt.input_variables)   # [\'n\', \'text\']：它自己认得出槽位',
+    '',
+    'msgs = prompt.invoke({"n": 6, "text": "……"})',
+    'print(msgs.messages)            # 填完变量后真正发出去的消息'
+  ].join('\n'),
+  fields:[
+    {key:'text', label:'原句', value:'我明天上午十点要去医院复查牙齿，可能得请半天假'},
+    {key:'n', label:'缩到几个字', value:6, type:'number', narrow:true}
+  ],
+  run:'跑一下模板'
+},
+{
+  id:'chain', no:3, title:'用 | 把三段串成一条链',
+  one:'管道符就是「前一个的输出，喂给后一个」。<code>StrOutputParser</code> 负责把 AIMessage 取成纯字符串 —— 三段拼完还是一个整体，还能继续往下接。',
+  code:[
+    'from langchain_core.output_parsers import StrOutputParser',
+    'from langchain_core.prompts import ChatPromptTemplate',
+    '',
+    'prompt = ChatPromptTemplate.from_messages([',
+    '    ("system", "你是帮人做决定的人，只给一句结论，20 字以内。"),',
+    '    ("user",   "{text}。去还是不去？"),',
+    '])',
+    '',
+    'chain = prompt | llm | StrOutputParser()      # 这就是 LCEL',
+    '',
+    'print(chain.invoke({"text": "周末想去爬山，但天气预报说有雨"}))'
+  ].join('\n'),
+  fields:[{key:'text', label:'换成你要决定的事', value:'周末想去爬山，但天气预报说有雨'}],
+  run:'跑一下这条链'
+},
+{
+  id:'structured', no:4, title:'让模型填表，而不是写作文',
+  one:'用 Pydantic 把字段写一遍，<code>with_structured_output</code> 让模型按字段回答。拿到的是对象，能直接 <code>.mood</code>、<code>.score</code> 接着算。',
+  code:[
+    'from pydantic import BaseModel, Field',
+    '',
+    'class MoodCard(BaseModel):',
+    '    mood: str = Field(description="情绪，一个词")',
+    '    reason: str = Field(description="原因，不要超过 15 个字")',
+    '    score: int = Field(description="心情分，1 到 10 的整数")',
+    '',
+    'chain = llm.with_structured_output(MoodCard, method="function_calling")',
+    'card = chain.invoke("今天上线又出问题，改到十点才回家")',
+    '',
+    'print(card.mood, card.score)   # 疲惫 3，已经是能算的字段了'
+  ].join('\n'),
+  fields:[{key:'text', label:'换成你今天的一件事', value:'今天上线又出问题，改到十点才回家'}],
+  tip:'坑：用 DeepSeek 这类接口必须写 method="function_calling"。默认那种它不支持，会直接报 400 This response_format type is unavailable now。',
+  run:'跑一下结构化输出'
+},
+{
+  id:'fewshot', no:5, title:'给它几个例子（少样本）',
+  one:'与其解释规则，不如给两三个「输入 → 输出」的样子，模型会照着模仿。格式越难用一句话说清，这一招越管用。',
+  code:[
+    'from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate',
+    '',
+    'examples = [',
+    '    {"review": "这个 bug 修了三天，人麻了",     "label": "NEG"},',
+    '    {"review": "客户今天专门发消息夸了我们",   "label": "POS"},',
+    '    {"review": "还行吧，跟说的差不多",         "label": "NEG"},',
+    ']',
+    '',
+    'example_prompt = ChatPromptTemplate.from_messages([',
+    '    ("human", "{review}"), ("ai", "{label}"),',
+    '])',
+    'few = FewShotChatMessagePromptTemplate(',
+    '    example_prompt=example_prompt, examples=examples,',
+    ')',
+    '',
+    'prompt = ChatPromptTemplate.from_messages([',
+    '    ("system", "判断这条评论是好评还是差评，只回 POS 或 NEG，不要解释。"),',
+    '    few,                       # 例子就插在这里',
+    '    ("human", "{review}"),',
+    '])'
+  ].join('\n'),
+  fields:[{key:'text', label:'拿去判断的评论', value:'排了四十分钟队，进去三分钟就出来了'}],
+  tip:'例子就是标准。第三个「还行吧」你标成 NEG，模型才知道你的底线在哪 —— 少样本真正教的是分寸，不是格式。',
+  run:'跑一下少样本'
+},
+{
+  id:'tools', no:6, title:'让模型自己决定调哪个函数',
+  one:'<code>bind_tools</code> 把几个 Python 函数介绍给模型。它不会执行，只回一句「我想调 today_weather，参数 city=北京」—— 真正执行的是你。',
+  code:[
+    'from langchain_core.tools import tool',
+    '',
+    '@tool',
+    'def today_weather(city: str) -> str:',
+    '    """查一个城市今天的天气。"""    # 这是给模型看的说明书，不是注释',
+    '    return f"{city}：晴，26 度"',
+    '',
+    '@tool',
+    'def add(a: int, b: int) -> int:',
+    '    """把两个整数相加。"""',
+    '    return a + b',
+    '',
+    'first = llm.bind_tools([today_weather, add]).invoke("北京今天天气怎么样")',
+    'print(first.tool_calls)',
+    '# [{"name": "today_weather", "args": {"city": "北京"}, "id": "call_..."}]',
+    '',
+    'result = today_weather.invoke({"city": "北京"})   # 这一步是你执行的'
+  ].join('\n'),
+  fields:[{key:'text', label:'换一句话试试', value:'北京今天天气怎么样'}],
+  tip:'函数下面那行文档字符串（"""查一个城市今天的天气"""）不是写给人看的注释，是模型挑工具时唯一的依据 —— 写得含糊它就选错。',
+  run:'跑一下工具调用'
+},
+{
+  id:'stream', no:7, title:'流式输出，一个字一个字往外蹦',
+  one:'<code>.stream()</code> 一次吐一小块，块到一块拼起来才是整段话。前端上就是你熟悉的「AI 正在打字」。',
+  code:[
+    'prompt = ChatPromptTemplate.from_messages([',
+    '    ("system", "说人话，别堆术语。"),',
+    '    ("user",   "{text}"),',
+    '])',
+    '',
+    'for chunk in (prompt | llm).stream({"text": "用三句话讲清楚什么是链式调用"}):',
+    '    print(chunk.content, end="", flush=True)   # 来一块印一块'
+  ].join('\n'),
+  kind:'stream',
+  fields:[{key:'text', label:'换一个题目', value:'用三句话讲清楚什么是链式调用，说人话'}],
+  run:'跑一下流式'
+}
+];
+
+/* ============================================================
+   渲染
+   ============================================================ */
+var view = document.getElementById('view');
+var steps = document.getElementById('steps');
+var toastEl = document.getElementById('toast');
+var cur = 0;
+var done = {};
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function hl(code){
+  return esc(code).replace(/(#[^\n]*)/g, '<span class="c">$1</span>');
+}
+var toastTimer = null;
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ toastEl.classList.remove('on'); }, 1900);
+}
+
+function paintSteps(){
+  steps.innerHTML = LESSONS.map(function(l, i){
+    return '<button class="step' + (i === cur ? ' on' : '') + (done[l.id] ? ' done' : '') +
+      '" data-i="' + i + '"><b>' + l.no + '</b>' + esc(l.title) + '</button>';
+  }).join('');
+  Array.prototype.forEach.call(steps.querySelectorAll('[data-i]'), function(el){
+    el.onclick = function(){ go(+el.getAttribute('data-i')); };
+  });
+}
+
+function fieldsHTML(fs){
+  return fs.map(function(f){
+    var typ = f.type === 'number' ? 'number' : 'text';
+    if(typ === 'number'){
+      return '<div class="n"><label class="f">' + esc(f.label) + '</label>' +
+        '<input type="number" id="f_' + f.key + '" min="2" max="30" value="' + esc(f.value) + '"></div>';
+    }
+    return '<div><label class="f">' + esc(f.label) + '</label>' +
+      '<textarea id="f_' + f.key + '">' + esc(f.value) + '</textarea></div>';
+  }).join('');
+}
+
+function paint(){
+  var l = LESSONS[cur];
+  var h = '<section class="card"><div class="lesson-h">' +
+    '<span class="badge">第 ' + l.no + ' 课 / 共 ' + LESSONS.length + '</span>' +
+    '<h2>' + esc(l.title) + '</h2></div>' +
+    '<div class="one">' + l.one + '</div></section>';
+
+  h += '<section class="card"><div class="card-h">代码</div>' +
+    '<div class="codebox"><pre class="code">' + hl(l.code) + '</pre>' +
+    '<button class="copy" id="copyBtn">复制</button></div></section>';
+
+  var isNum = l.fields.length === 1 && l.fields[0].type !== 'number';
+  h += '<section class="card"><div class="card-h">动手改改看</div>' +
+    '<div class="card-sub">改完点按钮，服务端真的在跑上面这段 LangChain 代码。</div>' +
+    '<div class="' + (l.fields.length > 1 ? 'row2' : '') + '">' + fieldsHTML(l.fields) + '</div>' +
+    (l.tip ? '<div class="note tip">' + l.tip + '</div>' : '') +
+    '<button class="btn primary block" id="runBtn" style="margin-top:12px">' + esc(l.run) + '</button>' +
+    '<div class="note" id="runNote"></div>' +
+    '<div class="out" id="out"></div>' +
+    '</section>';
+
+  h += '<div class="btn-row"><button class="btn" id="prevBtn"' + (cur === 0 ? ' disabled' : '') + '>← 上一课</button>' +
+    '<button class="btn" id="nextBtn"' + (cur === LESSONS.length - 1 ? ' disabled' : '') + '>下一课 →</button></div>';
+  h += '<div class="mini" style="text-align:center;margin-top:12px">' +
+    '课程代码全部用项目 .env 里的模型跑，返回的都是真实输出。</div>';
+
+  view.innerHTML = h;
+  paintSteps();
+
+  $('copyBtn').onclick = function(){
+    var btn = $('copyBtn');
+    function ok(){ btn.textContent = '已复制'; setTimeout(function(){ btn.textContent = '复制'; }, 1500); }
+    try{
+      navigator.clipboard.writeText(l.code).then(ok, function(){ fallbackCopy(l.code, ok); });
+    }catch(e){ fallbackCopy(l.code, ok); }
+  };
+  var pb = $('prevBtn'), nb = $('nextBtn');
+  if(pb && cur > 0) pb.onclick = function(){ go(cur - 1); };
+  if(nb && cur < LESSONS.length - 1) nb.onclick = function(){ go(cur + 1); };
+  $('runBtn').onclick = run;
+}
+
+function fallbackCopy(text, ok){
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  try{ document.execCommand('copy'); ok(); }catch(e){ toast('复制失败，手动选中吧'); }
+  ta.remove();
+}
+
+function payload(){
+  var l = LESSONS[cur];
+  var data = { lesson:l.id };
+  l.fields.forEach(function(f){
+    var el = $('f_' + f.key);
+    data[f.key] = el ? el.value : '';
+  });
+  return data;
+}
+
+function go(i){
+  cur = Math.max(0, Math.min(LESSONS.length - 1, i));
+  paint();
+  window.scrollTo(0, 0);
+}
+
+function blocksHTML(bs){
+  return (bs || []).map(function(b){
+    return '<div class="out-i"><div class="out-l">' + esc(b.label) + '</div>' +
+      '<pre class="out-v">' + esc(b.value) + '</pre></div>';
+  }).join('');
+}
+
+function post(path, body){
+  return fetch(path, {
+    method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body || {})
+  }).then(function(r){
+    var ct = r.headers.get('content-type') || '';
+    if(ct.indexOf('json') < 0) throw new Error('登录状态可能已失效，刷新页面重新登录');
+    return r.json();
+  });
+}
+
+function run(){
+  var l = LESSONS[cur];
+  var btn = $('runBtn'), note = $('runNote'), out = $('out');
+  btn.disabled = true;
+  note.className = 'note';
+  note.innerHTML = '<span class="spin"></span> 正在跑…';
+  out.innerHTML = '';
+  var t0 = Date.now();
+  if(l.kind === 'stream'){ runStream(l, btn, note, out, t0); return; }
+  post('/langchain-learn/api/run', payload()).then(function(d){
+    btn.disabled = false;
+    if(!d.ok){
+      note.className = 'note err';
+      note.textContent = d.message || '跑失败了';
+      out.innerHTML = blocksHTML(d.blocks);
+      return;
+    }
+    note.className = 'note';
+    note.textContent = '';
+    out.innerHTML = blocksHTML(d.blocks) +
+      '<div class="elapsed">用了 ' + ((Date.now() - t0) / 1000).toFixed(1) + ' 秒</div>';
+    done[l.id] = true;
+    paintSteps();
+  }).catch(function(e){
+    btn.disabled = false;
+    note.className = 'note err';
+    note.textContent = e.message || '出错了';
+  });
+}
+
+function runStream(l, btn, note, out, t0){
+  note.innerHTML = '<span class="spin"></span> 流式接收中，来一块显示一块…';
+  out.innerHTML = '<div class="out-i"><div class="out-l">模型正在一个字一个字往外吐</div>' +
+    '<pre class="out-v stream-v" id="streamBox"><span class="cursor"></span></pre></div>';
+  var box = $('streamBox');
+  var cursor = box.querySelector('.cursor');
+  var text = '';
+  var first = true;
+  fetch('/langchain-learn/api/stream', {
+    method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload())
+  }).then(function(r){
+    if(!r.ok || !r.body) throw new Error('流式接口没通（HTTP ' + r.status + '），刷新页面重新登录试试');
+    var reader = r.body.getReader();
+    var dec = new TextDecoder('utf-8');
+    function pump(){
+      return reader.read().then(function(res){
+        if(res.done){
+          if(cursor) cursor.remove();
+          btn.disabled = false;
+          note.className = 'note';
+          note.textContent = '';
+          out.insertAdjacentHTML('beforeend',
+            '<div class="elapsed">用了 ' + ((Date.now() - t0) / 1000).toFixed(1) + ' 秒</div>');
+          done[l.id] = true;
+          paintSteps();
+          return;
+        }
+        if(first){ box.textContent = ''; first = false; }
+        text += dec.decode(res.value, { stream:true });
+        box.textContent = text;
+        if(cursor) box.appendChild(cursor);
+        return pump();
+      });
+    }
+    return pump();
+  }).catch(function(e){
+    btn.disabled = false;
+    note.className = 'note err';
+    note.textContent = e.message || '流式失败了';
+  });
+}
+
+function init(){
+  var want = (location.hash || '').replace('#', '');
+  cur = 0;
+  LESSONS.forEach(function(l, i){ if(l.id === want) cur = i; });
+  paint();
+}
+init();
+
+})();
+</script>
+</body>
+</html>
