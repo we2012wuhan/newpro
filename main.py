@@ -154,6 +154,12 @@ app.include_router(predict_diary_router)
 # 浏览器访问 http://127.0.0.1:8000/langchain-learn 即可使用。
 from langchain_learn import router as langchain_learn_router  # noqa: E402
 app.include_router(langchain_learn_router)
+# 附加功能：内耗拆解（工作上的糟心事反复想 -> 先花 90 秒把身体拉回来 -> AI 把一团拆成一条条 ->
+# 分成「我能动的 / 动不了的」-> 落成一件今天就能做的事；数据只存浏览器，服务端不存）
+# 浏览器访问 http://127.0.0.1:8000/rumination 即可使用。
+from rumination import router as rumination_router  # noqa: E402
+app.include_router(rumination_router)
+
 
 
 # =========================================================

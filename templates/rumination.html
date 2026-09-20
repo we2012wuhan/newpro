@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#7C6BB0">
+<title>内耗拆解</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<style>
+:root{
+  --acc:#7C6BB0; --acc-d:#655696; --acc-l:#F1EEF9; --acc-line:#D5CEEA;
+  --ink:#1F2A37; --text:#3B4859; --muted:#8492A3;
+  --bg:#F7F6FA; --card:#FFFFFF; --line:#E7E4EF;
+  --ok:#3F7A5B; --ok-l:#EDF6F1; --ok-line:#CBE3D8;
+  --warn:#9E6A2C; --warn-l:#FBF3E8; --warn-line:#EBD7B8;
+  --rose:#B4635A; --rose-l:#FBEFED; --rose-line:#EBD3D0;
+  --r:16px;
+  --sh:0 1px 2px rgba(16,24,40,.04), 0 10px 24px -14px rgba(16,24,40,.18);
+  --bg-blur:rgba(247,246,250,.9); --field:#FFFFFF; --soft:#F3F1F8;
+  --err:#C0392B; --disabled:#C6C2D6;
+  --spin-track:#D8D3E8; --tip-bg:rgba(31,42,55,.94); --tip-ink:#FFFFFF;
+  --focus-ring:0 0 0 3px rgba(124,107,176,.12);
+}
+[data-theme="dark"]{
+  --acc:#B9A6F0; --acc-d:#D3C6FF; --acc-l:#1E1930; --acc-line:#3F3560;
+  --ink:#E8ECF8; --text:#C2CBDE; --muted:#8593A9;
+  --bg:#0F0E17; --card:#181622; --line:#2A2739;
+  --ok:#7CC79E; --ok-l:#152A20; --ok-line:#2C4A3A;
+  --warn:#E0A868; --warn-l:#2B2113; --warn-line:#4A3A22;
+  --rose:#FF9B8F; --rose-l:#2C1618; --rose-line:#5A2A2E;
+  --sh:0 1px 2px rgba(0,0,0,.3), 0 10px 24px -14px rgba(0,0,0,.5);
+  --bg-blur:rgba(15,14,23,.92); --field:#14121D; --soft:#211E2E;
+  --err:#FF9B8F; --disabled:#3A3748;
+  --spin-track:#3B3654; --tip-bg:rgba(232,238,248,.96); --tip-ink:#0F0E17;
+  --focus-ring:0 0 0 3px rgba(185,166,240,.18);
+  color-scheme:dark;
+}
+html[data-theme="dark"] .btn.primary,html[data-theme="dark"] .btn.primary:active{color:#120E1F}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased;
+}
+button,input,textarea,select{font-family:inherit;font-size:15px;color:inherit}
+h1,h2,h3{margin:0;font-weight:600;color:var(--ink)}
+p{margin:0}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px calc(48px + env(safe-area-inset-bottom))}
+.topbar{position:sticky;top:0;z-index:20;background:var(--bg-blur);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:760px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px}
+.ttl{font-size:17px;font-weight:600;color:var(--ink);line-height:1.3}
+.sub{font-size:12px;color:var(--muted);line-height:1.4;margin-top:2px}
+.back{margin-left:auto;flex:0 0 auto;font-size:13px;color:var(--muted);text-decoration:none;
+  border:1px solid var(--line);background:var(--field);border-radius:999px;padding:8px 14px;white-space:nowrap}
+.back:hover{color:var(--ink);border-color:var(--acc-line)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;
+  box-shadow:var(--sh);margin-top:14px}
+.card-h{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.card-sub{font-size:12.5px;color:var(--muted);line-height:1.7}
+.sec-t{font-size:13px;font-weight:600;color:var(--muted);margin:20px 2px 0}
+.mini{font-size:11.5px;color:var(--muted);line-height:1.7}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;
+  border-radius:12px;border:1px solid var(--line);background:var(--field);color:var(--text);
+  cursor:pointer;transition:background .15s,border-color .15s,opacity .15s}
+.btn:hover{border-color:var(--acc-line)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.primary:hover{background:var(--acc-d);border-color:var(--acc-d)}
+.btn.ghost{background:transparent}
+.btn.block{width:100%}
+.btn.big{min-height:56px;font-size:16px;font-weight:600}
+.btn-row{display:flex;gap:10px;margin-top:12px}
+.btn-row .btn{flex:1}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;line-height:1.7;
+  background:var(--acc-l);color:var(--acc);border:1px solid var(--acc-line)}
+.badge.g{background:var(--ok-l);color:var(--ok);border-color:var(--ok-line)}
+.badge.o{background:var(--warn-l);color:var(--warn);border-color:var(--warn-line)}
+.badge.r{background:var(--rose-l);color:var(--rose);border-color:var(--rose-line)}
+.badge.n{background:var(--soft);color:var(--muted);border-color:var(--line)}
+textarea,input[type=text]{width:100%;border:1px solid var(--line-2,rgba(0,0,0,.12));border-radius:12px;
+  padding:11px 12px;background:var(--field);outline:none;min-height:44px;line-height:1.7;color:var(--ink)}
+textarea{min-height:96px;resize:vertical}
+textarea:focus,input:focus{border-color:var(--acc-line);box-shadow:var(--focus-ring)}
+textarea::placeholder,input::placeholder{color:var(--muted);opacity:.75}
+label.f{display:block;font-size:12.5px;color:var(--muted);margin:14px 0 6px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--line);
+  background:var(--field);color:var(--text);font-size:13.5px;cursor:pointer;transition:all .15s}
+.chip.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc);font-weight:600}
+
+/* 强度滑杆 */
+.slider{width:100%;height:44px;display:flex;align-items:center}
+input[type=range]{width:100%;height:6px;-webkit-appearance:none;appearance:none;border-radius:999px;
+  background:linear-gradient(90deg,#8FBFA6,#E3C46B,#D98A7E);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;
+  background:var(--field);border:3px solid var(--acc);box-shadow:0 2px 6px rgba(16,24,40,.22);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--field);
+  border:3px solid var(--acc);cursor:pointer}
+.iv{font-size:34px;font-weight:600;line-height:1;text-align:center;color:var(--acc);padding:2px 0 0}
+.iv-l{font-size:12px;color:var(--muted);text-align:center;margin-top:6px}
+
+/* 卡片条目 */
+.item{background:var(--field);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:9px}
+.item.with-tag{display:flex;gap:10px;align-items:flex-start}
+.item.with-tag .grow{flex:1;min-width:0}
+.item textarea{min-height:44px;border:0;padding:0;background:transparent;font-size:15px;color:var(--ink)}
+.item textarea:focus{box-shadow:none}
+.tk{flex:0 0 auto;font-size:11.5px;padding:2px 8px;border-radius:999px;line-height:1.7;white-space:nowrap}
+.tk.fact{background:var(--ok-l);color:var(--ok);border:1px solid var(--ok-line)}
+.tk.guess{background:var(--warn-l);color:var(--warn);border:1px solid var(--warn-line)}
+.tk.eval{background:var(--rose-l);color:var(--rose);border:1px solid var(--rose-line)}
+.note{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.6}
+.x{margin-left:auto;flex:0 0 auto;width:28px;height:28px;border-radius:8px;border:1px solid var(--line);
+  background:transparent;color:var(--muted);cursor:pointer;line-height:1;font-size:15px}
+.x:hover{color:var(--rose);border-color:var(--rose-line)}
+
+/* 分堆：三态 */
+.cc{background:var(--field);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:9px}
+.cc-t{font-size:14.5px;color:var(--ink);line-height:1.6}
+.cc-w{font-size:11.5px;color:var(--muted);margin-top:4px}
+.cc-b{display:flex;gap:6px;margin-top:10px}
+.cc-b button{flex:1;min-height:38px;border-radius:9px;border:1px solid var(--line);background:var(--card);
+  font-size:12.5px;color:var(--muted);cursor:pointer;transition:all .15s}
+.cc-b button.on[data-c=yes]{background:var(--ok-l);border-color:var(--ok-line);color:var(--ok);font-weight:600}
+.cc-b button.on[data-c=partial]{background:var(--warn-l);border-color:var(--warn-line);color:var(--warn);font-weight:600}
+.cc-b button.on[data-c=no]{background:var(--soft);border-color:var(--acc-line);color:var(--ink);font-weight:600}
+
+/* 呼吸 */
+.breathe{display:flex;flex-direction:column;align-items:center;gap:14px;padding:8px 0 4px}
+.bz{width:168px;height:168px;border-radius:50%;display:grid;place-items:center;
+  border:2px solid var(--acc-line);background:var(--acc-l);
+  transition:transform 4s ease-in-out,background .6s ease}
+.bz.hold{transition:transform .3s linear}
+.bz-in{font-size:15px;font-weight:600;color:var(--acc);text-align:center;line-height:1.4}
+.timer{font-size:13px;color:var(--muted)}
+.timer b{font-size:22px;color:var(--ink);font-weight:600;margin-right:2px}
+
+/* 收口卡 */
+.out{border-left:3px solid var(--acc);padding:2px 0 2px 12px;margin-top:10px}
+.out-l{font-size:11.5px;color:var(--muted);display:block;margin-bottom:3px}
+.out-v{font-size:15px;color:var(--ink);line-height:1.7}
+.out-v.big{font-size:17px;font-weight:600}
+.cmp{display:flex;align-items:center;gap:14px;justify-content:center;padding:6px 0}
+.cmp-i{text-align:center}
+.cmp-n{font-size:28px;font-weight:600;color:var(--ink);line-height:1}
+.cmp-l{font-size:11.5px;color:var(--muted);margin-top:4px}
+.cmp-a{font-size:20px;color:var(--muted)}
+.cmp-down{color:var(--ok)}
+
+/* 统计 */
+.stat{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.stat-i{background:var(--field);border:1px solid var(--line);border-radius:12px;padding:11px 8px;text-align:center}
+.stat-n{font-size:20px;font-weight:600;color:var(--ink);line-height:1.2}
+.stat-l{font-size:11.5px;color:var(--muted);margin-top:3px}
+.bar-row{margin-top:10px}
+.bar-l{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px}
+.bar{height:8px;border-radius:999px;background:var(--soft);overflow:hidden;margin-bottom:4px}
+.bar>i{display:block;height:100%;border-radius:999px;background:var(--acc)}
+.bar.g>i{background:#8FBFA6}
+.empty{text-align:center;padding:20px 12px;color:var(--muted);font-size:13.5px;line-height:1.8}
+.hr{height:1px;background:var(--line);margin:14px 0}
+
+/* 热线卡 */
+.hot{border:1px solid var(--rose-line);background:var(--rose-l);border-radius:var(--r);padding:14px 16px;margin-top:14px}
+.hot b{display:block;color:var(--rose);font-size:14px;margin-bottom:4px}
+.hot p{font-size:13px;color:var(--text);line-height:1.7}
+.hot strong{font-size:17px;color:var(--rose)}
+
+/* 向导 */
+.wizard{position:fixed;inset:0;z-index:40;background:var(--bg);overflow-y:auto;
+  padding:0 16px calc(28px + env(safe-area-inset-bottom))}
+.wz-in{max-width:640px;margin:0 auto}
+.wz-bar{position:sticky;top:0;z-index:2;background:var(--bg);padding:14px 0 10px}
+.wz-top{display:flex;align-items:center;gap:12px}
+.wz-step{font-size:12px;color:var(--muted)}
+.wz-dots{display:flex;gap:5px;margin-top:9px}
+.wz-dots i{flex:1;height:4px;border-radius:999px;background:var(--soft);display:block}
+.wz-dots i.on{background:var(--acc)}
+.wz-h{font-size:21px;font-weight:600;color:var(--ink);line-height:1.45;margin:6px 0 8px}
+.wz-p{font-size:13.5px;color:var(--muted);line-height:1.75}
+.spin{width:18px;height:18px;border-radius:50%;border:2px solid var(--spin-track);
+  border-top-color:var(--acc);animation:sp .7s linear infinite;display:inline-block;vertical-align:-3px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.loading{display:flex;align-items:center;gap:10px;justify-content:center;padding:26px 0;
+  font-size:13.5px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(28px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(12px);
+  background:var(--tip-bg);color:var(--tip-ink);font-size:13.5px;padding:10px 18px;border-radius:999px;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:90;max-width:88vw;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (prefers-reduced-motion:reduce){.bz{transition:none}.spin{animation:none}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div>
+      <div class="ttl">内耗拆解</div>
+      <div class="sub">先把身体拉回来，再把那团事拆开</div>
+    </div>
+    <a class="back" href="/">← 返回工具箱</a>
+  </div>
+</header>
+
+<main class="wrap"><div id="view"></div></main>
+<div class="wizard" id="wizard" hidden></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ============================================================
+   存储：只存浏览器本地，服务端不存任何东西
+   ============================================================ */
+var KS = 'rm_sessions_v1';   // 每次拆解的记录
+var KB = 'rm_box_v1';        // 担忧盒
+var TAGS = ['领导','同事','绩效','家人','钱','身体','别的'];
+var KIND = { fact:'发生的事', guess:'我猜的', eval:'我给自己的评价' };
+var CTRL = { yes:'我能动', partial:'一半能动', no:'动不了' };
+
+var S = { step:-1, ai:true, raw:'', intensity:5, tags:[], items:[], sorted:[],
+          insight:'', close:null, after:5, source:'', note:'', crisis:false,
+          busy:false, breathe:null, tick:null, tsec:90, mode:1 };
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function load(key, fb){
+  try{ var v = localStorage.getItem(key); return v === null ? fb : JSON.parse(v); }
+  catch(e){ return fb; }
+}
+function save(key, val){
+  try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){}
+}
+function toast(msg){
+  var t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2200);
+}
+function stamp(){ return new Date().toISOString(); }
+function dayOf(iso){ return String(iso || '').slice(0, 10); }
+function hoursAgo(iso){
+  var t = Date.parse(iso || '');
+  return isNaN(t) ? 999 : (Date.now() - t) / 3600000;
+}
+function uid(){ return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function nowTime(){
+  var d = new Date(), p = function(n){ return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function post(url, body){
+  return fetch(url, { method:'POST', headers:{ 'Content-Type':'application/json' },
+                      body: JSON.stringify(body) })
+    .then(function(r){ return r.json(); });
+}
+
+/* ============================================================
+   统计
+   ============================================================ */
+function stats(){
+  var ss = load(KS, []);
+  var withAfter = ss.filter(function(s){ return typeof s.after === 'number' && typeof s.intensity === 'number'; });
+  var avg = null;
+  if(withAfter.length){
+    var sum = withAfter.reduce(function(a, s){ return a + (s.intensity - s.after); }, 0);
+    avg = Math.round(sum / withAfter.length * 10) / 10;
+  }
+  var box = load(KB, []);
+  var settled = box.filter(function(b){ return b.status === 'hit' || b.status === 'miss'; });
+  var hit = settled.filter(function(b){ return b.status === 'hit'; }).length;
+  return { n: ss.length, sessions: ss, avg: avg, box: box,
+           rate: settled.length ? Math.round(hit / settled.length * 100) : null,
+           settledN: settled.length };
+}
+
+/* ============================================================
+   主页
+   ============================================================ */
+function homeHTML(){
+  var s = stats();
+  var out = '';
+
+  out += '<div class="card" style="margin-top:16px">' +
+    '<div class="card-h">现在难受，就先拆这一件</div>' +
+    '<div class="card-sub">不用写完、不用想清楚。下面这几步会带着你走：' +
+      '先把身体拉回来，再把那团东西摊成一条条，最后落成一件今天就能做的事。</div>' +
+    '<div class="btn-row"><button class="btn primary block big" id="startBtn">开始（约 5 分钟）</button></div>' +
+    '<div class="mini" style="margin-top:10px;text-align:center">' +
+      (S.ai ? 'AI 帮你拆句、分堆、收口' : '当前是本地模式：不联网，用内置规则拆') + '</div>' +
+  '</div>';
+
+  if(s.n){
+    var recent = s.sessions.slice(-8);
+    var bars = recent.map(function(x){
+      var a = Math.round(x.intensity / 10 * 100);
+      var b = typeof x.after === 'number' ? Math.round(x.after / 10 * 100) : null;
+      var dd = String(x.at || '').slice(5, 10);
+      return '<div class="bar-row">' +
+        '<div class="bar-l"><span>' + esc(dd) + '</span><span>' +
+          (b === null ? '进 ' + x.intensity + ' · 没记出来' : '进 ' + x.intensity + ' → 出 ' + x.after) +
+        '</span></div>' +
+        '<div class="bar"><i style="width:' + a + '%"></i></div>' +
+        (b === null ? '' : '<div class="bar g"><i style="width:' + b + '%"></i></div>') +
+      '</div>';
+    }).join('');
+    out += '<div class="sec-t">我的模式</div>' +
+      '<div class="card">' +
+        '<div class="stat">' +
+          '<div class="stat-i"><div class="stat-n">' + s.n + '</div><div class="stat-l">拆过几次</div></div>' +
+          '<div class="stat-i"><div class="stat-n">' + (s.avg === null ? '—' : s.avg) + '</div>' +
+            '<div class="stat-l">平均降几分</div></div>' +
+          '<div class="stat-i"><div class="stat-n">' + (s.rate === null ? '—' : s.rate + '%') + '</div>' +
+            '<div class="stat-l">担心真发生了</div></div>' +
+        '</div>' +
+        '<div class="hr"></div>' +
+        '<div class="card-sub">每次的「进去」和「出来」：蓝条是你刚开始的强度，绿条是拆完的强度。</div>' +
+        bars +
+        (s.settledN >= 3 && s.rate !== null && s.rate <= 40
+          ? '<div class="card-sub" style="margin-top:12px">已经能看出点东西了：你担心过 ' +
+            s.settledN + ' 件事，真正发生的只有 ' + Math.round(s.rate * s.settledN / 100) + ' 件。</div>'
+          : '') +
+      '</div>';
+  }
+
+  var box = s.box;
+  var open = box.filter(function(b){ return b.status === 'open'; });
+  var done = box.filter(function(b){ return b.status !== 'open'; });
+  if(box.length){
+    out += '<div class="sec-t">担忧盒（' + open.length + ' 条还没结果）</div>';
+    out += open.map(boxHTML).join('');
+    if(done.length){
+      out += '<div class="sec-t">有结果的（' + done.length + ' 条）</div>' + done.slice(-6).map(boxHTML).join('');
+    }
+  }
+
+  out += hotlineHTML();
+  return out;
+}
+
+function boxHTML(b){
+  var old = hoursAgo(b.at) >= 20;
+  var st = '';
+  if(b.status === 'hit')  st = '<span class="badge r">真发生了</span>';
+  if(b.status === 'miss') st = '<span class="badge g">没发生</span>';
+  if(b.status === 'drop') st = '<span class="badge n">不想了</span>';
+  var btns = (b.status === 'open' && old)
+    ? '<div class="btn-row" style="margin-top:10px">' +
+        '<button class="btn" data-hit="' + b.id + '" style="font-size:13px">它真发生了</button>' +
+        '<button class="btn" data-miss="' + b.id + '" style="font-size:13px">没发生</button>' +
+        '<button class="btn ghost" data-drop="' + b.id + '" style="font-size:13px">不想了</button>' +
+      '</div>'
+    : (b.status === 'open'
+        ? '<div class="mini" style="margin-top:8px">放一放。过一天再回来看它到底发生了没有。</div>'
+        : '');
+  return '<div class="item" style="margin-top:9px">' +
+    '<div class="cc-t">' + esc(b.text) + '</div>' +
+    '<div class="note">' + esc(String(b.at || '').slice(5, 10)) + ' 存进来的 ' + st + '</div>' +
+    btns +
+  '</div>';
+}
+
+function hotlineHTML(){
+  return '<div class="hot"' + (S.crisis ? '' : ' style="opacity:.72"') + '>' +
+    '<b>如果这两天一直缓不过来</b>' +
+    '<p>持续两周以上睡不好、吃不下、什么都提不起劲，或者冒出伤害自己的念头，' +
+      '打 <strong>12356</strong>（全国心理援助热线，24 小时，免费）。' +
+      '这不是矫情，也不用先想清楚该怎么说。</p>' +
+  '</div>';
+}
+
+/* ============================================================
+   向导：一共 5 步
+   ============================================================ */
+var STEPS = 5;
+function dots(i){
+  var s = '';
+  for(var k = 0; k < STEPS; k++){ s += '<i class="' + (k <= i ? 'on' : '') + '"></i>'; }
+  return '<div class="wz-dots">' + s + '</div>';
+}
+function head(i, h, p){
+  return '<div class="wz-bar"><div class="wz-top">' +
+    '<button class="btn ghost" id="quit" style="min-height:32px;padding:0 12px;font-size:12.5px">退出</button>' +
+    '<div class="wz-step">第 ' + (i + 1) + ' / ' + STEPS + ' 步</div>' +
+    '</div>' + dots(i) + '</div>' +
+    '<div class="wz-h">' + h + '</div><div class="wz-p">' + p + '</div>';
+}
+function ivLabel(n){
+  if(n <= 2) return '还好，就是有点堵';
+  if(n <= 4) return '不太舒服';
+  if(n <= 6) return '挺难受的';
+  if(n <= 8) return '很难受';
+  return '快撑不住了';
+}
+
+function wizHTML(){
+  if(S.step === 0) return step0();
+  if(S.step === 1) return step1();
+  if(S.step === 2) return step2();
+  if(S.step === 3) return step3();
+  if(S.step === 4) return step4();
+  return step5();
+}
+
+function step0(){
+  var chips = TAGS.map(function(t){
+    return '<button class="chip' + (S.tags.indexOf(t) >= 0 ? ' on' : '') + '" data-tag="' + esc(t) + '">' + esc(t) + '</button>';
+  }).join('');
+  return head(0, '现在有多难受？',
+      '先打个分，不用想准，第一反应就行。然后写几笔到底发生了什么——写不完整、写到一半也行。') +
+    '<div class="card"><div class="iv" id="ivN">' + S.intensity + '</div>' +
+      '<div class="iv-l" id="ivL">' + ivLabel(S.intensity) + '</div>' +
+      '<div class="slider"><input type="range" id="ivR" min="0" max="10" step="1" value="' + S.intensity + '"></div>' +
+    '</div>' +
+    '<div class="card">' +
+      '<label class="f" style="margin-top:0">发生了什么</label>' +
+      '<textarea id="rawTa" placeholder="例：周二评审会上组长说我这块要重做，还当着别人的面。">' + esc(S.raw) + '</textarea>' +
+      '<label class="f">跟谁 / 哪方面有关（可多选）</label>' +
+      '<div class="chips" id="tagChips">' + chips + '</div>' +
+    '</div>' +
+    '<div class="btn-row"><button class="btn primary block" id="go1">下一步</button></div>';
+}
+
+function step1(){
+  var modes = [['跟着圆圈呼吸', 1], ['起身走 60 步', 2], ['用凉水冲一下手腕', 3]];
+  var chips = modes.map(function(m){
+    return '<button class="chip' + (S.mode === m[1] ? ' on' : '') + '" data-mode="' + m[1] + '">' + m[0] + '</button>';
+  }).join('');
+  var panel = '';
+  if(S.mode === 1){
+    panel = '<div class="breathe"><div class="bz" id="bz"><div class="bz-in" id="bzTxt">准备</div></div>' +
+      '<div class="mini">吸 4 秒 → 停 7 秒 → 呼 8 秒。跟不上就按自己的节奏来。</div></div>';
+  } else if(S.mode === 2){
+    panel = '<div class="empty"><b style="color:var(--ink);font-size:15px">站起来，走 60 步</b>' +
+      '去接杯水也行，走到走廊尽头再回来也行。别边走边想那件事，数步子就好。</div>';
+  } else {
+    panel = '<div class="empty"><b style="color:var(--ink);font-size:15px">去冲一下手腕</b>' +
+      '凉水冲 20 秒，或者洗把脸。这一步是在用身体把注意力拽回来，不是在解决问题。</div>';
+  }
+  return head(1, '先让身体下来 90 秒',
+      '这一步不是让你想通。绷着的时候讲道理是没用的，先把身体从「打或逃」里拉回来。') +
+    '<div class="card"><div class="chips">' + chips + '</div></div>' +
+    '<div class="card">' + panel + '</div>' +
+    '<div class="card" style="text-align:center"><div class="timer" id="tmr"><b>' + S.tsec + '</b> 秒</div></div>' +
+    '<div class="btn-row"><button class="btn primary block" id="go2">继续</button></div>' +
+    '<div class="mini" style="text-align:center;margin-top:10px">不想做就跳过，直接往下也行</div>';
+}
+
+function step2(){
+  if(S.busy){
+    return head(2, '把那团东西摊开', '正在一句句拆，几秒钟。') +
+      '<div class="card"><div class="loading"><span class="spin"></span>正在拆……</div></div>';
+  }
+  var list = S.items.map(function(it, i){
+    return '<div class="item with-tag">' +
+      '<span class="tk ' + esc(it.kind) + '">' + esc(KIND[it.kind] || '') + '</span>' +
+      '<div class="grow"><textarea data-edit="' + i + '">' + esc(it.text) + '</textarea>' +
+        (it.note ? '<div class="note">' + esc(it.note) + '</div>' : '') +
+      '</div>' +
+      '<button class="x" data-del="' + i + '" title="删掉这条">×</button>' +
+    '</div>';
+  }).join('');
+  return head(2, '把那团东西摊开',
+      '你写的那段，现在是一条条分开的。看一遍：哪条是发生的事，哪条其实是你猜的。改得不对就直接改。') +
+    '<div class="card">' + (list || '<div class="empty">没拆出东西来，回去把那段话写长一点。</div>') +
+      '<button class="btn block" id="addItem" style="margin-top:4px">再加一条</button>' +
+      (S.source === 'local'
+        ? '<div class="note" style="margin-top:10px">当前是本地规则拆的（没配模型 Key 或模型没连上），能联网时会拆得更细。</div>'
+        : '') +
+    '</div>' +
+    '<div class="btn-row"><button class="btn" id="back1">上一步</button>' +
+      '<button class="btn primary" id="go3">下一步</button></div>';
+}
+
+function step3(){
+  if(S.busy){
+    return head(3, '哪些你能动，哪些动不了', '正在一条条看，几秒钟。') +
+      '<div class="card"><div class="loading"><span class="spin"></span>正在分……</div></div>';
+  }
+  var list = S.sorted.map(function(it, i){
+    var btns = ['yes', 'partial', 'no'].map(function(c){
+      return '<button data-c="' + c + '" data-i="' + i + '" class="' + (it.control === c ? 'on' : '') + '">' +
+        CTRL[c] + '</button>';
+    }).join('');
+    return '<div class="cc"><div class="cc-t">' + esc(it.text) + '</div>' +
+      (it.why ? '<div class="cc-w">' + esc(it.why) + '</div>' : '') +
+      '<div class="cc-b">' + btns + '</div></div>';
+  }).join('');
+  return head(3, '哪些你能动，哪些动不了',
+      '这一步最值钱。大部分内耗，是把「动不了的」当成「动得了的」在反复想。') +
+    (S.insight ? '<div class="card"><div class="card-h">看这一堆</div>' +
+      '<div class="card-sub">' + esc(S.insight) + '</div></div>' : '') +
+    '<div class="sec-t" style="margin-top:16px">一条条过一遍（点一下就能改）</div>' +
+    list +
+    '<div class="btn-row"><button class="btn" id="back2">上一步</button>' +
+      '<button class="btn primary" id="go4">下一步</button></div>';
+}
+
+function step4(){
+  if(S.busy || !S.close){
+    return head(4, '收口', '正在把能动的变成一件事，把动不了的放进盒子里。') +
+      '<div class="card"><div class="loading"><span class="spin"></span>正在收口……</div></div>';
+  }
+  var c = S.close;
+  var worries = (c.worries || []).length
+    ? c.worries.map(function(w){ return '<div class="item"><div class="cc-t">' + esc(w) + '</div></div>'; }).join('')
+    : '<div class="mini">这次没有要留到以后再想的事。</div>';
+  return head(4, '收口了',
+      '下面是这次拆出来的东西。不用全记住，记住第一张卡就够了。') +
+    '<div class="card" style="border-color:var(--acc-line)">' +
+      '<div class="card-h">今天只做这一件</div>' +
+      '<div class="out"><div class="out-v big">' + esc(c.next_step.what) + '</div>' +
+        '<div class="mini" style="margin-top:6px">什么时候：' + esc(c.next_step.when) + '</div></div>' +
+    '</div>' +
+    '<div class="card"><div class="card-h">跟这个念头拉开一步</div>' +
+      '<div class="out"><div class="out-v">' + esc(c.defusion) + '</div></div>' +
+      '<div class="mini" style="margin-top:10px">这句话不用你相信，只要念一遍。它是在说「我看见它了」，不是「我要把它驳倒」。</div>' +
+    '</div>' +
+    '<div class="card"><div class="card-h">如果是最好的朋友遇到这件事</div>' +
+      '<div class="out"><div class="out-v">' + esc(c.compassion) + '</div></div>' +
+    '</div>' +
+    '<div class="card"><div class="card-h">这几个先放进盒子（' + (c.worries || []).length + '）</div>' +
+      '<div class="card-sub">不是不管了，是换个时间再管。现在想它们没有产出。</div>' +
+      '<div style="margin-top:10px">' + worries + '</div>' +
+    '</div>' +
+    '<div class="card"><div class="card-h">现在再打一次分</div>' +
+      '<div class="iv" id="ivN2">' + S.after + '</div>' +
+      '<div class="iv-l">' + ivLabel(S.after) + '</div>' +
+      '<div class="slider"><input type="range" id="ivR2" min="0" max="10" step="1" value="' + S.after + '"></div>' +
+    '</div>' +
+    '<div class="btn-row"><button class="btn" id="back3">上一步</button>' +
+      '<button class="btn primary" id="saveBtn">存下来</button></div>';
+}
+
+function step5(){
+  var d = S.intensity - S.after;
+  var word = d > 0 ? '降了 ' + d + ' 分' : (d === 0 ? '没变' : '反而高了 ' + (-d) + ' 分');
+  var tip = d > 0
+    ? '这就是这次的收获。不用记住整个过程，记住「刚才那件事，摊开之后是什么样」就够了。'
+    : '有时候拆完反而更清楚它有多重，这很正常——至少你现在知道重的是哪一块，而不是一团。';
+  return head(4, '这一次拆完了', tip) +
+    '<div class="card"><div class="cmp">' +
+      '<div class="cmp-i"><div class="cmp-n">' + S.intensity + '</div><div class="cmp-l">进去时</div></div>' +
+      '<div class="cmp-a">→</div>' +
+      '<div class="cmp-i"><div class="cmp-n' + (d > 0 ? ' cmp-down' : '') + '">' + S.after + '</div>' +
+        '<div class="cmp-l">出来时</div></div>' +
+    '</div>' +
+    '<div class="card-sub" style="text-align:center;margin-top:6px">' + word + '</div></div>' +
+    (S.close ? '<div class="card"><div class="card-h">今天只做这一件</div>' +
+      '<div class="out"><div class="out-v big">' + esc(S.close.next_step.what) + '</div>' +
+      '<div class="mini" style="margin-top:6px">' + esc(S.close.next_step.when) + '</div></div></div>' : '') +
+    '<div class="btn-row"><button class="btn block" id="homeBtn">回到首页</button></div>' +
+    hotlineHTML();
+}
+
+/* ============================================================
+   渲染与绑定
+   ============================================================ */
+function clearTimers(){
+  if(S.tick){ clearInterval(S.tick); S.tick = null; }
+  if(S.breathe){ clearTimeout(S.breathe); S.breathe = null; }
+}
+
+function render(){
+  clearTimers();
+  var w = $('wizard');
+  if(S.step < 0){
+    w.hidden = true; w.innerHTML = '';
+    $('view').innerHTML = homeHTML();
+    bindHome();
+  } else {
+    w.hidden = false;
+    w.innerHTML = '<div class="wz-in">' + wizHTML() + '</div>';
+    bindWiz();
+  }
+  try{ window.scrollTo(0, 0); }catch(e){}
+}
+
+function bindHome(){
+  var sb = $('startBtn');
+  if(sb) sb.onclick = function(){
+    S.step = 0; S.raw = ''; S.items = []; S.sorted = []; S.insight = '';
+    S.close = null; S.source = ''; S.note = ''; S.busy = false;
+    S.intensity = 5; S.after = 5; S.tags = []; S.mode = 1;
+    render();
+  };
+  var box = load(KB, []);
+  function setStatus(id, st){
+    box.forEach(function(b){ if(b.id === id){ b.status = st; } });
+    save(KB, box);
+    render();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-hit]'), function(b){
+    b.onclick = function(){ setStatus(b.getAttribute('data-hit'), 'hit'); };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-miss]'), function(b){
+    b.onclick = function(){ setStatus(b.getAttribute('data-miss'), 'miss'); };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-drop]'), function(b){
+    b.onclick = function(){ setStatus(b.getAttribute('data-drop'), 'drop'); };
+  });
+}
+
+function bindWiz(){
+  var q = $('quit');
+  if(q) q.onclick = function(){ S.step = -1; render(); };
+
+  if(S.step === 0){
+    var r = $('ivR');
+    if(r) r.oninput = function(){
+      S.intensity = +r.value;
+      $('ivN').textContent = S.intensity;
+      $('ivL').textContent = ivLabel(S.intensity);
+    };
+    var ta = $('rawTa');
+    if(ta) ta.oninput = function(){ S.raw = ta.value; };
+    Array.prototype.forEach.call(document.querySelectorAll('[data-tag]'), function(c){
+      c.onclick = function(){
+        var t = c.getAttribute('data-tag');
+        var i = S.tags.indexOf(t);
+        if(i >= 0){ S.tags.splice(i, 1); c.classList.remove('on'); }
+        else { S.tags.push(t); c.classList.add('on'); }
+      };
+    });
+    var g1 = $('go1');
+    if(g1) g1.onclick = function(){
+      if(S.raw.trim().length < 6){ toast('先写一句发生了什么，六个字以上就行'); return; }
+      S.tsec = 90;
+      S.step = 1; render();
+    };
+  }
+
+  if(S.step === 1){
+    Array.prototype.forEach.call(document.querySelectorAll('[data-mode]'), function(c){
+      c.onclick = function(){
+        S.mode = +c.getAttribute('data-mode');
+        render();
+      };
+    });
+    startTimer();
+    if(S.mode === 1) startBreathe();
+    var g2 = $('go2');
+    if(g2) g2.onclick = function(){ S.step = 2; callUnpack(); };
+  }
+
+  if(S.step === 2){
+    Array.prototype.forEach.call(document.querySelectorAll('[data-edit]'), function(t){
+      t.oninput = function(){ S.items[+t.getAttribute('data-edit')].text = t.value; };
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-del]'), function(b){
+      b.onclick = function(){
+        S.items.splice(+b.getAttribute('data-del'), 1);
+        render();
+      };
+    });
+    var add = $('addItem');
+    if(add) add.onclick = function(){
+      S.items.push({ text:'', kind:'fact', note:'' });
+      render();
+      var all = document.querySelectorAll('[data-edit]');
+      if(all.length) all[all.length - 1].focus();
+    };
+    var b1 = $('back1');
+    if(b1) b1.onclick = function(){ S.step = 0; render(); };
+    var g3 = $('go3');
+    if(g3) g3.onclick = function(){
+      S.items = S.items.filter(function(it){ return (it.text || '').trim().length >= 3; });
+      if(!S.items.length){ toast('至少要留一条'); return; }
+      S.step = 3; callSort();
+    };
+  }
+
+  if(S.step === 3){
+    Array.prototype.forEach.call(document.querySelectorAll('[data-c]'), function(b){
+      b.onclick = function(){
+        S.sorted[+b.getAttribute('data-i')].control = b.getAttribute('data-c');
+        render();
+      };
+    });
+    var b2 = $('back2');
+    if(b2) b2.onclick = function(){ S.step = 2; render(); };
+    var g4 = $('go4');
+    if(g4) g4.onclick = function(){ S.step = 4; callClose(); };
+  }
+
+  if(S.step === 4){
+    var r2 = $('ivR2');
+    if(r2) r2.oninput = function(){
+      S.after = +r2.value;
+      $('ivN2').textContent = S.after;
+    };
+    var b3 = $('back3');
+    if(b3) b3.onclick = function(){ S.step = 3; render(); };
+    var sv = $('saveBtn');
+    if(sv) sv.onclick = function(){ saveSession(); };
+  }
+
+  if(S.step === 5){
+    var hb = $('homeBtn');
+    if(hb) hb.onclick = function(){ S.step = -1; render(); };
+  }
+}
+
+/* ============================================================
+   计时 / 呼吸
+   ============================================================ */
+function startTimer(){
+  var tick = function(){
+    var el = $('tmr');
+    if(!el){ clearInterval(S.tick); S.tick = null; return; }
+    S.tsec--;
+    if(S.tsec <= 0){
+      clearInterval(S.tick); S.tick = null;
+      el.innerHTML = '<b>0</b> 秒 · 可以继续了';
+      return;
+    }
+    el.innerHTML = '<b>' + S.tsec + '</b> 秒';
+  };
+  S.tick = setInterval(tick, 1000);
+}
+
+function startBreathe(){
+  var phases = [['吸气', 4000, 1.18], ['停住', 7000, 1.18], ['呼气', 8000, 0.84]];
+  var i = 0;
+  var step = function(){
+    var el = $('bz');
+    if(!el){ S.breathe = null; return; }
+    var p = phases[i % phases.length];
+    el.style.transitionDuration = (p[1] / 1000) + 's';
+    el.style.transform = 'scale(' + p[2] + ')';
+    var txt = $('bzTxt');
+    if(txt) txt.textContent = p[0];
+    i++;
+    S.breathe = setTimeout(step, p[1]);
+  };
+  step();
+}
+
+/* ============================================================
+   三个接口
+   ============================================================ */
+function fail(r, fallback){
+  return (r && r.msg) || fallback;
+}
+
+function callUnpack(){
+  S.busy = true; render();
+  post('/rumination/api/unpack', { raw: S.raw })
+    .then(function(r){
+      S.busy = false;
+      if(r && r.ok){
+        S.items = r.items || []; S.source = r.source || '';
+        S.note = r.note || ''; S.crisis = !!r.crisis;
+      } else {
+        toast(fail(r, '没拆出来，再试一次')); S.step = 0;
+      }
+      render();
+    })
+    .catch(function(){ S.busy = false; toast('网络断了，再试一次'); S.step = 0; render(); });
+}
+
+function callSort(){
+  S.busy = true; render();
+  post('/rumination/api/sort', { items: S.items })
+    .then(function(r){
+      S.busy = false;
+      if(r && r.ok){ S.sorted = r.items || []; S.insight = r.insight || ''; }
+      else { toast(fail(r, '没分出来')); S.step = 2; }
+      render();
+    })
+    .catch(function(){ S.busy = false; toast('网络断了，再试一次'); S.step = 2; render(); });
+}
+
+function callClose(){
+  S.busy = true; S.close = null; render();
+  var yes = [], part = [], no = [];
+  S.sorted.forEach(function(it){
+    if(it.control === 'yes') yes.push(it.text);
+    else if(it.control === 'partial') part.push(it.text);
+    else no.push(it.text);
+  });
+  post('/rumination/api/close',
+       { raw: S.raw, control_yes: yes, control_partial: part, control_no: no })
+    .then(function(r){
+      S.busy = false;
+      if(r && r.ok){ S.close = r; }
+      else { toast(fail(r, '收口没成功')); S.step = 3; }
+      render();
+    })
+    .catch(function(){ S.busy = false; toast('网络断了，再试一次'); S.step = 3; render(); });
+}
+
+/* ============================================================
+   保存
+   ============================================================ */
+function saveSession(){
+  var ss = load(KS, []);
+  ss.push({
+    id: uid(), at: stamp(), raw: S.raw, tags: S.tags.slice(),
+    intensity: S.intensity, after: S.after,
+    items: S.items, sorted: S.sorted, close: S.close, source: S.source
+  });
+  save(KS, ss);
+  var box = load(KB, []);
+  ((S.close && S.close.worries) || []).forEach(function(w){
+    box.push({ id: uid(), at: stamp(), text: w, status: 'open' });
+  });
+  save(KB, box);
+  S.step = 5;
+  render();
+}
+
+/* ============================================================
+   启动
+   ============================================================ */
+render();
+fetch('/rumination/api/ready')
+  .then(function(r){ return r.json(); })
+  .then(function(r){
+    var ai = !!(r && r.ai);
+    if(ai !== S.ai){ S.ai = ai; if(S.step < 0) render(); }
+  })
+  .catch(function(){});
+
+})();
+</script>
+</body>
+</html>
