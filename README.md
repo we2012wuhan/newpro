@@ -19,7 +19,7 @@
 | `bill_analysis.py` | 账单分析（上传月度账单 Excel/CSV 到 `/bill-analysis`，DeepSeek 分类汇总消费并给省钱建议） |
 | `translator.py` | 翻译助手（页面在 `/translator`：输入中文 -> 免费接口返回英文，并转换小写/大写/驼峰命名格式） |
 | `ocr.py` | OCR图片识别（页面在 `/ocr`：粘贴截图或上传图片 -> 免费云端接口 OCR.space 识别成文字，无需本地模型，部署体积小） |
-| `judgement_trainer.py` | 判断力小工具（页面在 `/judgement-trainer`：认出判断点 -> 拆解决策 -> 记录账本 -> 校准回访，纯浏览器计算） |
+| `judgement_trainer.py` | 判断力教练（页面在 `/judgement-trainer`：写下正在犹豫的真事，先写上打算和几成把握，大模型把事实 / 猜测 / 你其实在赌什么 / 漏掉的变量摊开，到期回访对答案；没配 Key 走本地规则粗拆，记录存浏览器） |
 | `sdd_decomposer.py` | SDD 需求拆解器（页面在 `/sdd-decomposer`：把模糊想法按七段式逼成结构化规格，实时编译成可丢给 agent 的提示词，纯浏览器计算） |
 | `socratic.py` | 苏格拉底提问（页面在 `/socratic`：一句结论进去，用六类问题追问到底，出题优先走大模型，没配 Key 走内置题库，纯浏览器计算） |
 | `writing_ideas.py` | 写作选题（页面在 `/writing-ideas`：给一点线索或什么都不给，大模型一次出一批选题，挑中一个拆成启动包（标题 / 结构 / 证据 / 反驳），没配 Key 走内置配方，数据存浏览器） |
@@ -74,7 +74,7 @@ python video_downloader.py
 - `http://127.0.0.1:8000/buy-helper` **购物比价助手**：输入商品与需求，对比淘宝 / 京东销量价格并给出建议与购买入口
 - `http://127.0.0.1:8000/translator` **翻译助手**：中文翻译成英文，一键复制小写 / 大写 / camelCase / PascalCase 命名
 - `http://127.0.0.1:8000/ocr` **OCR图片识别**：粘贴截图或上传图片，免费云端接口识别成文字，可复制 / 下载 txt
-- `http://127.0.0.1:8000/judgement-trainer` **判断力小工具**：在流水账里认出判断点、拆解决策、记决策账本并回看校准，纯浏览器计算
+- `http://127.0.0.1:8000/judgement-trainer` **判断力教练**：拿自己身上的真事练——先押注（打算 + 几成把握），再看牌（事实 / 猜测 / 赌注 / 反方视角 / 去查什么），到期回访校准
 - `http://127.0.0.1:8000/sdd-decomposer` **SDD 需求拆解器**：一句粗糙需求进去，沿七段式逼问痛点 / 目标与非目标 / 用户 / 功能 / 交互 / 技术 / 验收，实时编译成提示词，纯浏览器计算
 - `http://127.0.0.1:8000/socratic` **苏格拉底提问**：写下你已经认定的一句话，用澄清 / 前提 / 证据 / 视角 / 推演 / 反思六类问题追问到底，最后汇成一份复盘
 - `http://127.0.0.1:8000/writing-ideas` **写作选题**：没灵感也能开始，给一点线索（或留空）就出一批选题，挑中一个再深挖成写作启动包（可导出 .md）
@@ -142,7 +142,7 @@ python video_downloader.py
 
 ## 模型配置（本地 .env / 线上环境变量）
 
-所有需要大模型或第三方 Key 的页面（`/ai-chart`、`/buy-helper`、`/bill-analysis`、`/study-assistant`、`/ocr`、`/writing-ideas`、`/opc`）
+所有需要大模型或第三方 Key 的页面（`/ai-chart`、`/buy-helper`、`/bill-analysis`、`/study-assistant`、`/ocr`、`/writing-ideas`、`/opc`、`/judgement-trainer`）
 都不再让用户手填 Key，统一由服务端读取。读取顺序：**真实环境变量 > 项目根目录 `.env` > 代码默认值**。
 
 本地开发：
