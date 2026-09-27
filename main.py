@@ -160,6 +160,12 @@ app.include_router(langchain_learn_router)
 from rumination import router as rumination_router  # noqa: E402
 app.include_router(rumination_router)
 
+# 附加功能：OPC 资讯（一人公司 / 独立开发：按主题搜 GitHub 上值得看的项目，AI 翻成人话；
+# GitHub Token 与模型 Key 都从环境变量取，页面上不用填）
+# 浏览器访问 http://127.0.0.1:8000/opc 即可使用。
+from opc_news import router as opc_news_router  # noqa: E402
+app.include_router(opc_news_router)
+
 
 
 # =========================================================

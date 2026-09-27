@@ -27,6 +27,7 @@
 | `predict_diary.py` | 贝叶斯日记（页面在 `/predict-diary`：写下你拿不准的一件事和现在几成把握，以后来一条新消息就更新一次；数字全在 Python 里用贝叶斯算，大模型只负责听懂人话；记录存浏览器） |
 | `langchain_learn.py` | LangChain 学习（页面在 `/langchain-learn`：七课入门实操，讲一个概念就跑一次真代码，invoke / 提示词模板 / LCEL 管道 / 结构化输出 / 少样本 / 工具调用 / 流式） |
 | `rumination.py` | 内耗拆解（页面在 `/rumination`：工作上的糟心事反复想时用，先 90 秒降温，再由大模型把一团拆成一条条、分成「我能动的 / 动不了的」，最后落成一件今天就能做的事；没配 Key 走本地规则，记录存浏览器） |
+| `opc_news.py` | OPC 资讯（页面在 `/opc`：给做「一人公司 / 独立开发」的人用，按主题搜 GitHub 上的相关项目，star / 活跃度由 Python 算，再让大模型用中文说清每个是什么、有什么用、适合谁；`GITHUB_TOKEN` 和模型 Key 都从环境变量取，页面上不用填） |
 | `templates/` 与 `static/` | 各工具页面模板与本地静态资源（含登录页 `templates/login.html`、会话兜底 `static/auth-guard.js`） |
 | `requirements.txt` | 项目依赖（fastapi + uvicorn + requests + yt-dlp + playwright + openpyxl） |
 
@@ -141,7 +142,7 @@ python video_downloader.py
 
 ## 模型配置（本地 .env / 线上环境变量）
 
-所有需要大模型或第三方 Key 的页面（`/ai-chart`、`/buy-helper`、`/bill-analysis`、`/study-assistant`、`/ocr`）
+所有需要大模型或第三方 Key 的页面（`/ai-chart`、`/buy-helper`、`/bill-analysis`、`/study-assistant`、`/ocr`、`/writing-ideas`、`/opc`）
 都不再让用户手填 Key，统一由服务端读取。读取顺序：**真实环境变量 > 项目根目录 `.env` > 代码默认值**。
 
 本地开发：
@@ -159,6 +160,7 @@ cp .env.example .env     # Windows: copy .env.example .env
 | `DEEPSEEK_BASE_URL` | 否 | 默认 `https://api.deepseek.com`，填任何 OpenAI 兼容接口都行，会自动补 `/chat/completions` |
 | `DEEPSEEK_MODEL` | 否 | 默认 `deepseek-chat`，可换 `deepseek-reasoner` 等 |
 | `OCR_SPACE_API_KEY` | 否 | 不填就用 OCR.space 公共免费 Key（高峰期会被限流） |
+| `GITHUB_TOKEN` | 否 | `/opc` 搜 GitHub 用；不填走未认证额度（搜索 10 次/分钟），填了变成 30 次/分钟、每小时 5000 次 |
 
 改完 `.env` 要重启服务（`uvicorn` 的 `--reload` 会在改动 `.py` 时重启，改 `.env` 后手动重启一次最稳）。
 
@@ -310,6 +312,24 @@ cp .env.example .env     # Windows: copy .env.example .env
 - 担忧盒里的条目放一天后会问你「它真发生了吗」，攒够几条就能在首页看到「你担心的事，真正发生了多少」——这个数字比任何安慰都管用；
 - 记录只存浏览器 localStorage（`rm_sessions_v1` / `rm_box_v1`），服务端不存、不写日志。唯一离开本机的是你主动点「AI 拆」时发出去的那段文字；
 - 它是一个自助工具，不是治疗。如果这种感觉持续两周以上，或者冒出伤害自己的念头，打 **12356**（全国心理援助热线，24 小时，免费）。
+
+## OPC 资讯
+
+打开 `http://127.0.0.1:8000/opc`。给做「一人公司 / 独立开发」的人用：按主题搜 GitHub 上相关的项目，再让大模型用中文说清每个是干什么的。
+
+| 步骤 | 做什么 |
+| --- | --- |
+| 1 | 点一个主题标签（一人公司 / 独立开发者 / AI SaaS 起步 / 资源清单…），或者自己敲关键词 |
+| 2 | 挑「最低 star」档位，需要时开「只看活跃」（三个月内有提交） |
+| 3 | 点「AI 解读这 12 个」，每个项目多出「是什么 / 有什么用 / 适合谁」三行，最上面还有一句「这批怎么看」 |
+
+说明：
+
+- star、fork、距今多少天没提交、活跃度分档（活跃 / 维护中 / 停更）、是否已归档，全是 Python 算的，不是模型猜的；
+- 大模型只做语言活，提示词里明令禁止它补充没看到的细节——这类任务模型最爱编功能清单，而它能依据的只有作者自己写的那行描述；
+- 关键词要英文：GitHub 搜的是英文描述，主题标签因此都是英文，中文的搜不出东西；
+- 不配 `GITHUB_TOKEN` 也能用，但走未认证额度（搜索 10 次/分钟），被限流时页面会写清多少分钟后恢复；
+- 同一个查询 10 分钟内不重复打 GitHub（服务端内存缓存）；AI 解读结果存浏览器 localStorage（`opc_ai_v1` / `opc_cfg_v1`），换个关键词回来还在。
 
 ## 打包成 EXE（可选）
 
