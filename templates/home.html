@@ -154,11 +154,48 @@ body.is-dragging .tool:not(.dragging){transition:none}
 .pwmsg.ok{color:var(--c-6ee7b7)}
 .pwact{display:flex;gap:10px;margin-top:14px}
 @media(max-width:760px){.pwgrid{grid-template-columns:1fr}.acct{margin-bottom:18px}}
+/* 页面顶部：这一年还剩多少 */
+.ycd{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  margin-bottom:22px;padding:12px 18px;border-radius:16px;
+  background:linear-gradient(135deg,rgba(109,124,255,.16),rgba(45,212,191,.14));
+  border:1px solid rgba(109,124,255,.3);backdrop-filter:blur(8px);
+  box-shadow:0 10px 26px -16px rgba(109,124,255,.65)}
+.ycd-top{display:flex;align-items:baseline;gap:9px;white-space:nowrap}
+.ycd-year{font-size:12px;font-weight:800;letter-spacing:1.5px;
+  background:linear-gradient(135deg,#6d7cff,#2dd4bf);-webkit-background-clip:text;
+  background-clip:text;color:transparent}
+.ycd-days{font-size:14px;font-weight:600;color:var(--tb-ink)}
+.ycd-days b{font-size:20px;font-weight:800;line-height:1;margin:0 3px;
+  font-variant-numeric:tabular-nums}
+.ycd-clock{margin-left:auto;font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
+  font-size:14px;font-variant-numeric:tabular-nums;letter-spacing:.5px;color:var(--tb-muted)}
+.ycd-meta{display:flex;align-items:center;gap:10px;flex:1 1 220px;min-width:160px}
+.ycd-bar{display:block;position:relative;flex:1;height:5px;border-radius:999px;
+  background:var(--tb-line);overflow:hidden}
+.ycd-bar i{display:block;height:100%;width:0;border-radius:999px;
+  background:linear-gradient(90deg,#6d7cff,#2dd4bf);transition:width .6s ease}
+.ycd-pct{font-size:11.5px;color:var(--tb-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+[data-theme="dark"] .ycd{background:linear-gradient(135deg,rgba(109,124,255,.24),rgba(45,212,191,.18));
+  border-color:rgba(109,124,255,.42);box-shadow:0 12px 30px -18px rgba(45,212,191,.75)}
+@media(max-width:760px){.ycd{gap:10px;padding:11px 14px;margin-bottom:18px}
+  .ycd-days b{font-size:17px}.ycd-clock{font-size:12.5px;order:1}
+  .ycd-meta{order:2;flex-basis:100%;min-width:0}}
 </style>
 <script src="/static/auth-guard.js"></script>
 </head>
 <body>
 <div class="wrap">
+  <div class="ycd" id="ycd" aria-label="2026 年倒计时">
+    <div class="ycd-top">
+      <span class="ycd-year">2026</span>
+      <span class="ycd-days" id="ycdDays">还剩 <b>—</b> 天</span>
+    </div>
+    <div class="ycd-meta">
+      <span class="ycd-bar"><i id="ycdBar"></i></span>
+      <span class="ycd-pct" id="ycdPct">今年已过 0%</span>
+    </div>
+    <span class="ycd-clock" id="ycdClock">--:--:--</span>
+  </div>
   <div class="acct">
     <!--USER_CHIP-->
     <div class="acct-right">
@@ -571,6 +608,53 @@ if(search){
     }).catch(function(e){ show(e.message, 'err'); })
       .then(function(){ btn.disabled = false; });
   };
+})();
+</script>
+<script>
+(function(){
+'use strict';
+// 左上角那行倒计时：还没到 YEAR 年就倒数到 1 月 1 日，到了就显示这一年还剩多少。
+var YEAR = 2026;
+var start = new Date(YEAR, 0, 1, 0, 0, 0);
+var end = new Date(YEAR + 1, 0, 1, 0, 0, 0);
+var total = end - start;
+var $days = document.getElementById("ycdDays");
+var $clock = document.getElementById("ycdClock");
+var $bar = document.getElementById("ycdBar");
+var $pct = document.getElementById("ycdPct");
+if(!$days || !$clock || !$bar || !$pct){ return; }
+
+function pad(n){ return (n < 10 ? "0" : "") + n; }
+function hms(ms){
+  var s = Math.floor(ms / 1000);
+  return pad(Math.floor(s / 3600)) + ":" + pad(Math.floor(s % 3600 / 60)) + ":" + pad(s % 60);
+}
+function render(){
+  var now = Date.now();
+  if(now < start){
+    var toStart = start - now;
+    $days.innerHTML = "还有 <b>" + Math.floor(toStart / 86400000) + "</b> 天";
+    $clock.textContent = hms(toStart % 86400000);
+    $bar.style.width = "0%";
+    $pct.textContent = YEAR + " 还没开始";
+    return;
+  }
+  if(now < end){
+    var left = end - now;
+    $days.innerHTML = "还剩 <b>" + Math.floor(left / 86400000) + "</b> 天";
+    $clock.textContent = hms(left % 86400000);
+    var pct = (now - start) / total * 100;
+    $bar.style.width = pct.toFixed(2) + "%";
+    $pct.textContent = "今年已过 " + Math.round(pct) + "%";
+    return;
+  }
+  $days.innerHTML = "<b>0</b> 天";
+  $clock.textContent = "";
+  $bar.style.width = "100%";
+  $pct.textContent = YEAR + " 已经过完";
+}
+render();
+setInterval(function(){ if(!document.hidden){ render(); } }, 1000);
 })();
 </script>
 </body>
