@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#8A5A3B">
+<title>读书落地</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<style>
+:root{
+  --acc:#8A5A3B; --acc-d:#734A31; --acc-l:#F7EFE9; --acc-line:#E3CDBC;
+  --ink:#17262B; --text:#3B4859; --muted:#8492A3;
+  --bg:#F7F5F3; --card:#FFFFFF; --line:#E7E1DC;
+  --ok:#1C7A58; --ok-l:#EAF5F0; --ok-line:#C6E2D6;
+  --warn:#8A6516; --warn-l:#FBF4E6; --warn-line:#E7D6B0;
+  --err:#B23A52; --err-l:#FBEEF1; --err-line:#EED0D7;
+  --r:16px;
+  --sh:0 1px 2px rgba(16,24,40,.04), 0 10px 24px -14px rgba(16,24,40,.18);
+  --field:#FFFFFF; --soft:#F4F1EE; --bg-blur:rgba(247,245,243,.9);
+  --focus-ring:0 0 0 3px rgba(138,90,59,.14);
+}
+[data-theme="dark"]{
+  --acc:#D9A87C; --acc-d:#EFC79F; --acc-l:#241A14; --acc-line:#4A362A;
+  --ink:#F2EBE6; --text:#CFC4BC; --muted:#9A8B81;
+  --bg:#14100E; --card:#1E1815; --line:#332A25;
+  --ok:#7CC79E; --ok-l:#12261E; --ok-line:#2A4536;
+  --warn:#E0A868; --warn-l:#241C10; --warn-line:#453722;
+  --err:#FF9B8F; --err-l:#2A1416; --err-line:#52282C;
+  --sh:0 1px 2px rgba(0,0,0,.3), 0 10px 24px -14px rgba(0,0,0,.5);
+  --field:#191411; --soft:#231C18; --bg-blur:rgba(20,16,14,.92);
+  --focus-ring:0 0 0 3px rgba(217,168,124,.16);
+  color-scheme:dark;
+}
+html[data-theme="dark"] .btn.primary,html[data-theme="dark"] .btn.primary:hover{color:#241A0F}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+button,input,textarea,select{font-family:inherit;font-size:15px;color:inherit}
+.wrap{max-width:820px;margin:0 auto;padding:0 16px calc(56px + env(safe-area-inset-bottom))}
+.topbar{position:sticky;top:0;z-index:20;background:var(--bg-blur);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line)}
+.topbar-in{max-width:820px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px}
+.ttl{font-size:17px;font-weight:600;color:var(--ink);line-height:1.3}
+.sub{font-size:12px;color:var(--muted);line-height:1.4;margin-top:2px}
+.back{margin-left:auto;flex:0 0 auto;font-size:13px;color:var(--muted);text-decoration:none;
+  border:1px solid var(--line);background:var(--field);border-radius:999px;padding:8px 14px;white-space:nowrap}
+.back:hover{color:var(--ink);border-color:var(--acc-line)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;
+  box-shadow:var(--sh);margin-top:14px}
+.card-h{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.mini{font-size:11.5px;color:var(--muted);line-height:1.7}
+.sec-t{font-size:13px;font-weight:600;color:var(--muted);margin:22px 2px 0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;
+  border-radius:12px;border:1px solid var(--line);background:var(--field);color:var(--text);
+  cursor:pointer;transition:background .15s,border-color .15s,opacity .15s}
+.btn:hover{border-color:var(--acc-line)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.primary:hover{background:var(--acc-d);border-color:var(--acc-d)}
+.btn.primary:disabled{background:var(--soft);border-color:var(--line);color:var(--muted);opacity:1}
+.btn.block{width:100%}
+.btn.big{min-height:52px;font-size:16px;font-weight:600}
+.btn.sm{min-height:38px;padding:0 12px;font-size:13.5px;border-radius:10px}
+.btn-row{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+.btn-row .btn{flex:1;min-width:100px}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;line-height:1.7;
+  background:var(--acc-l);color:var(--acc);border:1px solid var(--acc-line)}
+.badge.g{background:var(--ok-l);color:var(--ok);border-color:var(--ok-line)}
+.badge.o{background:var(--warn-l);color:var(--warn);border-color:var(--warn-line)}
+.badge.n{background:var(--soft);color:var(--muted);border-color:var(--line)}
+label.f{display:block;font-size:12.5px;color:var(--muted);margin:16px 0 6px}
+label.f:first-child{margin-top:0}
+textarea,input[type=text]{width:100%;border:1px solid var(--line);border-radius:12px;padding:11px 12px;
+  background:var(--field);outline:none;min-height:44px;line-height:1.7;color:var(--ink)}
+textarea{min-height:76px;resize:vertical}
+textarea:focus,input:focus{border-color:var(--acc-line);box-shadow:var(--focus-ring)}
+textarea::placeholder,input::placeholder{color:var(--muted);opacity:.72}
+.ana-h{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.box{background:var(--acc-l);border:1px solid var(--acc-line);border-radius:12px;padding:11px 14px;
+  font-size:15px;line-height:1.7;color:var(--ink);font-weight:600}
+.box .k{display:block;font-size:11.5px;color:var(--acc);margin-bottom:3px;font-weight:600}
+.warnbox{background:var(--warn-l);border:1px solid var(--warn-line);border-radius:12px;padding:11px 14px;
+  font-size:13.5px;line-height:1.7;color:var(--warn);margin-bottom:12px}
+.plan{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--field);margin-top:12px}
+.plan-h{font-size:15.5px;font-weight:600;color:var(--ink);line-height:1.5}
+.plan-scene{font-size:13.5px;line-height:1.75;color:var(--text);margin-top:8px;
+  border-left:3px solid var(--acc-line);padding-left:10px}
+.plan-scene .k{display:block;font-size:11.5px;color:var(--muted)}
+.steps{margin:10px 0 0;padding-left:20px}
+.steps li{font-size:14px;line-height:1.75;color:var(--ink);margin-bottom:3px}
+.meta3{margin-top:10px;border-top:1px dashed var(--line);padding-top:9px}
+.meta3 .m{display:flex;gap:10px;font-size:13px;line-height:1.7;margin-top:6px}
+.meta3 .m .k{flex:0 0 62px;color:var(--muted);font-size:12px;padding-top:1px;white-space:nowrap}
+.plan .btn{margin-top:12px;width:100%}
+.line.check{border:1px solid var(--acc-line);background:var(--acc-l);border-radius:12px;
+  padding:11px 13px;margin-top:12px;font-size:13.5px;line-height:1.75;display:flex;gap:10px}
+.line.check .k{flex:0 0 62px;font-size:12px;color:var(--acc);font-weight:600;white-space:nowrap}
+.sheet{margin:10px 0 0;padding-left:20px}
+.sheet li{font-size:13.5px;line-height:1.8;color:var(--text);margin-bottom:6px}
+.item{background:var(--field);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:10px}
+.item.due{border-color:var(--warn-line);background:var(--warn-l)}
+.item-t{font-size:14.5px;line-height:1.6;color:var(--ink);font-weight:600}
+.item-m{font-size:12px;color:var(--muted);margin-top:6px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.kv{font-size:13.5px;line-height:1.75;margin-top:7px}
+.kv b{color:var(--ink)}
+.chk{display:flex;gap:9px;align-items:flex-start;font-size:14px;line-height:1.7;color:var(--text);
+  margin-top:8px;cursor:pointer}
+.chk input{margin:6px 0 0;width:17px;height:17px;flex:0 0 17px;accent-color:var(--acc)}
+.chk.on{color:var(--muted);text-decoration:line-through}
+.item textarea{min-height:62px;margin-top:9px;font-size:13.5px}
+.lnk{background:none;border:0;padding:0;font-size:12px;color:var(--muted);text-decoration:underline;cursor:pointer}
+.lnk:hover{color:var(--acc)}
+.empty{text-align:center;padding:14px 10px;color:var(--muted);font-size:13px;line-height:1.7}
+.err{background:var(--err-l);border:1px solid var(--err-line);border-radius:12px;padding:11px 14px;
+  font-size:13.5px;color:var(--err);margin-top:12px}
+.sk{border-radius:10px;background:linear-gradient(90deg,var(--soft),var(--line),var(--soft));
+  background-size:200% 100%;animation:sk 1.1s linear infinite;height:12px;margin-top:10px}
+@keyframes sk{from{background-position:200% 0}to{background-position:-200% 0}}
+.spin{display:inline-block;width:13px;height:13px;border-radius:50%;border:2px solid rgba(255,255,255,.4);
+  border-top-color:currentColor;animation:sp .7s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);z-index:50;
+  background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:10px 16px;
+  font-size:13.5px;box-shadow:var(--sh);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (prefers-reduced-motion:reduce){.sk,.spin{animation:none;opacity:.6}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div>
+      <div class="ttl">读书落地</div>
+      <div class="sub">不写读书笔记，只输出今天能照着做的动作</div>
+    </div>
+    <a class="back" href="/">← 返回工具箱</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="card">
+    <label class="f" for="book">书名</label>
+    <input id="book" type="text" placeholder="例：原子习惯">
+    <label class="f" for="author">作者</label>
+    <input id="author" type="text" placeholder="例：詹姆斯·克利尔">
+    <label class="f" for="ask">你想用它解决什么（可空）</label>
+    <input id="ask" type="text" placeholder="例：计划老是完不成">
+    <button class="btn primary block big" id="goBtn" type="button">拆成能做的事</button>
+    <div class="mini" id="goTip" style="text-align:center;margin-top:8px"></div>
+  </div>
+
+  <div id="out"></div>
+  <section id="mine"></section>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+(function(){
+'use strict';
+
+/* 拆出来的实践卡只存这台设备的浏览器里 */
+var K_PLAN = 'rd_plans_v1';
+var REVIEW_DAYS = 7;
+
+var S = { ai:true, busy:false, data:null, source:'', err:'', book:'', author:'' };
+var plans = [];
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function load(k, fb){
+  try{ var v = localStorage.getItem(k); return v === null ? fb : JSON.parse(v); }
+  catch(e){ return fb; }
+}
+function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function toast(msg){
+  var t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+}
+function dayStr(d){
+  var m = d.getMonth() + 1, day = d.getDate();
+  return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+}
+function todayStr(){ return dayStr(new Date()); }
+function addDays(s, n){
+  var p = s.split('-');
+  var d = new Date(+p[0], +p[1] - 1, +p[2]);
+  d.setDate(d.getDate() + n);
+  return dayStr(d);
+}
+function daysBetween(a, b){
+  var pa = a.split('-'), pb = b.split('-');
+  return Math.round((new Date(+pb[0],+pb[1]-1,+pb[2]) - new Date(+pa[0],+pa[1]-1,+pa[2])) / 86400000);
+}
+function api(path, body){
+  return fetch(path, {
+    method:'POST', headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify(body || {})
+  }).then(function(r){ return r.json(); })
+    .catch(function(){ return { ok:false, msg:'请求失败，看下服务还在不在' }; });
+}
+
+function refreshForm(){
+  var ok = $('book').value.trim().length >= 2;
+  $('goBtn').disabled = !ok || S.busy;
+  if(S.busy){ $('goTip').textContent = ''; return; }
+  $('goTip').textContent = ok
+    ? (S.ai ? '' : '服务端没配模型 Key，会给你一份自己拆的六问模板')
+    : '还差：书名';
+}
+
+function analyze(){
+  var book = $('book').value.trim();
+  if(book.length < 2){ toast('先把书名写上'); return; }
+  S.book = book;
+  S.author = $('author').value.trim();
+  S.busy = true; S.err = ''; S.data = null;
+  refreshForm(); renderOut();
+  api('/reading-practice/api/analyze',
+      { book:S.book, author:S.author, ask:$('ask').value.trim() })
+    .then(function(d){
+      S.busy = false;
+      if(!d || !d.ok){ S.err = (d && d.msg) || '拆解失败，再点一次'; }
+      else { S.data = d.data; S.source = d.source || 'ai'; }
+      refreshForm(); renderOut();
+      var el = $('out');
+      if(el && el.scrollIntoView){ el.scrollIntoView({ behavior:'smooth', block:'start' }); }
+    });
+}
+
+function renderOut(){
+  var out = $('out');
+  if(S.busy){
+    out.innerHTML = '<div class="card"><div class="sk" style="width:34%"></div>' +
+      '<div class="sk"></div><div class="sk" style="width:70%"></div><div class="sk" style="width:46%"></div></div>';
+    return;
+  }
+  if(S.err){ out.innerHTML = '<div class="err">' + esc(S.err) + '</div>'; return; }
+  if(!S.data){ out.innerHTML = ''; return; }
+
+  var d = S.data, h = '<div class="card"><div class="ana-h">';
+  h += '<span class="badge">《' + esc(S.book) + '》</span>';
+  if(S.author){ h += '<span class="badge n">' + esc(S.author) + '</span>'; }
+  h += '<span class="badge ' + (S.source === 'ai' ? 'g' : 'o') + '">' +
+       (S.source === 'ai' ? 'AI 拆的' : '自己拆的模板') + '</span></div>';
+
+  if(d.note){ h += '<div class="warnbox">' + esc(d.note) + '</div>'; }
+  if(d.gist){ h += '<div class="box"><span class="k">这本书最核心的一句</span>' + esc(d.gist) + '</div>'; }
+
+  (d.cards || []).forEach(function(c, i){
+    h += '<div class="plan"><div class="plan-h">' + esc(c.point) + '</div>';
+    if(c.scene){ h += '<div class="plan-scene"><span class="k">什么场合用</span>' + esc(c.scene) + '</div>'; }
+    h += '<ol class="steps">' + c.steps.map(function(s){ return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>';
+    h += '<div class="meta3">';
+    if(c.done){ h += '<div class="m"><span class="k">算做到</span><span>' + esc(c.done) + '</span></div>'; }
+    if(c.trap){ h += '<div class="m"><span class="k">容易变形</span><span>' + esc(c.trap) + '</span></div>'; }
+    if(c.review){ h += '<div class="m"><span class="k">7 天后问</span><span>' + esc(c.review) + '</span></div>'; }
+    h += '</div><button class="btn sm" type="button" data-take="' + i + '">就做这张</button></div>';
+  });
+
+  if(d.sheet && d.sheet.length){
+    h += '<div class="plan"><div class="plan-h">拿着这 6 个问题去翻书</div>' +
+      '<ol class="sheet">' + d.sheet.map(function(q){ return '<li>' + esc(q) + '</li>'; }).join('') + '</ol></div>';
+  }
+  if(d.today){ h += '<div class="line check"><span class="k">今天就做</span><span>' + esc(d.today) + '</span></div>'; }
+  h += '</div>';
+  out.innerHTML = h;
+  Array.prototype.forEach.call(out.querySelectorAll('[data-take]'), function(b){
+    b.onclick = function(){ take(Number(b.getAttribute('data-take'))); };
+  });
+}
+
+function take(i){
+  var c = (S.data && S.data.cards || [])[i];
+  if(!c){ return; }
+  var at = todayStr();
+  plans.unshift({
+    id:'p' + Date.now(), at:at, book:S.book, author:S.author,
+    point:c.point, scene:c.scene, done:c.done, trap:c.trap, review:c.review,
+    steps:c.steps.map(function(t){ return { t:t, ok:false }; }),
+    reviewAt:addDays(at, REVIEW_DAYS), reviewed:false, ok:null, result:''
+  });
+  save(K_PLAN, plans);
+  renderMine();
+  toast('加进「我在做」了，' + REVIEW_DAYS + ' 天后问你一句');
+  var el = $('mine');
+  if(el && el.scrollIntoView){ el.scrollIntoView({ behavior:'smooth', block:'start' }); }
+}
+/* ---------- 我在做 ---------- */
+function stepDone(p){
+  var n = 0;
+  p.steps.forEach(function(s){ if(s.ok){ n++; } });
+  return n;
+}
+function itemOf(p, today){
+  var due = p.reviewAt <= today;
+  var n = stepDone(p);
+  var total = p.steps.length;
+  var h = '<div class="item' + (due ? ' due' : '') + '">' +
+    '<div class="item-t">' + esc(p.point) + '</div>' +
+    '<div class="item-m"><span class="badge">《' + esc(p.book) + '》</span>' +
+      '<span>' + n + '/' + total + ' 步</span>' +
+      (due ? '<span class="badge o">该问自己了</span>'
+           : '<span>' + Math.max(1, daysBetween(today, p.reviewAt)) + ' 天后问你</span>') +
+      '<button class="lnk" type="button" data-del="' + p.id + '">不做这张了</button></div>';
+  if(p.scene){ h += '<div class="kv"><b>什么场合：</b>' + esc(p.scene) + '</div>'; }
+  p.steps.forEach(function(s, i){
+    h += '<label class="chk' + (s.ok ? ' on' : '') + '">' +
+      '<input type="checkbox" data-step="' + p.id + '|' + i + '"' + (s.ok ? ' checked' : '') + '>' +
+      '<span>' + esc(s.t) + '</span></label>';
+  });
+  if(due){
+    h += '<div class="kv"><b>问自己：</b>' + esc(p.review || '这 7 天用上了吗？') + '</div>' +
+      '<textarea id="rr_' + p.id + '" placeholder="做到了没有、实际是什么样"></textarea>' +
+      '<div class="btn-row">' +
+        '<button class="btn sm" type="button" data-yes="' + p.id + '">做到了</button>' +
+        '<button class="btn sm" type="button" data-no="' + p.id + '">没做到</button></div>';
+  }
+  if(p.trap){ h += '<div class="mini" style="margin-top:8px">容易变形：' + esc(p.trap) + '</div>'; }
+  return h + '</div>';
+}
+function doneItemOf(p){
+  var yes = p.ok === true;
+  return '<div class="item"><div class="item-t">' + esc(p.point) + '</div>' +
+    '<div class="item-m"><span class="badge ' + (yes ? 'g' : 'o') + '">' +
+      (yes ? '做到了' : '没做到') + '</span><span class="badge n">《' + esc(p.book) + '》</span>' +
+      '<span>' + stepDone(p) + '/' + p.steps.length + ' 步</span>' +
+      '<button class="lnk" type="button" data-del="' + p.id + '">删掉</button></div>' +
+    (p.result ? '<div class="kv"><b>结果：</b>' + esc(p.result) + '</div>' : '') +
+    '<div class="mini" style="margin-top:6px">当时问的是：' + esc(p.review || '用上了吗？') + '</div></div>';
+}
+function renderMine(){
+  var today = todayStr();
+  var due = plans.filter(function(p){ return !p.reviewed && p.reviewAt <= today; });
+  var doing = plans.filter(function(p){ return !p.reviewed && p.reviewAt > today; });
+  var done = plans.filter(function(p){ return p.reviewed; });
+
+  var inner = '';
+  if(due.length){
+    inner += '<div class="mini" style="margin-bottom:6px">该问自己了（' + due.length + '）</div>' +
+      due.map(function(p){ return itemOf(p, today); }).join('');
+  }
+  if(doing.length){ inner += doing.map(function(p){ return itemOf(p, today); }).join(''); }
+  if(!inner){
+    inner = '<div class="empty">' + (plans.length
+      ? '现在没有在做的，回到上面再挑一张。'
+      : '还没有在做的。上面拆完，挑一张点「就做这张」。') + '</div>';
+  }
+  var h = '<div class="sec-t">我在做</div><div class="card">' + inner + '</div>';
+  if(done.length){
+    h += '<div class="sec-t">已收尾（' + done.length + '）</div>' + done.map(doneItemOf).join('');
+  }
+  $('mine').innerHTML = h;
+  bindMine();
+}
+function review(id, val){
+  var el = $('rr_' + id);
+  var note = el ? el.value.trim() : '';
+  plans.forEach(function(p){
+    if(p.id === id){ p.reviewed = true; p.ok = (val === 'yes'); p.result = note; }
+  });
+  save(K_PLAN, plans);
+  renderMine();
+  toast(val === 'yes' ? '记下了：做到了' : '记下了：没做到');
+}
+function bindMine(){
+  function each(sel, ev, fn){
+    Array.prototype.forEach.call(document.querySelectorAll(sel), function(b){
+      b[ev] = function(){ fn(b.getAttribute(sel.slice(1, -1))); };
+    });
+  }
+  each('[data-step]', 'onchange', function(v){
+    var parts = String(v).split('|');
+    plans.forEach(function(p){
+      if(p.id === parts[0]){
+        var s = p.steps[Number(parts[1])];
+        if(s){ s.ok = !s.ok; }
+      }
+    });
+    save(K_PLAN, plans);
+    renderMine();
+  });
+  each('[data-del]', 'onclick', function(id){
+    if(!confirm('把这张从「我在做」里去掉？')){ return; }
+    plans = plans.filter(function(p){ return p.id !== id; });
+    save(K_PLAN, plans);
+    renderMine();
+  });
+  each('[data-yes]', 'onclick', function(id){ review(id, 'yes'); });
+  each('[data-no]', 'onclick', function(id){ review(id, 'no'); });
+}
+
+function init(){
+  plans = load(K_PLAN, []) || [];
+  ['book', 'author', 'ask'].forEach(function(id){ $(id).oninput = refreshForm; });
+  $('book').onkeydown = function(e){ if(e.key === 'Enter'){ analyze(); } };
+  $('goBtn').onclick = analyze;
+  refreshForm(); renderOut(); renderMine();
+  fetch('/reading-practice/api/status').then(function(r){ return r.json(); }).then(function(d){
+    S.ai = !!(d && d.ai);
+    refreshForm();
+  }).catch(function(){});
+}
+init();
+
+})();
+</script>
+</body>
+</html>

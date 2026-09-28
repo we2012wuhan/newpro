@@ -166,6 +166,12 @@ app.include_router(rumination_router)
 from opc_news import router as opc_news_router  # noqa: E402
 app.include_router(opc_news_router)
 
+# 附加功能：读书落地（输入书名 + 作者：大模型不给读书笔记，只给今天能照着做的动作；
+# 拆出来的实践卡可以勾步骤、7 天后回访，卡只存浏览器，服务端不存）
+# 浏览器访问 http://127.0.0.1:8000/reading-practice 即可使用。
+from reading_practice import router as reading_practice_router  # noqa: E402
+app.include_router(reading_practice_router)
+
 
 
 # =========================================================
