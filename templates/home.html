@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -282,7 +282,40 @@ body.is-dragging .tool:not(.dragging){transition:none}
 @media (max-width:1279px){.lantern{transform:scale(.66)}}
 @media (max-width:1199px){.lanterns{display:none}}
 @media (prefers-reduced-motion:reduce){.lantern-in{animation:none}}
-</style>
+/* ===== 今天要处理的事：只在有到期内容时出现，其余时间完全隐藏 ===== */
+.today{margin:0 0 18px;padding:15px 17px;border-radius:18px;
+  background:linear-gradient(180deg,var(--tb-card),var(--tb-card-2));
+  border:1px solid var(--tb-line-2);backdrop-filter:blur(8px);
+  box-shadow:0 16px 38px -26px rgba(109,124,255,.75),inset 3px 0 0 #e8a13c;
+  animation:tdIn .34s ease-out both}
+@keyframes tdIn{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.today{animation:none}}
+.td-head{display:flex;align-items:baseline;gap:8px;margin-bottom:11px}
+.td-ttl{font-size:14px;font-weight:600;color:var(--tb-ink);letter-spacing:.02em}
+.td-n{font-size:12px;color:var(--tb-muted)}
+.td-row{display:flex;align-items:center;gap:12px;padding:10px 12px;margin-bottom:8px;
+  border-radius:12px;text-decoration:none;color:inherit;
+  background:var(--tb-hover);border:1px solid transparent;
+  transition:background .15s ease,border-color .15s ease,transform .15s ease}
+.td-row:last-of-type{margin-bottom:0}
+.td-row:hover{background:var(--tb-hover-2);border-color:var(--tb-line-2);transform:translateX(2px)}
+.td-ico{flex:0 0 auto;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
+  font-size:17px;background:var(--tb-card);border:1px solid var(--tb-line)}
+.td-body{flex:1 1 auto;min-width:0}
+.td-txt{display:block;font-size:14.5px;color:var(--tb-ink);line-height:1.45;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.td-sub{display:block;font-size:12px;color:var(--tb-muted);margin-top:3px}
+.td-late{flex:0 0 auto;font-size:12px;font-weight:600;color:#a9600c;
+  background:rgba(232,161,60,.14);border:1px solid rgba(232,161,60,.32);
+  padding:3px 9px;border-radius:999px;white-space:nowrap}
+[data-theme="dark"] .td-late{color:#f0b25e;background:rgba(232,161,60,.16);border-color:rgba(232,161,60,.34)}
+.td-more{font-size:12px;color:var(--tb-muted);margin-top:9px;padding-left:2px}
+@media(max-width:640px){
+  .today{padding:13px 13px;border-radius:15px}
+  .td-txt{white-space:normal}
+  .td-ico{width:30px;height:30px;font-size:15px;border-radius:9px}
+  .td-row{gap:10px;padding:10px}
+}</style>
 <script src="/static/auth-guard.js"></script>
 </head>
 <body>
@@ -313,6 +346,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
   </div></div>
 </div>
 <div class="wrap">
+  <div class="today" id="today" hidden></div>
   <div class="quotes" id="quotes" aria-label="每日名言"></div>
   <aside class="qside q-l" aria-label="名言（左）"><div class="q-card" id="qSideL"></div></aside>
   <aside class="qside q-r" aria-label="名言（右）"><div class="q-card" id="qSideR"></div></aside>
@@ -888,5 +922,6 @@ if(document.readyState === 'loading'){
 }
 })();
 </script>
+<script src="/static/today.js"></script>
 </body>
 </html>
