@@ -80,7 +80,13 @@ if getattr(sys, 'frozen', False):
     _APP_DIR = Path(sys.executable).resolve().parent
 else:
     _APP_DIR = Path(__file__).resolve().parent
-COOKIE_FILE = _APP_DIR / 'douyin_cookies.txt'
+# Cookie 默认存在项目目录；部署到容器时用 TB_DOUYIN_COOKIE 指到挂载卷，重建容器就不会丢
+def _cookie_file():
+    custom = (os.environ.get('TB_DOUYIN_COOKIE') or '').strip()
+    return Path(custom) if custom else _APP_DIR / 'douyin_cookies.txt'
+
+
+COOKIE_FILE = _cookie_file()
 
 _JOBS = {}  # 解析成功后的"下载任务"暂存区：token -> 直链信息
 _JOB_TTL = 2 * 60 * 60  # 直链一般 1-2 小时有效，2 小时后自动清理

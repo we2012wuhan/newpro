@@ -31,6 +31,8 @@
 | `reading_practice.py` | 读书落地（页面在 `/reading-practice`：输入书名 + 作者，大模型不给读书笔记，只给今天能照着做的动作——什么场合用 / 三步怎么做 / 怎么算做到 / 容易在哪变形 / 7 天后问自己什么；拆出来的卡可勾步骤、到期回访，只存浏览器） |
 | `storage.py` | SQLite 存储层（全站唯一的落盘入口：库文件在 `data/app.db`，WAL 模式，按登录名隔离；`add_record` / `list_records` 给所有工具存历史记录用） |
 | `sqlite_tool.py` | SQLite 测试台（页面在 `/sqlite`：写一条进数据库再读回来，看库状态 / 行数 / 文件大小，能连写 20 条测写入速度，还能直接下载 `.db` 文件本身） |
+| `Dockerfile` / `docker-compose.yml` | 上云用的镜像定义与编排（`data/` 挂载成卷，账号与模型 Key 走 `.env`） |
+| `deploy.ps1` / `DEPLOY.md` | 一条命令发布到自己的云服务器，以及服务器上的一次性准备步骤 |
 | `templates/` 与 `static/` | 各工具页面模板与本地静态资源（含登录页 `templates/login.html`、会话兜底 `static/auth-guard.js`） |
 | `requirements.txt` | 项目依赖（fastapi + uvicorn + requests + yt-dlp + playwright + openpyxl） |
 
@@ -123,6 +125,19 @@ python video_downloader.py
 
 配好之后：登录页自动变成「登录」而不是「创建账号」，`/api/auth/setup` 和改密码接口会明确拒绝
 （而不是 500）。改了变量要**重新部署**才生效；一个变量都不配时，退回本机 `data/auth.json` 那套，本地开发流程不变。
+
+### 部署到自己的云服务器（Docker）
+
+本地不用装 Docker（只用系统自带的 `ssh` / `scp`）。PyCharm 里已经放好运行配置，
+右上角选 **「发布到服务器」** 按 Shift+F10 就跑；命令行等价写法：
+
+```powershell
+.\deploy.ps1                                    # 或
+.\.venv\Scripts\python.exe deploy.py           # 打包 -> 上传 -> 服务器重建 -> 健康检查
+```
+
+它会打包源码（排除本地 `.env` / `data` / `.venv`）→ 传到服务器 → 在服务器上 `docker compose up -d --build` → 健康检查 `/login`。
+容器起来后所有数据都在挂载卷 `./data` 里，重建镜像不会丢。环境变量与登录信息的迁移清单见 [DEPLOY.md](DEPLOY.md)。
 
 ## 浅色 / 深色主题
 
