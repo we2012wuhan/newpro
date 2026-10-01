@@ -55,3 +55,6 @@ Dockerfile
 docker-compose.yml
 .dockerignore
 deploy/
+
+# ---- 本地 agent 约定（含服务器信息，不上传 GitHub）----
+AGENTS.md
