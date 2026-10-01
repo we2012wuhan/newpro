@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0369a1">
+<title>数据浏览</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<script src="/static/echarts.min.js"></script>
+<style>
+:root{
+  --acc:#0ea5e9; --acc-d:#0369a1; --acc-l:#e8f6fe; --acc-line:#b9e2f7;
+  --ink:var(--tb-ink); --text:var(--tb-text); --muted:var(--tb-muted);
+  --card:var(--tb-card); --line:var(--tb-line); --field:var(--tb-field);
+  --ok:#1c7a58; --ok-l:#eaf5f0; --ok-line:#c6e2d6;
+  --err:#b23a52; --err-l:#fbeef1; --err-line:#eed0d7;
+  --r:14px; --sh:var(--tb-shadow);
+  --mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;
+}
+[data-theme="dark"]{
+  --acc:#38bdf8; --acc-d:#7dd3fc; --acc-l:#0c2433; --acc-line:#1d4a63;
+  --ok:#7cc79e; --ok-l:#12261e; --ok-line:#2a4536;
+  --err:#ff9b8f; --err-l:#2a1416; --err-line:#52282c;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{color:var(--text);font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
+.topbar{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--line);backdrop-filter:blur(10px);
+  background:color-mix(in srgb,var(--tb-bg) 88%,transparent)}
+.topbar-in{max-width:1180px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:10px}
+.ttl{font-size:17px;font-weight:700;color:var(--ink)}
+.sub{font-size:12px;color:var(--muted);margin-top:2px}
+.back{margin-left:auto;font-size:13.5px;border:1px solid var(--line);border-radius:10px;
+  padding:9px 14px;background:var(--card);color:var(--text);white-space:nowrap;text-decoration:none}
+.back:hover{border-color:var(--acc-line);color:var(--acc-d)}
+.wrap{max-width:1180px;margin:0 auto;padding:16px 16px 70px}
+.layout{display:grid;grid-template-columns:238px minmax(0,1fr);gap:14px;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:15px;
+  box-shadow:var(--sh);margin-bottom:12px}
+.card-h{font-size:14px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.muted{font-size:12.5px;color:var(--muted);line-height:1.75}
+.pill{font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px;background:var(--acc-l);
+  color:var(--acc-d);border:1px solid var(--acc-line);white-space:nowrap}
+.pill.ok{background:var(--ok-l);color:var(--ok);border-color:var(--ok-line)}
+.pill.bad{background:var(--err-l);color:var(--err);border-color:var(--err-line)}
+.kv{font-size:12px;color:var(--muted);line-height:1.9;word-break:break-all}
+.kv b{color:var(--ink);font-weight:600}
+.kv code{font-family:var(--mono);font-size:11.5px;color:var(--ink);background:var(--acc-l);
+  border:1px solid var(--acc-line);border-radius:5px;padding:0 4px}
+.tlist{display:flex;flex-direction:column;gap:5px}
+.tlist button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;cursor:pointer;
+  background:var(--field);border:1px solid var(--line);border-radius:10px;padding:9px 11px;
+  font-family:var(--mono);font-size:13px;color:var(--text);transition:border-color .15s,background .15s}
+.tlist button:hover{border-color:var(--acc-line)}
+.tlist button.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc-d);font-weight:700}
+.tlist button i{margin-left:auto;font-style:normal;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tab{cursor:pointer;border:1px solid var(--line);background:var(--field);border-radius:10px;
+  padding:8px 16px;font-size:13.5px;font-weight:600;color:var(--muted)}
+.tab.on{background:var(--acc-l);border-color:var(--acc-line);color:var(--acc-d)}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.bar .grow{flex:1;min-width:150px}
+input[type=text],input[type=search],select,textarea{width:100%;border:1px solid var(--line);border-radius:10px;
+  padding:9px 11px;background:var(--field);outline:none;line-height:1.5}
+input:focus,select:focus,textarea:focus{border-color:var(--acc-line);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 16%,transparent)}
+textarea{min-height:120px;resize:vertical;font-family:var(--mono);font-size:13px;line-height:1.7}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:38px;padding:0 15px;
+  border-radius:10px;border:1px solid var(--line);background:var(--field);color:var(--text);
+  font-size:13.5px;cursor:pointer;white-space:nowrap;transition:border-color .15s,opacity .15s}
+.btn:hover{border-color:var(--acc-line)}
+.btn.primary{background:linear-gradient(135deg,var(--acc),var(--acc-d));border-color:transparent;
+  color:#fff;font-weight:600}
+.btn.primary:hover{opacity:.92}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.grid-wrap{border:1px solid var(--line);border-radius:12px;overflow:auto;max-height:62vh;background:var(--field)}
+table.grid{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px;font-family:var(--mono)}
+table.grid th,table.grid td{padding:8px 11px;border-bottom:1px solid var(--line);text-align:left;
+  white-space:nowrap;vertical-align:top}
+table.grid thead th{position:sticky;top:0;z-index:2;background:var(--card);
+  border-bottom:1px solid var(--tb-line-2);font-weight:700;color:var(--ink)}
+table.grid thead th.sortable{cursor:pointer;user-select:none}
+table.grid thead th.sortable:hover{color:var(--acc-d)}
+table.grid thead th .t{font-size:10.5px;font-weight:400;color:var(--muted);margin-left:5px}
+table.grid tbody tr:hover{background:var(--tb-hover)}
+table.grid td.n{text-align:right;font-variant-numeric:tabular-nums}
+table.grid td.i{color:var(--muted)}
+.empty{padding:26px 12px;text-align:center;color:var(--muted);font-size:13px;line-height:1.9}
+.pager{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+.pager .muted{margin-right:auto}
+.cols{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 10px}
+.col{font-family:var(--mono);font-size:11.5px;border:1px solid var(--line);border-radius:7px;
+  padding:3px 8px;background:var(--field);color:var(--text)}
+.col b{color:var(--ink)}
+.col em{font-style:normal;color:var(--muted);font-size:10.5px;margin-left:4px}
+.col.pk{border-color:var(--acc-line);background:var(--acc-l);color:var(--acc-d)}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.chip{cursor:pointer;font-size:12.5px;border:1px solid var(--line);border-radius:999px;
+  padding:6px 13px;background:var(--field);color:var(--text)}
+.chip:hover{border-color:var(--acc-line);color:var(--acc-d)}
+.msg{margin-top:10px;font-size:13px;line-height:1.7;padding:10px 12px;border-radius:10px;display:none}
+.msg.show{display:block}
+.msg.ok{background:var(--ok-l);border:1px solid var(--ok-line);color:var(--ok)}
+.msg.err{background:var(--err-l);border:1px solid var(--err-line);color:var(--err)}
+#chart{width:100%;height:340px;margin-top:10px}
+details.ddl{margin-top:10px;font-size:12.5px}
+details.ddl summary{cursor:pointer;color:var(--muted)}
+details.ddl pre{margin:8px 0 0;padding:12px;border-radius:10px;background:var(--field);
+  border:1px solid var(--line);overflow:auto;font-family:var(--mono);font-size:12px;line-height:1.7;color:var(--ink)}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(12px);z-index:60;
+  background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:11px;
+  padding:10px 16px;font-size:13.5px;box-shadow:var(--sh);opacity:0;pointer-events:none;
+  transition:opacity .2s,transform .2s;max-width:88vw;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (max-width:860px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .grid-wrap{max-height:none}
+}
+</style>
+</head><body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div>
+      <div class="ttl">数据浏览</div>
+      <div class="sub" id="sub">只读看一眼 SQLite 里到底存了什么</div>
+    </div>
+    <span class="tb-mount"></span>
+    <a class="back" href="/">&larr; 回首页</a>
+  </div>
+</header>
+
+<main class="wrap">
+<div class="layout">
+  <aside class="side">
+    <div class="card">
+      <div class="card-h">数据库</div>
+      <div class="kv" id="dbInfo">读取中…</div>
+    </div>
+    <div class="card">
+      <div class="card-h">表 <span class="pill" id="tabCount">—</span></div>
+      <div class="tlist" id="tableList"></div>
+      <div class="muted" id="tableHint" style="margin-top:9px"></div>
+    </div>
+  </aside>
+
+  <section class="main">
+    <div class="tabs">
+      <button class="tab on" type="button" data-tab="data">表数据</button>
+      <button class="tab" type="button" data-tab="sql">SQL 查询</button>
+    </div>
+
+    <div class="card" id="paneData">
+      <div class="card-h"><span id="dataTitle">还没选表</span> <span class="pill" id="dataCount"></span></div>
+      <div class="cols" id="dataCols"></div>
+      <div class="bar">
+        <div class="grow"><input type="search" id="q" placeholder="在这张表里搜关键词（只扫文本字段）"></div>
+        <button class="btn" type="button" id="btnSearch">搜索</button>
+        <button class="btn" type="button" id="btnReset">重置</button>
+        <button class="btn" type="button" id="btnRefresh">刷新</button>
+        <button class="btn" type="button" id="btnCsvData">导出 CSV</button>
+      </div>
+      <div class="grid-wrap" id="dataGrid"></div>
+      <div class="pager">
+        <span class="muted" id="dataMeta"></span>
+        <button class="btn" type="button" id="btnPrev">上一页</button>
+        <button class="btn" type="button" id="btnNext">下一页</button>
+        <select id="pageSize" style="width:auto">
+          <option value="25">25 行</option>
+          <option value="50" selected>50 行</option>
+          <option value="100">100 行</option>
+          <option value="200">200 行</option>
+        </select>
+      </div>
+      <details class="ddl" id="ddlBox">
+        <summary>表结构 / 索引</summary>
+        <pre id="ddlPre"></pre>
+      </details>
+    </div>
+
+    <div class="card" id="paneSql" hidden>
+      <div class="card-h">SQL 查询 <span class="pill">只读</span></div>
+      <div class="muted">只放行 select / with / explain，一次一条语句。写操作会被只读连接直接拒掉，不会误删数据。</div>
+      <textarea id="sql" spellcheck="false" placeholder="SELECT * FROM history ORDER BY id DESC LIMIT 50"></textarea>
+      <div class="bar">
+        <button class="btn primary" type="button" id="btnRun">运行</button>
+        <button class="btn" type="button" id="btnCsvSql">导出 CSV</button>
+        <button class="btn" type="button" id="btnClear">清空</button>
+        <div class="grow"></div>
+        <div class="tabs" style="margin:0">
+          <button class="tab on" type="button" data-view="grid">表格</button>
+          <button class="tab" type="button" data-view="chart">图表</button>
+        </div>
+      </div>
+      <div class="chips" id="snippets"></div>
+      <div class="msg" id="sqlMsg"></div>
+      <div id="chartBox" hidden>
+        <div class="bar">
+          <span class="muted" style="margin:0">横轴</span>
+          <select id="cx" style="width:auto;min-width:130px"></select>
+          <span class="muted" style="margin:0">纵轴</span>
+          <select id="cy" style="width:auto;min-width:130px"></select>
+          <select id="ct" style="width:auto">
+            <option value="bar">柱状图</option>
+            <option value="line">折线图</option>
+            <option value="pie">饼图</option>
+          </select>
+          <button class="btn" type="button" id="btnDraw">画图</button>
+        </div>
+        <div id="chart"></div>
+        <div class="muted">横轴放分类字段，纵轴放数值字段。想看「每个工具存了多少条」就先跑一句带 GROUP BY 的 SQL 再画。</div>
+      </div>
+      <div class="grid-wrap" id="sqlGrid" hidden></div>
+      <div class="pager" id="sqlPager" hidden><span class="muted" id="sqlMeta"></span></div>
+    </div>
+  </section>
+</div>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+(function(){
+'use strict';
+
+var $ = function(id){ return document.getElementById(id); };
+var S = { tables:[], table:'', page:0, limit:50, q:'', order:'', dir:'desc',
+          data:null, sql:null, chart:null, view:'grid' };
+
+function esc(v){
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function bytes(n){
+  n = n || 0;
+  if(n < 1024){ return n + ' B'; }
+  if(n < 1048576){ return (n/1024).toFixed(1) + ' KB'; }
+  return (n/1048576).toFixed(1) + ' MB';
+}
+var toastTimer = null;
+function toast(msg){
+  var t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+}
+function showMsg(id, kind, text){
+  var el = $(id);
+  el.className = 'msg show ' + kind;
+  el.textContent = text;
+}
+function hideMsg(id){ $(id).className = 'msg'; }
+
+function api(url, opts){
+  return fetch(url, opts || {}).then(function(r){
+    return r.json().catch(function(){
+      return { ok:false, error:'返回的不是 JSON（HTTP ' + r.status + '）' };
+    });
+  });
+}
+
+/* ============ 左侧：库信息 + 表清单 ============ */
+function loadOverview(){
+  return api('/db/api/overview').then(function(d){
+    var db = d.db || {};
+    $('dbInfo').innerHTML =
+      (db.exists ? '<b>文件</b> <code>' + esc(db.path) + '</code><br>' : '<b>库文件还没建出来</b><br>') +
+      '<b>大小</b> ' + bytes(db.bytes) + '　<b>SQLite</b> ' + esc(db.sqlite || '') +
+      (db.modified ? '<br><b>最后写入</b> ' + esc(db.modified) : '') +
+      (db.error ? '<br><span class="pill bad">' + esc(db.error) + '</span>' : '');
+    S.tables = d.tables || [];
+    $('tabCount').textContent = S.tables.length + ' 张 · ' + (d.total_rows || 0) + ' 行';
+    var box = $('tableList');
+    if(!S.tables.length){
+      box.innerHTML = '<div class="muted">还没有表。随便用一个工具存一条记录，表会自动建出来。</div>';
+      return;
+    }
+    box.innerHTML = S.tables.map(function(t){
+      return '<button type="button" data-t="' + esc(t.name) + '"' +
+        (t.name === S.table ? ' class="on"' : '') + '>' + esc(t.name) +
+        '<i>' + t.rows + ' 行 / ' + t.cols + ' 列</i></button>';
+    }).join('');
+    Array.prototype.forEach.call(box.querySelectorAll('button'), function(b){
+      b.onclick = function(){ openTable(b.getAttribute('data-t')); };
+    });
+  }).catch(function(e){
+    $('dbInfo').innerHTML = '<span class="pill bad">读不到库信息：' + esc(e) + '</span>';
+  });
+}
+
+/* ============ 表数据 ============ */
+function gridHtml(names, rows, sortable, colMeta){
+  if(!names || !names.length){ return '<div class="empty">没有列</div>'; }
+  var head = '<tr>' + names.map(function(n){
+    var meta = colMeta ? colMeta[n] : '';
+    return '<th' + (sortable ? ' class="sortable" data-c="' + esc(n) + '"' : '') + '>' + esc(n) +
+      (meta ? '<span class="t">' + esc(meta) + '</span>' : '') + '</th>';
+  }).join('') + '</tr>';
+  if(!rows || !rows.length){
+    return '<table class="grid"><thead>' + head + '</thead></table>' +
+           '<div class="empty">还没有数据</div>';
+  }
+  var body = rows.map(function(r){
+    return '<tr>' + r.map(function(v){
+      var isNull = (v === null || v === undefined);
+      var cls = isNull ? ' class="i"' : (typeof v === 'number' ? ' class="n"' : '');
+      var text = isNull ? 'NULL' : String(v);
+      if(text.length > 120){ text = text.slice(0,120) + '…'; }
+      return '<td' + cls + ' title="' + esc(text) + '">' + esc(text) + '</td>';
+    }).join('') + '</tr>';
+  }).join('');
+  return '<table class="grid"><thead>' + head + '</thead><tbody>' + body + '</tbody></table>';
+}
+
+function bindSort(){
+  Array.prototype.forEach.call(document.querySelectorAll('#dataGrid th.sortable'), function(th){
+    var c = th.getAttribute('data-c');
+    if(S.order === c){ th.innerHTML += (S.dir === 'asc' ? ' ▲' : ' ▼'); }
+    th.onclick = function(){
+      if(S.order === c){ S.dir = (S.dir === 'asc' ? 'desc' : 'asc'); }
+      else { S.order = c; S.dir = 'asc'; }
+      openTable(S.table, true);
+    };
+  });
+}
+
+function openTable(name, keepPage){
+  S.table = name;
+  if(!keepPage){ S.page = 0; S.q = ''; S.order = ''; S.dir = 'desc'; $('q').value = ''; }
+  Array.prototype.forEach.call(document.querySelectorAll('#tableList button'), function(b){
+    b.classList.toggle('on', b.getAttribute('data-t') === name);
+  });
+  var url = '/db/api/table?name=' + encodeURIComponent(name) +
+            '&limit=' + S.limit + '&offset=' + (S.page * S.limit) +
+            '&order=' + encodeURIComponent(S.order) + '&dir=' + S.dir +
+            '&q=' + encodeURIComponent(S.q);
+  $('dataGrid').innerHTML = '<div class="empty">读取中…</div>';
+  return api(url).then(function(d){
+    if(!d.ok){
+      $('dataGrid').innerHTML = '<div class="empty">' + esc(d.error) + '</div>';
+      return;
+    }
+    S.data = d;
+    $('dataTitle').textContent = d.table;
+    $('dataCount').textContent = d.total + ' 行';
+    var meta = {};
+    (d.columns || []).forEach(function(c){ meta[c.name] = c.type; });
+    $('dataCols').innerHTML = (d.columns || []).map(function(c){
+      return '<span class="col' + (c.pk ? ' pk' : '') + '"><b>' + esc(c.name) + '</b><em>' +
+        esc(c.type) + (c.pk ? ' · 主键' : '') + '</em></span>';
+    }).join('');
+    $('dataGrid').innerHTML = gridHtml(d.columns.map(function(c){ return c.name; }), d.rows, true, meta);
+    bindSort();
+    var from = d.total ? (d.offset + 1) : 0;
+    var to = Math.min(d.offset + d.rows.length, d.total);
+    $('dataMeta').textContent = '第 ' + from + '–' + to + ' 条 / 共 ' + d.total + ' 条 · ' +
+      d.ms + ' ms' + (d.search ? ' · 搜索「' + d.search + '」' : '');
+    $('btnPrev').disabled = d.offset <= 0;
+    $('btnNext').disabled = (d.offset + d.limit) >= d.total;
+    $('ddlPre').textContent = (d.ddl || '（读不到建表语句）') +
+      (d.indexes && d.indexes.length ? '\n\n索引：' + d.indexes.join('、') : '');
+  }).catch(function(e){
+    $('dataGrid').innerHTML = '<div class="empty">请求失败：' + esc(e) + '</div>';
+  });
+}
+
+/* ============ SQL 查询 ============ */
+var SNIPPETS = [
+  { n:'最近 20 条历史', s:'SELECT * FROM history ORDER BY id DESC LIMIT 20' },
+  { n:'每个工具存了多少条', s:'SELECT tool, COUNT(*) AS 条数 FROM history GROUP BY tool ORDER BY 条数 DESC' },
+  { n:'按天统计写入量', s:'SELECT substr(created_at,1,10) AS 日期, COUNT(*) AS 条数 FROM history GROUP BY 日期 ORDER BY 日期 DESC' },
+  { n:'都有哪些表', s:"SELECT name, type FROM sqlite_master WHERE type IN ('table','view') ORDER BY name" },
+  { n:'最近 10 条笔记', s:'SELECT id, title, created_at FROM notes ORDER BY id DESC LIMIT 10' }
+];
+
+function colKinds(d){
+  var out = [];
+  for(var i = 0; i < d.columns.length; i++){
+    var numeric = true, seen = false;
+    for(var j = 0; j < d.rows.length; j++){
+      var v = d.rows[j][i];
+      if(v === null || v === undefined){ continue; }
+      seen = true;
+      if(typeof v !== 'number'){ numeric = false; break; }
+    }
+    out.push({ name:d.columns[i], numeric:(numeric && seen) });
+  }
+  return out;
+}
+
+function fillChartPickers(d){
+  var kinds = colKinds(d);
+  var opts = kinds.map(function(k, i){ return '<option value="' + i + '">' + esc(k.name) + '</option>'; }).join('');
+  $('cx').innerHTML = opts;
+  $('cy').innerHTML = opts;
+  var label = 0, value = 0, i;
+  for(i = 0; i < kinds.length; i++){ if(!kinds[i].numeric){ label = i; break; } }
+  for(i = kinds.length - 1; i >= 0; i--){ if(kinds[i].numeric){ value = i; break; } }
+  if(!kinds[value] || !kinds[value].numeric){ value = Math.min(1, kinds.length - 1); }
+  $('cx').value = String(label);
+  $('cy').value = String(value);
+}
+
+function drawChart(){
+  var d = S.sql;
+  if(!d || !d.rows || !d.rows.length){ toast('先跑一句有结果的 SQL'); return; }
+  var xi = parseInt($('cx').value, 10) || 0;
+  var yi = parseInt($('cy').value, 10) || 0;
+  var type = $('ct').value;
+  var labels = d.rows.map(function(r){
+    var v = r[xi];
+    return v === null || v === undefined ? '' : String(v);
+  });
+  var values = d.rows.map(function(r){
+    var v = r[yi];
+    if(typeof v === 'number'){ return v; }
+    var n = parseFloat(v);
+    return isNaN(n) ? 0 : n;
+  });
+  if(S.chart){ S.chart.dispose(); S.chart = null; }
+  var ink = window.TBc ? TBc('--tb-ink', '#152033') : '#152033';
+  var line = window.TBc ? TBc('--tb-line', '#e4e9f1') : '#e4e9f1';
+  var muted = window.TBc ? TBc('--tb-muted', '#7e8ca3') : '#7e8ca3';
+  S.chart = echarts.init($('chart'));
+  var option;
+  if(type === 'pie'){
+    option = {
+      tooltip:{ trigger:'item' },
+      legend:{ type:'scroll', bottom:0, textStyle:{ color:muted } },
+      series:[{
+        type:'pie', radius:['36%','64%'], center:['50%','46%'],
+        data: d.rows.map(function(r, i){ return { name:labels[i], value:values[i] }; }),
+        label:{ color:ink }, labelLine:{ lineStyle:{ color:line } }
+      }]
+    };
+  } else {
+    option = {
+      tooltip:{ trigger:'axis' },
+      grid:{ left:8, right:18, top:26, bottom:60, containLabel:true },
+      xAxis:{ type:'category', data:labels,
+        axisLine:{ lineStyle:{ color:line } },
+        axisLabel:{ color:muted, rotate:(labels.length > 8 ? 32 : 0), hideOverlap:true } },
+      yAxis:{ type:'value', axisLabel:{ color:muted }, splitLine:{ lineStyle:{ color:line } } },
+      series:[{
+        type:(type === 'line' ? 'line' : 'bar'), data:values,
+        smooth:(type === 'line'), barMaxWidth:38,
+        itemStyle:{ color:'#0ea5e9', borderRadius:(type === 'line' ? 0 : [4,4,0,0]) },
+        lineStyle:{ width:3 }
+      }]
+    };
+  }
+  S.chart.setOption(option);
+}
+
+function runQuery(){
+  var sql = $('sql').value.trim();
+  if(!sql){ toast('先写一句 SQL'); return; }
+  $('btnRun').disabled = true;
+  hideMsg('sqlMsg');
+  api('/db/api/query', {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ sql:sql })
+  }).then(function(d){
+    $('btnRun').disabled = false;
+    if(!d.ok){
+      S.sql = null;
+      $('sqlGrid').hidden = true;
+      $('sqlPager').hidden = true;
+      $('chartBox').hidden = true;
+      $('btnCsvSql').disabled = true;
+      showMsg('sqlMsg', 'err', d.error);
+      return;
+    }
+    S.sql = d;
+    $('btnCsvSql').disabled = false;
+    showMsg('sqlMsg', 'ok', '返回 ' + d.shown + ' 行' + (d.truncated ? '（超过 ' + d.limit + ' 行，只显示前 ' + d.limit + ' 行）' : '') + ' · ' + d.ms + ' ms');
+    $('sqlGrid').innerHTML = gridHtml(d.columns, d.rows, false, null);
+    $('sqlMeta').textContent = d.columns.length + ' 列 × ' + d.shown + ' 行';
+    fillChartPickers(d);
+    applyView();
+  }).catch(function(e){
+    $('btnRun').disabled = false;
+    showMsg('sqlMsg', 'err', '请求失败：' + e);
+  });
+}
+
+function applyView(){
+  var has = !!(S.sql && S.sql.rows);
+  $('sqlGrid').hidden = !(has && S.view === 'grid');
+  $('sqlPager').hidden = !(has && S.view === 'grid');
+  $('chartBox').hidden = !(has && S.view === 'chart');
+  if(has && S.view === 'chart'){ setTimeout(drawChart, 0); }
+}
+
+/* ============ 导出 CSV（前端生成，不用后端） ============ */
+function csvCell(v){
+  if(v === null || v === undefined){ return ''; }
+  var s = String(v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function exportCsv(names, rows, filename){
+  if(!names || !names.length){ toast('没有可导出的数据'); return; }
+  var lines = [names.map(csvCell).join(',')];
+  rows.forEach(function(r){ lines.push(r.map(csvCell).join(',')); });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type:'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  toast('已导出 ' + rows.length + ' 行');
+}
+function stamp(){
+  var d = new Date(), p = function(n){ return (n < 10 ? '0' : '') + n; };
+  return '' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate());
+}
+
+/* ============ 事件绑定 ============ */
+function bind(){
+  Array.prototype.forEach.call(document.querySelectorAll('.tabs .tab[data-tab]'), function(t){
+    t.onclick = function(){
+      var name = t.getAttribute('data-tab');
+      Array.prototype.forEach.call(document.querySelectorAll('.tabs .tab[data-tab]'), function(x){
+        x.classList.toggle('on', x === t);
+      });
+      $('paneData').hidden = (name !== 'data');
+      $('paneSql').hidden = (name !== 'sql');
+      setTimeout(function(){ if(S.chart){ S.chart.resize(); } }, 0);
+    };
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.tabs .tab[data-view]'), function(t){
+    t.onclick = function(){
+      S.view = t.getAttribute('data-view');
+      Array.prototype.forEach.call(document.querySelectorAll('.tabs .tab[data-view]'), function(x){
+        x.classList.toggle('on', x === t);
+      });
+      applyView();
+    };
+  });
+
+  $('btnSearch').onclick = function(){ S.q = $('q').value.trim(); S.page = 0; openTable(S.table); };
+  $('q').onkeydown = function(e){ if(e.key === 'Enter'){ $('btnSearch').onclick(); } };
+  $('btnReset').onclick = function(){
+    S.q = ''; S.order = ''; S.dir = 'desc'; S.page = 0; $('q').value = '';
+    openTable(S.table);
+  };
+  $('btnRefresh').onclick = function(){ openTable(S.table, true); };
+  $('btnPrev').onclick = function(){ if(S.page > 0){ S.page--; openTable(S.table, true); } };
+  $('btnNext').onclick = function(){ S.page++; openTable(S.table, true); };
+  $('pageSize').onchange = function(){
+    S.limit = parseInt($('pageSize').value, 10) || 50;
+    S.page = 0;
+    openTable(S.table, true);
+  };
+  $('btnCsvData').onclick = function(){
+    if(!S.data){ toast('还没有数据'); return; }
+    exportCsv(S.data.columns.map(function(c){ return c.name; }), S.data.rows,
+              S.data.table + '-' + stamp() + '.csv');
+  };
+
+  $('btnRun').onclick = runQuery;
+  $('sql').onkeydown = function(e){
+    if((e.ctrlKey || e.metaKey) && e.key === 'Enter'){ e.preventDefault(); runQuery(); }
+  };
+  $('btnClear').onclick = function(){ $('sql').value = ''; $('sql').focus(); };
+  $('btnDraw').onclick = drawChart;
+  $('btnCsvSql').onclick = function(){
+    if(!S.sql){ toast('先跑一句 SQL'); return; }
+    exportCsv(S.sql.columns, S.sql.rows, 'query-' + stamp() + '.csv');
+  };
+
+  $('snippets').innerHTML = SNIPPETS.map(function(s, i){
+    return '<button class="chip" type="button" data-i="' + i + '">' + esc(s.n) + '</button>';
+  }).join('');
+  Array.prototype.forEach.call($('snippets').querySelectorAll('.chip'), function(c){
+    c.onclick = function(){
+      $('sql').value = SNIPPETS[parseInt(c.getAttribute('data-i'), 10)].s;
+      runQuery();
+    };
+  });
+
+  window.addEventListener('resize', function(){ if(S.chart){ S.chart.resize(); } });
+  window.addEventListener('tbthemechange', function(){
+    if(S.chart && !$('chartBox').hidden){ drawChart(); }
+  });
+}
+
+function init(){
+  $('sql').value = SNIPPETS[0].s;
+  $('btnCsvSql').disabled = true;
+  bind();
+  loadOverview().then(function(){
+    if(S.tables.length){
+      openTable(S.tables[0].name);
+    } else {
+      $('dataGrid').innerHTML = '<div class="empty">还没有表，先用任意一个工具存一条记录。</div>';
+    }
+  });
+}
+init();
+
+})();
+</script>
+</body>
+</html>

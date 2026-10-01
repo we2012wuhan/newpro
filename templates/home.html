@@ -84,16 +84,14 @@ h2.sec{font-size:15px;color:var(--c-b8c4da);letter-spacing:3px;margin:0 0 14px;f
 .t-soc .go{background:linear-gradient(135deg,#5b8def,#3b82f6);box-shadow:0 8px 20px rgba(91,141,239,.32)}
 .tool.t-wi:hover{border-color:rgba(255,180,84,.55);box-shadow:0 24px 52px rgba(255,180,84,.2)}
 .t-wi .go{background:linear-gradient(135deg,#ffb454,#f59e0b);box-shadow:0 8px 20px rgba(255,180,84,.32)}
-.tool.t-ssh:hover{border-color:rgba(56,189,248,.5);box-shadow:0 24px 52px rgba(14,116,144,.28)}
 .tool.t-rm:hover{border-color:rgba(185,166,240,.6);box-shadow:0 24px 52px rgba(124,107,176,.28)}
 .tool.t-mpt:hover{border-color:rgba(248,113,113,.6);box-shadow:0 24px 52px rgba(220,80,80,.28)}
 .tool.t-opc:hover{border-color:rgba(20,184,166,.55);box-shadow:0 24px 52px rgba(13,148,136,.26)}
 .t-opc .go{background:linear-gradient(135deg,#14b8a6,#115e59);box-shadow:0 8px 20px rgba(20,184,166,.3)}
 .tool.t-rd:hover{border-color:rgba(176,137,104,.6);box-shadow:0 24px 52px rgba(138,90,59,.26)}
 .t-rd .go{background:linear-gradient(135deg,#b08968,#7f5539);box-shadow:0 8px 20px rgba(138,90,59,.32)}
-.tool.t-db:hover{border-color:rgba(14,165,233,.55);box-shadow:0 24px 52px rgba(3,105,161,.26)}
-.t-db .go{background:linear-gradient(135deg,#0ea5e9,#0369a1);box-shadow:0 8px 20px rgba(14,165,233,.3)}
-.t-ssh .go{background:linear-gradient(135deg,#334155,#0f172a);box-shadow:0 8px 20px rgba(15,23,42,.35)}
+.tool.t-vw:hover{border-color:rgba(99,102,241,.55);box-shadow:0 24px 52px rgba(67,56,202,.26)}
+.t-vw .go{background:linear-gradient(135deg,#6366f1,#4338ca);box-shadow:0 8px 20px rgba(99,102,241,.32)}
 .search-col{display:flex;flex-direction:column;align-items:stretch;gap:7px;flex:1;max-width:480px;min-width:260px;margin-left:auto}
 .search-box{position:relative;width:100%}
 .search-box .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none;font-size:15px}
@@ -450,14 +448,6 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-ssh" href="/ecs-ssh">
-      <div class="t-icon">🔐</div>
-      <div class="t-info">
-        <h3>ECS SSH 管理</h3>
-        <p class="desc">在网页上连上你的 ECS：只读模式默认开、危险命令自动拦下。用大白话说要干什么，AI 把命令清单列出来，你点确认才执行。</p>
-        <span class="go">立即打开</span>
-      </div>
-    </a>
     <a class="tool t-rm" href="/rumination">
       <div class="t-icon">🫧</div>
       <div class="t-info">
@@ -490,11 +480,11 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-db" href="/sqlite">
-      <div class="t-icon">🗄️</div>
+    <a class="tool t-vw" href="/db">
+      <div class="t-icon">🔍</div>
       <div class="t-info">
-        <h3>SQLite 测试台</h3>
-        <p class="desc">写一条进数据库、再读回来，亲眼确认数据真的落在了 .db 文件里。顺便演示怎么让别的工具也把历史记录存进 SQLite，而不是只放在浏览器缓存里。</p>
+        <h3>数据浏览</h3>
+        <p class="desc">SQLite 的只读查看器：左边点表翻数据，右边随手写 SQL，结果能一键画成柱状图 / 折线图 / 饼图，也能导成 CSV。想知道某个工具到底存了什么，来这儿看。</p>
         <span class="go">立即打开</span>
       </div>
     </a>

@@ -277,7 +277,7 @@ table.data tr:hover td{background:rgba(109,124,255,.06)}
           <button type="button" id="btnClearHistory" class="h-clear" title="清空全部历史">清空</button>
         </span>
       </div>
-      <p class="h-tip">自动保留最近 10 次查询，点击记录即可在左侧重新查看结果，无需再次调用大模型。</p>
+      <p class="h-tip">查询记录存在服务端 SQLite，这里列出最近 10 条；点一条即可在左侧重新查看结果，无需再次调用大模型。</p>
       <div id="historyList"></div>
 
     </aside>
@@ -291,7 +291,6 @@ var AXIS_COLOR = TBc('--tb-muted');
 var SPLIT_LINE = TBc('--tb-line');
 var state = { data: null };
 var chartMap = { bar:null, pie:null, line:null, radar:null, scatter:null, rank:null };
-var HIST_KEY = 'aiChartHist_v1';
 var HIST_MAX = 10;
 var histList = [];
 var histActiveId = null;
@@ -936,58 +935,79 @@ async function runQuery(){
 
 
 // =========================================================
-// 历史记录：自动保留最近 10 次成功查询（localStorage）
-// 点击记录可直接在左侧重新查看结果，无需再次调用大模型。
+// 历史记录：读写服务端 SQLite（/ai-chart/api/history），不再用 localStorage
+// 换浏览器、换电脑记录都还在；点一条即可在左侧重新查看结果，无需再次调用大模型。
 // =========================================================
-function fmtHistTime(ts){
-  var d = new Date(ts);
+function fmtHistTime(at){
+  var d = null;
+  if(typeof at === 'number'){
+    d = new Date(at);
+  }else{
+    var m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(String(at || ''));
+    if(m){ d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]); }
+  }
+  if(!d || isNaN(d.getTime())){ return ''; }
   function p2(n){ return (n < 10 ? '0' : '') + n; }
   return (d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
 }
 
-function loadHistory(){
+var histError = '';
+
+async function loadHistory(){
   try {
-    var arr = JSON.parse(localStorage.getItem(HIST_KEY) || '[]');
-    return Array.isArray(arr) ? arr : [];
-  }catch(e){ return []; }
-}
-
-function saveHistory(list){
-  var attempt = list.slice(0, HIST_MAX);
-  if(!attempt.length){
-    try { localStorage.setItem(HIST_KEY, '[]'); }catch(e){}
-    return [];
+    var resp = await fetch('/ai-chart/api/history?limit=' + HIST_MAX);
+    var data = await resp.json();
+    if(!data.ok){ throw new Error(data.message || '读取失败'); }
+    histError = '';
+    histList = data.items || [];
+  }catch(e){
+    histList = [];
+    histError = '历史记录读取失败：' + e.message;
   }
-  while(attempt.length){
-    try {
-      localStorage.setItem(HIST_KEY, JSON.stringify(attempt));
-      return attempt;
-    }catch(e){ attempt.pop(); }
-  }
-  return [];
-}
-
-function addHistory(item){
-  item.id = 'h' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-  histList.unshift(item);
-  histList = histList.slice(0, HIST_MAX);
-  histList = saveHistory(histList);
-  histActiveId = item.id;
   renderHistoryList();
 }
 
-function clearHistory(){
+async function addHistory(item){
+  try {
+    var resp = await fetch('/ai-chart/api/history', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ prompt:item.prompt, title:item.title, data:item.data })
+    });
+    var data = await resp.json();
+    if(!data.ok){ throw new Error(data.message || '保存失败'); }
+    histActiveId = data.id;
+  }catch(e){
+    histActiveId = null;
+    setStatus('图表已生成，但历史记录没能存进数据库：' + e.message, 'err');
+  }
+  await loadHistory();
+}
+
+async function clearHistory(){
   if(!histList.length){ return; }
-  histList = [];
-  histActiveId = null;
-  saveHistory(histList);
-  renderHistoryList();
-  setStatus('已清空全部历史记录。', 'info');
+  try {
+    var resp = await fetch('/ai-chart/api/history', { method:'DELETE' });
+    var data = await resp.json();
+    if(!data.ok){ throw new Error(data.message || '清空失败'); }
+    histActiveId = null;
+    await loadHistory();
+    setStatus('已清空全部历史记录（' + data.deleted + ' 条）。', 'info');
+  }catch(e){
+    setStatus('清空失败：' + e.message, 'err');
+  }
 }
 
 function renderHistoryList(){
   var host = $('historyList');
   host.innerHTML = '';
+  if(histError){
+    var errBox = document.createElement('div');
+    errBox.className = 'h-empty';
+    errBox.textContent = histError;
+    host.appendChild(errBox);
+    return;
+  }
   if(!histList.length){
     var empty = document.createElement('div');
     empty.className = 'h-empty';
@@ -1004,7 +1024,7 @@ function renderHistoryList(){
     top.className = 'h-item-top';
     var time = document.createElement('span');
     time.className = 'h-time';
-    time.textContent = fmtHistTime(item.time);
+    time.textContent = fmtHistTime(item.at);
     top.appendChild(time);
     if(item.id === histActiveId){
       var flag = document.createElement('span');
@@ -1029,15 +1049,15 @@ function renderHistoryList(){
 }
 
 function restoreRecord(item){
+  if(!item.data){ setStatus('这条记录里没有可用的图表数据。', 'err'); return; }
   histActiveId = item.id;
   $('prompt').value = item.prompt || '';
   render(item.data, false);
   setStatus('已从历史记录恢复「' + (item.title || item.prompt || '该次查询') + '」的图表结果（未重复调用大模型）。', 'ok');
   renderHistoryList();
 }
-
 function init(){
-  histList = loadHistory().slice(0, HIST_MAX);
+  loadHistory();   // 从 SQLite 里读历史，读完自己会渲染列表
   $('btnRun').addEventListener('click', runQuery);
   $('btnExport').addEventListener('click', exportExcel);
   $('btnClearHistory').addEventListener('click', clearHistory);
@@ -1046,7 +1066,6 @@ function init(){
   }
   $('btnHistToggle').addEventListener('click', function(){ setHistCollapsed(true); });
   $('btnHistOpen').addEventListener('click', function(){ setHistCollapsed(false); });
-  renderHistoryList();
   window.addEventListener('resize', function(){
     Object.keys(chartMap).forEach(function(k){ if(chartMap[k]){ chartMap[k].resize(); } });
   });

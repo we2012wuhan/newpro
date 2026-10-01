@@ -14,6 +14,8 @@ from starlette.concurrency import run_in_threadpool
 
 from model_config import MISSING_KEY_HINT, llm_endpoint, llm_key, llm_model
 
+import storage
+
 router = APIRouter()
 
 _BASE_DIR = Path(__file__).resolve().parent
@@ -241,6 +243,75 @@ async def ai_chart_query(request: Request):
     except Exception:
         payload = {}
     return await run_in_threadpool(_do_query, payload)
+
+# ---------------------------------------------------------------
+# 历史记录：写进 SQLite 的通用 history 表（storage.py），不再用浏览器 localStorage
+#   GET    /ai-chart/api/history?limit=10   读最近几条（按登录名隔离）
+#   POST   /ai-chart/api/history            存一条：查询语句 + 图表数据
+#   DELETE /ai-chart/api/history            清空本账号在这个工具下的记录
+# ---------------------------------------------------------------
+AI_CHART_TOOL = 'ai-chart'
+HISTORY_MAX = 10          # 面板里最多展示几条
+
+
+def _user(request: Request) -> str:
+    return getattr(request.state, 'user', '') or ''
+
+
+def _history_item(row):
+    payload = row.get('payload') or {}
+    data = payload.get('data')
+    return {
+        'id': row.get('id'),
+        'title': row.get('title') or '',
+        'prompt': payload.get('prompt') or '',
+        'at': row.get('created_at') or '',
+        'data': data if isinstance(data, dict) else None,
+    }
+
+
+@router.get('/ai-chart/api/history')
+def ai_chart_history(request: Request, limit: int = HISTORY_MAX) -> JSONResponse:
+    try:
+        limit = max(1, min(int(limit or HISTORY_MAX), 100))
+    except (TypeError, ValueError):
+        limit = HISTORY_MAX
+    try:
+        rows = storage.list_records(AI_CHART_TOOL, user=_user(request), limit=limit)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'items': [], 'message': str(exc)})
+    return JSONResponse({'ok': True, 'items': [_history_item(r) for r in rows]})
+
+
+@router.post('/ai-chart/api/history')
+async def ai_chart_save_history(request: Request) -> JSONResponse:
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    data = payload.get('data')
+    if not isinstance(data, dict) or not data.get('rows'):
+        return JSONResponse({'ok': False, 'message': '没有可保存的图表结果'}, status_code=400)
+    prompt = str(payload.get('prompt') or '').strip()[:2000]
+    title = str(payload.get('title') or data.get('title') or '数据分析结果').strip()[:200]
+    try:
+        rec = storage.add_record(AI_CHART_TOOL, _user(request), title,
+                                 {'prompt': prompt, 'data': data})
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=500)
+    return JSONResponse({'ok': True, 'id': rec['id'], 'at': rec['created_at']})
+
+
+@router.delete('/ai-chart/api/history')
+def ai_chart_clear_history(request: Request) -> JSONResponse:
+    try:
+        n = storage.clear_records(AI_CHART_TOOL, _user(request))
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=500)
+    return JSONResponse({'ok': True, 'deleted': n})
+
 
 app = FastAPI(title='AI 数据图表分析', description='输入主题调用大模型生成图表数据', version='1.0.0')
 try:

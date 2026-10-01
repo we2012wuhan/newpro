@@ -54,6 +54,4 @@ desktop.ini
 Dockerfile
 docker-compose.yml
 .dockerignore
-deploy.py
-deploy.ps1
-DEPLOY.md
+deploy/

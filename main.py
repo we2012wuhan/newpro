@@ -138,12 +138,6 @@ app.include_router(socratic_router)
 from writing_ideas import router as writing_ideas_router  # noqa: E402
 app.include_router(writing_ideas_router)
 
-# 附加功能：ECS SSH 管理（网页上连服务器，AI 出命令方案，人点确认才执行；
-# 凭据只在服务端内存，主机指纹首次连接要人工核对，只读模式默认开）
-# 浏览器访问 http://127.0.0.1:8000/ecs-ssh 即可使用。
-from ecs_ssh import router as ecs_ssh_router  # noqa: E402
-app.include_router(ecs_ssh_router)
-
 # 附加功能：贝叶斯日记（写下你在赌什么 -> 每来一条新消息让大模型判断它值几个点 ->
 # Python 做贝叶斯更新 -> 结算后看自己准不准；数字全由后端算，数据存浏览器）
 # 浏览器访问 http://127.0.0.1:8000/predict-diary 即可使用。
@@ -172,12 +166,12 @@ app.include_router(opc_news_router)
 from reading_practice import router as reading_practice_router  # noqa: E402
 app.include_router(reading_practice_router)
 
-# 附加功能：SQLite 测试台（页面在 /sqlite）
-# 证明数据能写进 SQLite 文件、再原样读回来，并把可复用的 storage.py 演示一遍：
-# 其他工具存历史记录，直接调 storage.add_record / storage.list_records 就行。
-# 浏览器访问 http://127.0.0.1:8000/sqlite 即可使用。
-from sqlite_tool import router as sqlite_router  # noqa: E402
-app.include_router(sqlite_router)
+# 附加功能：数据浏览（页面在 /db）
+# 只读的 SQLite 查看器：翻表、跑 SQL、出图、导 CSV，直观看到「库里到底存了什么」。
+# 连接用 mode=ro 打开，并且只放行 select / with / explain，写操作进不来。
+# 浏览器访问 http://127.0.0.1:8000/db 即可使用。
+from db_viewer import router as db_viewer_router  # noqa: E402
+app.include_router(db_viewer_router)
 
 
 
