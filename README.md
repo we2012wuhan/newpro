@@ -29,6 +29,8 @@
 | `rumination.py` | 内耗拆解（页面在 `/rumination`：工作上的糟心事反复想时用，先 90 秒降温，再由大模型把一团拆成一条条、分成「我能动的 / 动不了的」，最后落成一件今天就能做的事；没配 Key 走本地规则，记录存浏览器） |
 | `opc_news.py` | OPC 资讯（页面在 `/opc`：给做「一人公司 / 独立开发」的人用，按主题搜 GitHub 上的相关项目，star / 活跃度由 Python 算，再让大模型用中文说清每个是什么、有什么用、适合谁；`GITHUB_TOKEN` 和模型 Key 都从环境变量取，页面上不用填） |
 | `reading_practice.py` | 读书落地（页面在 `/reading-practice`：输入书名 + 作者，大模型不给读书笔记，只给今天能照着做的动作——什么场合用 / 三步怎么做 / 怎么算做到 / 容易在哪变形 / 7 天后问自己什么；拆出来的卡可勾步骤、到期回访，只存浏览器） |
+| `storage.py` | SQLite 存储层（全站唯一的落盘入口：库文件在 `data/app.db`，WAL 模式，按登录名隔离；`add_record` / `list_records` 给所有工具存历史记录用） |
+| `sqlite_tool.py` | SQLite 测试台（页面在 `/sqlite`：写一条进数据库再读回来，看库状态 / 行数 / 文件大小，能连写 20 条测写入速度，还能直接下载 `.db` 文件本身） |
 | `templates/` 与 `static/` | 各工具页面模板与本地静态资源（含登录页 `templates/login.html`、会话兜底 `static/auth-guard.js`） |
 | `requirements.txt` | 项目依赖（fastapi + uvicorn + requests + yt-dlp + playwright + openpyxl） |
 
@@ -354,6 +356,53 @@ cp .env.example .env     # Windows: copy .env.example .env
 - 关键词要英文：GitHub 搜的是英文描述，主题标签因此都是英文，中文的搜不出东西；
 - 不配 `GITHUB_TOKEN` 也能用，但走未认证额度（搜索 10 次/分钟），被限流时页面会写清多少分钟后恢复；
 - 同一个查询 10 分钟内不重复打 GitHub（服务端内存缓存）；AI 解读结果存浏览器 localStorage（`opc_ai_v1` / `opc_cfg_v1`），换个关键词回来还在。
+
+## SQLite 测试台与数据存储（`/sqlite`）
+
+一个用来验证「数据真的落到了文件里」的小工具：写一条进数据库、再读回来，全程看得见。
+它同时是 `storage.py` 的演示页 —— 以后别的工具要存历史记录，照它的写法调就行。
+
+页面上四块：
+
+1. **数据库状态**：库文件路径、主文件 / WAL 日志大小、SQLite 版本、日志模式、每张表多少行；
+2. **写一条进去**：填标题和内容写进库，写完直接告诉你写到了哪张表的第几号 id；
+3. **再读出来**：列表来自数据库（不是浏览器缓存），能按关键词搜、能删、能清空；
+4. **给其他工具用的通用接口**：用通用 `history` 表写一条，演示别的工具怎么接。
+
+另外两个按钮：**连写 20 条**会打印每条耗时（顺便感受一下写入速度），**下载 .db 文件**把数据库文件本身给你 —— 数据到底存哪了，下载下来一看就明白。
+
+### 存储层 `storage.py`
+
+- **库文件**：默认 `data/app.db`，可用环境变量 `TB_DB_PATH` 改（Docker 里指向挂载卷就行）；
+- **连接**：每次操作开短连接，`journal_mode=WAL` + `busy_timeout=3000`，读不挡写、写不互相锁死；
+- **两张表**：`notes`（测试台自己用）、`history`（通用历史记录，所有工具共用）；
+- **隔离**：每条记录都带 `user` 字段，按登录名分开，互相看不见；
+- **兜底**：文件系统只读（Vercel 这类）时抛 `StorageUnavailable`，接口回一句人话，不会 500。
+
+其他工具接入就两步：
+
+```python
+import storage
+
+# 写：结果和查询条件一起存下来
+storage.add_record(tool='ai-chart', user=request.state.user,
+                   title=主题, payload={'prompt': 主题, 'option': 选项})
+
+# 读：最近 10 条（payload 已经还原成 dict）
+rows = storage.list_records(tool='ai-chart', user=request.state.user, limit=10)
+```
+
+放进 Docker 时记得把 `data/` 挂出来，否则容器一重建数据就没了：
+
+```yaml
+services:
+  app:
+    build: .
+    volumes:
+      - ./data:/app/data      # auth.json / secret.key / app.db 都在这里
+    environment:
+      - TB_DB_PATH=/app/data/app.db
+```
 
 ## 打包成 EXE（可选）
 

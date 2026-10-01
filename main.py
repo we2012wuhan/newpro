@@ -172,6 +172,13 @@ app.include_router(opc_news_router)
 from reading_practice import router as reading_practice_router  # noqa: E402
 app.include_router(reading_practice_router)
 
+# 附加功能：SQLite 测试台（页面在 /sqlite）
+# 证明数据能写进 SQLite 文件、再原样读回来，并把可复用的 storage.py 演示一遍：
+# 其他工具存历史记录，直接调 storage.add_record / storage.list_records 就行。
+# 浏览器访问 http://127.0.0.1:8000/sqlite 即可使用。
+from sqlite_tool import router as sqlite_router  # noqa: E402
+app.include_router(sqlite_router)
+
 
 
 # =========================================================
