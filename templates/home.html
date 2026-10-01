@@ -180,6 +180,54 @@ body.is-dragging .tool:not(.dragging){transition:none}
 @media(max-width:760px){.ycd{gap:10px;padding:11px 14px;margin-bottom:18px}
   .ycd-days b{font-size:17px}.ycd-clock{font-size:12.5px;order:1}
   .ycd-meta{order:2;flex-basis:100%;min-width:0}}
+/* ===== 顶部名言：每次打开随机两句（宽屏并排，窄屏上下） ===== */
+.quotes{display:grid;grid-template-columns:1fr 1fr;margin-bottom:14px;border-radius:16px;
+  background:linear-gradient(180deg,var(--tb-card),var(--tb-card-2));
+  border:1px solid var(--tb-line);backdrop-filter:blur(8px);overflow:hidden;
+  box-shadow:0 16px 38px -26px rgba(109,124,255,.75);
+  animation:qIn .5s ease-out both}
+.q-item{position:relative;padding:14px 22px 13px 46px}
+.q-item + .q-item{border-left:1px solid var(--tb-line)}
+.q-item::before{content:'\201C';position:absolute;left:15px;top:5px;
+  font-family:Georgia,"Times New Roman",serif;font-size:40px;line-height:1;
+  background:linear-gradient(135deg,#6d7cff,#2dd4bf);-webkit-background-clip:text;
+  background-clip:text;color:transparent;opacity:.78;pointer-events:none}
+.q-text{margin:0;
+  font-family:Georgia,"Times New Roman","Kaiti SC",KaiTi,"Songti SC","Noto Serif SC",SimSun,serif;
+  font-size:16px;line-height:1.9;letter-spacing:.03em;color:var(--tb-ink)}
+.q-by{margin:6px 0 0;text-align:right;
+  font-family:Georgia,"Times New Roman","Kaiti SC",KaiTi,serif;
+  font-size:12px;letter-spacing:.1em;color:var(--tb-muted)}
+.q-by::before{content:'—— ';letter-spacing:0}
+@keyframes qIn{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+@media(max-width:760px){.quotes{grid-template-columns:1fr}
+  .q-item{padding:12px 16px 11px 40px}
+  .q-item + .q-item{border-left:0;border-top:1px solid var(--tb-line)}
+  .q-item::before{font-size:34px;left:12px;top:4px}
+  .q-text{font-size:15.5px;line-height:1.85}}
+@media(prefers-reduced-motion:reduce){.quotes{animation:none}}
+/* ===== 宽屏：两句竖排在左右两侧（窄屏自动退回上面那张横排卡） ===== */
+.qside{position:fixed;top:288px;bottom:26px;z-index:1;display:none;
+  flex-direction:column;align-items:center;justify-content:flex-start;pointer-events:none}
+.qside.q-l{right:calc(50% + 540px)}
+.qside.q-r{left:calc(50% + 540px)}
+.q-card{position:relative;writing-mode:vertical-rl;text-orientation:upright;
+  display:flex;flex-direction:column;align-items:flex-start;gap:12px;
+  max-height:100%;max-width:100%;padding:18px 12px;border-radius:16px;
+  background:linear-gradient(180deg,var(--tb-card),var(--tb-card-2));
+  border:1px solid var(--tb-line);backdrop-filter:blur(8px);
+  box-shadow:0 16px 38px -26px rgba(109,124,255,.75);
+  animation:qIn .5s ease-out both}
+.q-mark{font-family:Georgia,"Times New Roman",serif;font-size:28px;line-height:1;
+  background:linear-gradient(135deg,#6d7cff,#2dd4bf);-webkit-background-clip:text;
+  background-clip:text;color:transparent;opacity:.8;writing-mode:horizontal-tb}
+.q-v{display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+.q-v .q-text{font-size:17px;line-height:1.6;letter-spacing:.14em}
+.q-v .q-by{font-size:12.5px;line-height:1.6;letter-spacing:.2em;text-align:start}
+@media(min-width:1360px) and (min-height:560px){
+  .quotes{display:none}
+  .qside{display:flex}
+}
 /* ===== 两侧灯笼：纯装饰，不参与交互 ===== */
 .lanterns{position:fixed;top:0;left:0;right:0;height:0;z-index:0;pointer-events:none}
 .lantern{position:fixed;top:0;width:114px}
@@ -265,6 +313,9 @@ body.is-dragging .tool:not(.dragging){transition:none}
   </div></div>
 </div>
 <div class="wrap">
+  <div class="quotes" id="quotes" aria-label="每日名言"></div>
+  <aside class="qside q-l" aria-label="名言（左）"><div class="q-card" id="qSideL"></div></aside>
+  <aside class="qside q-r" aria-label="名言（右）"><div class="q-card" id="qSideR"></div></aside>
   <div class="ycd" id="ycd" aria-label="2026 年倒计时">
     <div class="ycd-top">
       <span class="ycd-year">2026</span>
@@ -735,6 +786,106 @@ function render(){
 }
 render();
 setInterval(function(){ if(!document.hidden){ render(); } }, 1000);
+})();
+</script>
+<script>
+// 每次打开首页：从两个语料库里各随机抽一句（中国古典 / 西方思辨），
+// 顺序也随机 —— 保证每次刷新不重样，也不会两句都挤在同一个路子上。
+// 宽屏竖排在左右两侧，窄屏退回顶部横排卡片（同一个数据，两套版式）。
+(function(){
+'use strict';
+var CN = [
+  {t:'学而不思则罔，思而不学则殆。', b:'《论语》'},
+  {t:'工欲善其事，必先利其器。', b:'《论语》'},
+  {t:'知之为知之，不知为不知，是知也。', b:'《论语》'},
+  {t:'君子藏器于身，待时而动。', b:'《周易·系辞》'},
+  {t:'博学之，审问之，慎思之，明辨之，笃行之。', b:'《礼记·中庸》'},
+  {t:'吾生也有涯，而知也无涯。', b:'《庄子》'},
+  {t:'天地有大美而不言。', b:'《庄子》'},
+  {t:'千里之行，始于足下。', b:'《老子》'},
+  {t:'知人者智，自知者明。', b:'《老子》'},
+  {t:'祸兮福之所倚，福兮祸之所伏。', b:'《老子》'},
+  {t:'上善若水，水善利万物而不争。', b:'《老子》'},
+  {t:'心之官则思，思则得之，不思则不得也。', b:'《孟子》'},
+  {t:'不识庐山真面目，只缘身在此山中。', b:'苏轼'},
+  {t:'人生如逆旅，我亦是行人。', b:'苏轼'},
+  {t:'行到水穷处，坐看云起时。', b:'王维'},
+  {t:'纸上得来终觉浅，绝知此事要躬行。', b:'陆游'},
+  {t:'山重水复疑无路，柳暗花明又一村。', b:'陆游'},
+  {t:'问渠那得清如许？为有源头活水来。', b:'朱熹'},
+  {t:'不畏浮云遮望眼，只缘身在最高层。', b:'王安石'},
+  {t:'沉舟侧畔千帆过，病树前头万木春。', b:'刘禹锡'},
+  {t:'世上本没有路，走的人多了，也便成了路。', b:'鲁迅'},
+  {t:'希望是附丽于存在的，有存在，便有希望。', b:'鲁迅'}
+];
+var WEST = [
+  {t:'未经省察的人生，不值得过。', b:'苏格拉底'},
+  {t:'我唯一知道的，就是我一无所知。', b:'苏格拉底'},
+  {t:'认识你自己。', b:'德尔斐神庙箴言'},
+  {t:'人不能两次踏入同一条河流。', b:'赫拉克利特'},
+  {t:'我们是我们反复做的事；所以卓越不是一种行为，而是一种习惯。', b:'威尔·杜兰特（述亚里士多德）'},
+  {t:'困扰我们的不是事情本身，而是我们对事情的看法。', b:'爱比克泰德'},
+  {t:'你能掌控的是自己的心灵，而不是外界的事件。', b:'马可·奥勒留'},
+  {t:'挡在路上的东西，就是路。', b:'马可·奥勒留'},
+  {t:'人是一根会思想的芦苇。', b:'帕斯卡'},
+  {t:'我思故我在。', b:'笛卡尔'},
+  {t:'人生而自由，却无往不在枷锁之中。', b:'卢梭'},
+  {t:'那些杀不死我的，使我更强大。', b:'尼采'},
+  {t:'一个人知道自己为什么而活，就可以忍受任何一种生活。', b:'尼采'},
+  {t:'与恶龙缠斗过久，自身亦成为恶龙。', b:'尼采'},
+  {t:'每个大人心里都藏着一个想玩的孩子。', b:'尼采'},
+  {t:'在冬天的深处，我终于懂得，我身上有一个不可战胜的夏天。', b:'加缪'},
+  {t:'必须想象西西弗是幸福的。', b:'加缪'},
+  {t:'人是被判定为自由的。', b:'萨特'},
+  {t:'有两样东西让我愈想愈敬畏：头顶的星空和心中的道德律。', b:'康德'},
+  {t:'真正的发现之旅，不在于寻找新风景，而在于拥有新眼光。', b:'普鲁斯特'},
+  {t:'我们看到的不是事物本来的样子，而是我们自己。', b:'阿奈斯·宁'},
+  {t:'世界上只有一种英雄主义，就是在认清生活真相之后依然热爱生活。', b:'罗曼·罗兰'},
+  {t:'并不是我们拥有的时间太短，而是我们浪费得太多。', b:'塞内卡'},
+  {t:'幸福取决于我们自己。', b:'亚里士多德'}
+];
+function pick(list){ return list[Math.floor(Math.random() * list.length)]; }
+
+function buildQuote(item, vertical){
+  var box = document.createElement('div');
+  box.className = vertical ? 'q-v' : 'q-item';
+  var text = document.createElement('p');
+  text.className = 'q-text';
+  text.textContent = item.t;
+  var by = document.createElement('p');
+  by.className = 'q-by';
+  by.textContent = item.b;
+  box.appendChild(text);
+  box.appendChild(by);
+  return box;
+}
+
+function fill(host, items, vertical){
+  if(!host){ return; }
+  host.textContent = '';
+  if(vertical){
+    var mark = document.createElement('span');
+    mark.className = 'q-mark';
+    mark.setAttribute('aria-hidden', 'true');
+    mark.textContent = '“';
+    host.appendChild(mark);
+  }
+  items.forEach(function(item){ host.appendChild(buildQuote(item, vertical)); });
+}
+
+function renderQuotes(){
+  var pair = [pick(CN), pick(WEST)];
+  if(Math.random() < 0.5){ pair.reverse(); }
+  fill(document.getElementById('quotes'), pair, false);                    // 窄屏：顶部横排
+  fill(document.getElementById('qSideL'), [pair[0]], true);                // 宽屏：左侧竖排
+  fill(document.getElementById('qSideR'), [pair[1]], true);                // 宽屏：右侧竖排
+}
+
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', renderQuotes);
+}else{
+  renderQuotes();
+}
 })();
 </script>
 </body>
