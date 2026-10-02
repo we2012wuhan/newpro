@@ -1,24 +1,41 @@
 # -*- coding: utf-8 -*-
-# 苏格拉底提问：把你已经认定的一句话，用六类问题追问到底，
-# 逼出那些你从来没说出口的前提。
+# 苏格拉底提问：一个只会提问、不给答案的对话引导者。
+# 页面在 /socratic。
+# ------------------------------------------------------------
+# 这一版和以前不一样。以前是「生成一张问题清单，你自己挨个答」，
+# 现在是真的对话：模型一次只问一个问题，按固定的四步走，走完一步才进下一步。
 #
-# 出题有两条路：
-#   1. 大模型针对你的原话现出题（更贴，需要服务端配好模型 Key）
-#   2. 内置题库：六类各 6 问，共 36 问，不联网、不花时间（模型不可用时自动兜底）
+# 四步（不许跳步）：
+#   1 澄清问题   你到底在纠结什么，把含糊的词问具体
+#   2 已有信息   你知道什么、哪些是事实、哪些是没验证过的猜测
+#   3 换个视角   你还没想到的角度、别人的立场
+#   4 推导结论   让你自己说出打算怎么做
 #
-# 记录全部存在浏览器 localStorage（soc_ 前缀），后端不落库。
-import json
+# 进度（第几步）是服务端定的，不是模型自己说了算：
+#   · 每轮额外发一个极小的「判够了没有」调用，和正文同时跑，不额外等时间；
+#   · 一步至少问 2 个问题、最多 3 个，到点就往下走，绝不跳步、绝不倒退；
+#   · 第 4 步走完那天，正文换成一段收尾——只用他自己说过的话串，不加任何建议。
+#   为什么不直接让模型吐 JSON 带进度：实测它在多轮对话里不守格式，
+#   偶发吐一串空格。宁可多花一次小调用，也不让它把话说坏。
+#
+# 数据落在 SQLite 的 history 表（tool = 'socratic'），一行 = 一个会话：
+#   payload = {ask, step, turns, finished, msgs:[{role,text,at,step}], started_at, updated_at}
+# 刷新页面、换台设备回来都还能接着聊。右侧历史列表读的就是这张表。
+#
+# 环境变量：DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL / DEEPSEEK_MODEL
+import queue
 import re
-from pathlib import Path
+import threading
 
-import requests
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
 
+import storage
+
 try:
     from model_config import llm_endpoint, llm_key, llm_model
-except Exception:  # 单独拷贝本文件运行时不带配置也能用（只是走题库）
+except Exception:  # 单独跑这个文件时的兜底
     def llm_key():
         return ''
 
@@ -28,267 +45,498 @@ except Exception:  # 单独拷贝本文件运行时不带配置也能用（只�
     def llm_endpoint(base=''):
         return (base or 'https://api.deepseek.com').rstrip('/') + '/chat/completions'
 
+import requests
+
 router = APIRouter()
 
-_BASE_DIR = Path(__file__).resolve().parent
-_TEMPLATE_FILE = _BASE_DIR / 'templates' / 'socratic.html'
+TOOL = 'socratic'
+ASK_MAX = 200          # 原始那件事
+MSG_MAX = 800          # 单条回复
+REPLY_MAX = 1000       # 用户一次发言
+HIST_MAX = 40          # 一次塞给模型的最近几条
+LIST_MAX = 80          # 右侧历史最多列几条
+MIN_TURNS = 2          # 一步至少问几个问题
+FORCE_TURNS = 3        # 问到第几个就必须往下走
 
-# =========================================================
-# 六类问题：每一类负责一种「追问动作」
-# =========================================================
-LENSES = [
-    {
-        'key': 'clarify', 'label': '澄清', 'icon': '🔍',
-        'hint': '把你嘴里的那个词，拧成一个具体的东西',
-        'bank': [
-            '「{c}」里最关键的那个词，你能不能用一句不带形容词的话说清楚？',
-            '这件事要做到什么程度，你才觉得「成了」？',
-            '同一个说法，你身边的人会不会理解成另一件事？',
-            '如果必须举一个具体的例子，你会举哪一个？',
-            '这句话里有没有哪个词，是你其实没想清楚就先用上的？',
-            '把这句话改成一句别人能验证的话，你会怎么写？',
-        ],
-    },
-    {
-        'key': 'assume', 'label': '前提', 'icon': '🧱',
-        'hint': '挖出那些你默认成立、从没说出口的东西',
-        'bank': [
-            '这个结论要成立，得先默认哪件事是真的？',
-            '这些前提里，哪一条你从来没有检验过？',
-            '如果其中一条不成立，你的结论会变成什么？',
-            '你默认了别人会怎么反应？这个默认有依据吗？',
-            '你是不是默认了「现在的情况会一直持续下去」？',
-            '这条前提是你自己想出来的，还是从别人那里顺来的？',
-        ],
-    },
-    {
-        'key': 'evidence', 'label': '证据', 'icon': '⚖️',
-        'hint': '把「我就是这么觉得」换成能拿出来的东西',
-        'bank': [
-            '你是怎么知道这一点的？亲眼见过，还是听来的？',
-            '支持它最硬的那条证据是什么？够硬吗？',
-            '有没有哪一次经历，其实是在反对这个结论？',
-            '换一个人来查，他会先去看什么？',
-            '你判断「有效」用的是哪个标准？这个标准本身可能有问题吗？',
-            '你是在看事实，还是在看你想看到的那部分？',
-        ],
-    },
-    {
-        'key': 'viewpoint', 'label': '视角', 'icon': '🔄',
-        'hint': '换一双眼睛，看看同一件事长什么样',
-        'bank': [
-            '最不同意这句话的人，他会怎么说？',
-            '如果换成你的对手、家人，或者五年后的你，他会先问什么？',
-            '有没有一种解释，能同时说通你和反对你的人看到的现象？',
-            '你这个立场里，有多少是身份带来的（职业、年龄、圈子）？',
-            '换个行业、换个年代的人来看，这句话还成立吗？',
-            '你更希望它成立，还是更想知道它到底成不成立？',
-        ],
-    },
-    {
-        'key': 'implication', 'label': '推演', 'icon': '🌊',
-        'hint': '顺着它往前推，看看会走到哪里',
-        'bank': [
-            '如果它成立，接下来必然会发生什么？你准备好了吗？',
-            '如果它不成立，你要付出什么代价？',
-            '照这个结论做下去，一年后你会站在哪里？',
-            '这个结论和你另外一些坚持，互相矛盾吗？',
-            '最坏的情况是什么？你能承受吗？',
-            '如果把它推到极端，会得出什么荒唐的结果？',
-        ],
-    },
-    {
-        'key': 'meta', 'label': '反思', 'icon': '🪞',
-        'hint': '回过头问一句：我为什么在问这个问题',
-        'bank': [
-            '你为什么是现在问这个问题？是不是有更急的事被绕开了？',
-            '你想要的其实是一个答案，还是一个许可？',
-            '如果没有任何人能回答你，你会怎么做？',
-            '这个问题，三个月前的你会怎么问？',
-            '你是在解决它，还是在反复想它？',
-            '假设明天这个问题消失了，你的生活哪里会不一样？',
-        ],
-    },
+STEPS = ['澄清问题', '已有信息', '换个视角', '推导结论']
+STEP_GOAL = [
+    '他到底在纠结什么，把含糊的词问具体，排除歧义',
+    '他手上已经知道什么、哪些是事实、哪些是他默认成立但没验证过的猜测',
+    '帮他看到自己没想到的角度、别人的立场、相反的可能性',
+    '让他自己把前面聊的串起来，说出他打算怎么做',
 ]
 
-_LENS_BY_KEY = dict((x['key'], x) for x in LENSES)
-_LENS_BY_LABEL = dict((x['label'], x) for x in LENSES)
+NO_KEY = ('服务端没配模型 Key（DEEPSEEK_API_KEY）。这个工具全靠模型对话，'
+          '配好之后再来 —— 在项目根目录的 .env 里填上就行。')
 
-_MAX_PER_LENS = 2  # 每类最多几问
-
-
-def _short_claim(claim, limit=16):
-    c = re.sub(r'\s+', '', claim or '')
-    if len(c) <= limit:
-        return c
-    return c[:limit] + '…'
-
-
-def _fill(tpl, claim):
-    raw = re.sub(r'\s+', '', claim or '')
-    if '{c}' not in tpl:
-        return tpl
-    if len(raw) > 24:  # 原话太长，塞进句子里会拗口，退成代词
-        return tpl.replace('「{c}」', '你这句话').replace('{c}', '你这句话')
-    return tpl.replace('{c}', _short_claim(claim))
+ROLE = [
+    '你在当一位「苏格拉底式提问引导者」。你的工作只有一个：用提问帮对方自己想清楚。',
+    '你永远不给答案、不给建议、不替他做判断、不告诉他「应该」怎么办。',
+    '',
+    '【怎么说话】',
+    '1. 一条回复只说一小段，两三句以内，而且只问一个问题——整条回复里最多出现一个问号。',
+    '2. 问题要扣住他刚说的那句话里的具体细节。不许问「你怎么看」这种放到哪都成立的空话。',
+    '3. 像朋友聊天，平实、口语。不用「本质」「范式」「认知」「赋能」这类词。',
+    '4. 不复述他的原话，不评价对错，不说「很好的问题」「我理解你」这种客套。',
+    '5. 他要求你直接给答案时，温和拒绝，比如「我不会直接给你答案哦，不过我可以陪你一步步',
+    '   理清楚，你自己就能找到答案，我们再往下走一步？」，然后接着问当前这一步的问题。',
+    '6. 只输出你要说的那段话本身。不要写 JSON、不要写标题、不要写进度标记。',
+]
 
 
-def _bank_questions(claim, lens_keys, seed=0):
-    """从题库里按透镜取题。seed 用来「换一组」。"""
-    picked = []
-    for lens in LENSES:
-        if lens['key'] not in lens_keys:
-            continue
-        bank = lens['bank']
-        start = (seed * 2 + LENSES.index(lens)) % len(bank)
-        for i in range(_MAX_PER_LENS):
-            tpl = bank[(start + i * 3) % len(bank)]
-            picked.append({'cat': lens['label'], 'icon': lens['icon'],
-                           'q': _fill(tpl, claim)})
-    return picked
+def _system_prompt(step, finished=False):
+    """按当前进度拼这轮的系统提示。step: 1..4 是四步。"""
+    lines = list(ROLE)
+    lines.append('')
+    if step == 0:
+        lines += [
+            '【现在】这是开场第一句。先用一句话把它变成「我理解你在纠结的是……」，',
+            '然后问他「对吗？如果没问题我们就开始一步步梳理」。这一轮先别开始提问。',
+        ]
+    elif finished:
+        lines += [
+            '【现在】四步已经走完，你之前也帮他收过尾了。他要是接着说，就顺着他的话',
+            '再问一个具体的问题（还在推导结论的范围里），不要退回去重走前面几步。',
+        ]
+    else:
+        lines += [
+            '【现在】第 %d 步：%s。' % (step, STEPS[step - 1]),
+            '这一步要问清楚的：' + STEP_GOAL[step - 1] + '。',
+            '就这一步问一个问题。',
+        ]
+        if step == 1:
+            lines.append('他如果说你理解错了，先用一句话重新说一遍你听到的，再往下问。')
+    return '\n'.join(lines)
 
 
-def _lens_catalog(lens_keys):
-    names = [x['label'] for x in LENSES if x['key'] in lens_keys]
-    return names or [x['label'] for x in LENSES]
+WRAP_SYS = '\n'.join([
+    '你是刚才那位「苏格拉底式提问引导者」。四步都走完了，现在只说最后一段话。',
+    '只用他自己说过的话，串成一两句还给他，让他看见这是他自己得出来的结论。',
+    '一个字都不要加你自己的判断、建议、点评或鼓励。不要提问，不要问他「你觉得呢」。',
+    '平实、口语，像朋友把他刚才说的话还给他。',
+])
+
+JUDGE_SYS = '\n'.join([
+    '你只做一件事：判断一场对话里，引导者当前这一步有没有问到位。',
+    '只回答「够了」或者「没够」这两个词之一，不要解释，不要标点，不要别的字。',
+])
 
 
-def _system_prompt(lens_keys):
-    names = '、'.join(_lens_catalog(lens_keys))
+def _judge_prompt(step):
     return '\n'.join([
-        '你是苏格拉底式的追问者，只提问，不给答案。',
-        '用户会写下一句他此刻认定的结论或判断，你要用六类问题追问它，',
-        '帮他看见自己没说出口的前提。',
-        '固定六类：澄清（把词变具体）、前提（挖默认假设）、证据（要依据）、',
-        '视角（换立场）、推演（往前推结果）、反思（反问问题本身）。',
-        '规则：',
-        '1. 本轮只需要这几类：' + names + '；每类恰好 ' + str(_MAX_PER_LENS) + ' 问；',
-        '2. 每个问题都要扣住用户原话的具体内容，不许出现「你的依据是什么」这类',
-        '   放到任何话题上都成立的空话；',
-        '3. 一问只问一件事，不超过 40 字，主语用「你」；',
-        '4. 不给建议，不回答这个问题本身，不评价对错，不复述他的原话；',
-        '5. 只输出 JSON，不要 Markdown 代码块，格式：',
-        '{"questions":[{"cat":"澄清","q":"..."},{"cat":"前提","q":"..."}]}',
+        '引导者正在做第 %d 步：%s。' % (step, STEPS[step - 1]),
+        '这一步要问清楚的是：' + STEP_GOAL[step - 1] + '。',
+        '看下面这段对话，重点是对方最新的回答。',
+        '如果这一步已经问清楚了、可以进入下一步，回答「够了」；',
+        '如果还差得远、需要再问，回答「没够」。',
     ])
 
 
-def _extract_json(text):
-    raw = re.sub(r'```[a-zA-Z]*', '', text or '')
-    start, end = raw.find('{'), raw.rfind('}')
-    if start < 0 or end <= start:
-        return {}
-    try:
-        data = json.loads(raw[start:end + 1])
-    except ValueError:
-        return {}
-    return data if isinstance(data, dict) else {}
-
-
-def _ask_llm(claim, lens_keys):
-    """让大模型针对原话出题。返回 (题目列表, 失败原因)。"""
+def _chat(system, messages, max_tokens=900, temperature=0.7):
     key = llm_key()
     if not key:
-        return None, '模型未配置，本次用题库'
+        return None, NO_KEY
     body = {
         'model': llm_model(),
-        'messages': [
-            {'role': 'system', 'content': _system_prompt(lens_keys)},
-            {'role': 'user', 'content': '我现在的结论：' + claim},
-        ],
-        'temperature': 0.7,
-        'max_tokens': 1600,
+        'messages': [{'role': 'system', 'content': system}] + list(messages),
+        'temperature': temperature,
+        'max_tokens': max_tokens,
         'stream': False,
     }
     try:
-        resp = requests.post(
-            llm_endpoint(), json=body, timeout=(15, 90),
-            headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'},
-        )
+        resp = requests.post(llm_endpoint(), json=body, timeout=(10, 120),
+                             headers={'Authorization': 'Bearer ' + key,
+                                      'Content-Type': 'application/json'})
     except requests.RequestException as exc:
-        return None, '模型请求失败，本次用题库：' + str(exc)[:80]
+        return None, '模型请求失败：' + str(exc)[:80]
     if resp.status_code >= 400:
-        return None, '模型返回错误 ' + str(resp.status_code) + '，本次用题库'
+        return None, '模型返回错误 ' + str(resp.status_code)
     try:
-        raw = resp.json()['choices'][0]['message']['content']
+        return resp.json()['choices'][0]['message']['content'], ''
     except (ValueError, KeyError, IndexError, TypeError):
-        return None, '模型返回格式异常，本次用题库'
-
-    rows = _extract_json(raw).get('questions')
-    if not isinstance(rows, list):
-        return None, '模型返回的内容解析不了，本次用题库'
-
-    per_lens = {}
-    out = []
-    for row in rows:
-        if not isinstance(row, dict):
-            continue
-        lens = _LENS_BY_LABEL.get(str(row.get('cat') or '').strip())
-        q = str(row.get('q') or '').strip()
-        if lens is None or lens['key'] not in lens_keys or len(q) < 6:
-            continue
-        used = per_lens.get(lens['key'], 0)
-        if used >= _MAX_PER_LENS:
-            continue
-        per_lens[lens['key']] = used + 1
-        out.append({'cat': lens['label'], 'icon': lens['icon'], 'q': q})
-    if len(out) < 3:
-        return None, '模型给出的题目太少，本次用题库'
-    return out, ''
+        return None, '模型返回格式异常'
 
 
-def _normalize_lenses(raw):
-    if not isinstance(raw, list):
-        return [x['key'] for x in LENSES]
-    keys = [str(x) for x in raw if str(x) in _LENS_BY_KEY]
-    return keys or [x['key'] for x in LENSES]
+def _clean(value, limit):
+    return re.sub(r'\s+', ' ', str(value or '')).strip()[:limit]
 
 
-def _ask(payload):
-    claim = str(payload.get('claim') or '').strip()
-    if len(claim) < 2:
-        return JSONResponse({'ok': False, 'message': '先写下一句你现在的看法'})
-    lens_keys = _normalize_lenses(payload.get('lenses'))
-    mode = str(payload.get('mode') or 'auto')
-    try:
-        seed = int(payload.get('seed') or 0)
-    except (TypeError, ValueError):
-        seed = 0
-
-    note = ''
-    questions = None
-    if mode != 'bank':
-        questions, note = _ask_llm(claim, lens_keys)
-    source = 'llm' if questions else 'bank'
-    if not questions:
-        questions = _bank_questions(claim, lens_keys, seed)
-    return JSONResponse({'ok': True, 'source': source, 'note': note,
-                         'count': len(questions), 'questions': questions})
+def _chat_text(system, messages, tries=2, **kw):
+    """拿一段能用的文本。模型偶尔会吐一串空白（实测过），空就再试一次。"""
+    last = ''
+    for _ in range(max(1, tries)):
+        text, err = _chat(system, messages, **kw)
+        text = _clean(text, MSG_MAX)
+        if text:
+            return text, ''
+        last = err or ''
+    return None, last
 
 
-@router.get('/socratic', response_class=HTMLResponse)
-def socratic_page():
-    if _TEMPLATE_FILE.exists():
-        html = _TEMPLATE_FILE.read_text(encoding='utf-8')
+def _count_q(text):
+    return sum(1 for ch in text if ch in '？?')
+
+
+def _cut_first_q(text):
+    """兜底：一条回复里问号超过一个，就砍到第一个问号为止。"""
+    for i, ch in enumerate(text):
+        if ch in '？?':
+            return text[:i + 1].strip()
+    return text
+
+
+def _parallel(job_a, job_b):
+    """两个阻塞调用同时跑，都回来了再往下走。
+
+    用守护线程 + 队列，不用 ThreadPoolExecutor：后者线程不是守护的，
+    万一某个请求卡住，容器退出时会被它拖着。
+    """
+    box = queue.Queue()
+
+    def run(tag, job):
+        try:
+            box.put((tag, job()))
+        except Exception as exc:                      # 兜底，别让子线程静默死掉
+            box.put((tag, (None, str(exc)[:80])))
+
+    threads = [threading.Thread(target=run, args=(tag, job), daemon=True)
+               for tag, job in (('a', job_a), ('b', job_b))]
+    for t in threads:
+        t.start()
+    out = {}
+    for _ in threads:
+        tag, value = box.get()
+        out[tag] = value
+    return out['a'], out['b']
+
+
+def _reply(step, convo, finished=False):
+    """生成本轮要说的话。返回 (文本, 错误)。"""
+    sys_p = _system_prompt(step, finished)
+    msg, err = _chat_text(sys_p, convo)
+    if not msg:
+        return None, (err or '模型这次没说出话来，再发一次试试。')
+
+    # 一次只许问一个问题：违规就让它改一遍，改不过来才硬砍
+    if _count_q(msg) > 1:
+        fix = list(convo) + [
+            {'role': 'assistant', 'content': msg},
+            {'role': 'user',
+             'content': '（规则提醒：一条回复只能有一个问号。请把刚才那条改成只问一个问题，'
+                        '其余内容保留，直接说你改好的那段话。）'},
+        ]
+        msg2, _ = _chat_text(sys_p, fix, tries=1)
+        if msg2:
+            msg = msg2
+    if _count_q(msg) > 1:
+        msg = _cut_first_q(msg)
+    return msg, ''
+
+
+def _judge(step, convo):
+    """这一步问到位没有。判不出来就当没到位（宁可多问一轮）。"""
+    text, _err = _chat_text(_judge_prompt(step), convo, max_tokens=6,
+                            temperature=0.1)
+    return '够了' in _clean(text or '', 20)
+
+
+WRAP_ASK = ('（系统提示，不是对话内容：四步已经走完了。请把我刚才说过的话串成一两句还给我，'
+            '让我看见这是我自己理出来的。不要提问，不要给建议，不要点评。说完就停。）')
+
+
+def _wrap(convo):
+    """最后那段收尾。
+
+    关键：指令要挂在最后一条**用户消息**上，而不是只写在 system 里。
+    实测对话一长，模型会顺着「一问一答」的惯性继续提问，
+    system 里的规矩它当没看见；挂在他自己那句话后面就老实了。
+    收尾里出现问号就重写，两次都带问号就交给兜底。
+    """
+    ask = [dict(m) for m in (convo or [])]
+    if ask and ask[-1].get('role') == 'user':
+        ask[-1] = {'role': 'user', 'content': str(ask[-1].get('content') or '') + '\n\n' + WRAP_ASK}
     else:
-        html = ('<!DOCTYPE html><html lang="zh-CN"><meta charset="utf-8">'
-                '<body style="background:#0f172a;color:#fff;font-family:system-ui">'
-                '<h2>模板文件缺失</h2><p>请确认 templates/socratic.html 存在。</p></body></html>')
-    return HTMLResponse(html)
+        ask.append({'role': 'user', 'content': WRAP_ASK})
+    err = ''
+    for _ in range(2):
+        text, err = _chat_text(WRAP_SYS, ask, max_tokens=400, temperature=0.5)
+        if text and _count_q(text) == 0:
+            return text, ''
+    return None, (err or '收尾没写好')
 
 
-@router.post('/socratic/api/ask')
-async def socratic_ask(request: Request):
+def _wrap_fallback(msgs, last_text):
+    """模型写不出收尾时的兜底：直接把他自己说过的话还给他。
+
+    总比把一句提问当收尾强 —— 收尾的规矩是不许再问、不许加建议。
+    """
+    mine = [m.get('text') for m in msgs if isinstance(m, dict) and m.get('role') != 'ai']
+    mine.append(last_text)
+    picked = []
+    for t in mine:
+        t = _clean(t, 40)
+        if len(t) >= 10:
+            picked.append('「%s」' % t)
+    body = '；'.join(picked[-3:])
+    if not body:
+        return '这四步走下来，话都是你自己说的。'
+    return ('这是你自己说的：%s。结论是你自己理出来的，我没有替你加一个字。'
+            % body)[:MSG_MAX]
+
+
+def _user(request):
+    return getattr(request.state, 'user', '') or ''
+
+
+async def _body(request):
     try:
         payload = await request.json()
     except Exception:
         payload = {}
-    # 调大模型是同步阻塞请求，放线程池执行，别堵住事件循环
-    return await run_in_threadpool(_ask, payload)
+    return payload if isinstance(payload, dict) else {}
+
+
+def _clamp_step(raw):
+    try:
+        n = int(raw or 1)
+    except (TypeError, ValueError):
+        n = 1
+    return max(1, min(n, len(STEPS)))
+
+
+def _convo(plan, text):
+    """把存下来的对话拼成给模型看的消息列表。"""
+    out = [{'role': 'user', 'content': '我想理清的是：' + _clean(plan.get('ask'), ASK_MAX)}]
+    msgs = [m for m in (plan.get('msgs') or []) if isinstance(m, dict)]
+    for m in msgs[-HIST_MAX:]:
+        t = _clean(m.get('text'), MSG_MAX)
+        if not t:
+            continue
+        out.append({'role': 'assistant' if m.get('role') == 'ai' else 'user', 'content': t})
+    if text:
+        out.append({'role': 'user', 'content': text})
+    return out, msgs
+
+
+def _pack(rid, title, plan, full=True):
+    """把库里的 payload 变成前端要的形状。full=False 时不带消息（列表用）。"""
+    msgs = plan.get('msgs') if isinstance(plan.get('msgs'), list) else []
+    out = {
+        'id': rid,
+        'title': title or '',
+        'ask': _clean(plan.get('ask'), ASK_MAX),
+        'step': _clamp_step(plan.get('step')),
+        'finished': bool(plan.get('finished')),
+        'started_at': plan.get('started_at') or '',
+        'updated_at': plan.get('updated_at') or '',
+        'count': len(msgs),
+    }
+    if full:
+        rows = []
+        for m in msgs:
+            if not isinstance(m, dict):
+                continue
+            text = _clean(m.get('text'), MSG_MAX)
+            if not text:
+                continue
+            rows.append({'role': 'ai' if m.get('role') == 'ai' else 'me',
+                         'text': text, 'at': _clean(m.get('at'), 20),
+                         'step': m.get('step') if isinstance(m.get('step'), int) else 0})
+        out['msgs'] = rows
+    return out
+
+
+def _row(row, full=True):
+    plan = row.get('payload') if isinstance(row.get('payload'), dict) else {}
+    return _pack(row.get('id'), row.get('title'), plan, full)
+
+
+# =============================================================
+# 接口
+# =============================================================
+def _do_create(ask, user):
+    if not llm_key():
+        return JSONResponse({'ok': False, 'message': NO_KEY}, status_code=503)
+    convo = [{'role': 'user', 'content': '我想理清的是：' + ask}]
+    msg, err = _reply(0, convo)
+    if not msg:
+        return JSONResponse({'ok': False, 'message': err}, status_code=502)
+
+    now = storage.now_str()
+    plan = {
+        'ask': ask,
+        'step': 1,
+        'turns': 0,
+        'finished': False,
+        'msgs': [{'role': 'ai', 'text': msg, 'at': now, 'step': 0}],
+        'started_at': now,
+        'updated_at': now,
+    }
+    try:
+        rec = storage.add_record(TOOL, user, ask[:60], plan)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=500)
+    return JSONResponse({'ok': True, 'session': _pack(rec['id'], ask[:60], plan)})
+
+
+def _do_reply(sid, text, user):
+    if not llm_key():
+        return JSONResponse({'ok': False, 'message': NO_KEY}, status_code=503)
+    try:
+        row = storage.get_record(user, sid)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=500)
+    if not row or row.get('tool') != TOOL:
+        return JSONResponse({'ok': False, 'message': '找不到这个会话。'}, status_code=404)
+
+    plan = row.get('payload') if isinstance(row.get('payload'), dict) else {}
+    step = _clamp_step(plan.get('step'))
+    finished = bool(plan.get('finished'))
+    try:
+        turns = max(0, int(plan.get('turns') or 0))
+    except (TypeError, ValueError):
+        turns = 0
+    convo, msgs = _convo(plan, text)
+
+    # 判进度和生成正文同时跑，谁也不用等谁
+    (enough, _jerr), (msg, err) = _parallel(
+        lambda: (_judge(step, convo), '') if not finished else (False, ''),
+        lambda: _reply(step, convo, finished),
+    )
+    if not msg:
+        return JSONResponse({'ok': False, 'message': err}, status_code=502)
+
+    if finished:
+        nxt, nturns, nfin = step, turns, True
+    else:
+        turns += 1
+        allow = turns >= MIN_TURNS
+        move = allow and (bool(enough) or turns >= FORCE_TURNS)
+        if move and step >= len(STEPS):
+            # 四步走完：这一轮不再提问，换成收尾
+            tail, _terr = _wrap(convo)
+            msg = tail or _wrap_fallback(msgs, text)
+            nxt, nturns, nfin = len(STEPS), 0, True
+        elif move:
+            nxt, nturns, nfin = step + 1, 0, False
+        else:
+            nxt, nturns, nfin = step, turns, False
+
+    now = storage.now_str()
+    msgs.append({'role': 'me', 'text': text, 'at': now, 'step': step})
+    msgs.append({'role': 'ai', 'text': msg, 'at': now, 'step': nxt})
+    plan['msgs'] = msgs
+    plan['step'] = nxt
+    plan['turns'] = nturns
+    plan['finished'] = nfin
+    plan['updated_at'] = now
+
+    try:
+        storage.update_record(user, sid, payload=plan)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=500)
+    return JSONResponse({'ok': True, 'session': _pack(sid, row.get('title'), plan)})
+
+
+@router.get('/socratic', response_class=HTMLResponse)
+def socratic_page():
+    from pathlib import Path
+    path = Path(__file__).resolve().parent / 'templates' / 'socratic.html'
+    if path.exists():
+        return HTMLResponse(path.read_text(encoding='utf-8'))
+    return HTMLResponse('<!DOCTYPE html><html lang="zh-CN"><meta charset="utf-8">'
+                        '<body style="background:#1F2A37;color:#fff;font-family:system-ui">'
+                        '<h2>模板文件缺失</h2><p>请确认 templates/socratic.html 存在。</p>'
+                        '</body></html>')
+
+
+@router.get('/socratic/api/status')
+def socratic_status():
+    return JSONResponse({'ai': bool(llm_key()), 'steps': STEPS})
+
+
+@router.get('/socratic/api/sessions')
+def socratic_sessions(request: Request):
+    try:
+        rows = storage.list_records(TOOL, _user(request), LIST_MAX)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'items': [], 'message': str(exc)})
+    return JSONResponse({'ok': True, 'items': [_row(r, False) for r in rows]})
+
+
+@router.post('/socratic/api/sessions')
+async def socratic_create(request: Request):
+    payload = await _body(request)
+    ask = _clean(payload.get('ask'), ASK_MAX)
+    if len(ask) < 4:
+        return JSONResponse({'ok': False, 'message': '把那件事写长一点，四个字以上。'},
+                            status_code=400)
+    return await run_in_threadpool(_do_create, ask, _user(request))
+
+
+@router.get('/socratic/api/sessions/{sid}')
+def socratic_session(sid: int, request: Request):
+    user = _user(request)
+    try:
+        row = storage.get_record(user, sid)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=500)
+    if not row or row.get('tool') != TOOL:
+        return JSONResponse({'ok': False, 'message': '找不到这个会话。'}, status_code=404)
+    return JSONResponse({'ok': True, 'session': _row(row)})
+
+
+@router.post('/socratic/api/sessions/{sid}/reply')
+async def socratic_reply(sid: int, request: Request):
+    payload = await _body(request)
+    text = _clean(payload.get('text'), REPLY_MAX)
+    if not text:
+        return JSONResponse({'ok': False, 'message': '先写点什么再发。'}, status_code=400)
+    return await run_in_threadpool(_do_reply, sid, text, _user(request))
+
+
+@router.patch('/socratic/api/sessions/{sid}')
+async def socratic_update(sid: int, request: Request):
+    payload = await _body(request)
+    user = _user(request)
+    try:
+        row = storage.get_record(user, sid)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=500)
+    if not row or row.get('tool') != TOOL:
+        return JSONResponse({'ok': False, 'message': '找不到这个会话。'}, status_code=404)
+
+    plan = row.get('payload') if isinstance(row.get('payload'), dict) else {}
+    title = row.get('title')
+    if 'finished' in payload:
+        plan['finished'] = bool(payload.get('finished'))
+        plan['updated_at'] = storage.now_str()
+    if 'step' in payload:
+        plan['step'] = _clamp_step(payload.get('step'))
+        plan['turns'] = 0
+    if 'title' in payload:
+        title = _clean(payload.get('title'), 60) or title
+    try:
+        storage.update_record(user, sid, payload=plan, title=title)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=500)
+    return JSONResponse({'ok': True, 'session': _pack(sid, title, plan)})
+
+
+@router.delete('/socratic/api/sessions/{sid}')
+def socratic_delete(sid: int, request: Request):
+    try:
+        changed = storage.delete_record(_user(request), sid)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=500)
+    if not changed:
+        return JSONResponse({'ok': False, 'message': '找不到这个会话。'}, status_code=404)
+    return JSONResponse({'ok': True})
 
 
 if __name__ == '__main__':
     import uvicorn
     from fastapi import FastAPI
-    _standalone = FastAPI(title='苏格拉底提问', description='六类追问 · 把结论追问到底', version='1.0.0')
-    _standalone.include_router(router)
-    uvicorn.run(_standalone, host='127.0.0.1', port=8005)
+    _app = FastAPI(title='苏格拉底提问', version='2.0.0')
+    _app.include_router(router)
+    uvicorn.run(_app, host='127.0.0.1', port=8013)
