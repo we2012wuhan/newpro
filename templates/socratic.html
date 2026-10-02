@@ -93,8 +93,13 @@ textarea::placeholder{color:var(--muted);opacity:.72}
 .prog-i.done i{background:var(--ok);color:#fff}
 
 /* ===== 对话 ===== */
-.msg{margin-top:14px;display:flex;flex-direction:column;align-items:flex-start}
-.msg.me{align-items:flex-end}
+.msg{margin-top:14px;display:flex;flex-direction:row;align-items:flex-start;gap:9px}
+.msg.me{flex-direction:row-reverse}
+.msg .col{min-width:0;display:flex;flex-direction:column;align-items:flex-start}
+.msg.me .col{align-items:flex-end}
+.av{flex:0 0 34px;width:34px;height:34px;border-radius:11px;overflow:hidden;
+  background:var(--soft);border:1px solid var(--line)}
+.av svg{display:block;width:100%;height:100%}
 .who{font-size:11.5px;color:var(--muted);margin-bottom:5px;display:flex;gap:7px;align-items:center}
 .bubble{border:1px solid var(--line);background:var(--field);border-radius:14px;padding:11px 14px;
   font-size:15px;line-height:1.75;color:var(--ink);max-width:min(100%,560px);white-space:pre-wrap;word-break:break-word}
@@ -105,7 +110,7 @@ textarea::placeholder{color:var(--muted);opacity:.72}
   padding:11px 14px;font-size:12.5px;line-height:1.7;margin-top:14px}
 
 /* ===== 输入 ===== */
-.composer{border-top:1px dashed var(--line);margin-top:16px;padding-top:12px}
+.composer{position:sticky;bottom:0;z-index:2;background:var(--card);border-top:1px dashed var(--line);margin-top:16px;padding:12px 0 4px}
 .composer-row{display:flex;align-items:center;gap:10px;margin-top:9px}
 .composer-row .mini{flex:1 1 auto}
 .composer-row .btn{flex:0 0 auto}
@@ -215,6 +220,45 @@ function shortTime(t){
   return s.length >= 16 ? s.slice(5, 16) : s;
 }
 
+/* ===================== 头像 =====================
+   由 seed 算出来的一张小图，不用图片、不用网络。
+   同一个 seed 永远长一样 —— 所以一段对话里的头像不会刷一次变一次，
+   换个新对话才会换一张脸。 */
+var AV_HUES = [214, 246, 268, 292, 326, 6, 26, 44, 152, 176];
+
+function hashOf(str){
+  var h = 2166136261;
+  for(var i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return Math.abs(h);
+}
+/* 确定性随机：seed 相同，抽出来的序列就相同 */
+function rngFrom(seed){
+  var n = (hashOf(String(seed)) % 2147483647) || 1;
+  return function(){ n = (n * 48271) % 2147483647; return n / 2147483647; };
+}
+/* 5×5 左右对称的方块阵，比纯色圆点更像一张「脸」 */
+function cellRect(x, y){
+  var c = 20;
+  return '<rect x="' + (x * c + 1) + '" y="' + (y * c + 1) + '" width="' + (c - 2) +
+         '" height="' + (c - 2) + '" rx="4"/>';
+}
+function avatarSVG(seed){
+  var rnd = rngFrom(seed);
+  var hue = AV_HUES[Math.floor(rnd() * AV_HUES.length)];
+  var body = '', count = 0;
+  for(var y = 0; y < 5; y++){
+    for(var x = 0; x < 3; x++){
+      if(rnd() < 0.46){ continue; }
+      count++;
+      body += cellRect(x, y);
+      if(x < 2){ body += cellRect(4 - x, y); }
+    }
+  }
+  if(!count){ body = cellRect(2, 2); }   // 极小概率抽到全空，补一块，别给个白板
+  return '<span class="av" style="color:hsl(' + hue + ',46%,52%)" aria-hidden="true">' +
+    '<svg viewBox="-8 -8 116 116"><g fill="currentColor">' + body + '</g></svg></span>';
+}
+
 /* ===================== 开始那个卡片 ===================== */
 function renderStart(){
   var el = $('start');
@@ -271,17 +315,21 @@ function renderChat(){
   h += '</div>';
   h += '<div class="mini">你在理的这件事：' + esc(s.ask || '') + '</div>';
 
+  var avG = avatarSVG('guide-' + (s.id != null ? s.id : S.sid));   // 这段对话里的引导者
+  var avMe = avatarSVG('me');                                      // 我，一直是我
   msgs.forEach(function(m){
     if(m.role === 'me'){
-      h += '<div class="msg me"><div class="who">我</div><div class="bubble">' + esc(m.text) + '</div></div>';
+      h += '<div class="msg me">' + avMe + '<div class="col"><div class="who">我</div>' +
+           '<div class="bubble">' + esc(m.text) + '</div></div></div>';
     } else {
       var tag = m.step > 0 ? '<span class="badge n">第 ' + m.step + ' 步 · ' + stepName(m.step) + '</span>' : '';
-      h += '<div class="msg ai"><div class="who">引导者 ' + tag + '</div>' +
-           '<div class="bubble">' + esc(m.text) + '</div></div>';
+      h += '<div class="msg ai">' + avG + '<div class="col"><div class="who">引导者 ' + tag + '</div>' +
+           '<div class="bubble">' + esc(m.text) + '</div></div></div>';
     }
   });
 
-  if(S.busy){ h += '<div class="msg ai think"><div class="bubble"><span class="spin"></span>它在想下一个问题…</div></div>'; }
+  if(S.busy){ h += '<div class="msg ai think">' + avG + '<div class="col"><div class="bubble">' +
+    '<span class="spin"></span>它在想下一个问题…</div></div></div>'; }
 
   if(S.err){ h += '<div class="err">' + esc(S.err) + '</div>'; }
 
@@ -302,7 +350,9 @@ function renderChat(){
   var ta = $('say');
   if(ta){
     ta.value = S.draft;
-    ta.oninput = function(){ S.draft = ta.value; };
+    // 少了 refreshSend()：键盘输入后 S.draft 有值了，但「发送」按钮还是灰的，
+    // 只有按 Enter 能发出去，鼠标点按钮点不动。
+    ta.oninput = function(){ S.draft = ta.value; refreshSend(); };
     ta.onkeydown = function(e){
       if(e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); send(); }
     };
@@ -310,10 +360,34 @@ function renderChat(){
   var sb = $('sendBtn');
   if(sb) sb.onclick = send;
   refreshSend();
-  if(S.focusSay && ta){ ta.focus(); S.focusSay = false; }
-  var last = el.querySelector('.msg:last-of-type');
-  if(last && last.scrollIntoView){ last.scrollIntoView({ behavior:'smooth', block:'center' }); }
-  else if(el.scrollIntoView){ el.scrollIntoView({ behavior:'smooth', block:'start' }); }
+  if(S.focusSay && ta){
+    ta.focus({ preventScroll:true });   // 别让 focus 自己乱滚，滚哪儿由下面决定
+    S.focusSay = false;
+    scrollToNewest(el);
+  }
+}
+
+/* 滚到最新那条消息。
+   之前滚的是 .composer，但输入框是 position:sticky、永远贴在视口底部，
+   浏览器认为它「本来就可见」，对它调 scrollIntoView 基本不生效 ——
+   新回复于是被吸底的输入框压住，非要手动往下拉一下才看得见。
+   改成滚最后一条消息本身，就不会再有这个毛病：
+   · 这条装得下 → 贴到输入框上方（跟正常聊天一样）
+   · 这条装不下 → 从第一行开始显示，长回复也能从头读 */
+function scrollToNewest(el){
+  var cp = el.querySelector('.composer');
+  if(!cp){ return; }
+  var last = cp.previousElementSibling;        // 输入框上面那一块：消息 / 报错 / 收尾提示
+  if(!last || !last.scrollIntoView){ return; }
+  var bar = document.querySelector('.topbar');
+  var top = (bar ? bar.offsetHeight : 0) + 12;  // 顶栏是吸顶的，别让它盖住第一行
+  var bottom = cp.offsetHeight + 12;            // 输入框是吸底的，别让它盖住最后一行
+  last.style.scrollMarginTop = top + 'px';
+  last.style.scrollMarginBottom = bottom + 'px';
+  var room = window.innerHeight - top - bottom;
+  setTimeout(function(){
+    last.scrollIntoView({ behavior:'smooth', block: last.offsetHeight <= room ? 'end' : 'start' });
+  }, 40);
 }
 
 function refreshSend(){
@@ -409,6 +483,7 @@ function send(){
   var mine = { role:'me', text:text, at:'', step:Number(S.sess.step) || 1 };
   S.sess.msgs = (S.sess.msgs || []).concat([mine]);
   S.draft = ''; S.busy = true; S.err = '';
+  S.focusSay = true;            // 自己发的那条要立刻滚出来，别等回复才动
   renderAll();
   req('POST', '/socratic/api/sessions/' + S.sid + '/reply', { text:text }).then(function(d){
     S.busy = false;
@@ -419,8 +494,8 @@ function send(){
     } else {
       S.sess = d.session;
       S.err = '';
-      S.focusSay = true;
     }
+    S.focusSay = true;          // 回复（或那行报错）同样要立刻看得见
     renderAll();
     loadHistory();
   });

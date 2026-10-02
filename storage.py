@@ -23,8 +23,10 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 import time
+import uuid
 from pathlib import Path
 
 _BASE_DIR = Path(__file__).resolve().parent
@@ -63,7 +65,28 @@ SCHEMA = (
         fetched_at TEXT NOT NULL
     )
     """,
-    "CREATE UNIQUE INDEX IF NOT EXISTS idx_book_cache_key ON book_cache(source, sid)",
+    """
+    CREATE TABLE IF NOT EXISTS tool_cats(
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        user       TEXT NOT NULL,
+        ckey       TEXT NOT NULL,
+        name       TEXT NOT NULL DEFAULT '',
+        custom     INTEGER NOT NULL DEFAULT 0,
+        hidden     INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+    )
+    """,
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_tool_cats_key ON tool_cats(user, ckey)",
+    """
+    CREATE TABLE IF NOT EXISTS tool_cat_assign(
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        user       TEXT NOT NULL,
+        href       TEXT NOT NULL,
+        ckey       TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )
+    """,
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_tool_cat_assign ON tool_cat_assign(user, href)",
 )
 
 
@@ -393,6 +416,160 @@ def book_list(limit: int = 50) -> list:
             payload = {}
         row['has_plan'] = bool(isinstance(payload, dict) and payload.get('analysis'))
     return rows
+
+# ---------------------------------------------------------------
+# 首页「工具分类」：分类清单 + 卡片归属
+#   HTML 里写死的那套只当「作者默认值」，这两张表只存用户自己的改动：
+#     tool_cats        —— 改过的名字 / 自建的分类 / 删掉内置分类留下的墓碑
+#     tool_cat_assign  —— 卡片被拖到别的分类之后的归属
+#   所以「恢复默认」= 把这个 user 在这两张表里的行全删掉，前端自然回落到 HTML 默认值。
+#
+#   约定：custom=1 是用户自建分类（删的时候真删行）；
+#         custom=0 是内置分类（删的时候只写一条 hidden=1 的墓碑，别把默认值弄丢）。
+# ---------------------------------------------------------------
+CAT_NAME_MAX = 10
+CAT_KEY_MAX = 40
+CAT_HREF_MAX = 300
+
+
+def _cat_name(value) -> str:
+    return re.sub(r'\s+', ' ', str(value or '')).strip()[:CAT_NAME_MAX]
+
+
+def _cat_href(value) -> str:
+    href = str(value or '').strip()[:CAT_HREF_MAX]
+    if href.startswith('/') or href.startswith('http://') or href.startswith('https://'):
+        return href
+    return ''
+
+
+def _write_cat_name(conn, user: str, ckey: str, name: str, custom: int, hidden: int) -> None:
+    """有就改，没有就插 —— 不用 INSERT OR REPLACE，免得 id 一直涨。"""
+    cur = conn.execute('UPDATE tool_cats SET name = ?, custom = ?, hidden = ? '
+                       'WHERE user = ? AND ckey = ?', (name, custom, hidden, user, ckey))
+    if cur.rowcount == 0:
+        conn.execute('INSERT INTO tool_cats(user, ckey, name, custom, hidden, created_at) '
+                     'VALUES (?,?,?,?,?,?)', (user, ckey, name, custom, hidden, now_str()))
+
+
+def _apply_moves(conn, user: str, moves) -> None:
+    """moves = {href: 分类key}；值是空字符串表示「取消自定义，回落 HTML 默认」。"""
+    if not isinstance(moves, dict):
+        return
+    for raw_href, raw_cat in moves.items():
+        href = _cat_href(raw_href)
+        if not href:
+            continue
+        cat = str(raw_cat or '').strip()[:CAT_KEY_MAX]
+        if not cat:
+            conn.execute('DELETE FROM tool_cat_assign WHERE user = ? AND href = ?', (user, href))
+            continue
+        cur = conn.execute('UPDATE tool_cat_assign SET ckey = ?, updated_at = ? '
+                           'WHERE user = ? AND href = ?', (cat, now_str(), user, href))
+        if cur.rowcount == 0:
+            conn.execute('INSERT INTO tool_cat_assign(user, href, ckey, updated_at) '
+                         'VALUES (?,?,?,?)', (user, href, cat, now_str()))
+
+
+def cats_state(user: str) -> dict:
+    """前端拿它来摆分类条：cats 是用户改过的行，assign 是被拖过分类的卡片。"""
+    conn = connect()
+    try:
+        cats = _rows(conn, 'SELECT ckey, name, hidden, custom FROM tool_cats '
+                           'WHERE user = ? ORDER BY id', (user,))
+        assigns = _rows(conn, 'SELECT href, ckey FROM tool_cat_assign '
+                              'WHERE user = ? ORDER BY id', (user,))
+    finally:
+        conn.close()
+    return {
+        'cats': [{'key': r['ckey'], 'name': r['name'],
+                  'hidden': bool(r['hidden']), 'custom': bool(r['custom'])} for r in cats],
+        'assign': {r['href']: r['ckey'] for r in assigns},
+    }
+
+
+def cat_add(user: str, name: str) -> str:
+    """新建一个自建分类，返回它的 key。"""
+    name = _cat_name(name)
+    if not name:
+        raise ValueError('分类名字不能是空的。')
+    ckey = 'c_' + uuid.uuid4().hex[:8]
+    conn = connect()
+    try:
+        conn.execute('INSERT INTO tool_cats(user, ckey, name, custom, hidden, created_at) '
+                     'VALUES (?,?,?,1,0,?)', (user, ckey, name, now_str()))
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+    return ckey
+
+
+def cat_rename(user: str, ckey: str, name: str) -> None:
+    name = _cat_name(name)
+    if not name:
+        raise ValueError('分类名字不能是空的。')
+    ckey = str(ckey or '').strip()[:CAT_KEY_MAX]
+    conn = connect()
+    try:
+        row = conn.execute('SELECT custom, hidden FROM tool_cats WHERE user = ? AND ckey = ?',
+                           (user, ckey)).fetchone()
+        custom = int(row['custom']) if row else 0
+        hidden = int(row['hidden']) if row else 0
+        _write_cat_name(conn, user, ckey, name, custom, hidden)
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def cat_delete(user: str, ckey: str, moves=None) -> None:
+    """删分类。自建的删行，内置的写 hidden=1。moves 是「原来在里面的卡片去哪」。"""
+    ckey = str(ckey or '').strip()[:CAT_KEY_MAX]
+    if not ckey or ckey == 'all':
+        raise ValueError('这个分类不能删。')
+    conn = connect()
+    try:
+        if ckey.startswith('c_'):
+            conn.execute('DELETE FROM tool_cats WHERE user = ? AND ckey = ?', (user, ckey))
+        else:
+            cur = conn.execute('UPDATE tool_cats SET hidden = 1 WHERE user = ? AND ckey = ?',
+                               (user, ckey))
+            if cur.rowcount == 0:
+                conn.execute('INSERT INTO tool_cats(user, ckey, name, custom, hidden, created_at) '
+                             'VALUES (?,?,\'\',0,1,?)', (user, ckey, now_str()))
+        _apply_moves(conn, user, moves)
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def assign_apply(user: str, moves) -> None:
+    conn = connect()
+    try:
+        _apply_moves(conn, user, moves)
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def cats_reset(user: str) -> None:
+    """恢复默认：把这个用户在分类上的所有改动抹掉。"""
+    conn = connect()
+    try:
+        conn.execute('DELETE FROM tool_cats WHERE user = ?', (user,))
+        conn.execute('DELETE FROM tool_cat_assign WHERE user = ?', (user,))
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
 
 def checkpoint() -> None:
     """把 WAL 里的内容并回主文件，这样单独下载 .db 就是完整的。"""

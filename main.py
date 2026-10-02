@@ -173,6 +173,12 @@ app.include_router(reading_practice_router)
 from db_viewer import router as db_viewer_router  # noqa: E402
 app.include_router(db_viewer_router)
 
+# 首页「工具分类」：新增 / 删除 / 改名 / 卡片归属
+# 以前这些存在浏览器 localStorage 里，换设备就没了；
+# 现在落 SQLite（storage.py 的 tool_cats / tool_cat_assign），接口在 home_cats.py。
+from home_cats import router as home_cats_router  # noqa: E402
+app.include_router(home_cats_router)
+
 
 
 # =========================================================

@@ -37,7 +37,6 @@ body{
 .mark{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;font-size:32px;
   background:linear-gradient(135deg,#6d7cff,#2dd4bf);box-shadow:0 14px 34px rgba(109,124,255,.4)}
 h1{margin:0;font-size:30px;letter-spacing:1px}
-h2.sec{font-size:15px;color:var(--c-b8c4da);letter-spacing:3px;margin:0 0 14px;font-weight:600}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .tool{
   display:flex;gap:16px;padding:22px;border-radius:20px;text-decoration:none;color:var(--text);
@@ -113,21 +112,32 @@ h2.sec{font-size:15px;color:var(--c-b8c4da);letter-spacing:3px;margin:0 0 14px;f
 .drag:hover{opacity:1;background:var(--tb-hover)}
 .drag:active{cursor:grabbing}
 @media (hover:none){.drag{opacity:.45}}
-.grid.is-filtered .drag{opacity:.12;cursor:not-allowed}
 .tool.dragging{position:fixed;z-index:80;margin:0;pointer-events:none;transition:none;
   transform:rotate(1.2deg) scale(1.02);border-color:rgba(109,124,255,.7);
   box-shadow:0 30px 60px rgba(16,24,40,.32)}
 .tool-ph{border:1px dashed var(--tb-line);border-radius:20px;background:var(--tb-hover);opacity:.55}
 body.is-dragging{cursor:grabbing}
 body.is-dragging .tool:not(.dragging){transition:none}
-.sec-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
-.sec-row h2.sec{margin:0}
-.ord-side{display:flex;align-items:center;gap:10px}
-.ord-tip{font-size:12.5px;color:var(--muted)}
+/* 工具分类导航条 */
+.cats{display:flex;flex-wrap:wrap;gap:9px;margin:0 0 18px}
+.cat{font-family:inherit;font-size:13px;line-height:1;display:inline-flex;align-items:center;gap:7px;
+  padding:9px 14px;border-radius:999px;cursor:pointer;white-space:nowrap;
+  color:var(--tb-muted);background:var(--tb-card);border:1px solid var(--line);
+  transition:color .15s ease,border-color .15s ease,background .15s ease}
+.cat:hover{color:var(--tb-ink);border-color:rgba(109,124,255,.55)}
+.cat.on{color:var(--tb-ink);font-weight:600;background:rgba(109,124,255,.14);border-color:rgba(109,124,255,.55)}
+.cat-n{font-size:11px;line-height:1;padding:2px 6px;border-radius:999px;background:var(--tb-hover);color:var(--tb-muted)}
+.cat.on .cat-n{background:rgba(109,124,255,.2);color:var(--tb-ink)}
+.cat.drop-on{color:var(--tb-ink);font-weight:600;border-color:#2dd4bf;background:rgba(45,212,191,.16);box-shadow:0 0 0 3px rgba(45,212,191,.16)}
+.cat-ico{font-size:14px;line-height:1}
+.cat-add{font-family:inherit;font-size:15px;line-height:1;display:inline-flex;align-items:center;justify-content:center;width:33px;height:33px;padding:0;border-radius:999px;cursor:pointer;color:var(--tb-muted);background:transparent;border:1px dashed var(--line);transition:color .15s ease,border-color .15s ease}
+.cat-add:hover{color:var(--tb-ink);border-color:rgba(109,124,255,.55)}
+.cat-txt{white-space:nowrap}
+
 .ord-reset{font-family:inherit;font-size:12.5px;padding:6px 12px;border-radius:9px;cursor:pointer;
   color:var(--muted);background:var(--tb-card);border:1px solid var(--line);transition:color .15s,border-color .15s}
 .ord-reset:hover{color:var(--tb-ink);border-color:rgba(109,124,255,.55)}
-@media(max-width:760px){.ord-tip{display:none}}
+.cats .ord-reset{margin-left:auto;padding:9px 14px;border-radius:999px}
 @media(max-width:760px){.grid{grid-template-columns:1fr}.wrap{padding:34px 16px 60px}}
 
 .acct{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:24px}
@@ -391,20 +401,23 @@ body.is-dragging .tool:not(.dragging){transition:none}
     <div class="search-col">
       <div class="search-box">
         <span class="ico">🔍</span>
-        <input id="toolSearch" type="search" placeholder="搜索工具名称，试试：图表 / 抖音 / 比价 / 账单…" autocomplete="off">
+        <input id="toolSearch" type="search" autocomplete="off">
       </div>
     </div>
   </div>
 
-  <div class="sec-row">
-    <h2 class="sec">— 工具列表 —</h2>
-    <div class="ord-side">
-      <span class="ord-tip">按住卡片右上角的 ⠿ 拖动可调整顺序</span>
-      <button class="ord-reset hide" id="ordReset" type="button">↺ 恢复默认顺序</button>
-    </div>
+  <div class="cats" id="toolCats" aria-label="工具分类">
+    <button class="cat on" type="button" data-cat="all" aria-pressed="true"><span class="cat-txt">全部</span><span class="cat-n"></span></button>
+    <button class="cat" type="button" data-cat="ai" aria-pressed="false"><span class="cat-ico">🤖</span><span class="cat-txt">AI 助手</span><span class="cat-n"></span></button>
+    <button class="cat" type="button" data-cat="think" aria-pressed="false"><span class="cat-ico">🧠</span><span class="cat-txt">思考训练</span><span class="cat-n"></span></button>
+    <button class="cat" type="button" data-cat="learn" aria-pressed="false"><span class="cat-ico">📚</span><span class="cat-txt">学习·开发</span><span class="cat-n"></span></button>
+    <button class="cat" type="button" data-cat="content" aria-pressed="false"><span class="cat-ico">✨</span><span class="cat-txt">内容·资讯</span><span class="cat-n"></span></button>
+    <button class="cat" type="button" data-cat="ext" aria-pressed="false"><span class="cat-ico">🔗</span><span class="cat-txt">外部工具</span><span class="cat-n"></span></button>
+    <button class="cat-add" id="catAdd" type="button" title="新建分类" aria-label="新建分类">＋</button>
+    <button class="ord-reset hide" id="ordReset" type="button">↺ 恢复默认</button>
   </div>
   <div class="grid">
-    <a class="tool" href="/ai-chart">
+    <a class="tool" data-cat="ai" href="/ai-chart">
       <div class="t-icon">📊</div>
       <div class="t-info">
         <h3>AI 生成图表</h3>
@@ -412,7 +425,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-dy" href="/douyin-download">
+    <a class="tool t-dy" data-cat="content" href="/douyin-download">
       <div class="t-icon">🎬</div>
       <div class="t-info">
         <h3>抖音下载器</h3>
@@ -420,7 +433,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-draw" href="https://draw.jiangxinyu1688.com/zh" target="_blank" rel="noopener noreferrer">
+    <a class="tool t-draw" data-cat="ext" href="https://draw.jiangxinyu1688.com/zh" target="_blank" rel="noopener noreferrer">
       <div class="t-icon">🖌️</div>
       <div class="t-info">
         <h3>NEXT DRAW IO</h3>
@@ -428,7 +441,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开 ↗</span>
       </div>
     </a>
-    <a class="tool t-buy" href="/buy-helper">
+    <a class="tool t-buy" data-cat="ai" href="/buy-helper">
       <div class="t-icon">🛒</div>
       <div class="t-info">
         <h3>购物比价助手</h3>
@@ -436,7 +449,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-bill" href="/bill-analysis">
+    <a class="tool t-bill" data-cat="ai" href="/bill-analysis">
       <div class="t-icon">🧾</div>
       <div class="t-info">
         <h3>账单分析</h3>
@@ -445,7 +458,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
       </div>
     </a>
 
-    <a class="tool t-study" href="/study-assistant">
+    <a class="tool t-study" data-cat="ai" href="/study-assistant">
       <div class="t-icon">🧠</div>
       <div class="t-info">
         <h3>学习模型助手</h3>
@@ -453,7 +466,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-dt" href="https://tutor.jiangxinyu1688.com/chat" target="_blank" rel="noopener noreferrer">
+    <a class="tool t-dt" data-cat="ext" href="https://tutor.jiangxinyu1688.com/chat" target="_blank" rel="noopener noreferrer">
       <div class="t-icon">🎓</div>
       <div class="t-info">
         <h3>Deeptutor</h3>
@@ -461,7 +474,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开 ↗</span>
       </div>
     </a>
-    <a class="tool t-tr" href="/translator">
+    <a class="tool t-tr" data-cat="ai" href="/translator">
       <div class="t-icon">🌐</div>
       <div class="t-info">
         <h3>翻译助手</h3>
@@ -469,7 +482,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-mic" href="https://openmic.jiangxinyu1688.com/" target="_blank" rel="noopener noreferrer">
+    <a class="tool t-mic" data-cat="ext" href="https://openmic.jiangxinyu1688.com/" target="_blank" rel="noopener noreferrer">
       <div class="t-icon">🎤</div>
       <div class="t-info">
         <h3>openmanic</h3>
@@ -477,7 +490,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开 ↗</span>
       </div>
     </a>
-    <a class="tool t-ocr" href="/ocr">
+    <a class="tool t-ocr" data-cat="ai" href="/ocr">
       <div class="t-icon">🔍</div>
       <div class="t-info">
         <h3>OCR图片识别</h3>
@@ -485,7 +498,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-jt" href="/judgement-trainer">
+    <a class="tool t-jt" data-cat="think" href="/judgement-trainer">
       <div class="t-icon">🧠</div>
       <div class="t-info">
         <h3>判断力教练</h3>
@@ -493,7 +506,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-pd" href="/predict-diary">
+    <a class="tool t-pd" data-cat="think" href="/predict-diary">
       <div class="t-icon">🎯</div>
       <div class="t-info">
         <h3>贝叶斯日记</h3>
@@ -501,7 +514,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-lc" href="/langchain-learn">
+    <a class="tool t-lc" data-cat="learn" href="/langchain-learn">
       <div class="t-icon">🔗</div>
       <div class="t-info">
         <h3>LangChain 学习</h3>
@@ -509,7 +522,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-sdd" href="/sdd-decomposer">
+    <a class="tool t-sdd" data-cat="learn" href="/sdd-decomposer">
       <div class="t-icon">📐</div>
       <div class="t-info">
         <h3>SDD 需求拆解器</h3>
@@ -517,7 +530,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-soc" href="/socratic">
+    <a class="tool t-soc" data-cat="think" href="/socratic">
       <div class="t-icon">🏛️</div>
       <div class="t-info">
         <h3>苏格拉底提问</h3>
@@ -525,7 +538,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-wi" href="/writing-ideas">
+    <a class="tool t-wi" data-cat="content" href="/writing-ideas">
       <div class="t-icon">✍️</div>
       <div class="t-info">
         <h3>写作选题</h3>
@@ -533,7 +546,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-rm" href="/rumination">
+    <a class="tool t-rm" data-cat="think" href="/rumination">
       <div class="t-icon">🫧</div>
       <div class="t-info">
         <h3>内耗拆解</h3>
@@ -541,7 +554,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-mpt" href="http://123.57.222.118:8501/" target="_blank" rel="noopener noreferrer">
+    <a class="tool t-mpt" data-cat="content" href="http://123.57.222.118:8501/" target="_blank" rel="noopener noreferrer">
       <div class="t-icon">🎬</div>
       <div class="t-info">
         <h3>MoneyPrinterTurbo</h3>
@@ -549,7 +562,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开 ↗</span>
       </div>
     </a>
-    <a class="tool t-opc" href="/opc">
+    <a class="tool t-opc" data-cat="content" href="/opc">
       <div class="t-icon">📡</div>
       <div class="t-info">
         <h3>OPC 资讯</h3>
@@ -557,7 +570,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-rd" href="/reading-practice">
+    <a class="tool t-rd" data-cat="learn" href="/reading-practice">
       <div class="t-icon">📚</div>
       <div class="t-info">
         <h3>读书落地</h3>
@@ -565,7 +578,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-vw" href="/db">
+    <a class="tool t-vw" data-cat="learn" href="/db">
       <div class="t-icon">🔍</div>
       <div class="t-info">
         <h3>数据浏览</h3>
@@ -578,32 +591,287 @@ body.is-dragging .tool:not(.dragging){transition:none}
 (function(){
 'use strict';
 
-var KEY = 'tb_tool_order';
-var grid = document.querySelector('.grid');
+var grid     = document.querySelector('.grid');
 if(!grid){ return; }
 
-// cards 这一份是「作者写死的默认顺序」，恢复默认时按它排回去
-var cards = Array.prototype.slice.call(grid.querySelectorAll('.tool'));
-var search = document.getElementById('toolSearch');
+var search   = document.getElementById('toolSearch');
+var catBar   = document.getElementById('toolCats');
+var addBtn   = document.getElementById('catAdd');
 var resetBtn = document.getElementById('ordReset');
 
-function keyOf(el){ return el.getAttribute('href') || ''; }
+var API  = '/api/home/cats';
+var OKEY = 'tb_tool_order';   // 卡片顺序，纯本机界面状态，留在 localStorage
+var CKEY = 'tb_tool_cat';     // 当前选中的分类，同上
+
+function hrefOf(el){ return el.getAttribute('href') || ''; }
+
+// cards 这份是「作者写死的默认顺序」，恢复默认时按它排回去
+var cards = Array.prototype.slice.call(grid.querySelectorAll('.tool'));
+
+var defCat = {};   // 卡片默认属于哪个分类（写在 HTML 的 data-cat 上）
+cards.forEach(function(c){ defCat[hrefOf(c)] = c.getAttribute('data-cat') || 'all'; });
+
+var defName = {};  // 内置分类的默认名（写在 HTML 里），改名 / 恢复默认时当兜底
+var domKeys = [];  // HTML 里写死的分类清单
+if(catBar){
+  Array.prototype.forEach.call(catBar.querySelectorAll('.cat[data-cat]'), function(b){
+    var k = b.getAttribute('data-cat'), t = b.querySelector('.cat-txt');
+    domKeys.push(k);
+    if(t){ defName[k] = t.textContent; }
+  });
+}
+
+/* 分类和卡片归属由服务端（SQLite）说了算，这里只缓存一份最近的快照 */
+var names   = {};                 // { 分类key: 显示名 }
+var assign  = {};                 // { href: 分类key }
+var catKeys = domKeys.slice();    // 现有分类，顺序就是显示顺序
+var hasOrder = false;
+var cat = 'all';
+try{
+  var c0 = localStorage.getItem(CKEY);
+  if(c0 && catKeys.indexOf(c0) >= 0){ cat = c0; }
+  hasOrder = !!JSON.parse(localStorage.getItem(OKEY) || 'null');
+}catch(e){}
+
+function catOf(card){ return assign[hrefOf(card)] || defCat[hrefOf(card)] || 'all'; }
+function isFiltered(){ return !!grid.querySelector('.tool.hide'); }
+function labelOf(k){ return names[k] || defName[k] || k; }
+function select(k){
+  cat = k;
+  try{ localStorage.setItem(CKEY, k); }catch(e){}
+}
 
 /* ---- 1) 先还原上次拖的顺序（紧接着列表跑，页面不会先闪一下默认顺序） ---- */
 var saved = null;
-try{ saved = JSON.parse(localStorage.getItem(KEY) || 'null'); }catch(e){ saved = null; }
+try{ saved = JSON.parse(localStorage.getItem(OKEY) || 'null'); }catch(e){ saved = null; }
 if(saved && saved.length){
   var map = {};
-  cards.forEach(function(c){ map[keyOf(c)] = c; });
+  cards.forEach(function(c){ map[hrefOf(c)] = c; });
   saved.forEach(function(k){ if(map[k]){ grid.appendChild(map[k]); map[k] = null; } });
-  // 顺序表里没有的（后来新加的工具）保持原来的相对位置，接在后面
-  cards.forEach(function(c){ if(map[keyOf(c)]){ grid.appendChild(map[keyOf(c)]); } });
-  if(resetBtn){ resetBtn.classList.remove('hide'); }
+  cards.forEach(function(c){ if(map[hrefOf(c)]){ grid.appendChild(map[hrefOf(c)]); } });
 }
 
-/* ---- 2) 每张卡右上角挂一个拖动手柄 ---- */
+/* ---- 2) 分类条：按 catKeys 摆好按钮 ---- */
+function makeChip(k){
+  var b   = document.createElement('button');
+  var ico = document.createElement('span');
+  var txt = document.createElement('span');
+  var n   = document.createElement('span');
+  b.className = 'cat';
+  b.setAttribute('type', 'button');
+  b.setAttribute('data-cat', k);
+  b.setAttribute('aria-pressed', 'false');
+  ico.className = 'cat-ico';
+  ico.textContent = '\uD83C\uDFF7\uFE0F';
+  txt.className = 'cat-txt';
+  txt.textContent = labelOf(k);
+  n.className = 'cat-n';
+  b.appendChild(ico); b.appendChild(txt); b.appendChild(n);
+  return b;
+}
+
+function syncChips(){
+  if(!catBar){ return; }
+  var have = {};
+  Array.prototype.forEach.call(catBar.querySelectorAll('.cat[data-cat]'), function(b){
+    have[b.getAttribute('data-cat')] = b;
+  });
+  catKeys.forEach(function(k){ if(!have[k]){ have[k] = makeChip(k); } });
+  Object.keys(have).forEach(function(k){
+    if(catKeys.indexOf(k) < 0 && have[k].parentNode){ have[k].parentNode.removeChild(have[k]); }
+  });
+  var before = addBtn || resetBtn || null;
+  catKeys.forEach(function(k){ if(have[k]){ catBar.insertBefore(have[k], before); } });
+}
+
+/* ---- 3) 名字 / 数量 / 选中态 ---- */
+function paint(){
+  if(!catBar){ return; }
+  Array.prototype.forEach.call(catBar.querySelectorAll('.cat[data-cat]'), function(b){
+    var key = b.getAttribute('data-cat');
+    var on  = key === cat;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    if(key !== 'all'){ b.title = '\u53cc\u51fb\u6539\u540d \u00b7 \u53f3\u952e\u5220\u9664'; }
+    var t = b.querySelector('.cat-txt');
+    if(t && key !== 'all'){ t.textContent = labelOf(key); }
+    var n = b.querySelector('.cat-n');
+    if(n){
+      n.textContent = key === 'all' ? cards.length
+        : cards.filter(function(c){ return catOf(c) === key; }).length;
+    }
+  });
+}
+
+/* ---- 4) 过滤：搜索 + 分类只在这一处合并算，免得互相覆盖 hide ---- */
+function apply(){
+  var q = ((search && search.value) || '').trim().toLowerCase();
+  var matched = 0;
+  cards.forEach(function(card){
+    var hit = (cat === 'all' || catOf(card) === cat)
+      && (!q || (card.textContent || '').toLowerCase().indexOf(q) >= 0);
+    card.classList.toggle('hide', !hit);
+    if(hit){ matched++; }
+  });
+  var nr = document.getElementById('noResult');   // 这个 div 写在脚本后面，只能现查
+  if(nr){
+    nr.textContent = (cat === 'all')
+      ? '没有找到匹配的工具，换个关键词试试吧～'
+      : '这个分类下没有匹配的工具，换个关键词试试吧～';
+    nr.classList.toggle('hide', matched > 0);
+  }
+}
+
+function isCustom(){
+  return hasOrder || Object.keys(assign).length > 0 || Object.keys(names).length > 0
+    || catKeys.join(',') !== domKeys.join(',');
+}
+
+function syncReset(){
+  if(!resetBtn){ return; }
+  resetBtn.classList.toggle('hide', !isCustom());
+}
+
+/* ---- 5) 和服务端打交道：分类数据全在 SQLite 里 ---- */
+var seq = 0, applied = 0;   // 给每个请求编号：慢的旧响应回来时不能把新状态盖回去
+
+function api(method, url, body){
+  var id = ++seq;
+  return fetch(url, {
+    method: method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined
+  }).then(function(r){
+    return r.json().catch(function(){ return null; }).then(function(d){
+      if(!r.ok || !d || d.ok === false){
+        throw new Error((d && d.error) || ('请求失败（' + r.status + '）'));
+      }
+      return { id: id, data: d };
+    });
+  });
+}
+
+// 服务端每次都回一份完整状态，整块换掉就行，不用两边各算一份
+function adopt(res){
+  if(res.id < applied){ return; }        // 这是更早那次请求的响应，丢掉
+  applied = res.id;
+  var d = res.data;
+  var custom = [], hidden = {};
+  names = {}; assign = {};
+  (d.cats || []).forEach(function(c){
+    if(c.hidden){ hidden[c.key] = 1; return; }
+    if(c.custom){ custom.push(c.key); }
+    if(c.name){ names[c.key] = c.name; }
+  });
+  catKeys = domKeys.filter(function(k){ return !hidden[k]; }).concat(custom);
+  assign = (d.assign && typeof d.assign === 'object') ? d.assign : {};
+  if(catKeys.indexOf(cat) < 0){ select('all'); }
+  syncChips(); paint(); apply(); syncReset();
+}
+
+function reload(){
+  return api('GET', API).then(adopt);
+}
+
+function send(method, url, body){
+  return api(method, url, body).then(adopt).catch(function(e){
+    window.alert((e && e.message) || '操作没成功');
+    return reload().catch(function(){});
+  });
+}
+
+/* ---- 6) 新增 / 删除 / 改名 ---- */
+function pick(v){ return (v === null) ? null : v.replace(/\s+/g, ' ').trim().slice(0, 10); }
+
+if(addBtn){
+  addBtn.addEventListener('click', function(){
+    var v = pick(window.prompt('新分类叫什么？（最多 10 个字）', ''));
+    if(!v){ return; }
+    send('POST', API, { name: v });
+  });
+}
+
+function removeCat(key){
+  if(key === 'all'){ return; }
+  var others = catKeys.filter(function(k){ return k !== 'all' && k !== key; });
+  if(!others.length){ window.alert('至少得留一个分类，「全部」不算在内。'); return; }
+
+  var inside = cards.filter(function(c){ return catOf(c) === key; });
+  var moves = {};
+
+  if(inside.length){
+    var list = others.map(function(k, i){ return (i + 1) + ') ' + labelOf(k); }).join('\n');
+    var v = window.prompt('「' + labelOf(key) + '」里还有 ' + inside.length + ' 个工具。\n'
+      + '删掉之后它们移到哪个分类？输入编号：\n\n' + list, '1');
+    if(v === null){ return; }
+    var i = parseInt(v, 10) - 1;
+    if(!(i >= 0 && i < others.length)){ return; }        // 编号无效 = 放弃删除
+    var target = others[i];
+    inside.forEach(function(c){
+      var h = hrefOf(c);
+      moves[h] = (target === defCat[h]) ? '' : target;   // 空串 = 回落 HTML 默认分类
+    });
+  } else if(!window.confirm('删除空分类「' + labelOf(key) + '」？')){
+    return;
+  }
+  send('DELETE', API + '/' + encodeURIComponent(key), { moves: moves });
+}
+
+if(catBar){
+  // 点一下：切分类
+  catBar.addEventListener('click', function(e){
+    var b = e.target && e.target.closest ? e.target.closest('.cat') : null;
+    if(!b){ return; }
+    select(b.getAttribute('data-cat'));
+    paint(); apply();
+  });
+
+  // 双击：改分类名字（「全部」是虚拟分类，不给改）
+  catBar.addEventListener('dblclick', function(e){
+    var b = e.target && e.target.closest ? e.target.closest('.cat') : null;
+    if(!b){ return; }
+    var key = b.getAttribute('data-cat');
+    if(key === 'all'){ return; }
+    var cur = labelOf(key);
+    var v = pick(window.prompt('给「' + cur + '」这个分类起个新名字（最多 10 个字）', cur));
+    if(!v || v === cur){ return; }
+    send('PATCH', API + '/' + encodeURIComponent(key), { name: v });
+  });
+
+  // 右键：删分类
+  catBar.addEventListener('contextmenu', function(e){
+    var b = e.target && e.target.closest ? e.target.closest('.cat') : null;
+    if(!b){ return; }
+    var key = b.getAttribute('data-cat');
+    if(key === 'all'){ return; }
+    e.preventDefault();
+    removeCat(key);
+  });
+}
+
+if(search){ search.addEventListener('input', apply); }
+
+/* ---- 7) 拖拽：网格里拖 = 调顺序；拖到分类上松手 = 换分类 ---- */
 var drag = null;      // 正在拖的那张
 var pending = null;   // 按下了但还没动，超过 4px 才算拖
+var hot = null;       // 当前悬停的分类按钮
+
+function chipAt(x, y){
+  if(!catBar){ return null; }
+  var found = null;
+  Array.prototype.forEach.call(catBar.querySelectorAll('.cat[data-cat]'), function(b){
+    var r = b.getBoundingClientRect();
+    if(x >= r.left && x <= r.right && y >= r.top && y <= r.bottom){ found = b; }
+  });
+  return found;
+}
+
+function lightChip(b){
+  if(hot === b){ return; }
+  if(hot){ hot.classList.remove('drop-on'); }
+  hot = b;
+  if(hot){ hot.classList.add('drop-on'); }
+}
 
 function begin(card, e){
   var r = card.getBoundingClientRect();
@@ -619,7 +887,8 @@ function begin(card, e){
   card.style.left = r.left + 'px';
   card.style.top = r.top + 'px';
 
-  drag = { card: card, ph: ph, ox: e.clientX - r.left, oy: e.clientY - r.top, moved: false };
+  drag = { card: card, ph: ph, ox: e.clientX - r.left, oy: e.clientY - r.top,
+           moved: false, originNext: card.nextSibling, overBar: false, chip: null };
   document.body.classList.add('is-dragging');
 }
 
@@ -643,8 +912,22 @@ function move(e){
   if(!drag){ return; }
   drag.moved = true;
   drag.card.style.left = (e.clientX - drag.ox) + 'px';
-  drag.card.style.top = (e.clientY - drag.oy) + 'px';
+  drag.card.style.top  = (e.clientY - drag.oy) + 'px';
+
+  var b = chipAt(e.clientX, e.clientY);
+  drag.overBar = !!b;
+  drag.chip = (b && b.getAttribute('data-cat') !== 'all') ? b : null;
+  lightChip(drag.chip);
+
+  if(b){ return; }              // 悬在分类条上：只准备归类，不重排
+  if(isFiltered()){ return; }   // 列表被筛过：不重排，免得隐藏的卡片被挤乱
   place(e.clientX, e.clientY);
+}
+
+function setCat(href, key){
+  var moves = {};
+  moves[href] = (key === defCat[href]) ? '' : key;
+  send('PUT', '/api/home/assign', { moves: moves });
 }
 
 function finish(){
@@ -652,29 +935,40 @@ function finish(){
   if(!drag){ return; }
   var d = drag;
   drag = null;
+  lightChip(null);
   document.body.classList.remove('is-dragging');
   d.card.classList.remove('dragging');
   d.card.style.left = d.card.style.top = d.card.style.width = d.card.style.height = '';
   if(d.ph.parentNode){ d.ph.parentNode.insertBefore(d.card, d.ph); d.ph.remove(); }
   if(!d.moved){ return; }
-  var order = Array.prototype.slice.call(grid.querySelectorAll('.tool')).map(keyOf);
-  try{ localStorage.setItem(KEY, JSON.stringify(order)); }catch(e){}
-  if(resetBtn){ resetBtn.classList.remove('hide'); }
+
+  if(d.overBar){
+    // 松在分类条上：卡片放回拖动前的位置，顺序不变
+    if(d.originNext && d.originNext.parentNode === grid){ grid.insertBefore(d.card, d.originNext); }
+    else if(!d.originNext){ grid.appendChild(d.card); }
+    if(d.chip){ setCat(hrefOf(d.card), d.chip.getAttribute('data-cat')); }
+    return;
+  }
+  if(isFiltered()){ return; }
+
+  var order = Array.prototype.slice.call(grid.querySelectorAll('.tool')).map(hrefOf);
+  try{ localStorage.setItem(OKEY, JSON.stringify(order)); }catch(err){}
+  hasOrder = true;
+  syncReset();
 }
 
 cards.forEach(function(card){
   var h = document.createElement('span');
   h.className = 'drag';
-  h.textContent = '⠿';                 // ⠿
-  h.title = '按住拖动，调整顺序';
+  h.textContent = '⠿';
+  h.title = '网格里拖 = 调顺序；拖到上面的分类上松手 = 换分类';
   h.setAttribute('role', 'button');
-  h.setAttribute('aria-label', '拖动调整顺序');
+  h.setAttribute('aria-label', '拖动调整顺序或分类');
   h.setAttribute('tabindex', '-1');
   card.appendChild(h);
 
   h.addEventListener('pointerdown', function(e){
     if(e.button){ return; }
-    if(search && (search.value || '').trim()){ return; }   // 搜索时列表是残缺的，先别拖
     e.preventDefault();
     try{ h.setPointerCapture(e.pointerId); }catch(err){}
     pending = { card: card, e: e, x: e.clientX, y: e.clientY };
@@ -694,48 +988,27 @@ cards.forEach(function(card){
   h.addEventListener('dragstart', function(e){ e.preventDefault(); });
 });
 
-/* ---- 3) 恢复默认顺序 ---- */
+/* ---- 8) 恢复默认：分类那块交给服务端清，卡片顺序是本机状态自己清 ---- */
 if(resetBtn){
   resetBtn.addEventListener('click', function(){
-    try{ localStorage.removeItem(KEY); }catch(e){}
+    if(!window.confirm('恢复默认：自建分类、分类名字、卡片归属都会还原，卡片顺序也会打乱重排。继续吗？')){ return; }
+    try{ localStorage.removeItem(OKEY); }catch(e){}
+    hasOrder = false;
     cards.forEach(function(c){ grid.appendChild(c); });
-    resetBtn.classList.add('hide');
+    send('POST', API + '/reset', {});
   });
 }
 
-/* ---- 4) 搜索时把手柄压灰，省得边筛边拖拖乱 ---- */
-if(search){
-  var mark = function(){ grid.classList.toggle('is-filtered', !!(search.value || '').trim()); };
-  search.addEventListener('input', mark);
-  mark();
-}
+syncChips();
+paint(); apply(); syncReset();
+reload().catch(function(){ /* 接口不通就先用 HTML 默认值撑着，改动时会提示 */ });
 
 })();
 </script>
   <div id="noResult" class="no-result hide">没有找到匹配的工具，换个关键词试试吧～</div>
 
 </div>
-<script>
-(function(){
-  'use strict';
-  var input = document.getElementById('toolSearch');
-  var cards = Array.prototype.slice.call(document.querySelectorAll('.tool'));
-  var noResult = document.getElementById('noResult');
-  function apply(){
-    var q = (input.value || '').trim().toLowerCase();
-    var matched = 0;
-    cards.forEach(function(card){
-      var text = (card.textContent || '').toLowerCase();
-      var hit = !q || text.indexOf(q) >= 0;
-      card.classList.toggle('hide', !hit);
-      if (hit){ matched++; }
-    });
-    noResult.classList.toggle('hide', !q || matched > 0);
-  }
-  input.addEventListener('input', apply);
-  apply();
-})();
-</script>
+
 <script>
 (function(){
   'use strict';
