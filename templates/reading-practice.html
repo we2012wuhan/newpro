@@ -130,6 +130,60 @@ textarea::placeholder,input::placeholder{color:var(--muted);opacity:.72}
   font-size:13.5px;box-shadow:var(--sh);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 @media (prefers-reduced-motion:reduce){.sk,.spin{animation:none;opacity:.6}}
+/* ===== 找书：候选列表 ===== */
+.cand{display:flex;align-items:center;gap:12px;width:100%;text-align:left;margin-top:8px;padding:10px 12px;
+  border:1px solid var(--line);border-radius:12px;background:var(--field);cursor:pointer;
+  transition:border-color .15s,background .15s}
+.cand:hover{border-color:var(--acc-line);background:var(--acc-l)}
+.cand-c{width:42px;height:58px;flex:0 0 42px;object-fit:cover;border-radius:5px;background:var(--soft)}
+.cand-b{flex:1 1 auto;min-width:0}
+.cand-t{display:block;font-size:14.5px;font-weight:600;color:var(--ink);line-height:1.45;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cand-m{display:block;font-size:12px;color:var(--muted);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cand-go{flex:0 0 auto;font-size:12px;color:var(--acc);border:1px solid var(--acc-line);
+  border-radius:999px;padding:3px 10px;background:var(--card);white-space:nowrap}
+
+/* ===== 选中的那本书 ===== */
+.bk{display:flex;gap:14px;align-items:flex-start}
+.bk-c{width:76px;height:104px;flex:0 0 76px;object-fit:cover;border-radius:8px;background:var(--soft);
+  box-shadow:0 10px 22px -14px rgba(0,0,0,.5)}
+.bk-i{flex:1 1 auto;min-width:0}
+.bk-t{font-size:18px;font-weight:600;color:var(--ink);line-height:1.4}
+.bk-m{font-size:12.5px;color:var(--muted);line-height:1.8;margin-top:4px}
+.bk-m .badge{margin:0 5px 3px 0}
+.src{margin-top:14px;border-top:1px dashed var(--line);padding-top:11px}
+.src-h{font-size:12px;color:var(--muted);line-height:1.7}
+details.fold{margin-top:8px;border:1px solid var(--line);border-radius:12px;background:var(--field);padding:0 13px}
+details.fold>summary{cursor:pointer;list-style:none;padding:11px 0;font-size:13.5px;color:var(--ink);
+  font-weight:600;display:flex;align-items:center;gap:8px}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary::before{content:'+';flex:0 0 14px;text-align:center;color:var(--acc);font-weight:600}
+details.fold[open]>summary::before{content:'–'}
+details.fold>summary .n{font-weight:400;font-size:12px;color:var(--muted)}
+details.fold .fold-b{padding:0 0 13px;font-size:13.5px;line-height:1.8;color:var(--text)}
+details.fold .fold-b ol,details.fold .fold-b ul{margin:0;padding-left:20px}
+details.fold .fold-b li{margin-bottom:4px}
+details.fold .fold-b .rv{border-left:2px solid var(--acc-line);padding-left:10px;margin-bottom:9px}
+.busy{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:13.5px;margin-top:12px}
+.spin.dark{border-color:var(--line);border-top-color:var(--acc)}
+.basis{margin-top:9px}
+/* ===== 右侧「最近查过的书」 ===== */
+.recent-i{display:block;width:100%;text-align:left;margin-top:8px;padding:10px 12px;
+  border:1px solid var(--line);border-radius:12px;background:var(--field);cursor:pointer;
+  transition:border-color .15s,background .15s}
+.recent-i:hover{border-color:var(--acc-line);background:var(--acc-l)}
+.recent-i.on{border-color:var(--acc);background:var(--acc-l);box-shadow:inset 3px 0 0 var(--acc)}
+.recent-t{display:block;font-size:14px;font-weight:600;color:var(--ink);line-height:1.45;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.recent-m{display:block;font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.6;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.col-main{min-width:0}
+@media (min-width:1100px){
+  .topbar-in,.wrap{max-width:1180px}
+  .wrap{display:grid;grid-template-columns:minmax(0,1fr) 292px;gap:22px;align-items:start}
+  .col-side{position:sticky;top:78px}
+}
 </style>
 </head>
 <body>
@@ -137,64 +191,66 @@ textarea::placeholder,input::placeholder{color:var(--muted);opacity:.72}
   <div class="topbar-in">
     <div>
       <div class="ttl">读书落地</div>
-      <div class="sub">不写读书笔记，只输出今天能照着做的动作</div>
+      <div class="sub">先抓这本书的真实资料，再拆成今天能做的事</div>
     </div>
     <a class="back" href="/">← 返回工具箱</a>
   </div>
 </header>
 
 <main class="wrap">
+  <div class="col-main">
   <div class="card">
-    <label class="f" for="book">书名</label>
-    <input id="book" type="text" placeholder="例：原子习惯">
-    <label class="f" for="author">作者</label>
+    <label class="f" for="q">书名</label>
+    <input id="q" type="text" placeholder="例：原子习惯">
+    <label class="f" for="author">作者（填了更容易认对同名书）</label>
     <input id="author" type="text" placeholder="例：詹姆斯·克利尔">
-    <label class="f" for="ask">你想用它解决什么（可空）</label>
-    <input id="ask" type="text" placeholder="例：计划老是完不成">
-    <button class="btn primary block big" id="goBtn" type="button">拆成能做的事</button>
-    <div class="mini" id="goTip" style="text-align:center;margin-top:8px"></div>
+    <button class="btn primary block big" id="findBtn" type="button" style="margin-top:16px">找这本书</button>
+    <div class="mini" id="findTip" style="text-align:center;margin-top:8px"></div>
   </div>
 
-  <div id="out"></div>
+  <section id="pick"></section>
+  <section id="bookBox"></section>
+  <section id="out"></section>
   <section id="mine"></section>
+  </div>
+
+  <aside class="col-side">
+    <section id="recent"></section>
+  </aside>
 </main>
 <div class="toast" id="toast"></div>
 <script>
 (function(){
 'use strict';
 
-/* 拆出来的实践卡只存这台设备的浏览器里 */
-var K_PLAN = 'rd_plans_v1';
 var REVIEW_DAYS = 7;
 
-var S = { ai:true, busy:false, data:null, source:'', err:'', book:'', author:'' };
+var S = {
+  ai:true, busy:false,
+  cands:[], labels:{}, used:[], want:'',
+  picked:null, book:null, bookFrom:'', bookErr:'',
+  data:null, src:'', err:'', msg:'', ask:'', gen:false, restored:false, at:''
+};
 var plans = [];
+var drafts = {};
 
 function $(id){ return document.getElementById(id); }
 function esc(s){
   return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-function load(k, fb){
-  try{ var v = localStorage.getItem(k); return v === null ? fb : JSON.parse(v); }
-  catch(e){ return fb; }
-}
-function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 function toast(msg){
   var t = $('toast');
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(toast._t);
-  toast._t = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+  toast._t = setTimeout(function(){ t.classList.remove('show'); }, 2400);
 }
-function dayStr(d){
-  var m = d.getMonth() + 1, day = d.getDate();
-  return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
-}
+function two(n){ return (n < 10 ? '0' : '') + n; }
+function dayStr(d){ return d.getFullYear()+'-'+two(d.getMonth()+1)+'-'+two(d.getDate()); }
 function todayStr(){ return dayStr(new Date()); }
 function addDays(s, n){
-  var p = s.split('-');
-  var d = new Date(+p[0], +p[1] - 1, +p[2]);
+  var p = s.split('-'), d = new Date(+p[0], +p[1]-1, +p[2]);
   d.setDate(d.getDate() + n);
   return dayStr(d);
 }
@@ -202,65 +258,286 @@ function daysBetween(a, b){
   var pa = a.split('-'), pb = b.split('-');
   return Math.round((new Date(+pb[0],+pb[1]-1,+pb[2]) - new Date(+pa[0],+pa[1]-1,+pa[2])) / 86400000);
 }
-function api(path, body){
-  return fetch(path, {
-    method:'POST', headers:{ 'Content-Type':'application/json' },
-    body: JSON.stringify(body || {})
-  }).then(function(r){ return r.json(); })
-    .catch(function(){ return { ok:false, msg:'请求失败，看下服务还在不在' }; });
+function go(el){ if(el && el.scrollIntoView){ el.scrollIntoView({ behavior:'smooth', block:'start' }); } }
+function bindImgs(root){
+  Array.prototype.forEach.call(root.querySelectorAll('img'), function(im){
+    im.onerror = function(){ im.style.visibility = 'hidden'; };
+  });
 }
+
+/* 统一的请求封装：后端出错时也带 message，别让页面只看到「失败」两个字 */
+function req(method, path, body){
+  var opt = { method:method, headers:{} };
+  if(body !== undefined){ opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
+  return fetch(path, opt).then(function(r){
+    return r.text().then(function(txt){
+      var d = {};
+      try{ d = JSON.parse(txt) || {}; }catch(e){ d = {}; }
+      if(d.ok === undefined){ d.ok = r.ok; }
+      if(!d.ok && !d.message){ d.message = '服务返回 ' + r.status; }
+      return d;
+    });
+  }).catch(function(){ return { ok:false, message:'请求失败，看看服务还在不在' }; });
+}
+
+/* ===================== 找书 ===================== */
+function find(){
+  var q = $('q').value.trim();
+  if(!q){ toast('先把书名写上'); return; }
+  S.want = $('author').value.trim();
+  S.busy = true; S.err = ''; S.msg = '';
+  S.cands = []; S.used = [];
+  S.picked = null; S.book = null; S.bookFrom = ''; S.bookErr = '';
+  S.data = null; S.src = ''; S.ask = '';
+  renderAll();
+  req('POST', '/reading-practice/api/search', { q:q, author:S.want }).then(function(d){
+    S.busy = false;
+    if(!d.ok){ S.err = d.message || '搜索失败'; }
+    else {
+      S.cands = d.items || [];
+      S.labels = d.labels || {};
+      S.used = d.used || [];
+      S.msg = d.message || '';
+    }
+    renderAll();
+    go($('pick'));
+  });
+}
+
+/* 把后端的书装进状态：资料照收，上次拆的卡片一起摆回来 */
+function applyBook(d){
+  var b = d.book || {};
+  S.book = b;
+  S.bookFrom = d.cached ? 'cache' : 'net';
+  S.ask = b.ask || '';
+  var an = b.analysis;
+  if(an && an.data){
+    S.data = an.data; S.src = an.src || 'ai';
+    S.restored = true; S.at = an.at || '';
+  } else {
+    S.data = null; S.src = ''; S.restored = false; S.at = '';
+  }
+}
+
+function fetchBook(source, sid){
+  S.book = null; S.bookFrom = ''; S.bookErr = '';
+  S.data = null; S.src = ''; S.restored = false; S.at = '';
+  S.err = ''; S.msg = ''; S.ask = '';
+  S.busy = true;
+  renderAll();
+  req('POST', '/reading-practice/api/book', { source:source, sid:sid }).then(function(d){
+    S.busy = false;
+    if(!d.ok){ S.bookErr = d.message || '没抓到这本书的资料'; }
+    else { applyBook(d); }
+    renderAll();
+    if(d.ok){ loadRecent(); }
+    go($('bookBox'));
+  });
+}
+
+function pickOne(i){
+  var c = S.cands[i];
+  if(!c){ return; }
+  S.picked = c;
+  fetchBook(c.source, c.sid);
+}
+
+function openRecent(b){
+  if(!b){ return; }
+  S.picked = { source:b.source, sid:b.sid, title:b.title };
+  fetchBook(b.source, b.sid);
+}
+
+function refetch(){
+  if(!S.picked){ return; }
+  S.busy = true; S.bookErr = '';
+  renderAll();
+  req('POST', '/reading-practice/api/book',
+      { source:S.picked.source, sid:S.picked.sid, refresh:true }).then(function(d){
+    S.busy = false;
+    if(!d.ok){ S.bookErr = d.message || '还是没抓到'; }
+    else { applyBook(d); S.bookFrom = 'net'; }
+    renderAll();
+    if(d.ok){ loadRecent(); }
+  });
+}
+
+/* ===================== 渲染 ===================== */
+function renderAll(){ refreshForm(); renderPick(); renderBook(); renderOut(); renderRecent(); }
 
 function refreshForm(){
-  var ok = $('book').value.trim().length >= 2;
-  $('goBtn').disabled = !ok || S.busy;
-  if(S.busy){ $('goTip').textContent = ''; return; }
-  $('goTip').textContent = ok
-    ? (S.ai ? '' : '服务端没配模型 Key，会给你一份自己拆的六问模板')
-    : '还差：书名';
+  var ok = $('q').value.trim().length > 0;
+  $('findBtn').disabled = !ok || S.busy;
+  if(S.busy){ $('findTip').textContent = '正在找…'; return; }
+  $('findTip').textContent = ok ? '' : '还差：书名';
 }
 
-function analyze(){
-  var book = $('book').value.trim();
-  if(book.length < 2){ toast('先把书名写上'); return; }
-  S.book = book;
-  S.author = $('author').value.trim();
-  S.busy = true; S.err = ''; S.data = null;
-  refreshForm(); renderOut();
-  api('/reading-practice/api/analyze',
-      { book:S.book, author:S.author, ask:$('ask').value.trim() })
-    .then(function(d){
-      S.busy = false;
-      if(!d || !d.ok){ S.err = (d && d.msg) || '拆解失败，再点一次'; }
-      else { S.data = d.data; S.source = d.source || 'ai'; }
-      refreshForm(); renderOut();
-      var el = $('out');
-      if(el && el.scrollIntoView){ el.scrollIntoView({ behavior:'smooth', block:'start' }); }
-    });
+function refreshGen(){
+  var b = $('genBtn');
+  if(!b){ return; }
+  b.disabled = S.busy || S.gen;
+  b.textContent = S.gen ? '正在拆这本书…' : '生成落地实践';
+  var tip = $('genTip');
+  if(tip){
+    tip.textContent = (S.gen || S.ai) ? '' : '服务端没配模型 Key，会给你一份自己拆的六问模板';
+  }
+}
+
+function renderPick(){
+  var el = $('pick');
+  if(S.busy){ el.innerHTML = ''; return; }
+  if(S.err){ el.innerHTML = '<div class="err">' + esc(S.err) + '</div>'; return; }
+  if(!S.cands.length){
+    el.innerHTML = S.msg ? '<div class="card"><div class="mini">' + esc(S.msg) + '</div></div>' : '';
+    return;
+  }
+  var h = '<div class="sec-t">找到 ' + S.cands.length + ' 本，认准作者和年份选一本</div><div class="card">';
+  h += S.cands.map(function(c, i){
+    var meta = [c.author, c.year, S.labels[c.source] || c.source].filter(Boolean).join(' · ');
+    var cur = (S.picked && S.picked.sid === c.sid && S.picked.source === c.source);
+    return '<button class="cand" type="button" data-pick="' + i + '"' + (cur ? ' style="border-color:var(--acc)"' : '') + '>' +
+      (c.cover ? '<img class="cand-c" src="' + esc(c.cover) + '" alt="" loading="lazy" referrerpolicy="no-referrer">'
+               : '<span class="cand-c"></span>') +
+      '<span class="cand-b"><span class="cand-t">' + esc(c.title) + '</span>' +
+      '<span class="cand-m">' + esc(meta || '—') + '</span></span>' +
+      '<span class="cand-go">' + (cur ? '已选' : '选这本') + '</span></button>';
+  }).join('');
+  var usedNames = S.used.map(function(n){ return S.labels[n] || n; });
+  h += '<div class="mini" style="margin-top:10px">资料来自 ' +
+       esc(usedNames.length ? usedNames.join(' / ') : '书源') + '。翻不到想要的那本时，把作者也填上再搜一次。</div>';
+  h += '</div>';
+  el.innerHTML = h;
+  Array.prototype.forEach.call(el.querySelectorAll('[data-pick]'), function(b){
+    b.onclick = function(){ pickOne(Number(b.getAttribute('data-pick'))); };
+  });
+  bindImgs(el);
+}
+
+function fold(title, note, inner, open){
+  return '<details class="fold"' + (open ? ' open' : '') + '>' +
+    '<summary>' + esc(title) + (note ? '<span class="n">' + esc(note) + '</span>' : '') + '</summary>' +
+    '<div class="fold-b">' + inner + '</div></details>';
+}
+
+function renderBook(){
+  var el = $('bookBox');
+  if(S.busy && S.picked && !S.gen){
+    el.innerHTML = '<div class="card"><div class="busy"><span class="spin dark"></span>' +
+      '正在抓《' + esc(S.picked.title) + '》的真实资料…</div></div>';
+    return;
+  }
+  if(!S.picked){ el.innerHTML = ''; return; }
+  if(S.bookErr){ el.innerHTML = '<div class="card"><div class="err">' + esc(S.bookErr) + '</div></div>'; return; }
+  if(!S.book){ el.innerHTML = ''; return; }
+
+  var b = S.book;
+  var meta = [b.author, b.publisher, b.year, b.pages ? (b.pages + ' 页') : '',
+              b.isbn ? ('ISBN ' + b.isbn) : ''].filter(Boolean).join(' · ');
+  var h = '<div class="sec-t">这本书的真实资料</div><div class="card"><div class="bk">';
+  if(b.cover){ h += '<img class="bk-c" src="' + esc(b.cover) + '" alt="" referrerpolicy="no-referrer">'; }
+  h += '<div class="bk-i"><div class="bk-t">' + esc(b.title) + '</div>';
+  h += '<div class="bk-m">' + esc(meta || '—') + '</div><div class="bk-m">';
+  if(b.rating){ h += '<span class="badge">' + esc(b.rating) + ' 分</span>'; }
+  if(b.votes){ h += '<span class="badge n">' + b.votes + ' 人评价</span>'; }
+  h += '<span class="badge n">' + esc(S.labels[b.source] || '书源') + '</span>';
+  h += (S.bookFrom === 'cache' ? '<span class="badge n">库里已有</span>'
+                               : '<span class="badge g">刚抓到</span>');
+  if(b.analysis){ h += '<span class="badge n">已拆过</span>'; }
+  h += '</div>';
+  if(b.tags && b.tags.length){
+    h += '<div class="bk-m">' + b.tags.slice(0, 6).map(function(t){
+      return '<span class="badge n">' + esc(t) + '</span>';
+    }).join('') + '</div>';
+  }
+  h += '</div></div>';
+
+  var toc = b.toc || [], rvs = b.reviews || [];
+  h += '<div class="src"><div class="src-h">下面是从网上抓到的原始材料。模型只能看着这些说话，' +
+       '所以它编不出书里没有的东西——反过来，这里缺什么，它就只能保守。</div>';
+  h += fold('内容简介', b.summary ? (b.summary.length + ' 字') : '没抓到',
+            b.summary ? '<p>' + esc(b.summary) + '</p>'
+                      : '<div class="mini">书源没给简介，模型会更谨慎，也可能说得更笼统。</div>',
+            true);
+  h += fold('目录', toc.length ? (toc.length + ' 条') : '没抓到',
+            toc.length ? '<ol>' + toc.map(function(t){ return '<li>' + esc(t) + '</li>'; }).join('') + '</ol>'
+                       : '<div class="mini">没抓到目录。</div>');
+  h += fold('读者短评', rvs.length ? (rvs.length + ' 条') : '没抓到',
+            rvs.length ? rvs.map(function(r){ return '<div class="rv">' + esc(r) + '</div>'; }).join('')
+                       : '<div class="mini">没抓到短评。</div>');
+  h += '</div>';
+
+  h += '<label class="f" for="ask">你想用它解决什么（可空，填了拆得更准）</label>';
+  h += '<input id="ask" type="text" value="' + esc(S.ask) + '" placeholder="例：计划老是完不成">';
+  h += '<button class="btn primary block big" id="genBtn" type="button" style="margin-top:14px">生成落地实践</button>';
+  h += '<div class="mini" id="genTip" style="text-align:center;margin-top:8px"></div>';
+  h += '<div style="text-align:center;margin-top:6px">' +
+       '<button class="lnk" type="button" id="reBtn">资料不对？重新抓一次</button></div>';
+  h += '</div>';
+  el.innerHTML = h;
+
+  var ask = $('ask');
+  if(ask){ ask.oninput = function(){ S.ask = ask.value; }; }
+  $('genBtn').onclick = generate;
+  $('reBtn').onclick = refetch;
+  bindImgs(el);
+  refreshGen();
+}
+/* ===================== 生成 ===================== */
+function generate(){
+  if(!S.picked){ return; }
+  S.gen = true; S.err = ''; S.msg = '';
+  renderAll();
+  req('POST', '/reading-practice/api/analyze',
+      { source:S.picked.source, sid:S.picked.sid, ask:S.ask, refresh:false }).then(function(d){
+    S.gen = false;
+    if(!d.ok){ S.err = d.message || '这次没拆出来，再点一次试试'; }
+    else {
+      applyBook(d);
+      S.data = d.data; S.src = d.source || 'ai';
+      S.restored = false; S.at = '';
+      S.msg = d.message || '';
+    }
+    renderAll();
+    if(d.ok && d.stored){ loadRecent(); }
+    go($('out'));
+  });
 }
 
 function renderOut(){
-  var out = $('out');
-  if(S.busy){
-    out.innerHTML = '<div class="card"><div class="sk" style="width:34%"></div>' +
-      '<div class="sk"></div><div class="sk" style="width:70%"></div><div class="sk" style="width:46%"></div></div>';
+  var el = $('out');
+  if(!el){ return; }
+  if(S.gen){
+    el.innerHTML = '<div class="card"><div class="sk" style="width:34%"></div>' +
+      '<div class="sk"></div><div class="sk" style="width:70%"></div>' +
+      '<div class="sk" style="width:46%"></div></div>';
     return;
   }
-  if(S.err){ out.innerHTML = '<div class="err">' + esc(S.err) + '</div>'; return; }
-  if(!S.data){ out.innerHTML = ''; return; }
+  if(S.err){ el.innerHTML = '<div class="err">' + esc(S.err) + '</div>'; return; }
+  if(!S.data){ el.innerHTML = ''; return; }
 
-  var d = S.data, h = '<div class="card"><div class="ana-h">';
-  h += '<span class="badge">《' + esc(S.book) + '》</span>';
-  if(S.author){ h += '<span class="badge n">' + esc(S.author) + '</span>'; }
-  h += '<span class="badge ' + (S.source === 'ai' ? 'g' : 'o') + '">' +
-       (S.source === 'ai' ? 'AI 拆的' : '自己拆的模板') + '</span></div>';
+  var d = S.data, b = S.book || {};
+  var h = '<div class="card"><div class="ana-h">';
+  h += '<span class="badge">《' + esc(b.title || '') + '》</span>';
+  if(b.author){ h += '<span class="badge n">' + esc(b.author) + '</span>'; }
+  h += '<span class="badge ' + (S.src === 'ai' ? 'g' : 'o') + '">' +
+       (S.src === 'ai' ? 'AI 拆的' : '自己拆的模板') + '</span>';
+  if(S.bookFrom === 'cache'){ h += '<span class="badge n">资料读的库</span>'; }
+  h += '</div>';
 
+  if(S.restored){
+    h += '<div class="mini" style="margin:4px 0 10px">这是' +
+      (S.at ? ' ' + esc(S.at) : '上次') +
+      ' 拆的，先给你摆回来。想按新诉求重拆，点下面「生成落地实践」。</div>';
+  }
+  if(S.msg){ h += '<div class="warnbox">' + esc(S.msg) + '</div>'; }
   if(d.note){ h += '<div class="warnbox">' + esc(d.note) + '</div>'; }
   if(d.gist){ h += '<div class="box"><span class="k">这本书最核心的一句</span>' + esc(d.gist) + '</div>'; }
 
   (d.cards || []).forEach(function(c, i){
     h += '<div class="plan"><div class="plan-h">' + esc(c.point) + '</div>';
+    if(c.basis){ h += '<div class="basis"><span class="badge n">依据：' + esc(c.basis) + '</span></div>'; }
     if(c.scene){ h += '<div class="plan-scene"><span class="k">什么场合用</span>' + esc(c.scene) + '</div>'; }
-    h += '<ol class="steps">' + c.steps.map(function(s){ return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>';
+    h += '<ol class="steps">' + (c.steps || []).map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>';
     h += '<div class="meta3">';
     if(c.done){ h += '<div class="m"><span class="k">算做到</span><span>' + esc(c.done) + '</span></div>'; }
     if(c.trap){ h += '<div class="m"><span class="k">容易变形</span><span>' + esc(c.trap) + '</span></div>'; }
@@ -274,47 +551,54 @@ function renderOut(){
   }
   if(d.today){ h += '<div class="line check"><span class="k">今天就做</span><span>' + esc(d.today) + '</span></div>'; }
   h += '</div>';
-  out.innerHTML = h;
-  Array.prototype.forEach.call(out.querySelectorAll('[data-take]'), function(b){
-    b.onclick = function(){ take(Number(b.getAttribute('data-take'))); };
+  el.innerHTML = h;
+  Array.prototype.forEach.call(el.querySelectorAll('[data-take]'), function(x){
+    x.onclick = function(){ take(Number(x.getAttribute('data-take'))); };
   });
 }
 
+/* 加进「我在做」：落 SQLite，不再写 localStorage */
 function take(i){
   var c = (S.data && S.data.cards || [])[i];
-  if(!c){ return; }
-  var at = todayStr();
-  plans.unshift({
-    id:'p' + Date.now(), at:at, book:S.book, author:S.author,
-    point:c.point, scene:c.scene, done:c.done, trap:c.trap, review:c.review,
-    steps:c.steps.map(function(t){ return { t:t, ok:false }; }),
-    reviewAt:addDays(at, REVIEW_DAYS), reviewed:false, ok:null, result:''
+  if(!c || !S.book){ return; }
+  var at = todayStr(), b = S.book;
+  var plan = {
+    book:b.title || '', author:b.author || '', source:b.source || '', sid:String(b.sid || ''),
+    cover:b.cover || '', rating:b.rating || '', url:b.url || '',
+    point:c.point, basis:c.basis || '', scene:c.scene || '',
+    steps:(c.steps || []).map(function(t){ return { t:t, ok:false }; }),
+    done:c.done || '', trap:c.trap || '', review:c.review || '',
+    at:at, reviewAt:addDays(at, REVIEW_DAYS), reviewed:false, ok:null, result:''
+  };
+  req('POST', '/reading-practice/api/plans', { plan:plan }).then(function(d){
+    if(!d.ok){ toast(d.message || '没存上，再点一次'); return; }
+    plans.unshift(d.plan);
+    renderMine();
+    toast('加进「我在做」了，' + REVIEW_DAYS + ' 天后问你一句');
+    go($('mine'));
   });
-  save(K_PLAN, plans);
-  renderMine();
-  toast('加进「我在做」了，' + REVIEW_DAYS + ' 天后问你一句');
-  var el = $('mine');
-  if(el && el.scrollIntoView){ el.scrollIntoView({ behavior:'smooth', block:'start' }); }
 }
-/* ---------- 我在做 ---------- */
+
+/* ===================== 我在做 ===================== */
 function stepDone(p){
   var n = 0;
-  p.steps.forEach(function(s){ if(s.ok){ n++; } });
+  (p.steps || []).forEach(function(s){ if(s.ok){ n++; } });
   return n;
 }
+
 function itemOf(p, today){
   var due = p.reviewAt <= today;
-  var n = stepDone(p);
-  var total = p.steps.length;
+  var n = stepDone(p), total = (p.steps || []).length;
   var h = '<div class="item' + (due ? ' due' : '') + '">' +
     '<div class="item-t">' + esc(p.point) + '</div>' +
-    '<div class="item-m"><span class="badge">《' + esc(p.book) + '》</span>' +
+    '<div class="item-m"><span class="badge">《' + esc(p.book || '') + '》</span>' +
       '<span>' + n + '/' + total + ' 步</span>' +
       (due ? '<span class="badge o">该问自己了</span>'
            : '<span>' + Math.max(1, daysBetween(today, p.reviewAt)) + ' 天后问你</span>') +
       '<button class="lnk" type="button" data-del="' + p.id + '">不做这张了</button></div>';
+  if(p.basis){ h += '<div class="mini" style="margin-top:6px">依据：' + esc(p.basis) + '</div>'; }
   if(p.scene){ h += '<div class="kv"><b>什么场合：</b>' + esc(p.scene) + '</div>'; }
-  p.steps.forEach(function(s, i){
+  (p.steps || []).forEach(function(s, i){
     h += '<label class="chk' + (s.ok ? ' on' : '') + '">' +
       '<input type="checkbox" data-step="' + p.id + '|' + i + '"' + (s.ok ? ' checked' : '') + '>' +
       '<span>' + esc(s.t) + '</span></label>';
@@ -329,17 +613,21 @@ function itemOf(p, today){
   if(p.trap){ h += '<div class="mini" style="margin-top:8px">容易变形：' + esc(p.trap) + '</div>'; }
   return h + '</div>';
 }
+
 function doneItemOf(p){
   var yes = p.ok === true;
   return '<div class="item"><div class="item-t">' + esc(p.point) + '</div>' +
     '<div class="item-m"><span class="badge ' + (yes ? 'g' : 'o') + '">' +
-      (yes ? '做到了' : '没做到') + '</span><span class="badge n">《' + esc(p.book) + '》</span>' +
-      '<span>' + stepDone(p) + '/' + p.steps.length + ' 步</span>' +
+      (yes ? '做到了' : '没做到') + '</span><span class="badge n">《' + esc(p.book || '') + '》</span>' +
+      '<span>' + stepDone(p) + '/' + (p.steps || []).length + ' 步</span>' +
       '<button class="lnk" type="button" data-del="' + p.id + '">删掉</button></div>' +
     (p.result ? '<div class="kv"><b>结果：</b>' + esc(p.result) + '</div>' : '') +
     '<div class="mini" style="margin-top:6px">当时问的是：' + esc(p.review || '用上了吗？') + '</div></div>';
 }
+
 function renderMine(){
+  var el = $('mine');
+  if(!el){ return; }
   var today = todayStr();
   var due = plans.filter(function(p){ return !p.reviewed && p.reviewAt <= today; });
   var doing = plans.filter(function(p){ return !p.reviewed && p.reviewAt > today; });
@@ -354,62 +642,119 @@ function renderMine(){
   if(!inner){
     inner = '<div class="empty">' + (plans.length
       ? '现在没有在做的，回到上面再挑一张。'
-      : '还没有在做的。上面拆完，挑一张点「就做这张」。') + '</div>';
+      : '还没有在做的。上面拆完，挑一张点「就做这张」，它存在服务器的 SQLite 里。') + '</div>';
   }
   var h = '<div class="sec-t">我在做</div><div class="card">' + inner + '</div>';
   if(done.length){
     h += '<div class="sec-t">已收尾（' + done.length + '）</div>' + done.map(doneItemOf).join('');
   }
-  $('mine').innerHTML = h;
+  el.innerHTML = h;
   bindMine();
 }
-function review(id, val){
-  var el = $('rr_' + id);
-  var note = el ? el.value.trim() : '';
-  plans.forEach(function(p){
-    if(p.id === id){ p.reviewed = true; p.ok = (val === 'yes'); p.result = note; }
-  });
-  save(K_PLAN, plans);
-  renderMine();
-  toast(val === 'yes' ? '记下了：做到了' : '记下了：没做到');
-}
+
 function bindMine(){
   function each(sel, ev, fn){
+    var attr = sel.slice(1, -1);
     Array.prototype.forEach.call(document.querySelectorAll(sel), function(b){
-      b[ev] = function(){ fn(b.getAttribute(sel.slice(1, -1))); };
+      b[ev] = function(){ fn(b.getAttribute(attr)); };
     });
   }
   each('[data-step]', 'onchange', function(v){
     var parts = String(v).split('|');
-    plans.forEach(function(p){
-      if(p.id === parts[0]){
-        var s = p.steps[Number(parts[1])];
-        if(s){ s.ok = !s.ok; }
-      }
+    var id = parts[0], idx = Number(parts[1]);
+    var p = plans.filter(function(x){ return String(x.id) === id; })[0];
+    if(!p){ return; }
+    var steps = (p.steps || []).map(function(s, i){ return { t:s.t, ok:(i === idx ? !s.ok : !!s.ok) }; });
+    req('PATCH', '/reading-practice/api/plans/' + id, { patch:{ steps:steps } }).then(function(d){
+      if(!d.ok){ toast(d.message || '没保存上'); return; }
+      p.steps = steps;
+      renderMine();
     });
-    save(K_PLAN, plans);
-    renderMine();
   });
   each('[data-del]', 'onclick', function(id){
     if(!confirm('把这张从「我在做」里去掉？')){ return; }
-    plans = plans.filter(function(p){ return p.id !== id; });
-    save(K_PLAN, plans);
-    renderMine();
+    req('DELETE', '/reading-practice/api/plans/' + id).then(function(d){
+      if(!d.ok){ toast(d.message || '没删掉'); return; }
+      plans = plans.filter(function(p){ return String(p.id) !== String(id); });
+      renderMine();
+    });
   });
   each('[data-yes]', 'onclick', function(id){ review(id, 'yes'); });
   each('[data-no]', 'onclick', function(id){ review(id, 'no'); });
 }
 
+function review(id, val){
+  var el = $('rr_' + id);
+  var note = el ? el.value.trim() : '';
+  req('PATCH', '/reading-practice/api/plans/' + id,
+      { patch:{ reviewed:true, ok:(val === 'yes'), result:note } }).then(function(d){
+    if(!d.ok){ toast(d.message || '没记上'); return; }
+    plans.forEach(function(p){
+      if(String(p.id) === String(id)){ p.reviewed = true; p.ok = (val === 'yes'); p.result = note; }
+    });
+    renderMine();
+    toast(val === 'yes' ? '记下了：做到了' : '记下了：没做到');
+  });
+}
+
+/* ===================== 库里留下的痕迹 ===================== */
+function loadPlans(){
+  req('GET', '/reading-practice/api/plans').then(function(d){
+    plans = (d.ok && d.items) ? d.items : [];
+    renderMine();
+  });
+}
+
+var recents = [];
+
+function loadRecent(){
+  req('GET', '/reading-practice/api/books').then(function(d){
+    recents = (d.ok && d.items) || [];
+    renderRecent();
+  });
+}
+
+function renderRecent(){
+  var el = $('recent');
+  if(!el){ return; }
+  var h = '<div class="card"><div class="card-h">最近查过的书</div>';
+  if(!recents.length){
+    h += '<div class="mini" style="margin-top:6px">查过的书会留在这里，点一下就能回到那本书，' +
+         '上次拆出来的卡片也跟着回来。</div></div>';
+    el.innerHTML = h;
+    return;
+  }
+  h += recents.map(function(b, i){
+    var cur = S.picked && S.picked.source === b.source && String(S.picked.sid) === String(b.sid);
+    var when = String(b.fetched_at || '').slice(5, 16);
+    var meta = [b.author, when].filter(Boolean).join(' · ');
+    return '<button class="recent-i' + (cur ? ' on' : '') + '" type="button" data-open="' + i + '">' +
+      '<span class="recent-t">' + esc(b.title || '') + '</span>' +
+      '<span class="recent-m">' + esc(meta || '—') + '</span>' +
+      (b.has_plan ? '<span class="badge g" style="margin-top:6px">拆过</span>' : '') +
+      '</button>';
+  }).join('');
+  h += '<div class="mini" style="margin-top:10px">点一本就能回看它的资料和上次拆的卡片，' +
+       '不用再联网抓一遍。</div></div>';
+  el.innerHTML = h;
+  Array.prototype.forEach.call(el.querySelectorAll('[data-open]'), function(x){
+    x.onclick = function(){ openRecent(recents[Number(x.getAttribute('data-open'))]); };
+  });
+}
+
 function init(){
-  plans = load(K_PLAN, []) || [];
-  ['book', 'author', 'ask'].forEach(function(id){ $(id).oninput = refreshForm; });
-  $('book').onkeydown = function(e){ if(e.key === 'Enter'){ analyze(); } };
-  $('goBtn').onclick = analyze;
-  refreshForm(); renderOut(); renderMine();
-  fetch('/reading-practice/api/status').then(function(r){ return r.json(); }).then(function(d){
+  $('findBtn').onclick = find;
+  $('q').oninput = refreshForm;
+  $('author').oninput = refreshForm;
+  $('q').onkeydown = function(e){ if(e.key === 'Enter'){ find(); } };
+  $('author').onkeydown = function(e){ if(e.key === 'Enter'){ find(); } };
+  refreshForm(); renderPick(); renderBook(); renderOut();
+  req('GET', '/reading-practice/api/status').then(function(d){
     S.ai = !!(d && d.ai);
-    refreshForm();
-  }).catch(function(){});
+    refreshGen();
+  });
+  loadPlans();
+  loadRecent();
 }
 init();
 

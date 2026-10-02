@@ -52,7 +52,20 @@ SCHEMA = (
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_history_tool ON history(tool, user, id DESC)",
+    """
+    CREATE TABLE IF NOT EXISTS book_cache(
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        source     TEXT NOT NULL,
+        sid        TEXT NOT NULL,
+        title      TEXT NOT NULL DEFAULT '',
+        author     TEXT NOT NULL DEFAULT '',
+        payload    TEXT NOT NULL DEFAULT '{}',
+        fetched_at TEXT NOT NULL
+    )
+    """,
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_book_cache_key ON book_cache(source, sid)",
 )
+
 
 _ready = False
 
@@ -279,6 +292,107 @@ def clear_records(tool: str, user: str) -> int:
     finally:
         conn.close()
 
+
+# ---------------------------------------------------------------
+# history 的补充：按 id 取一条 / 改一条
+#   update_record 只改传进来的字段，没传的保持原样
+# ---------------------------------------------------------------
+def get_record(user: str, rid: int):
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT id, tool, user, title, payload, created_at '
+                           'FROM history WHERE id = ? AND user = ?', (int(rid), user))
+    finally:
+        conn.close()
+    if not rows:
+        return None
+    row = rows[0]
+    try:
+        row['payload'] = json.loads(row['payload'] or '{}')
+    except ValueError:
+        row['payload'] = {}
+    return row
+
+
+def update_record(user: str, rid: int, payload=None, title=None) -> int:
+    """返回受影响行数；0 表示没这条记录，或者这条不属于该用户。"""
+    sets, args = [], []
+    if payload is not None:
+        sets.append('payload = ?')
+        args.append(json.dumps(payload, ensure_ascii=False))
+    if title is not None:
+        sets.append('title = ?')
+        args.append(str(title).strip()[:200])
+    if not sets:
+        return 0
+    args.extend([int(rid), user])
+    conn = connect()
+    try:
+        cur = conn.execute('UPDATE history SET ' + ', '.join(sets) +
+                           ' WHERE id = ? AND user = ?', args)
+        conn.commit()
+        return cur.rowcount
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('更新失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------
+# book_cache：书讯缓存，按 (source, sid) 唯一
+#   抓一次豆瓣要一两秒，还会被限流。同一本书第二次直接读库，
+#   所以这张表既是缓存，也算「我看过哪些书」的底账。
+# ---------------------------------------------------------------
+def book_get(source: str, sid: str):
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT source, sid, title, author, payload, fetched_at '
+                           'FROM book_cache WHERE source = ? AND sid = ?', (source, sid))
+    finally:
+        conn.close()
+    if not rows:
+        return None
+    row = rows[0]
+    try:
+        row['payload'] = json.loads(row['payload'] or '{}')
+    except ValueError:
+        row['payload'] = {}
+    return row
+
+
+def book_put(source: str, sid: str, title: str = '', author: str = '', payload=None) -> None:
+    blob = json.dumps(payload if payload is not None else {}, ensure_ascii=False)
+    conn = connect()
+    try:
+        # 用 INSERT OR REPLACE 而不是 ON CONFLICT：对 sqlite 版本要求最低
+        conn.execute(
+            'INSERT OR REPLACE INTO book_cache(source, sid, title, author, payload, fetched_at) '
+            'VALUES (?,?,?,?,?,?)',
+            (source, sid, (title or '')[:200], (author or '')[:120], blob, now_str()))
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def book_list(limit: int = 50) -> list:
+    """最近查过的书。has_plan = 这本书存着 AI 拆出来的卡片（点进去能回看）。"""
+    limit = max(1, min(int(limit or 50), 500))
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT source, sid, title, author, payload, fetched_at '
+                           'FROM book_cache ORDER BY id DESC LIMIT ?', (limit,))
+    finally:
+        conn.close()
+    for row in rows:
+        raw = row.pop('payload', '') or '{}'
+        try:
+            payload = json.loads(raw)
+        except ValueError:
+            payload = {}
+        row['has_plan'] = bool(isinstance(payload, dict) and payload.get('analysis'))
+    return rows
 
 def checkpoint() -> None:
     """把 WAL 里的内容并回主文件，这样单独下载 .db 就是完整的。"""

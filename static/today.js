@@ -7,7 +7,7 @@
 数据来自各工具自己的 localStorage（字段改名时要同步这里）：
   判断力教练  jt_cases_v2   due      到期日      outcome 非空 = 已回看
   贝叶斯日记  pd_bets_v1    by       到期日      settled 非空 = 已结算
-  读书落地    rd_plans_v1   reviewAt 复盘日      reviewed 为真 = 已复盘
+  读书落地    走 /reading-practice/api/plans（数据在服务器 SQLite 里，不读 localStorage）
 ========================================================================== */
 (function () {
   'use strict';
@@ -70,13 +70,39 @@
       note: function (r) { return '该结算了' + pct(r); }
     },
     {
-      key: 'rd_plans_v1', icon: '📚', name: '读书落地', href: '/reading-practice',
-      due:  function (r) { return r.reviewAt; },
-      done: function (r) { return !!r.reviewed; },
-      text: function (r) { return r.point; },
-      note: function (r) { return (r.book ? '《' + r.book + '》' : '') + '7 天了，用上了吗'; }
+      // 读书落地已改成 SQLite 存数据，下面 loadRemote() 单独拉
+      key: '__remote_reading__', icon: '📚', name: '读书落地', href: '/reading-practice',
+      due:  function () { return ''; },
+      done: function () { return true; },
+      text: function () { return ''; },
+      note: function () { return ''; }
     }
   ];
+
+  // 从服务端拉回来的待办（读书落地）
+  var remote = [];
+
+  function loadRemote() {
+    return fetch('/reading-practice/api/plans', { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.ok || !d.items) { return []; }
+        var today = todayStr(), out = [];
+        d.items.forEach(function (p) {
+          if (!p || p.reviewed) { return; }
+          var due = p.reviewAt;
+          if (!due || String(due) > today) { return; }
+          out.push({
+            icon: '📚', name: '读书落地', href: '/reading-practice',
+            text: oneLine(p.point, 60) || '（没写标题）',
+            note: (p.book ? '《' + p.book + '》' : '') + '7 天了，用上了吗',
+            late: daysBetween(due, today)
+          });
+        });
+        return out;
+      })
+      .catch(function () { return []; });
+  }
 
   function collect() {
     var today = todayStr();
@@ -117,7 +143,8 @@
     var host = document.getElementById('today');
     if (!host) { return; }
 
-    var items = collect();
+    var items = collect().concat(remote);
+    items.sort(function (a, b) { return b.late - a.late; });
     if (!items.length) {
       // 没事就不出现——不显示"今天没有待办"这种客套话，免得天天占一块地方
       host.hidden = true;
@@ -141,6 +168,11 @@
 
   function boot() {
     render();
+    loadRemote().then(function (rows) {
+      if (!rows.length) { return; }
+      remote = rows;
+      render();
+    });
     // 去工具里处理完、按浏览器返回时，重新算一遍
     window.addEventListener('pageshow', function (e) { if (e.persisted) { render(); } });
     document.addEventListener('visibilitychange', function () {
