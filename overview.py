@@ -38,6 +38,7 @@ TOOL_META = {
     'reading-practice': {'name': '读书落地', 'ico': '📖', 'href': '/reading-practice', 'deep': True},
     'kolb': {'name': '库博学习圈', 'ico': '🔄', 'href': '/kolb', 'deep': True},
     'ai-chart': {'name': 'AI 生成图表', 'ico': '📊', 'href': '/ai-chart', 'deep': True},
+    'script-library': {'name': '脚本库', 'ico': '📜', 'href': '/script-library', 'deep': True},
 }
 
 _FALLBACK = (
@@ -80,6 +81,8 @@ def _excerpt(tool: str, payload: dict) -> str:
         return _text(answer.get('ac')) or _text(answer.get('ce')) or _text(payload.get('title'))
     if tool == 'ai-chart':
         return _text(payload.get('prompt'))
+    if tool == 'script-library':
+        return _text(payload.get('desc')) or _text(payload.get('cmd'))
     return ''
 
 

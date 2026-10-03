@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="/static/theme.css">
 <script src="/static/theme.js"></script>
 <script src="/static/particles.js"></script>
+<script src="/static/voice.js"></script>
 <style>
 :root{
   --acc:#4C5AA8; --acc-d:#3B4685; --acc-l:#EEF0FA; --acc-line:#CBD2EC;
@@ -149,6 +150,21 @@ textarea::placeholder{color:var(--muted);opacity:.72}
   background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:10px 16px;
   font-size:13.5px;box-shadow:var(--sh);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* ===== 朗读 ===== */
+.vctl{display:flex;gap:8px;align-items:center;flex:0 0 auto}
+.vbtn{min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);
+  background:var(--field);color:var(--muted);font-size:12.5px;cursor:pointer;white-space:nowrap}
+.vbtn:hover{border-color:var(--acc-line);color:var(--ink)}
+.vbtn.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc);font-weight:600}
+.vbtn[hidden]{display:none}
+.say{margin-top:6px;display:inline-flex;align-items:center;gap:4px;min-height:28px;padding:0;
+  background:none;border:0;color:var(--muted);font-size:11.5px;cursor:pointer}
+.say:hover{color:var(--acc)}
+.say.on{color:var(--acc);font-weight:600}
+@media (max-width:560px){
+  .vbtn{padding:0 9px;font-size:12px}
+  .back{padding:8px 10px;font-size:12.5px}
+}
 </style>
 </head>
 <body>
@@ -159,6 +175,10 @@ textarea::placeholder{color:var(--muted);opacity:.72}
       <div class="sub">它只会问你问题，不会替你回答</div>
     </div>
     <a class="back" href="/">← 返回工具箱</a>
+    <div class="vctl" id="vctl" hidden>
+      <button class="vbtn" id="vStop" type="button" hidden>⏹ 停</button>
+      <button class="vbtn" id="vAuto" type="button" aria-pressed="false">🔊 自动朗读</button>
+    </div>
   </div>
 </header>
 
@@ -206,6 +226,72 @@ function toast(msg){
   t.classList.add('show');
   clearTimeout(toast._t);
   toast._t = setTimeout(function(){ t.classList.remove('show'); }, 2400);
+}
+
+/* ===================== 朗读（/static/voice.js） =====================
+   用浏览器自带语音，不联网、不花钱、不用后端。
+   没引到 voice.js、或浏览器不支持，整块朗读自动消失，页面照常用。 */
+var VOICE = (window.TBVoice && window.TBVoice.available()) ? window.TBVoice : null;
+var sayTexts = [];         // 这一屏里每条引导者回复的原文，按钮上的 data-say 就是它的下标
+var autoReadNext = false;  // 这一次回复取回来之后要不要念
+
+/* 把「正在念哪条」标到按钮上。聊天区整块会被重画，所以每次重画后都要再对一次。 */
+function syncSay(st){
+  if(!VOICE){ return; }
+  st = st || { speaking: VOICE.isSpeaking(), text: VOICE.currentText() };
+  var cur = String(st.text || '');
+  Array.prototype.forEach.call(document.querySelectorAll('.say[data-say]'), function(b){
+    var t = sayTexts[Number(b.getAttribute('data-say'))] || '';
+    var on = !!(st.speaking && t && t === cur);
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  var sb = $('vStop');
+  if(sb){ sb.hidden = !st.speaking; }
+}
+
+function syncAuto(){
+  var b = $('vAuto');
+  if(b && VOICE){ b.classList.toggle('on', VOICE.autoOn()); }
+}
+
+function bindSay(){
+  if(!VOICE){ return; }
+  Array.prototype.forEach.call(document.querySelectorAll('.say[data-say]'), function(b){
+    b.onclick = function(){
+      var t = sayTexts[Number(b.getAttribute('data-say'))] || '';
+      if(t){ VOICE.toggle(t); }
+    };
+  });
+}
+
+/* 念最后一条引导者说的话 */
+function autoReadLast(){
+  if(!VOICE || !VOICE.autoOn()){ return; }
+  var msgs = (S.sess && S.sess.msgs) || [];
+  for(var i = msgs.length - 1; i >= 0; i--){
+    if(msgs[i].role !== 'me' && msgs[i].text){ VOICE.speak(msgs[i].text); return; }
+  }
+}
+
+function initVoice(){
+  var box = $('vctl');
+  if(!VOICE){ if(box){ box.hidden = true; } return; }
+  if(box){ box.hidden = false; }
+  VOICE.on(syncSay);
+  VOICE.on(syncAuto);
+  var auto = $('vAuto');
+  if(auto){
+    auto.onclick = function(){
+      var on = !VOICE.autoOn();
+      VOICE.setAuto(on);
+      syncAuto();
+      if(!on){ VOICE.stop(); return; }
+      toast(VOICE.hasZhVoice() ? '新回复会自动念出来' : '这台设备好像没装中文语音，念起来可能有点怪');
+    };
+  }
+  var sb = $('vStop');
+  if(sb){ sb.onclick = function(){ VOICE.stop(); }; }
 }
 
 /* 后端出错时也带 message，别让页面只看到「失败」两个字 */
@@ -388,14 +474,18 @@ function renderChat(){
 
   var avG = avatarSVG('guide-' + (s.id != null ? s.id : S.sid));   // 这段对话里的引导者
   var avMe = avatarSVG('me');                                      // 我，一直是我
+  sayTexts = [];
   msgs.forEach(function(m){
     if(m.role === 'me'){
       h += '<div class="msg me">' + avMe + '<div class="col"><div class="who">我</div>' +
            '<div class="bubble">' + esc(m.text) + '</div></div></div>';
     } else {
       var tag = m.step > 0 ? '<span class="badge n">第 ' + m.step + ' 步 · ' + stepName(m.step) + '</span>' : '';
+      var say = VOICE ? '<button class="say" type="button" data-say="' + sayTexts.length +
+        '" aria-pressed="false" title="把这个问题念出来">🔊 朗读</button>' : '';
+      sayTexts.push(m.text);
       h += '<div class="msg ai">' + avG + '<div class="col"><div class="who">引导者 ' + tag + '</div>' +
-           '<div class="bubble">' + esc(m.text) + '</div></div></div>';
+           '<div class="bubble">' + esc(m.text) + '</div>' + say + '</div></div>';
     }
   });
 
@@ -417,6 +507,8 @@ function renderChat(){
     '</div>';
   h += '</div>';
   el.innerHTML = h;
+  bindSay();
+  syncSay();
 
   var ta = $('say');
   if(ta){
@@ -540,6 +632,7 @@ function reload(){
     S.focusSay = true;
     renderAll();
     loadHistory();
+    if(d.ok && autoReadNext){ autoReadNext = false; autoReadLast(); }
   });
 }
 
@@ -633,6 +726,7 @@ function open(id){
 function send(){
   var text = S.draft.trim();
   if(!text || S.busy || !S.sid){ return; }
+  if(VOICE){ VOICE.stop(); }        // 我一开口，就别再念上一条了
   var mine = { role:'me', text:text, at:'', step:Number(S.sess.step) || 1 };
   S.sess.msgs = (S.sess.msgs || []).concat([mine]);
   S.draft = ''; S.busy = true; S.err = '';
@@ -663,6 +757,7 @@ function send(){
     }
     // 说了一半断的：那些字已经存进库了，不能撤，只提示一句
     if(d.cut){ toast(d.cut); }
+    autoReadNext = true;              // 取回权威状态、重画完再念，念的是落库后的原文
     reload();
   });
 }
@@ -682,6 +777,7 @@ function renderAll(){ renderStart(); renderChat(); refreshSend(); }
 
 /* ===================== 启动 ===================== */
 function init(){
+  initVoice();
   renderAll();
   loadHistory();
   var deepId = wantRecId();

@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#475569">
+<title>脚本库</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<script src="/static/auth-guard.js"></script>
+<style>
+:root{
+  --acc:#475569; --acc-d:#334155;
+  --acc-l:rgba(71,85,105,.10); --acc-line:rgba(71,85,105,.30);
+  --bg:var(--tb-bg); --card:var(--tb-card); --line:var(--tb-line); --line2:var(--tb-line-2);
+  --ink:var(--tb-ink); --text:var(--tb-text); --muted:var(--tb-muted); --field:var(--tb-field);
+  --ok:var(--tb-ok); --ok-bg:var(--tb-ok-bg); --ok-line:var(--tb-ok-line);
+  --warn:var(--tb-warn); --warn-bg:var(--tb-warn-bg); --warn-line:var(--tb-warn-line);
+  --mono:ui-monospace,SFMono-Regular,Consolas,"Cascadia Mono",Menlo,monospace;
+}
+[data-theme="dark"]{--acc:#94A3B8;--acc-d:#CBD5E1;--acc-l:rgba(148,163,184,.14);--acc-line:rgba(148,163,184,.34)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:16px 16px 56px;position:relative;z-index:1}
+h1{font-size:20px;margin:0;color:var(--ink)}
+.head{display:flex;align-items:flex-start;gap:12px;margin:4px 0 14px}
+.head .sub{margin:4px 0 0;font-size:13px;color:var(--muted);line-height:1.7}
+.head .sp{margin-left:auto;flex:0 0 auto}
+.cols{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+.card-h{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.mini{font-size:12px;color:var(--muted);line-height:1.7}
+.lbl{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 5px}
+.lbl .req{color:var(--warn)}
+textarea,input[type=text]{width:100%;border:1px solid var(--line2);border-radius:12px;
+  padding:11px 12px;background:var(--field);color:var(--text);font-family:inherit;font-size:15px;
+  line-height:1.7;outline:none;min-height:44px}
+textarea{min-height:72px;resize:vertical}
+textarea:focus,input:focus{border-color:var(--acc-line);box-shadow:0 0 0 3px var(--acc-l)}
+.mono{font-family:var(--mono);font-size:13px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;
+  padding:0 16px;border-radius:12px;border:1px solid var(--line2);background:var(--card);
+  color:var(--text);font-family:inherit;font-size:14px;cursor:pointer;transition:opacity .15s}
+.btn:active{opacity:.75}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:var(--tb-acc-on);font-weight:600}
+.btn.sm{min-height:40px;padding:0 13px;font-size:13px;border-radius:10px}
+.btn.ghost{background:transparent}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 0}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{min-height:40px;padding:0 13px;border-radius:999px;border:1px solid var(--line2);
+  background:var(--card);color:var(--text);font-family:inherit;font-size:13px;cursor:pointer}
+.chip.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc);font-weight:600}
+.badge{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;line-height:1.8;
+  background:var(--acc-l);color:var(--acc);border:1px solid var(--acc-line);white-space:nowrap}
+.badge.g{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-line)}
+.badge.o{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-line)}
+.badge.n{background:transparent;color:var(--muted);border-color:var(--line)}
+.stat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.stat-i{border:1px solid var(--line);border-radius:12px;padding:10px 6px;text-align:center}
+.stat-n{font-size:20px;font-weight:600;color:var(--ink);line-height:1.2;font-family:var(--mono)}
+.stat-l{font-size:11px;color:var(--muted);margin-top:2px}
+.item{border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:10px;background:var(--card)}
+.item.dead{opacity:.6}
+.it-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.it-t{font-size:15.5px;font-weight:600;color:var(--ink);line-height:1.5}
+.item.dead .it-t{text-decoration:line-through}
+.it-d{font-size:13.5px;line-height:1.75;color:var(--text);margin-top:6px}
+.cmd{display:flex;align-items:center;gap:10px;margin-top:9px;padding:8px 10px;border-radius:10px;
+  background:var(--field);border:1px solid var(--line)}
+.cmd code{flex:1;min-width:0;font-family:var(--mono);font-size:12.5px;line-height:1.65;
+  color:var(--ink);overflow-wrap:anywhere}
+.cmd .lnk{flex:0 0 auto}
+.it-m{font-size:11.5px;color:var(--muted);margin-top:8px;display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.it-m .dot{opacity:.45}
+.it-n{font-size:12.5px;color:var(--muted);line-height:1.75;margin-top:7px;padding-left:9px;
+  border-left:2px solid var(--line2)}
+.it-x{margin-top:10px;display:flex;gap:14px;flex-wrap:wrap}
+.lnk{background:none;border:0;padding:0;color:var(--acc);font-family:inherit;font-size:12.5px;
+  cursor:pointer;min-height:30px;display:inline-flex;align-items:center}
+.lnk:hover{text-decoration:underline}
+.lnk.danger{color:var(--warn)}
+.empty{text-align:center;padding:24px 12px;color:var(--muted);font-size:13px;line-height:1.9}
+.empty b{display:block;color:var(--ink);font-size:14.5px;margin-bottom:5px}
+.filters{display:flex;flex-direction:column;gap:10px}
+details.card>summary{cursor:pointer;font-size:14.5px;font-weight:600;color:var(--ink);
+  list-style:none;min-height:30px;display:flex;align-items:center}
+details.card>summary::-webkit-details-marker{display:none}
+details.card>summary::after{content:"▾";margin-left:auto;color:var(--muted);font-size:13px}
+details.card[open]>summary{margin-bottom:8px}
+details.card[open]>summary::after{content:"▴"}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(12px);
+  background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:13.5px;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.recent-i{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;padding:6px 0;
+  font-family:inherit;font-size:13px;color:var(--text);cursor:pointer;text-align:left;min-height:36px}
+.recent-i:hover .recent-t{text-decoration:underline}
+.recent-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item.flash{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-l)}
+@media (min-width:1000px){
+  .cols{grid-template-columns:minmax(0,1fr) 320px}
+  .side{position:sticky;top:16px}
+}
+@media (max-width:999px){
+  .side{order:2}
+}
+</style>
+</head><body>
+<div class="wrap">
+  <header class="head">
+    <div>
+      <h1>脚本库</h1>
+      <p class="sub">把散在本机的小脚本登记成卡片：干什么、怎么跑、依赖什么、放在哪。省得三个月后连有这东西都忘了。</p>
+    </div>
+    <button class="btn primary sp" id="newBtn" type="button">＋ 登记一个脚本</button>
+  </header>
+  <div class="cols">
+    <main>
+      <div class="card" id="formCard" hidden>
+        <div class="card-h" id="formTitle">登记一个脚本</div>
+        <p class="mini">只有「脚本名」是必填。还没想好怎么跑的先记名字和一句话，状态搁到「想做」——先占个坑也是收获。</p>
+        <label class="lbl" for="fName">脚本名 <span class="req">*</span></label>
+        <input type="text" id="fName" placeholder="例：B站视频下载">
+        <label class="lbl" for="fDesc">它干什么</label>
+        <textarea id="fDesc" placeholder="例：丢一个链接进来，自动挑最高清晰度、自动合流成一个 mp4"></textarea>
+        <label class="lbl" for="fCmd">怎么跑（这条最要紧）</label>
+        <input type="text" id="fCmd" class="mono" placeholder='例：scripts\bili-download.bat "&lt;链接&gt;"'>
+        <label class="lbl" for="fPath">放在哪</label>
+        <input type="text" id="fPath" class="mono" placeholder="例：D:\pythonproject\newpro\scripts\bili_download.py">
+        <label class="lbl" for="fDeps">依赖什么</label>
+        <input type="text" id="fDeps" placeholder="例：imageio-ffmpeg（venv 自带）">
+        <label class="lbl">分类</label>
+        <div class="chips" id="fCats"></div>
+        <label class="lbl">状态</label>
+        <div class="chips" id="fStatus"></div>
+        <label class="lbl" for="fNotes">备注 / 踩过的坑</label>
+        <textarea id="fNotes" placeholder="例：B站 1080P 是音视频分离的，必须 ffmpeg 合流；不然只有画面没声音"></textarea>
+        <div class="row">
+          <button class="btn primary" id="saveBtn" type="button">保存</button>
+          <button class="btn ghost" id="cancelBtn" type="button">取消</button>
+          <span class="mini" id="formMsg"></span>
+        </div>
+      </div>
+
+      <details class="card" id="ideaCard">
+        <summary>💡 不知道登记什么？这儿有八个现成的</summary>
+        <p class="mini">点一条就填进表单，你只需补上「怎么跑」和「放在哪」。真想不出来，先问自己：过去一个月，哪件事我手动重复做过三遍以上？</p>
+        <div class="chips" id="ideaList"></div>
+      </details>
+
+      <div class="card">
+        <div class="filters">
+          <input type="text" id="q" placeholder="搜名字 / 干什么 / 怎么跑">
+          <div class="chips" id="catBar"></div>
+          <div class="chips" id="statusBar"></div>
+        </div>
+      </div>
+
+      <div id="list"></div>
+    </main>
+    <aside class="side">
+      <div class="card">
+        <div class="card-h">库里的情况</div>
+        <div class="stat" id="stat"></div>
+      </div>
+      <div class="card">
+        <div class="card-h">最近用过</div>
+        <div id="recent"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+<div class="toast" id="toast"></div><script>
+(function(){
+'use strict';
+var API = '/script-library/api';
+
+var items = [];        // 全部卡片
+var CATS = [];         // [{k,n}] 分类，键名和中文名都由后端给
+var STATUS = [];       // [{k,n}] 状态
+var cat = 'all';       // 当前分类筛选
+var st  = 'all';       // 当前状态筛选
+var q   = '';
+var editing = 0;       // 正在编辑的记录 id，0 = 新登记
+var draft = { cat: 'other', status: 'idea' };
+
+/* 空库时的起点。都不需要模型，就是「手动重复做过三遍以上」的那些事 */
+var IDEAS = [
+  { name: '批量重命名', desc: '把下载文件夹里的文件按「日期_序号」批量改名', cat: 'file' },
+  { name: '图片压缩', desc: '把一堆图压到指定大小以内，发群里不卡、不超限', cat: 'media' },
+  { name: 'PDF 合并 / 拆分', desc: '一堆 PDF 合成一个，或者把一个按页拆开', cat: 'file' },
+  { name: '下载文件夹自动归档', desc: '按扩展名把下载文件夹分到 图片 / 文档 / 安装包 / 其他', cat: 'file' },
+  { name: 'Excel 多表合并', desc: '把一个月里十几张表头一样的表拼成一张，省得手工复制', cat: 'data' },
+  { name: '服务探活', desc: '挨个请求自己的服务，挂了就在控制台标红', cat: 'ops' },
+  { name: 'SQLite 定时备份', desc: '每天把 data/app.db 备份一份，只留最近 7 份', cat: 'ops' },
+  { name: '仓库批量拉取', desc: '把本地所有 git 仓库挨个 pull 一遍，看有没有冲突', cat: 'dev' }
+];
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){
+  return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
+
+var toastTimer = 0;
+function toast(msg){
+  var t = $('toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove('on'); }, 1800);
+}
+
+function labelOf(list, key){
+  for(var i = 0; i < list.length; i++){ if(list[i].k === key) return list[i].n; }
+  return key || '—';
+}
+
+function byId(id){
+  for(var i = 0; i < items.length; i++){ if(items[i].id === id) return items[i]; }
+  return null;
+}
+
+/* 线上走的是 http://IP:8000，不算安全上下文，navigator.clipboard 可能没有，所以留个兜底 */
+function copyText(text){
+  if(!text){ toast('这条还没写「怎么跑」'); return; }
+  function fallback(){
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', 'readonly');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch(e){ ok = false; }
+    document.body.removeChild(ta);
+    toast(ok ? '命令已复制' : '复制没成功，手动选一下吧');
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ toast('命令已复制'); }, fallback);
+  } else {
+    fallback();
+  }
+}
+
+/* ---------------- 三个清单区 ---------------- */
+function renderBars(){
+  var h = '<button class="chip' + (cat === 'all' ? ' on' : '') + '" data-cat="all" type="button">全部 ' + items.length + '</button>';
+  CATS.forEach(function(c){
+    var n = items.filter(function(it){ return it.cat === c.k; }).length;
+    h += '<button class="chip' + (cat === c.k ? ' on' : '') + '" data-cat="' + c.k + '" type="button">'
+       + esc(c.n) + ' ' + n + '</button>';
+  });
+  $('catBar').innerHTML = h;
+
+  var s = '<button class="chip' + (st === 'all' ? ' on' : '') + '" data-st="all" type="button">全部状态</button>';
+  STATUS.forEach(function(x){
+    var n = items.filter(function(it){ return it.status === x.k; }).length;
+    s += '<button class="chip' + (st === x.k ? ' on' : '') + '" data-st="' + x.k + '" type="button">'
+       + esc(x.n) + ' ' + n + '</button>';
+  });
+  $('statusBar').innerHTML = s;
+}
+
+function renderStat(){
+  var ready = items.filter(function(it){ return it.status === 'ready'; }).length;
+  var back = items.filter(function(it){ return it.status === 'idea' || it.status === 'wip'; }).length;
+  $('stat').innerHTML =
+    '<div class="stat-i"><div class="stat-n">' + items.length + '</div><div class="stat-l">一共</div></div>' +
+    '<div class="stat-i"><div class="stat-n">' + ready + '</div><div class="stat-l">能用</div></div>' +
+    '<div class="stat-i"><div class="stat-n">' + back + '</div><div class="stat-l">还欠着</div></div>';
+}
+
+function renderRecent(){
+  var used = items.filter(function(it){ return it.used_at; })
+    .sort(function(a, b){ return a.used_at < b.used_at ? 1 : -1; })
+    .slice(0, 5);
+  if(!used.length){
+    $('recent').innerHTML = '<p class="mini" style="margin:0">还没标过「用过了」。哪个脚本今天真跑过，点它上面的「用过了」，这里就给你记着 —— 免得又忘。</p>';
+    return;
+  }
+  $('recent').innerHTML = used.map(function(it){
+    return '<button class="recent-i" data-jump="' + it.id + '" type="button">'
+         + '<span class="badge n">' + esc(it.used_at) + '</span>'
+         + '<span class="recent-t">' + esc(it.name) + '</span></button>';
+  }).join('');
+}
+
+function visible(){
+  var kw = q.trim().toLowerCase();
+  return items.filter(function(it){
+    if(cat !== 'all' && it.cat !== cat) return false;
+    if(st !== 'all' && it.status !== st) return false;
+    if(!kw) return true;
+    var hay = [it.name, it.desc, it.cmd, it.path, it.deps, it.notes].join(' ').toLowerCase();
+    return hay.indexOf(kw) >= 0;
+  });
+}function itemHtml(it){
+  var cls = it.status === 'ready' ? 'g' : (it.status === 'wip' ? 'o' : 'n');
+  var h = '<div class="item' + (it.status === 'dead' ? ' dead' : '') + '" data-item="' + it.id + '">';
+  h += '<div class="it-top"><div class="it-t">' + esc(it.name) + '</div>'
+     + '<span class="badge">' + esc(labelOf(CATS, it.cat)) + '</span>'
+     + '<span class="badge ' + cls + '">' + esc(labelOf(STATUS, it.status)) + '</span></div>';
+  if(it.desc) h += '<div class="it-d">' + esc(it.desc) + '</div>';
+  if(it.cmd){
+    h += '<div class="cmd"><code>' + esc(it.cmd) + '</code>'
+       + '<button class="lnk" data-copy="' + it.id + '" type="button">复制</button></div>';
+  }
+  var meta = [];
+  if(it.path) meta.push('<span class="mono">' + esc(it.path) + '</span>');
+  if(it.deps) meta.push('依赖 ' + esc(it.deps));
+  meta.push(it.used_n
+    ? ('用过 ' + it.used_n + ' 次' + (it.used_at ? '（最近 ' + esc(it.used_at) + '）' : ''))
+    : '还没标过用过');
+  if(it.created_at) meta.push('登记于 ' + esc(String(it.created_at).slice(0, 10)));
+  h += '<div class="it-m">' + meta.join('<span class="dot">·</span>') + '</div>';
+  if(it.notes) h += '<div class="it-n">' + esc(it.notes) + '</div>';
+  h += '<div class="it-x">'
+     + '<button class="lnk" data-touch="' + it.id + '" type="button">用过了</button>'
+     + '<button class="lnk" data-edit="' + it.id + '" type="button">编辑</button>'
+     + '<button class="lnk danger" data-del="' + it.id + '" type="button">删除</button>'
+     + '</div></div>';
+  return h;
+}
+
+function renderList(){
+  var box = $('list');
+  if(!items.length){
+    box.innerHTML = '<div class="card"><div class="empty"><b>库里还空着</b>'
+      + '先登记第一个：你手上那个「只有你自己知道怎么跑」的脚本，或者从上面那八条里挑一条。<br>'
+      + '「怎么跑」一定要写清楚 —— 过三个月，你只会记得有这么个东西，不会记得命令长什么样。</div></div>';
+    return;
+  }
+  var list = visible();
+  if(!list.length){
+    box.innerHTML = '<div class="card"><div class="empty">这个筛选下没有脚本。</div></div>';
+    return;
+  }
+  box.innerHTML = list.map(itemHtml).join('');
+}
+
+/* ---------------- 登记 / 编辑表单 ---------------- */
+function renderFormChips(){
+  $('fCats').innerHTML = CATS.map(function(c){
+    return '<button class="chip' + (draft.cat === c.k ? ' on' : '') + '" data-fcat="' + c.k
+         + '" type="button">' + esc(c.n) + '</button>';
+  }).join('');
+  $('fStatus').innerHTML = STATUS.map(function(x){
+    return '<button class="chip' + (draft.status === x.k ? ' on' : '') + '" data-fst="' + x.k
+         + '" type="button">' + esc(x.n) + '</button>';
+  }).join('');
+}
+
+function openForm(it){
+  editing = it ? it.id : 0;
+  $('formTitle').textContent = it ? '改这个脚本' : '登记一个脚本';
+  $('fName').value  = it ? it.name  : '';
+  $('fDesc').value  = it ? it.desc  : '';
+  $('fCmd').value   = it ? it.cmd   : '';
+  $('fPath').value  = it ? it.path  : '';
+  $('fDeps').value  = it ? it.deps  : '';
+  $('fNotes').value = it ? it.notes : '';
+  draft.cat = (it && it.cat) || 'other';
+  draft.status = (it && it.status) || 'idea';
+  $('formMsg').textContent = '';
+  renderFormChips();
+  $('formCard').hidden = false;
+  if(!it) $('fName').focus();
+  try { $('formCard').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch(e){}
+}
+
+function closeForm(){
+  editing = 0;
+  $('formCard').hidden = true;
+  $('fName').value = $('fDesc').value = $('fCmd').value = '';
+  $('fPath').value = $('fDeps').value = $('fNotes').value = '';
+  $('formMsg').textContent = '';
+}
+
+function save(){
+  var body = {
+    name:  $('fName').value,
+    desc:  $('fDesc').value,
+    cmd:   $('fCmd').value,
+    path:  $('fPath').value,
+    deps:  $('fDeps').value,
+    notes: $('fNotes').value,
+    cat:   draft.cat,
+    status: draft.status
+  };
+  if(body.name.trim().replace(/\s+/g, '').length < 2){
+    $('formMsg').textContent = '先给它起个名字，至少两个字。';
+    $('fName').focus();
+    return;
+  }
+  var opt = { method: editing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' } };
+  opt.body = JSON.stringify(editing ? { patch: body } : body);
+  var btn = $('saveBtn');
+  btn.disabled = true;
+  $('formMsg').textContent = '保存中…';
+  fetch(API + '/items' + (editing ? '/' + editing : ''), opt)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      btn.disabled = false;
+      if(!d.ok){ $('formMsg').textContent = d.message || '没存上'; return; }
+      toast(editing ? '改好了' : '登记好了');
+      closeForm();
+      load();
+    })
+    .catch(function(){
+      btn.disabled = false;
+      $('formMsg').textContent = '网络没通，再试一次。';
+    });
+}
+
+function touchIt(id){
+  fetch(API + '/items/' + id, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ patch: { touch: true } })
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if(d.ok){ toast('记下了'); load(); }
+  }).catch(function(){});
+}
+
+function removeIt(it){
+  if(!confirm('把「' + it.name + '」从库里删掉？删的是这条登记，不会动你磁盘上的脚本。')) return;
+  fetch(API + '/items/' + it.id, { method: 'DELETE' })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d.ok){ toast(d.message || '没删掉'); return; }
+      toast('删了');
+      if(editing === it.id) closeForm();
+      load();
+    })
+    .catch(function(){});
+}
+
+function jump(id){
+  var el = document.querySelector('.item[data-item="' + id + '"]');
+  if(!el) return;
+  try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e){}
+  el.classList.add('flash');
+  setTimeout(function(){ el.classList.remove('flash'); }, 1200);
+}
+
+function renderIdeas(){
+  $('ideaList').innerHTML = IDEAS.map(function(x, i){
+    return '<button class="chip" data-idea="' + i + '" type="button" title="' + esc(x.desc) + '">'
+         + esc(x.name) + '</button>';
+  }).join('');
+}
+
+function pickIdea(i){
+  var idea = IDEAS[i];
+  if(!idea) return;
+  openForm(null);
+  $('fName').value = idea.name;
+  $('fDesc').value = idea.desc;
+  draft.cat = idea.cat;
+  renderFormChips();
+  $('fCmd').focus();
+  toast('填好了，补上「怎么跑」和「放在哪」');
+}
+
+/* ---------------- 事件 ---------------- */
+document.addEventListener('click', function(e){
+  var el = e.target;
+  if(!el || !el.closest) return;
+  var btn = el.closest('button');
+  if(!btn) return;
+  if(btn.hasAttribute('data-copy')){ var a = byId(+btn.getAttribute('data-copy')); if(a) copyText(a.cmd); return; }
+  if(btn.hasAttribute('data-touch')){ touchIt(+btn.getAttribute('data-touch')); return; }
+  if(btn.hasAttribute('data-edit')){ var b = byId(+btn.getAttribute('data-edit')); if(b) openForm(b); return; }
+  if(btn.hasAttribute('data-del')){ var c = byId(+btn.getAttribute('data-del')); if(c) removeIt(c); return; }
+  if(btn.hasAttribute('data-jump')){ jump(+btn.getAttribute('data-jump')); return; }
+  if(btn.hasAttribute('data-cat')){ cat = btn.getAttribute('data-cat'); renderBars(); renderList(); return; }
+  if(btn.hasAttribute('data-st')){ st = btn.getAttribute('data-st'); renderBars(); renderList(); return; }
+  if(btn.hasAttribute('data-fcat')){ draft.cat = btn.getAttribute('data-fcat'); renderFormChips(); return; }
+  if(btn.hasAttribute('data-fst')){ draft.status = btn.getAttribute('data-fst'); renderFormChips(); return; }
+  if(btn.hasAttribute('data-idea')){ pickIdea(+btn.getAttribute('data-idea')); return; }
+});
+
+$('newBtn').addEventListener('click', function(){ openForm(null); });
+$('cancelBtn').addEventListener('click', closeForm);
+$('saveBtn').addEventListener('click', save);
+$('q').addEventListener('input', function(){ q = this.value; renderList(); });
+
+/* ---------------- 启动 ---------------- */
+function load(){
+  return fetch(API + '/items')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d.ok){
+        $('list').innerHTML = '<div class="card"><div class="empty">' + esc(d.message || '读不出脚本库') + '</div></div>';
+        return;
+      }
+      items = d.items || [];
+      CATS = d.cats || [];
+      STATUS = d.status || [];
+      renderBars();
+      renderStat();
+      renderRecent();
+      renderList();
+      if(!items.length) $('ideaCard').open = true;
+    })
+    .catch(function(){ /* 401 交给 auth-guard.js 跳登录 */ });
+}
+
+/* 「记录总览」点「直接打开这一条」过来会带 ?r=<记录 id> */
+function openDeep(){
+  var m = /[?&]r=(\d+)/.exec(location.search);
+  if(!m) return;
+  var rid = +m[1];
+  var it = byId(rid);
+  if(it){ openForm(it); return; }
+  fetch(API + '/items/' + rid)
+    .then(function(r){ return r.json(); })
+    .then(function(d){ if(d.ok && d.item) openForm(d.item); })
+    .catch(function(){});
+}
+
+renderIdeas();
+load().then(openDeep);
+})();
+</script>
+</body>
+</html>

@@ -205,6 +205,14 @@ app.include_router(five_why_router)
 from kolb import router as kolb_router  # noqa: E402
 app.include_router(kolb_router)
 
+# 脚本库：页面在 /script-library
+# 把散在本机各处的小脚本登记成卡片 —— 干什么、怎么跑、依赖什么、放在哪。
+# 解决的是「想不起来」，不是「没有脚本」：三个月后翻回来，一眼就知道有这么个东西、怎么把它跑起来。
+# 每张卡存 SQLite（tool='script-library'），按登录名隔离；页面认 ?r=<记录 id> 深链。
+# 浏览器访问 http://127.0.0.1:8000/script-library 即可使用。
+from script_library import router as script_library_router  # noqa: E402
+app.include_router(script_library_router)
+
 
 
 # =========================================================

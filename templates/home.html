@@ -95,6 +95,8 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .tool.t-ov:hover{border-color:rgba(129,140,248,.55);box-shadow:0 24px 52px rgba(99,102,241,.26)}
 .t-ov .go{background:linear-gradient(135deg,#818cf8,#6366f1);box-shadow:0 8px 20px rgba(99,102,241,.32)}
 .t-vw .go{background:linear-gradient(135deg,#6366f1,#4338ca);box-shadow:0 8px 20px rgba(99,102,241,.32)}
+.tool.t-sl:hover{border-color:rgba(148,163,184,.6);box-shadow:0 24px 52px rgba(100,116,139,.28)}
+.t-sl .go{background:linear-gradient(135deg,#64748b,#334155);box-shadow:0 8px 20px rgba(100,116,139,.35)}
 .search-col{display:flex;flex-direction:column;align-items:stretch;gap:7px;flex:1;max-width:480px;min-width:260px;margin-left:auto}
 .search-box{position:relative;width:100%}
 .search-box .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none;font-size:15px}
@@ -611,6 +613,14 @@ body.is-dragging .tool:not(.dragging){transition:none}
       <div class="t-info">
         <h3>数据浏览</h3>
         <p class="desc">SQLite 的只读查看器：左边点表翻数据，右边随手写 SQL，结果能一键画成柱状图 / 折线图 / 饼图，也能导成 CSV。想知道某个工具到底存了什么，来这儿看。</p>
+        <span class="go">立即打开</span>
+      </div>
+    </a>
+    <a class="tool t-sl" data-cat="learn" href="/script-library">
+      <div class="t-icon">📜</div>
+      <div class="t-info">
+        <h3>脚本库</h3>
+        <p class="desc">把散在本机的小脚本登记成卡片：干什么、怎么跑、放在哪。省得三个月后连有这东西都忘了。</p>
         <span class="go">立即打开</span>
       </div>
     </a>
