@@ -92,6 +92,8 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .tool.t-rd:hover{border-color:rgba(176,137,104,.6);box-shadow:0 24px 52px rgba(138,90,59,.26)}
 .t-rd .go{background:linear-gradient(135deg,#b08968,#7f5539);box-shadow:0 8px 20px rgba(138,90,59,.32)}
 .tool.t-vw:hover{border-color:rgba(99,102,241,.55);box-shadow:0 24px 52px rgba(67,56,202,.26)}
+.tool.t-ov:hover{border-color:rgba(129,140,248,.55);box-shadow:0 24px 52px rgba(99,102,241,.26)}
+.t-ov .go{background:linear-gradient(135deg,#818cf8,#6366f1);box-shadow:0 8px 20px rgba(99,102,241,.32)}
 .t-vw .go{background:linear-gradient(135deg,#6366f1,#4338ca);box-shadow:0 8px 20px rgba(99,102,241,.32)}
 .search-col{display:flex;flex-direction:column;align-items:stretch;gap:7px;flex:1;max-width:480px;min-width:260px;margin-left:auto}
 .search-box{position:relative;width:100%}
@@ -464,7 +466,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
       <div class="t-icon">🧠</div>
       <div class="t-info">
         <h3>学习模型助手</h3>
-        <p class="desc">提出你想学的内容，AI 用第一性原理、金字塔原理、贝叶斯定理分别拆解成三张思维导图，帮你理清学习方向与行动步骤。</p>
+        <p class="desc">提出你想学的内容，AI 从第一性原理、金字塔原理、贝叶斯定理拆成三张学习导图，能存下来回看、勾掉做完的步骤。</p>
         <span class="go">立即打开</span>
       </div>
     </a>
@@ -504,7 +506,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
       <div class="t-icon">🧠</div>
       <div class="t-info">
         <h3>判断力教练</h3>
-        <p class="desc">写下一件正在犹豫的真事，先写下你的打算和几成把握，再让 AI 把里面的事实、猜测和「你其实在赌什么」摊开；到期回来对答案，看你的把握准不准。</p>
+        <p class="desc">写下你正犹豫的一件事、打算和几成把握；AI 摊开事实、猜测和你在赌什么，几天后回来对答案，看你的把握准不准。</p>
         <span class="go">立即打开</span>
       </div>
     </a>
@@ -512,7 +514,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
       <div class="t-icon">🌳</div>
       <div class="t-info">
         <h3>5Why 分析法</h3>
-        <p class="desc">输入一个问题，AI 像聊天一样一层层问你「为什么」，每层给几个不同角度的答案供你挑或改；每答一层它自动做顺读 / 逆读检查，拦住「某人不小心」「沟通不畅」这种没法动手的答案；只有落到能直接改的机制才让做根因验证，最后配上对策（谁 / 什么时候 / 怎么做 / 怎么验）并导出一份报告。追过的链条都存在库里。</p>
+        <p class="desc">输入一个问题，AI 一层层问你「为什么」，每层给几个候选答案；拦住「沟通不畅」这类空话，追到根因后配上对策和报告。</p>
         <span class="go">立即打开</span>
       </div>
     </a>
@@ -585,6 +587,14 @@ body.is-dragging .tool:not(.dragging){transition:none}
       <div class="t-info">
         <h3>读书落地</h3>
         <p class="desc">输入书名和作者，AI 不给读书笔记，只给今天能照着做的动作：什么场合用、三步怎么做、怎么算做到、容易在哪里变形。挑一张就能开工，7 天后回来问你一句。</p>
+        <span class="go">立即打开</span>
+      </div>
+    </a>
+    <a class="tool t-ov" data-cat="learn" href="/overview">
+      <div class="t-icon">🗂️</div>
+      <div class="t-info">
+        <h3>记录总览</h3>
+        <p class="desc">各工具里存过的记录汇到一页：能按天 / 周 / 月看，按工具筛、搜关键词、只看还没收尾的。</p>
         <span class="go">立即打开</span>
       </div>
     </a>

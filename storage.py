@@ -296,6 +296,32 @@ def list_records(tool: str, user: str = '', limit: int = 50) -> list:
     return rows
 
 
+def list_records_all(user: str = '', limit: int = 300) -> list:
+    """跨工具读 history —— 「记录总览」页要一屏看到所有工具存过什么。
+
+    和 list_records 的区别只有两点：不按 tool 过滤，返回值里带 tool 字段。
+    """
+    limit = max(1, min(int(limit or 300), 1000))
+    sql = 'SELECT id, tool, user, title, payload, created_at FROM history WHERE 1 = 1'
+    args = []
+    if user:
+        sql += ' AND user = ?'
+        args.append(user)
+    sql += ' ORDER BY id DESC LIMIT ?'
+    args.append(limit)
+    conn = connect()
+    try:
+        rows = _rows(conn, sql, args)
+    finally:
+        conn.close()
+    for row in rows:
+        try:
+            row['payload'] = json.loads(row['payload'] or '{}')
+        except ValueError:
+            row['payload'] = {}
+    return rows
+
+
 def delete_record(user: str, rid: int) -> int:
     conn = connect()
     try:

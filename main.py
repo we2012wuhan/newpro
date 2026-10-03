@@ -173,6 +173,14 @@ app.include_router(reading_practice_router)
 from db_viewer import router as db_viewer_router  # noqa: E402
 app.include_router(db_viewer_router)
 
+# 附加功能：记录总览（页面在 /overview）
+# 各工具的历史记录本来就都落在 history 表（用 tool 字段区分），但散在各自的页面里；
+# 这一页跨工具汇总，能按工具筛、搜关键词、只看没收尾的。
+# 定位是只读汇总 —— 不新增记录入口，写数据仍然是各工具自己的事。
+# 浏览器访问 http://127.0.0.1:8000/overview 即可使用。
+from overview import router as overview_router  # noqa: E402
+app.include_router(overview_router)
+
 # 首页「工具分类」：新增 / 删除 / 改名 / 卡片归属
 # 以前这些存在浏览器 localStorage 里，换设备就没了；
 # 现在落 SQLite（storage.py 的 tool_cats / tool_cat_assign），接口在 home_cats.py。

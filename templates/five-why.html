@@ -212,6 +212,15 @@ label.f{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 5px}
 <script>
 (function(){
 'use strict';
+/* 「记录总览」直接跳过来用的：地址上带 ?r=<记录 id> 就打开那一条 */
+var deepOpened = false;
+function wantRecId(){
+  try{
+    var m = /[?&]r=([0-9]+)/.exec(window.location.search || '');
+    return m ? m[1] : '';
+  }catch(e){ return ''; }
+}
+
 
 var STAGES = ['确认问题', '一层层问', '根因验证', '配对策', '收尾'];
 var AV_HUES = [22, 32, 12, 40, 200, 268, 152, 340];
@@ -758,7 +767,7 @@ function loadHistory(){
 function renderHistory(){
   var el = $('history');
   if(!el){ return; }
-  var h = '<div class="card"><div class="card-h">追过的（存在库里）</div>';
+  var h = '<div class="card"><div class="card-h">历史记录</div>';
   if(S.listErr){
     h += '<div class="mini" style="margin-top:6px">' + esc(S.listErr) + '</div></div>';
     el.innerHTML = h;
@@ -798,6 +807,8 @@ function init(){
   renderAll();
   renderHistory();
   loadHistory();
+  var deepId = wantRecId();
+  if(deepId){ open(Number(deepId)); }
   req('GET', '/five-why/api/status').then(function(d){
     if(d && d.ai !== undefined){ S.ai = !!d.ai; }
     if(d && Object.prototype.toString.call(d.stages) === '[object Array]' && d.stages.length === 5){

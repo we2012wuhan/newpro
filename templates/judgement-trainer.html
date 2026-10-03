@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="/static/theme.css">
 <script src="/static/theme.js"></script>
 <script src="/static/particles.js"></script>
+<script src="/static/auth-guard.js"></script>
 <style>
 :root{
   --acc:#2F8F6B; --acc-d:#26755A; --acc-l:#EAF6F1; --acc-line:#C4E3D6;
@@ -149,6 +150,38 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
   font-size:13.5px;box-shadow:var(--sh);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 @media (prefers-reduced-motion:reduce){.sk,.spin{animation:none;opacity:.6}}
+/* 到期提醒条：打开第一眼先看到它 */
+.due-banner{margin-top:14px;border:1px solid var(--warn-line);background:var(--warn-l);border-radius:var(--r);
+  padding:14px 16px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.due-banner .db-t{font-size:15px;font-weight:600;color:var(--ink)}
+/* 「去查」勾选：拆解得有个能落地的动作 */
+.chk{display:flex;align-items:flex-start;gap:9px;margin-top:10px;border:1px solid var(--acc-line);
+  background:var(--acc-l);border-radius:10px;padding:10px 12px}
+.chk input{width:18px;height:18px;margin:2px 0 0;flex:0 0 18px;accent-color:var(--acc)}
+.chk label{font-size:13.5px;line-height:1.6;color:var(--ink);cursor:pointer}
+.chk input:checked+label{text-decoration:line-through;color:var(--muted)}
+/* 用你自己的历史说话 */
+.hist{margin-top:12px;border-left:3px solid var(--acc-line);background:var(--soft);
+  border-radius:0 10px 10px 0;padding:10px 13px;font-size:13px;line-height:1.7;color:var(--text)}
+/* ===== 右侧历史 ===== */
+.hist-i{display:flex;align-items:stretch;gap:4px;margin-top:8px}
+.hist-open{flex:1 1 auto;min-width:0;text-align:left;padding:10px 12px;border:1px solid var(--line);
+  border-radius:12px;background:var(--field);cursor:pointer;transition:border-color .15s,background .15s}
+.hist-open:hover{border-color:var(--acc-line);background:var(--acc-l)}
+.hist-i.on .hist-open{border-color:var(--acc);background:var(--acc-l);box-shadow:inset 3px 0 0 var(--acc)}
+.hist-t{display:block;font-size:14px;font-weight:600;color:var(--ink);line-height:1.45;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist-m{display:block;font-size:11px;color:var(--muted);margin-top:3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist-del{flex:0 0 34px;border:1px solid var(--line);border-radius:10px;background:var(--field);
+  color:var(--muted);cursor:pointer;font-size:15px;line-height:1}
+.hist-del:hover{color:var(--err);border-color:var(--err-line);background:var(--err-l)}
+.col-main{min-width:0}
+@media (min-width:1100px){
+  .topbar-in,.wrap{max-width:1180px}
+  .wrap{display:grid;grid-template-columns:minmax(0,1fr) 292px;gap:22px;align-items:start}
+  .col-side{position:sticky;top:78px}
+}
 </style>
 </head>
 <body>
@@ -156,14 +189,17 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
   <div class="topbar-in">
     <div>
       <div class="ttl">判断力教练</div>
-      <div class="sub">拿自己身上的真事练，先押注，再看牌</div>
+      <div class="sub">拿真事练：先押注，再看牌，到期对答案</div>
     </div>
     <a class="back" href="/">← 返回工具箱</a>
   </div>
 </header>
 
 <main class="wrap">
-  <div class="card">
+  <div class="col-main">
+  <div id="dueBox"></div>
+  <button class="btn block" id="formToggle" type="button" style="display:none;margin-top:14px">再押一个</button>
+  <div class="card" id="formCard">
     <label class="f" for="caseText">一件你正在犹豫的真事</label>
     <textarea id="caseText" placeholder="发生了什么、谁在里面、你手上有什么信息、卡在哪。"></textarea>
 
@@ -175,40 +211,51 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
       <span class="mini">这个数以后要对答案的</span></div>
     <div class="slider"><input type="range" id="conf" min="50" max="95" step="5" value="70"></div>
 
-    <button class="btn primary block big" id="goBtn" type="button">先押注，再看牌</button>
+    <button class="btn primary block big" id="goBtn" type="button" style="margin-top:16px">先押注，再看牌</button>
     <div class="mini" id="goTip" style="text-align:center;margin-top:8px"></div>
   </div>
 
   <div id="out"></div>
   <section id="book"></section>
+  </div>
+  <aside class="col-side">
+    <section id="history"></section>
+  </aside>
 </main>
 <div class="toast" id="toast"></div>
 <script>
 (function(){
 'use strict';
+/* 「记录总览」直接跳过来用的：地址上带 ?r=<记录 id> 就打开那一条 */
+var deepOpened = false;
+function wantRecId(){
+  try{
+    var m = /[?&]r=([0-9]+)/.exec(window.location.search || '');
+    return m ? m[1] : '';
+  }catch(e){ return ''; }
+}
 
-/* 案例、押注、回访记录只存这台设备的浏览器里 */
-var K_REC = 'jt_cases_v2';
 
-var S = { ai:true, busy:false, data:null, source:'', err:'' };
+/* 记录存服务端 SQLite（/judgement-trainer/api/cases），换设备、换浏览器都还在。
+   下面这个 key 只用来把以前写在浏览器里的旧记录搬一次，搬完就删掉。 */
+var K_OLD = 'jt_cases_v2';
+
+var S = { ai:true, busy:false, data:null, source:'', err:'', folded:false };
 var recs = [];
+var migrating = false;
+var DAYS = [1, 3, 7, 30];
 
 function $(id){ return document.getElementById(id); }
 function esc(s){
   return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-function load(k, fb){
-  try{ var v = localStorage.getItem(k); return v === null ? fb : JSON.parse(v); }
-  catch(e){ return fb; }
-}
-function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 function toast(msg){
   var t = $('toast');
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(toast._t);
-  toast._t = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+  toast._t = setTimeout(function(){ t.classList.remove('show'); }, 2400);
 }
 function dayStr(d){
   var m = d.getMonth() + 1, day = d.getDate();
@@ -225,12 +272,23 @@ function daysBetween(a, b){
   var pa = a.split('-'), pb = b.split('-');
   return Math.round((new Date(+pb[0],+pb[1]-1,+pb[2]) - new Date(+pa[0],+pa[1]-1,+pa[2])) / 86400000);
 }
-function api(path, body){
-  return fetch(path, {
-    method:'POST', headers:{ 'Content-Type':'application/json' },
-    body: JSON.stringify(body || {})
-  }).then(function(r){ return r.json(); })
-    .catch(function(){ return { ok:false, msg:'请求失败，看下服务还在不在' }; });
+function isDate(s){ return /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')); }
+function isDue(r, today){ return !r.outcome && isDate(r.due) && r.due <= today; }
+
+/* 401 交给 auth-guard.js 跳登录页；这里只把各种失败翻成同一个形状 */
+function api(method, path, body){
+  var opt = { method:method, headers:{} };
+  if(body){ opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
+  return fetch(path, opt).then(function(r){
+    return r.json().catch(function(){ return { ok:false, msg:'服务返回了看不懂的东西' }; });
+  }).catch(function(){ return { ok:false, msg:'请求失败，看下服务还在不在' }; });
+}
+function replaceRec(item){
+  if(!item || !item.id){ return; }
+  for(var i = 0; i < recs.length; i++){
+    if(recs[i].id === item.id){ recs[i] = item; return; }
+  }
+  recs.unshift(item);
 }
 function titleOf(r){
   var t = String(r.text || '').replace(/\s+/g, ' ');
@@ -238,12 +296,15 @@ function titleOf(r){
   return cut.length > 26 ? cut.slice(0, 26) + '…' : cut;
 }
 
+/* ---------- 押注表单 ---------- */
 function formState(){
   var c = $('caseText').value.trim(), l = $('lean').value.trim();
   var missing = [];
   if(c.length < 8){ missing.push('这件事'); }
   if(l.length < 2){ missing.push('你的打算'); }
-  return { text:c, lean:l, missing:missing };
+  var dEl = $('days');   // 选择器在结果卡里，还没拆解过时页面上没有
+  return { text:c, lean:l, conf:Number($('conf').value) || 70,
+           days:dEl ? (Number(dEl.value) || 3) : 3, missing:missing };
 }
 function refreshForm(){
   var f = formState();
@@ -253,14 +314,13 @@ function refreshForm(){
     ? ('还差：' + f.missing.join('、'))
     : (S.ai ? '' : '服务端没配模型 Key，这次走本地规则粗拆');
 }
-
 function analyze(){
   var f = formState();
   if(f.missing.length){ toast('还差：' + f.missing.join('、')); return; }
-  S.busy = true; S.err = ''; S.data = null;
+  S.busy = true; S.err = ''; S.data = null; S.view = null;   // 重新拆解就退出回看
   refreshForm(); renderOut();
-  api('/judgement-trainer/api/analyze',
-      { case:f.text, lean:f.lean, conf:Number($('conf').value) || 70 })
+  api('POST', '/judgement-trainer/api/analyze',
+      { case:f.text, lean:f.lean, conf:f.conf })
     .then(function(d){
       S.busy = false;
       if(!d || !d.ok){ S.err = (d && d.msg) || '拆解失败，再点一次'; }
@@ -271,6 +331,7 @@ function analyze(){
     });
 }
 
+/* ---------- 拆解结果 ---------- */
 function block(title, cls, list){
   var body = (list && list.length)
     ? '<ul>' + list.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>'
@@ -278,8 +339,43 @@ function block(title, cls, list){
   return '<div class="fb ' + cls + '"><div class="fh">' + title + '</div>' + body + '</div>';
 }
 
+/* 拿你自己已回访的记录说话。这是这个工具唯一别处拿不到的东西 */
+function histHint(){
+  var done = recs.filter(function(r){ return r.outcome === 'yes' || r.outcome === 'no'; });
+  if(done.length < 3){ return ''; }
+  var high = done.filter(function(r){ return r.conf >= 80; });
+  if(high.length >= 3){
+    var hi = high.filter(function(r){ return r.outcome === 'yes'; }).length;
+    if(hi * 2 < high.length){
+      return '你过去 ' + high.length + ' 条里报 80% 以上的，只发生了 ' + hi +
+             ' 条。这次的把握数字，先别急着信。';
+    }
+  }
+  var hits = done.filter(function(r){ return r.outcome === 'yes'; }).length;
+  var avg = Math.round(done.reduce(function(s, r){ return s + r.conf; }, 0) / done.length);
+  var real = Math.round(hits / done.length * 100);
+  if(avg - real > 12){
+    return '你过去 ' + done.length + ' 条平均报 ' + avg + '% 把握，实际发生 ' + real +
+           '% —— 你有系统地高估自己。';
+  }
+  if(real - avg > 12){
+    return '你过去 ' + done.length + ' 条平均报 ' + avg + '%，实际发生 ' + real +
+           '% —— 你比自己以为的保守。';
+  }
+  return '你过去 ' + done.length + ' 条报的把握和实际差不多，那杆秤是准的。';
+}
+
 function renderOut(){
   var out = $('out');
+  if(S.view){
+    var viewed = recById(S.view);
+    if(!viewed){ S.view = null; }
+    else {
+      out.innerHTML = recView(viewed);
+      $('closeView').onclick = closeView;
+      return;
+    }
+  }
   if(S.busy){
     out.innerHTML = '<div class="card"><div class="sk" style="width:30%"></div>' +
       '<div class="sk"></div><div class="sk" style="width:76%"></div><div class="sk" style="width:50%"></div></div>';
@@ -306,32 +402,40 @@ function renderOut(){
   if(d.check){
     h += '<div class="line check"><span class="k">去查</span><span class="v">' + esc(d.check) + '</span></div>';
   }
+  var hint = histHint();
+  if(hint){ h += '<div class="hist">' + esc(hint) + '</div>'; }
   h += '<div class="save"><select id="days">' +
-       '<option value="30" selected>30 天后回访</option>' +
-       '<option value="7">7 天后回访</option>' +
-       '<option value="90">90 天后回访</option></select>' +
-       '<button class="btn primary" id="saveBtn" type="button">记进本子</button></div></div>';
+       '<option value="1">1 天后对答案</option>' +
+       '<option value="3" selected>3 天后对答案</option>' +
+       '<option value="7">7 天后对答案</option>' +
+       '<option value="30">30 天后对答案</option></select>' +
+       '<button class="btn primary" id="saveBtn" type="button">记进本子</button></div>' +
+       '<div class="mini" style="text-align:center;margin-top:6px">' +
+       '小事就 1–3 天，只有真大的决定才值 30 天 —— 等得越久，你越记不住当初在赌什么。</div></div>';
   out.innerHTML = h;
   $('saveBtn').onclick = saveRec;
 }
-
 function saveRec(){
   var f = formState();
-  var days = Number($('days').value) || 30;
+  var btn = $('saveBtn');
+  if(btn){ btn.disabled = true; }
   var at = todayStr();
-  recs.unshift({
-    id:'c' + Date.now(), at:at, text:f.text, lean:f.lean,
-    conf:Number($('conf').value) || 70, ai:S.data, source:S.source,
-    days:days, due:addDays(at, days), outcome:null, note:'', reviewedAt:null
+  api('POST', '/judgement-trainer/api/cases', {
+    text:f.text, lean:f.lean, conf:f.conf, days:f.days, at:at,
+    due:addDays(at, f.days), ai:S.data, source:S.source
+  }).then(function(d){
+    if(!d || !d.ok){
+      if(btn){ btn.disabled = false; }
+      toast((d && d.msg) || '没存上，再点一次');
+      return;
+    }
+    recs.unshift(d.item);
+    $('caseText').value = ''; $('lean').value = '';
+    $('conf').value = 70; $('confN').textContent = '70%';
+    S.data = null; S.err = ''; S.source = '';
+    refreshForm(); renderAll();
+    toast('记下了，' + f.days + ' 天后提醒你对答案');
   });
-  save(K_REC, recs);
-  $('caseText').value = ''; $('lean').value = '';
-  $('conf').value = 70; $('confN').textContent = '70%';
-  S.data = null; S.err = ''; S.source = '';
-  refreshForm(); renderOut(); renderBook();
-  toast('记进本子，' + days + ' 天后提醒你回访');
-  var b = $('book');
-  if(b && b.scrollIntoView){ b.scrollIntoView({ behavior:'smooth', block:'start' }); }
 }
 
 /* ---------- 本子 ---------- */
@@ -339,13 +443,21 @@ function statCell(n, label){
   return '<div class="stats-i"><div class="stats-n">' + n + '</div><div class="stats-l">' +
          label + '</div></div>';
 }
+/* 「去查」那条动作，存下来之后可以勾掉 —— 拆解得有个落点 */
+function chkLine(r){
+  if(!r.ai || !r.ai.check){ return ''; }
+  return '<div class="chk"><input type="checkbox" id="ck_' + r.id + '" data-chk="' + r.id + '"' +
+    (r.checked ? ' checked' : '') + '>' +
+    '<label for="ck_' + r.id + '">去查了：' + esc(r.ai.check) + '</label></div>';
+}
 function dueItem(r){
   return '<div class="item due">' +
     '<div class="item-t">' + esc(titleOf(r)) + '</div>' +
     '<div class="item-m"><span class="badge o">该回访</span><span>报 ' + r.conf + '%</span>' +
-      '<span>' + esc(r.at) + '</span></div>' +
+      '<span>' + esc(r.at || '') + '</span></div>' +
     '<div class="kv"><b>打算：</b>' + esc(r.lean) + '</div>' +
     (r.ai && r.ai.bet ? '<div class="kv"><b>你当时在赌：</b>' + esc(r.ai.bet) + '</div>' : '') +
+    chkLine(r) +
     '<textarea id="note_' + r.id + '" placeholder="实际发生了什么（可空）"></textarea>' +
     '<div class="btn-row">' +
       '<button class="btn sm" type="button" data-yes="' + r.id + '">发生了</button>' +
@@ -355,10 +467,10 @@ function dueItem(r){
 function pendItem(r, today){
   return '<div class="item"><div class="item-t">' + esc(titleOf(r)) + '</div>' +
     '<div class="item-m"><span class="badge n">等结果</span><span>报 ' + r.conf + '%</span>' +
-      '<span>' + Math.max(1, daysBetween(today, r.due)) + ' 天后回访</span>' +
+      '<span>' + Math.max(1, daysBetween(today, r.due)) + ' 天后对答案</span>' +
       '<button class="lnk" type="button" data-early="' + r.id + '">现在就回访</button>' +
       '<button class="lnk" type="button" data-del="' + r.id + '">删掉</button></div>' +
-    '<div class="kv"><b>打算：</b>' + esc(r.lean) + '</div></div>';
+    '<div class="kv"><b>打算：</b>' + esc(r.lean) + '</div>' + chkLine(r) + '</div>';
 }
 function doneItem(r){
   var yes = r.outcome === 'yes';
@@ -408,8 +520,8 @@ function calibCard(done){
 }
 function renderBook(){
   var today = todayStr();
-  var due = recs.filter(function(r){ return !r.outcome && r.due <= today; });
-  var pend = recs.filter(function(r){ return !r.outcome && r.due > today; });
+  var due = recs.filter(function(r){ return isDue(r, today); });
+  var pend = recs.filter(function(r){ return !r.outcome && isDate(r.due) && r.due > today; });
   var done = recs.filter(function(r){ return !!r.outcome; });
 
   var h = '<div class="sec-t">本子</div><div class="card"><div class="stats">' +
@@ -424,16 +536,6 @@ function renderBook(){
   $('book').innerHTML = h;
   bindBook();
 }
-function review(id, val){
-  var noteEl = $('note_' + id);
-  var note = noteEl ? noteEl.value.trim() : '';
-  recs.forEach(function(r){
-    if(r.id === id){ r.outcome = val; r.note = note; r.reviewedAt = todayStr(); }
-  });
-  save(K_REC, recs);
-  renderBook();
-  toast(val === 'yes' ? '记下了：发生了' : '记下了：没发生');
-}
 function bindBook(){
   function each(attr, fn){
     Array.prototype.forEach.call(document.querySelectorAll('[' + attr + ']'), function(b){
@@ -442,26 +544,228 @@ function bindBook(){
   }
   each('data-yes', function(id){ review(id, 'yes'); });
   each('data-no', function(id){ review(id, 'no'); });
-  each('data-del', function(id){
-    if(!confirm('删掉这条记录？')){ return; }
-    recs = recs.filter(function(r){ return r.id !== id; });
-    save(K_REC, recs); renderBook();
+  each('data-del', delRec);
+  each('data-early', early);
+  Array.prototype.forEach.call(document.querySelectorAll('[data-chk]'), function(b){
+    b.onchange = function(){ toggleCheck(b.getAttribute('data-chk'), b.checked); };
   });
-  each('data-early', function(id){
-    recs.forEach(function(r){ if(r.id === id){ r.due = todayStr(); } });
-    save(K_REC, recs); renderBook();
+}
+function patch(id, body, okMsg){
+  return api('PATCH', '/judgement-trainer/api/cases/' + id, { patch:body }).then(function(d){
+    if(!d || !d.ok){ toast((d && d.msg) || '没存上'); return false; }
+    replaceRec(d.item);
+    return true;
+  });
+}
+function review(id, val){
+  var noteEl = $('note_' + id);
+  var note = noteEl ? noteEl.value.trim() : '';
+  patch(id, { outcome:val, note:note, reviewedAt:todayStr() }, '').then(function(ok){
+    if(!ok){ return; }
+    renderAll();
+    toast(val === 'yes' ? '记下了：发生了' : '记下了：没发生');
+  });
+}
+function delRec(id){
+  if(!confirm('删掉这条记录？')){ return; }
+  api('DELETE', '/judgement-trainer/api/cases/' + id).then(function(d){
+    if(!d || !d.ok){ toast((d && d.msg) || '没删掉'); return; }
+    recs = recs.filter(function(r){ return String(r.id) !== String(id); });
+    if(String(S.view) === String(id)){ S.view = null; }
+    renderAll();
+  });
+}
+function early(id){
+  patch(id, { due:todayStr() }).then(function(ok){ if(ok){ renderAll(); } });
+}
+function toggleCheck(id, checked){
+  patch(id, { checked:checked });
+}
+
+/* ---------- 打开第一眼：先看到「该对答案了」 ---------- */
+function renderDue(){
+  var today = todayStr();
+  var due = recs.filter(function(r){ return isDue(r, today); });
+  var box = $('dueBox');
+  if(!due.length){ box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="due-banner"><div class="db-t">有 ' + due.length +
+    ' 条到期了，该对答案了</div><div class="mini">当初那句「凭什么」，现在还成立吗？</div>' +
+    '<button class="btn primary" id="jumpDue" type="button">去对答案</button></div>';
+  $('jumpDue').onclick = function(){
+    var b = $('book');
+    if(b && b.scrollIntoView){ b.scrollIntoView({ behavior:'smooth', block:'start' }); }
+  };
+}
+function renderFold(){
+  $('formCard').hidden = S.folded;
+  $('formToggle').style.display = S.folded ? '' : 'none';
+}
+function renderAll(){ renderDue(); renderFold(); renderOut(); renderBook(); renderHistory(); }
+
+/* ---------- 右侧历史 / 回看 ---------- */
+function recById(id){
+  for(var i = 0; i < recs.length; i++){
+    if(String(recs[i].id) === String(id)){ return recs[i]; }
+  }
+  return null;
+}
+function recState(r, today){
+  if(r.outcome === 'yes'){ return '发生了'; }
+  if(r.outcome === 'no'){ return '没发生'; }
+  if(!isDate(r.due)){ return '没设回访日'; }
+  if(isDue(r, today)){ return '该回访'; }
+  return Math.max(1, daysBetween(today, r.due)) + ' 天后对答案';
+}
+/* 点开一条历史：把当时的拆解原样摆回来 */
+function recView(r){
+  var d = r.ai || {}, today = todayStr();
+  var h = '<div class="card"><div class="ana-h">' +
+    '<span class="badge n">回看</span>' +
+    (d.kind ? '<span class="badge">' + esc(d.kind) + '</span>' : '') +
+    (d.trap ? '<span class="badge n">陷阱：' + esc(d.trap) + '</span>' : '') +
+    '<button class="lnk" type="button" id="closeView" style="margin-left:auto">收起</button></div>';
+  h += '<div class="kv"><b>当时的事：</b>' + esc(r.text) + '</div>';
+  h += '<div class="kv"><b>当时打算：</b>' + esc(r.lean) + '（报 ' + r.conf + '% 把握）</div>';
+  h += '<div class="kv"><b>回访：</b>' + esc(r.due || '—') + ' · ' + esc(recState(r, today)) + '</div>';
+  if(d.bet){
+    h += '<div class="box" style="margin-top:12px"><span class="k">你当时在赌</span>' + esc(d.bet) + '</div>';
+  }
+  if((d.facts && d.facts.length) || (d.guesses && d.guesses.length)){
+    h += '<div class="two">' + block('事实（能核对的）', 'f', d.facts) +
+         block('猜测（你加上去的）', 'g', d.guesses) + '</div>';
+  }
+  if(d.unknowns && d.unknowns.length){
+    h += '<div class="line"><span class="k">你没提到的</span><span>' +
+         d.unknowns.map(esc).join('<br>') + '</span></div>';
+  }
+  if(d.counter){
+    h += '<div class="line"><span class="k">反方视角</span><span>' + esc(d.counter) + '</span></div>';
+  }
+  if(d.check){
+    h += '<div class="line check"><span class="k">去查</span><span class="v">' + esc(d.check) +
+         (r.checked ? '（已查）' : '') + '</span></div>';
+  }
+  if(r.outcome){
+    h += '<div class="line"><span class="k">结果</span><span>' +
+         esc(r.outcome === 'yes' ? '发生了' : '没发生') +
+         (r.note ? ' —— ' + esc(r.note) : '') + '</span></div>';
+  }
+  if(!d.bet && !d.check){
+    h += '<div class="mini" style="margin-top:10px">这条记录里没有拆解内容，' +
+         '大概是当时只押了注、没点「先押注，再看牌」。</div>';
+  }
+  return h + '</div>';
+}
+function openRec(id){
+  S.view = id;
+  renderOut(); renderHistory();
+  var el = $('out');
+  if(el && el.scrollIntoView){ el.scrollIntoView({ behavior:'smooth', block:'start' }); }
+}
+function closeView(){ S.view = null; renderOut(); renderHistory(); }
+
+function renderHistory(){
+  var el = $('history');
+  if(!el){ return; }
+  var today = todayStr();
+  var h = '<div class="card"><div class="card-h">历史记录</div>';
+  if(!recs.length){
+    h += '<div class="mini" style="margin-top:6px">还没有。上面押一个，这里就会留下一条，' +
+         '换台设备也还在。</div></div>';
+    el.innerHTML = h; return;
+  }
+  h += recs.map(function(r){
+    var cur = String(r.id) === String(S.view);
+    var meta = '报 ' + r.conf + '% · ' + esc(recState(r, today)) +
+               (r.at ? ' · ' + esc(r.at) : '');
+    return '<div class="hist-i' + (cur ? ' on' : '') + '">' +
+      '<button class="hist-open" type="button" data-open="' + r.id + '">' +
+        '<span class="hist-t">' + esc(titleOf(r)) + '</span>' +
+        '<span class="hist-m">' + meta + '</span></button>' +
+      '<button class="hist-del" type="button" data-del="' + r.id + '" title="删掉这条">×</button>' +
+    '</div>';
+  }).join('');
+  h += '<div class="mini" style="margin-top:10px">点一条就回看当时扒出来的事实、猜测，' +
+       '以及你当时在赌什么。</div></div>';
+  el.innerHTML = h;
+  Array.prototype.forEach.call(el.querySelectorAll('[data-open]'), function(b){
+    b.onclick = function(){ openRec(b.getAttribute('data-open')); };
+  });
+  Array.prototype.forEach.call(el.querySelectorAll('[data-del]'), function(b){
+    b.onclick = function(){ delRec(b.getAttribute('data-del')); };
+  });
+}
+
+/* ---------- 读数据 / 搬旧数据 ---------- */
+function oldRecords(){
+  try{
+    var raw = localStorage.getItem(K_OLD);
+    var arr = raw ? JSON.parse(raw) : [];
+    return Object.prototype.toString.call(arr) === '[object Array]' ? arr : [];
+  }catch(e){ return []; }
+}
+function migrate(old){
+  var chain = Promise.resolve();
+  old.forEach(function(r){
+    chain = chain.then(function(){
+      var at = isDate(r.at) ? r.at : todayStr();
+      var days = DAYS.indexOf(Number(r.days)) >= 0 ? Number(r.days) : 3;
+      return api('POST', '/judgement-trainer/api/cases', {
+        text:r.text || '', lean:r.lean || '',
+        conf:Number(r.conf) || 70, days:days, at:at,
+        due:isDate(r.due) ? r.due : addDays(at, days),
+        source:r.source, ai:r.ai,
+        outcome:(r.outcome === 'yes' || r.outcome === 'no') ? r.outcome : null,
+        note:r.note || '',
+        reviewedAt:isDate(r.reviewedAt) ? r.reviewedAt : null
+      });
+    });
+  });
+  return chain.then(function(){
+    try{ localStorage.removeItem(K_OLD); }catch(e){}
+    toast('把以前存在浏览器里的 ' + old.length + ' 条记录搬过来了');
+  });
+}
+function loadCases(){
+  api('GET', '/judgement-trainer/api/cases').then(function(d){
+    if(!d || !d.ok){
+      $('book').innerHTML = '<div class="card"><div class="err">' +
+        esc((d && d.msg) || '读不出记录') + '</div></div>';
+      return;
+    }
+    recs = d.items || [];
+    if(!recs.length && !migrating){
+      var old = oldRecords();
+      if(old.length){
+        migrating = true;
+        migrate(old).then(function(){ loadCases(); });
+        return;
+      }
+    }
+    var today = todayStr();
+    if(recs.some(function(r){ return isDue(r, today); })){
+      S.folded = true;   // 有到期的就先收起表单，让你先看到该对答案的那几条
+    }
+    renderAll();
+    var want = wantRecId();
+    if(want && !deepOpened){
+      var hit = recs.some(function(r){ return String(r.id) === String(want); });
+      if(hit){ deepOpened = true; openRec(want); }
+      else if(recs.length){ deepOpened = true; }   // 列表非空却没这条 = 真没有，别反复试
+    }
   });
 }
 
 function init(){
-  recs = load(K_REC, []) || [];
   $('conf').oninput = function(){ $('confN').textContent = $('conf').value + '%'; };
   ['caseText', 'lean'].forEach(function(id){ $(id).oninput = refreshForm; });
   $('caseText').onkeydown = function(e){
     if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ analyze(); }
   };
   $('goBtn').onclick = analyze;
-  refreshForm(); renderOut(); renderBook();
+  $('formToggle').onclick = function(){ S.folded = false; renderFold(); };
+  refreshForm(); renderAll();
+  loadCases();
   fetch('/judgement-trainer/api/status').then(function(r){ return r.json(); }).then(function(d){
     S.ai = !!(d && d.ai);
     refreshForm();
@@ -469,7 +773,6 @@ function init(){
 }
 init();
 
-})();
-</script>
+})();</script>
 </body>
 </html>

@@ -10,16 +10,20 @@
 #   - 模型只做「把话说清」这一件事：分开事实和猜测、把赌注写成能被证伪的一句。
 #     它不给建议、不选边，prompt 里明令禁止；
 #   - 没配 DEEPSEEK_API_KEY 也能用，走本地规则拆（粗一些，页面上会标出来是哪种）；
-#   - 案例、押注、回访记录只存浏览器 localStorage，服务端不存、不写日志。
+#   - 案例、押注、回访记录存 SQLite（history 表，tool = 'judgement-trainer'），按账号隔离；
+#     换设备、换浏览器都还在。
 # 环境变量：DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL / DEEPSEEK_MODEL
 import json
 import re
+import time
 from pathlib import Path
 
 import requests
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
+
+import storage
 
 try:
     from model_config import llm_endpoint, llm_key, llm_model
@@ -41,6 +45,13 @@ CASE_MAX = 900        # 案例原文最多收多少字
 ITEM_MAX = 34         # 拆解里每条最长多少字
 LIST_MAX = 3          # 事实 / 猜测最多几条
 
+TOOL = 'judgement-trainer'
+# 回访档位。默认 3 天不是拍脑袋：默认 30 天的话，记完要等一个月才有回报，
+# 中间那 29 天这个工具对你是零价值 —— 攒不下来人就不用了。
+DAY_CHOICES = (1, 3, 7, 30)
+DEFAULT_DAYS = 3
+REC_MAX = 200         # 一次最多读回多少条
+
 COACH_SYS = '\n'.join([
     '你在帮一个人练判断力。他把自己正犹豫的一件真事写给你。',
     '你的活是替他把这件事摊开，让他自己看清；不是替他做决定。',
@@ -52,7 +63,7 @@ COACH_SYS = '\n'.join([
     '   不要写成「你希望……」或者「你觉得……」——那还是原话，没拆开。',
     '4. unknowns 写他没提到、但会改变结果的变量，要具体：谁、什么时候、多少钱、哪种情况。',
     '5. counter 要具体到「如果 X 不成立，他的结论会怎么反过来」，不许写「要谨慎」「多想想」。',
-    '6. check 给一件他这几天能真去查证的事，必须是动作：问谁、查哪份记录、翻哪条消息。',
+    '6. check 给一件他今天或这两天就能去查证的事，必须是动作：问谁、查哪份记录、翻哪条消息。',
     '7. trap 是这件事背后最像的思维陷阱，只写一个词加一句说明；看不出像哪个就写「不明显」。',
     '8. 不给建议、不说该选哪个、不评价他这个人，也不评价他报的把握是高是低。',
     '9. 说人话。不许用「赋能 / 闭环 / 认知升级 / 底层逻辑」这类词，也不许堆破折号。',
@@ -283,6 +294,164 @@ async def judgement_trainer_analyze(request: Request):
     if not isinstance(payload, dict):
         payload = {}
     return await run_in_threadpool(_do_analyze, payload)
+
+
+# =========================================================
+# 记录：存 SQLite（history 表，tool = 'judgement-trainer'）
+# ---------------------------------------------------------
+# payload 结构（前端也按这个形状用）：
+#   text / lean / conf / days / due / at / source / ai
+#   outcome(null|yes|no) / note / reviewedAt / checked
+# =========================================================
+DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+
+
+def _user(request: Request) -> str:
+    """LoginGate 中间件把登录用户写在 request.state.user 上。"""
+    return getattr(request.state, 'user', '') or ''
+
+
+async def _body(request: Request) -> dict:
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _date(value):
+    """只收 YYYY-MM-DD，别的形状一律当没填。"""
+    text = str(value or '').strip()[:10]
+    return text if DATE_RE.match(text) else None
+
+
+def _analyzed(raw):
+    """拆解结果只留白名单字段、按 prompt 的上限截断 —— 前端传什么都不信。"""
+    if not isinstance(raw, dict):
+        return None
+    return {
+        'kind': _clean(raw.get('kind'), 16),
+        'trap': _clean(raw.get('trap'), 30),
+        'facts': _clean_list(raw.get('facts')),
+        'guesses': _clean_list(raw.get('guesses')),
+        'bet': _clean(raw.get('bet'), 45),
+        'unknowns': _clean_list(raw.get('unknowns'), 32, 2),
+        'counter': _clean(raw.get('counter'), 60),
+        'check': _clean(raw.get('check'), 40),
+    }
+
+
+def _norm_case(raw):
+    """新建一条时把前端传来的东西洗干净，洗不干净就拒掉。"""
+    if not isinstance(raw, dict):
+        return None
+    text = _clean(raw.get('text'), CASE_MAX)
+    lean = _clean(raw.get('lean'), 80)
+    if len(text) < 8 or len(lean) < 2:
+        return None
+    due = _date(raw.get('due'))
+    if not due:
+        return None
+    try:
+        conf = int(raw.get('conf') or 0)
+    except (TypeError, ValueError):
+        return None
+    try:
+        days = int(raw.get('days') or DEFAULT_DAYS)
+    except (TypeError, ValueError):
+        days = DEFAULT_DAYS
+    return {
+        'text': text,
+        'lean': lean,
+        'conf': max(50, min(95, conf)),
+        'days': days if days in DAY_CHOICES else DEFAULT_DAYS,
+        'at': _date(raw.get('at')) or time.strftime('%Y-%m-%d'),
+        'due': due,
+        'source': 'ai' if raw.get('source') == 'ai' else 'local',
+        'ai': _analyzed(raw.get('ai')),
+        # outcome / note 允许在建的时候带上：一是搬旧数据，二是补记一件已经知道结果的事
+        'outcome': raw.get('outcome') if raw.get('outcome') in ('yes', 'no') else None,
+        'note': _clean(raw.get('note'), 200),
+        'reviewedAt': _date(raw.get('reviewedAt')),
+        'checked': False,
+    }
+
+
+def _case_out(row):
+    """把库里的行摊平成前端要用的形状：payload 的字段提到顶层。"""
+    data = dict(row.get('payload') or {})
+    data['id'] = row['id']
+    data['created_at'] = row.get('created_at', '')
+    return data
+
+
+# ---------------- 记录：五件套 ----------------
+@router.get('/judgement-trainer/api/cases')
+def judgement_trainer_cases(request: Request) -> JSONResponse:
+    try:
+        rows = storage.list_records(TOOL, _user(request), REC_MAX)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'items': [], 'msg': str(exc)}, status_code=503)
+    return JSONResponse({'ok': True, 'items': [_case_out(r) for r in rows]})
+
+
+@router.post('/judgement-trainer/api/cases')
+async def judgement_trainer_case_add(request: Request) -> JSONResponse:
+    data = _norm_case(await _body(request))
+    if not data:
+        return JSONResponse({'ok': False, 'msg': '这条记录不完整：事情和你的打算都得写上。'},
+                            status_code=400)
+    try:
+        rec = storage.add_record(TOOL, _user(request), data['text'][:60], data)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'msg': str(exc)}, status_code=500)
+    data['id'] = rec['id']
+    data['created_at'] = rec['created_at']
+    return JSONResponse({'ok': True, 'item': data})
+
+
+@router.patch('/judgement-trainer/api/cases/{rid}')
+async def judgement_trainer_case_update(rid: int, request: Request) -> JSONResponse:
+    """对答案 / 勾掉「去查」/ 提前回访。只认这几个白名单字段。"""
+    patch = (await _body(request)).get('patch')
+    if not isinstance(patch, dict):
+        return JSONResponse({'ok': False, 'msg': '没有要改的内容。'}, status_code=400)
+    user = _user(request)
+    try:
+        row = storage.get_record(user, rid)
+        if not row:
+            return JSONResponse({'ok': False, 'msg': '找不到这条记录。'}, status_code=404)
+        data = row['payload'] if isinstance(row['payload'], dict) else {}
+        if 'outcome' in patch:
+            value = patch['outcome']
+            data['outcome'] = value if value in ('yes', 'no') else None
+            data['reviewedAt'] = _date(patch.get('reviewedAt')) or time.strftime('%Y-%m-%d')
+        if 'note' in patch:
+            data['note'] = _clean(patch.get('note'), 200)
+        if 'checked' in patch:
+            data['checked'] = bool(patch['checked'])
+        if 'due' in patch:
+            due = _date(patch.get('due'))
+            if due:
+                data['due'] = due
+        changed = storage.update_record(user, rid, payload=data)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'msg': str(exc)}, status_code=500)
+    if not changed:
+        return JSONResponse({'ok': False, 'msg': '这条记录不属于当前账号。'}, status_code=403)
+    fresh = {'id': rid, 'payload': data, 'created_at': row.get('created_at', '')}
+    return JSONResponse({'ok': True, 'item': _case_out(fresh)})
+
+
+@router.delete('/judgement-trainer/api/cases/{rid}')
+def judgement_trainer_case_delete(rid: int, request: Request) -> JSONResponse:
+    try:
+        changed = storage.delete_record(_user(request), rid)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'msg': str(exc)}, status_code=500)
+    if not changed:
+        return JSONResponse({'ok': False, 'msg': '找不到这条记录。'}, status_code=404)
+    return JSONResponse({'ok': True})
 
 
 if __name__ == '__main__':

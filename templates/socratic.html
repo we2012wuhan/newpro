@@ -106,6 +106,9 @@ textarea::placeholder{color:var(--muted);opacity:.72}
 .msg.ai .bubble{border-top-left-radius:4px;box-shadow:inset 3px 0 0 var(--acc-line)}
 .msg.me .bubble{border-top-right-radius:4px;background:var(--acc-l);border-color:var(--acc-line)}
 .msg.think .bubble{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:13.5px}
+.bubble.typing::after{content:'\258D';margin-left:2px;color:var(--acc);opacity:.6;
+  animation:caret 1.05s steps(1) infinite}
+@keyframes caret{50%{opacity:0}}
 .finish{border:1px solid var(--ok-line);background:var(--ok-l);color:var(--ok);border-radius:12px;
   padding:11px 14px;font-size:12.5px;line-height:1.7;margin-top:14px}
 
@@ -141,7 +144,7 @@ textarea::placeholder{color:var(--muted);opacity:.72}
 .spin{display:inline-block;width:13px;height:13px;border-radius:50%;border:2px solid var(--line);
   border-top-color:var(--acc);animation:sp .7s linear infinite;vertical-align:-2px}
 @keyframes sp{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}.bubble.typing::after{animation:none;opacity:.6}}
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);z-index:50;
   background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:10px 16px;
   font-size:13.5px;box-shadow:var(--sh);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
@@ -173,13 +176,23 @@ textarea::placeholder{color:var(--muted);opacity:.72}
 <script>
 (function(){
 'use strict';
+/* 「记录总览」直接跳过来用的：地址上带 ?r=<记录 id> 就打开那一条 */
+var deepOpened = false;
+function wantRecId(){
+  try{
+    var m = /[?&]r=([0-9]+)/.exec(window.location.search || '');
+    return m ? m[1] : '';
+  }catch(e){ return ''; }
+}
+
 
 var STEPS = ['澄清问题', '已有信息', '换个视角', '推导结论'];
 
 var S = {
   ai: true, busy: false, err: '',
   sid: null, sess: null, draft: '',
-  items: [], listErr: ''
+  items: [], listErr: '',
+  pin: true, _offScroll: null        // 流式期间要不要跟着往下贴；用户一滚就放手
 };
 
 function $(id){ return document.getElementById(id); }
@@ -208,6 +221,64 @@ function req(method, path, body){
       return d;
     });
   }).catch(function(){ return { ok:false, message:'请求失败，看看服务还在不在' }; });
+}
+
+/* 流式请求：服务端一个字一个字推（SSE 的 data: 行里包着 JSON），边收边回调。
+   返回值：全部成功 -> {ok:true, cut:''}；一个字都没拿到 -> {ok:false, message}。
+   cut 有值表示「模型说到一半断了，但这段已经存进库了」——
+   这时候不能把文字撤掉，只能提示一句。 */
+function streamReq(path, body, onEvent){
+  return fetch(path, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify(body)
+  }).then(function(r){
+    // 开流之前就出错（没配 key / 找不到会话 / 没登录），拿到的还是普通 JSON
+    if(!r.ok || !r.body || !r.body.getReader){
+      return r.text().then(function(txt){
+        var d = {};
+        try{ d = JSON.parse(txt) || {}; }catch(e){ d = {}; }
+        return { ok:false, message: d.message || ('服务返回 ' + r.status) };
+      });
+    }
+    var reader = r.body.getReader();
+    var dec = new TextDecoder('utf-8');
+    var buf = '', out = {};
+
+    function drain(raw){
+      var lines = raw.split('\n');
+      for(var i = 0; i < lines.length; i++){
+        var line = lines[i];
+        if(line.indexOf('data:') !== 0){ continue; }
+        var payload = line.slice(5).trim();
+        if(!payload){ continue; }
+        var d = null;
+        try{ d = JSON.parse(payload); }catch(e){ continue; }
+        if(!d){ continue; }
+        if(d.err){ out.err = d.err; continue; }
+        if(d.cut){ out.cut = d.cut; continue; }
+        if(onEvent){ onEvent(d); }
+      }
+    }
+    function pump(){
+      return reader.read().then(function(res){
+        if(res.done){ drain(buf); buf = ''; return; }
+        buf += dec.decode(res.value, { stream:true });
+        var i;
+        while((i = buf.indexOf('\n\n')) >= 0){
+          drain(buf.slice(0, i));
+          buf = buf.slice(i + 2);
+        }
+        return pump();
+      });
+    }
+    return pump().then(function(){
+      if(out.err){ return { ok:false, message: out.err }; }
+      return { ok:true, cut: out.cut || '' };
+    });
+  }).catch(function(){
+    return { ok:false, message:'连接断了，看看服务还在不在' };
+  });
 }
 
 function stepName(n){
@@ -390,6 +461,88 @@ function scrollToNewest(el){
   }, 40);
 }
 
+/* ===================== 流式专用 ===================== */
+
+/* 用户现在是不是贴着底看？贴着我才会自动跟着滚；
+   他已经翻上去看前面了，就别硬把他拽回来。 */
+function nearBottom(){
+  var doc = document.documentElement;
+  var y = window.scrollY || doc.scrollTop || 0;
+  return (doc.scrollHeight - y - window.innerHeight) <= 140;
+}
+
+/* 跟着最新那条往下贴。流式期间不能用 smooth ——
+   每来一个字都触发一次平滑滚动，几路动画会互相打架，看起来就是在抖。 */
+function pinBottom(){
+  var el = $('chat');
+  if(!el){ return; }
+  var cp = el.querySelector('.composer');
+  if(!cp){ return; }
+  var last = cp.previousElementSibling;
+  if(!last || !last.scrollIntoView){ return; }
+  var bar = document.querySelector('.topbar');
+  var top = (bar ? bar.offsetHeight : 0) + 12;
+  var bottom = cp.offsetHeight + 12;
+  last.style.scrollMarginTop = top + 'px';
+  last.style.scrollMarginBottom = bottom + 'px';
+  var room = window.innerHeight - top - bottom;
+  last.scrollIntoView({ block: last.offsetHeight <= room ? 'end' : 'start' });
+}
+
+/* 只认「用户自己的手势」，不听 scroll 事件 ——
+   滚动事件分不清是他在滚还是我们在滚，会自己把自己关掉。 */
+function watchScroll(){
+  S.pin = nearBottom();
+  function off(){ S.pin = false; }
+  S._offScroll = function(){
+    window.removeEventListener('wheel', off);
+    window.removeEventListener('touchmove', off);
+    S._offScroll = null;
+  };
+  window.addEventListener('wheel', off, { passive:true });
+  window.addEventListener('touchmove', off, { passive:true });
+}
+function unwatchScroll(){
+  if(S._offScroll){ S._offScroll(); }
+}
+
+/* 把那个「它在想…」的占位气泡就地接管成真正的回复气泡。
+   之后每个片段只改这个节点的 textContent，不整块重画聊天区 ——
+   否则每来一个字都全表重建，会闪，滚动位置也会被搅乱。 */
+function streamInto(){
+  var el = $('chat');
+  if(!el){ return null; }
+  var b = el.querySelector('.msg.think .bubble');
+  if(!b){ return null; }
+  var col = b.parentNode;                  // .col
+  var box = col ? col.parentNode : null;   // .msg
+  if(box){ box.classList.remove('think'); }
+  if(col && !col.querySelector('.who')){
+    var st = Number((S.sess || {}).step) || 1;
+    var w = document.createElement('div');
+    w.className = 'who';
+    w.innerHTML = '引导者 <span class="badge n">第 ' + st + ' 步 · ' + esc(stepName(st)) + '</span>';
+    col.insertBefore(w, b);
+  }
+  b.classList.add('typing');
+  b.textContent = '';
+  return b;
+}
+
+/* 流完了从库里把权威状态取回来。屏幕上先照旧显示着刚流出来的字，
+   等这一趟回来才整块重画 —— 中间不会出现「文字先消失一下」的闪。 */
+function reload(){
+  if(!S.sid){ S.busy = false; renderAll(); return; }
+  req('GET', '/socratic/api/sessions/' + S.sid).then(function(d){
+    S.busy = false;
+    if(d.ok){ S.sess = d.session; }
+    else { S.err = d.message || '这次会话读不回来了'; }
+    S.focusSay = true;
+    renderAll();
+    loadHistory();
+  });
+}
+
 function refreshSend(){
   var b = $('sendBtn');
   if(!b){ return; }
@@ -485,19 +638,32 @@ function send(){
   S.draft = ''; S.busy = true; S.err = '';
   S.focusSay = true;            // 自己发的那条要立刻滚出来，别等回复才动
   renderAll();
-  req('POST', '/socratic/api/sessions/' + S.sid + '/reply', { text:text }).then(function(d){
-    S.busy = false;
-    if(!d.ok){
+
+  var bubble = null, acc = '';
+  watchScroll();
+  streamReq('/socratic/api/sessions/' + S.sid + '/reply', { text:text }, function(ev){
+    if(!ev.t){ return; }
+    acc += ev.t;
+    if(!bubble){ bubble = streamInto(); }
+    if(!bubble){ return; }
+    bubble.textContent = acc;
+    if(S.pin){ pinBottom(); }
+  }).then(function(d){
+    unwatchScroll();
+    if(!d.ok || !acc){
+      // 一个字都没收到：把他那句撤回输入框，别在屏幕上留半截对话
+      S.busy = false;
       S.sess.msgs.pop();
       S.draft = text;
       S.err = d.message || '这次没发出去，再试一次';
-    } else {
-      S.sess = d.session;
-      S.err = '';
+      S.focusSay = true;
+      renderAll();
+      loadHistory();
+      return;
     }
-    S.focusSay = true;          // 回复（或那行报错）同样要立刻看得见
-    renderAll();
-    loadHistory();
+    // 说了一半断的：那些字已经存进库了，不能撤，只提示一句
+    if(d.cut){ toast(d.cut); }
+    reload();
   });
 }
 
@@ -518,6 +684,8 @@ function renderAll(){ renderStart(); renderChat(); refreshSend(); }
 function init(){
   renderAll();
   loadHistory();
+  var deepId = wantRecId();
+  if(deepId){ open(Number(deepId)); }
   req('GET', '/socratic/api/status').then(function(d){
     S.ai = !!(d && d.ai);
     if(!S.ai){ S.err = '服务端没配模型 Key（DEEPSEEK_API_KEY），这个工具用不了。'; }

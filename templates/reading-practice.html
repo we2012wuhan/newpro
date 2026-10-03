@@ -222,6 +222,15 @@ details.fold .fold-b .rv{border-left:2px solid var(--acc-line);padding-left:10px
 <script>
 (function(){
 'use strict';
+/* 「记录总览」直接跳过来用的：地址上带 ?r=<记录 id> 就打开那一条 */
+var deepOpened = false;
+function wantRecId(){
+  try{
+    var m = /[?&]r=([0-9]+)/.exec(window.location.search || '');
+    return m ? m[1] : '';
+  }catch(e){ return ''; }
+}
+
 
 var REVIEW_DAYS = 7;
 
@@ -702,6 +711,17 @@ function loadPlans(){
   req('GET', '/reading-practice/api/plans').then(function(d){
     plans = (d.ok && d.items) ? d.items : [];
     renderMine();
+    var want = wantRecId();
+    if(want && !deepOpened){
+      var hit = null;
+      plans.forEach(function(p){ if(String(p.id) === String(want)){ hit = p; } });
+      if(hit && hit.source && hit.sid){
+        deepOpened = true;
+        openRecent({ source:hit.source, sid:hit.sid, title:hit.book });
+      } else if(plans.length){
+        deepOpened = true;
+      }
+    }
   });
 }
 

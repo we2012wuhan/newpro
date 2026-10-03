@@ -12,7 +12,9 @@
 #   4 推导结论   让你自己说出打算怎么做
 #
 # 进度（第几步）是服务端定的，不是模型自己说了算：
-#   · 每轮额外发一个极小的「判够了没有」调用，和正文同时跑，不额外等时间；
+#   · 每轮先发一个极小的「判够了没有」调用（max_tokens=6，几百毫秒），再决定这轮说什么。
+#     顺序不能反：判定决定这一轮是继续问还是收尾，而收尾是另一段完全不同的文字 ——
+#     并行跑的话正文可能白生成一场，流式下更会变成「刚读完一段就被换掉」；
 #   · 一步至少问 2 个问题、最多 3 个，到点就往下走，绝不跳步、绝不倒退；
 #   · 第 4 步走完那天，正文换成一段收尾——只用他自己说过的话串，不加任何建议。
 #   为什么不直接让模型吐 JSON 带进度：实测它在多轮对话里不守格式，
@@ -22,13 +24,17 @@
 #   payload = {ask, step, turns, finished, msgs:[{role,text,at,step}], started_at, updated_at}
 # 刷新页面、换台设备回来都还能接着聊。右侧历史列表读的就是这张表。
 #
+# 回复是流式的（SSE，text/event-stream）：模型边写边推，生成结束才落库 ——
+# 前端就算中途断开，这一轮也已经存下来了。
+# 「一条回复只准一个问号」这条规矩是边流边守的，不是事后改写：看到第一个问号后先按住不发，
+# 再冒出第二个问号就把按住的那段整段丢掉。这样「用户读到的」和「存进库的」永远是同一段话。
+#
 # 环境变量：DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL / DEEPSEEK_MODEL
-import queue
+import json
 import re
-import threading
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
 import storage
@@ -75,6 +81,8 @@ ROLE = [
     '',
     '【怎么说话】',
     '1. 一条回复只说一小段，两三句以内，而且只问一个问题——整条回复里最多出现一个问号。',
+    '   复述对方原话时把他句尾的问号去掉（写「为什么我总拖延」，不要写「为什么我总拖延？」），',
+    '   整条回复里那个问号只能是你问他的那一个。',
     '2. 问题要扣住他刚说的那句话里的具体细节。不许问「你怎么看」这种放到哪都成立的空话。',
     '3. 像朋友聊天，平实、口语。不用「本质」「范式」「认知」「赋能」这类词。',
     '4. 不复述他的原话，不评价对错，不说「很好的问题」「我理解你」这种客套。',
@@ -173,6 +181,56 @@ def _chat_text(system, messages, tries=2, **kw):
     return None, last
 
 
+def _chat_stream(system, messages, max_tokens=900, temperature=0.7):
+    """流式拿一段文本：逐块 yield (片段, 错误)。
+
+    只在出错时 yield 非空的错误，而且错误一定排在最后 —— 正常情况一个错都不出。
+    """
+    key = llm_key()
+    if not key:
+        yield '', NO_KEY
+        return
+    body = {
+        'model': llm_model(),
+        'messages': [{'role': 'system', 'content': system}] + list(messages),
+        'temperature': temperature,
+        'max_tokens': max_tokens,
+        'stream': True,
+    }
+    resp = None
+    try:
+        resp = requests.post(llm_endpoint(), json=body, timeout=(10, 120),
+                             headers={'Authorization': 'Bearer ' + key,
+                                      'Content-Type': 'application/json'},
+                             stream=True)
+        if resp.status_code >= 400:
+            yield '', '模型返回错误 ' + str(resp.status_code)
+            return
+        for raw in resp.iter_lines(decode_unicode=False):
+            if not raw or not raw.startswith(b'data:'):
+                continue
+            data = raw[5:].strip()
+            if not data:
+                continue
+            if data == b'[DONE]':
+                break
+            try:
+                obj = json.loads(data.decode('utf-8'))
+                piece = obj['choices'][0]['delta'].get('content') or ''
+            except (ValueError, KeyError, IndexError, TypeError, AttributeError):
+                continue
+            if piece:
+                yield piece, ''
+    except requests.RequestException as exc:
+        yield '', '模型连接断了：' + str(exc)[:80]
+    finally:
+        if resp is not None:
+            try:
+                resp.close()
+            except Exception:
+                pass
+
+
 def _count_q(text):
     return sum(1 for ch in text if ch in '？?')
 
@@ -185,29 +243,50 @@ def _cut_first_q(text):
     return text
 
 
-def _parallel(job_a, job_b):
-    """两个阻塞调用同时跑，都回来了再往下走。
+def _first_q_at(text):
+    for i, ch in enumerate(text):
+        if ch in '？?':
+            return i
+    return -1
 
-    用守护线程 + 队列，不用 ThreadPoolExecutor：后者线程不是守护的，
-    万一某个请求卡住，容器退出时会被它拖着。
+
+def _guard(pieces):
+    """守「一条回复只准一个问号」，边流边守。
+
+    看到第一个问号之后，后面的一律先按住不发：
+      · 再冒出第二个问号 → 它在多问 → 按住的那段整段丢掉，就此收工；
+      · 流自然结束     → 第一个问题本来就是最后一句，把按住的补发出去。
+
+    为什么必须边流边判、不能事后改写：事后再改，意味着用户已经读到的字会被换掉。
+    「他读到的」和「存进库的」必须是同一段话。
+
+    这里不看引号 —— 「复述原话时别把对方的问号带进来」是系统提示在约束的
+    （开场那句最容易踩），所以这条兜底只会拦到真正多问的情况。
     """
-    box = queue.Queue()
-
-    def run(tag, job):
-        try:
-            box.put((tag, job()))
-        except Exception as exc:                      # 兜底，别让子线程静默死掉
-            box.put((tag, (None, str(exc)[:80])))
-
-    threads = [threading.Thread(target=run, args=(tag, job), daemon=True)
-               for tag, job in (('a', job_a), ('b', job_b))]
-    for t in threads:
-        t.start()
-    out = {}
-    for _ in threads:
-        tag, value = box.get()
-        out[tag] = value
-    return out['a'], out['b']
+    held = ''
+    sealed = False
+    for piece, err in pieces:
+        if err:
+            yield {'err': err}
+            return
+        if not piece:
+            continue
+        if sealed:
+            held += piece
+            if _first_q_at(piece) >= 0:
+                return
+            continue
+        cut = _first_q_at(piece)
+        if cut < 0:
+            yield {'t': piece}
+            continue
+        yield {'t': piece[:cut + 1]}
+        held = piece[cut + 1:]
+        sealed = True
+        if _first_q_at(held) >= 0:
+            return
+    if held:
+        yield {'t': held}
 
 
 def _reply(step, convo, finished=False):
@@ -379,17 +458,19 @@ def _do_create(ask, user):
     return JSONResponse({'ok': True, 'session': _pack(rec['id'], ask[:60], plan)})
 
 
-def _do_reply(sid, text, user):
-    if not llm_key():
-        return JSONResponse({'ok': False, 'message': NO_KEY}, status_code=503)
-    try:
-        row = storage.get_record(user, sid)
-    except storage.StorageUnavailable as exc:
-        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=500)
-    if not row or row.get('tool') != TOOL:
-        return JSONResponse({'ok': False, 'message': '找不到这个会话。'}, status_code=404)
+def _sse(obj):
+    """SSE 一行。用 JSON 包一层，省得前端自己猜边界。"""
+    return 'data: ' + json.dumps(obj, ensure_ascii=False) + '\n\n'
 
+
+def _stream_reply(sid, text, user, row):
+    """一轮回复的流式版本。生成结束才落库。
+
+    顺序：先判定 → 再决定这轮说什么 → 边流边发 → 存。
+    判定必须先跑：它决定这一轮是继续问还是收尾，而这是两段完全不同的文字。
+    """
     plan = row.get('payload') if isinstance(row.get('payload'), dict) else {}
+    plan = dict(plan)
     step = _clamp_step(plan.get('step'))
     finished = bool(plan.get('finished'))
     try:
@@ -398,31 +479,47 @@ def _do_reply(sid, text, user):
         turns = 0
     convo, msgs = _convo(plan, text)
 
-    # 判进度和生成正文同时跑，谁也不用等谁
-    (enough, _jerr), (msg, err) = _parallel(
-        lambda: (_judge(step, convo), '') if not finished else (False, ''),
-        lambda: _reply(step, convo, finished),
-    )
-    if not msg:
-        return JSONResponse({'ok': False, 'message': err}, status_code=502)
+    enough = False if finished else _judge(step, convo)
 
     if finished:
-        nxt, nturns, nfin = step, turns, True
+        nxt, nturns, nfin, mode = step, turns, True, 'text'
     else:
         turns += 1
-        allow = turns >= MIN_TURNS
-        move = allow and (bool(enough) or turns >= FORCE_TURNS)
+        move = (turns >= MIN_TURNS) and (bool(enough) or turns >= FORCE_TURNS)
         if move and step >= len(STEPS):
-            # 四步走完：这一轮不再提问，换成收尾
-            tail, _terr = _wrap(convo)
-            msg = tail or _wrap_fallback(msgs, text)
-            nxt, nturns, nfin = len(STEPS), 0, True
+            nxt, nturns, nfin, mode = len(STEPS), 0, True, 'wrap'
         elif move:
-            nxt, nturns, nfin = step + 1, 0, False
+            nxt, nturns, nfin, mode = step + 1, 0, False, 'text'
         else:
-            nxt, nturns, nfin = step, turns, False
+            nxt, nturns, nfin, mode = step, turns, False, 'text'
+
+    sent = []
+    err = ''
+
+    if mode == 'wrap':
+        # 收尾是另一段文字，而且规矩是「一句都不许再问」，本来就短 ——
+        # 生成完一次性发出去，落地的分量比一个字一个字蹦出来更足。
+        msg, _werr = _wrap(convo)
+        if not msg:
+            msg = _wrap_fallback(msgs, text)
+        sent.append(msg)
+        yield _sse({'t': msg})
+    else:
+        for ev in _guard(_chat_stream(_system_prompt(step, finished), convo)):
+            if 'err' in ev:
+                err = ev['err']
+                break
+            sent.append(ev['t'])
+            yield _sse({'t': ev['t']})
+
+    msg = ''.join(sent)
+    if not msg:
+        # 一个字都没出来：什么都不写库，前端会把草稿还给他
+        yield _sse({'err': err or '模型这次没说出话来，再发一次试试。'})
+        return
 
     now = storage.now_str()
+    msgs = list(msgs)
     msgs.append({'role': 'me', 'text': text, 'at': now, 'step': step})
     msgs.append({'role': 'ai', 'text': msg, 'at': now, 'step': nxt})
     plan['msgs'] = msgs
@@ -430,12 +527,16 @@ def _do_reply(sid, text, user):
     plan['turns'] = nturns
     plan['finished'] = nfin
     plan['updated_at'] = now
-
     try:
         storage.update_record(user, sid, payload=plan)
     except storage.StorageUnavailable as exc:
-        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=500)
-    return JSONResponse({'ok': True, 'session': _pack(sid, row.get('title'), plan)})
+        yield _sse({'err': str(exc)})
+        return
+
+    if err:
+        # 说了一半断的：这段照样存，但告诉他是残缺的
+        yield _sse({'cut': '模型中途断了，这次只说出半段：' + err})
+    yield _sse({'done': 1, 'id': sid})
 
 
 @router.get('/socratic', response_class=HTMLResponse)
@@ -492,7 +593,19 @@ async def socratic_reply(sid: int, request: Request):
     text = _clean(payload.get('text'), REPLY_MAX)
     if not text:
         return JSONResponse({'ok': False, 'message': '先写点什么再发。'}, status_code=400)
-    return await run_in_threadpool(_do_reply, sid, text, _user(request))
+    user = _user(request)
+    if not llm_key():
+        return JSONResponse({'ok': False, 'message': NO_KEY}, status_code=503)
+    try:
+        row = storage.get_record(user, sid)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=500)
+    if not row or row.get('tool') != TOOL:
+        return JSONResponse({'ok': False, 'message': '找不到这个会话。'}, status_code=404)
+    # 先校验再开流：出错时前端拿到的还是正常 JSON，不用在流里认错
+    return StreamingResponse(_stream_reply(sid, text, user, row),
+                             media_type='text/event-stream; charset=utf-8',
+                             headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
 
 @router.patch('/socratic/api/sessions/{sid}')

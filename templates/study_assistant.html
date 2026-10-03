@@ -2,9 +2,10 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#8b5cf6">
 <title>学习模型助手</title>
-<link rel="icon" href="data:,">
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <script src="/static/echarts.min.js"></script>
 <script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
 <link rel="stylesheet" href="/static/theme.css">
@@ -99,6 +100,45 @@ textarea#topic:focus{border-color:rgba(139,92,246,.7);box-shadow:0 0 0 3px rgba(
   background:var(--tb-card);border:1px solid var(--tb-line);border-radius:11px;padding:10px 13px}
 #ckList .no{flex:none;width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,#2dd4bf,#34d399);
   color:#06281f;display:grid;place-items:center;font-weight:800;font-size:12px;margin-top:2px}
+/* ===== 本轮新增：右侧历史 + 可选上下文输入 ===== */
+.col-main{min-width:0}
+.top-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+@media (max-width:640px){.field-row{grid-template-columns:1fr}}
+input.opt-in{width:100%;padding:11px 14px;font-size:14px;line-height:1.6;color:var(--text);
+  background:var(--tb-field);border:1px solid var(--tb-line);border-radius:12px;outline:none;font-family:inherit}
+input.opt-in::placeholder{color:var(--tb-faint)}
+input.opt-in:focus{border-color:rgba(139,92,246,.7);box-shadow:0 0 0 3px rgba(139,92,246,.16)}
+.btn-ghost{color:var(--text);background:var(--tb-card);border:1px solid var(--tb-line);box-shadow:none}
+.btn-ghost:hover{border-color:rgba(139,92,246,.55)}
+#planBar{margin:4px 0 0;padding-top:4px}
+#ckList li.done{opacity:.6}
+#ckList li.done span:last-child{text-decoration:line-through}
+#ckList li input[type=checkbox]{flex:none;width:20px;height:20px;margin:3px 3px 0 0;accent-color:#8b5cf6;cursor:pointer}
+.mini{font-size:12.5px;color:var(--muted);line-height:1.75;margin-top:8px}
+.hist-i{display:flex;align-items:stretch;gap:4px;margin-top:8px}
+.hist-open{flex:1 1 auto;min-width:0;text-align:left;padding:10px 12px;border:1px solid var(--line);
+  border-radius:12px;background:var(--tb-field);cursor:pointer}
+.hist-open:hover{border-color:rgba(139,92,246,.6);background:rgba(139,92,246,.1)}
+.hist-i.on .hist-open{border-color:rgba(139,92,246,.7);background:rgba(139,92,246,.12);
+  box-shadow:inset 3px 0 0 var(--acc1)}
+.hist-t{display:block;font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.5;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist-m{display:block;font-size:11px;color:var(--muted);margin-top:3px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.hist-del{flex:0 0 34px;border:1px solid var(--line);border-radius:10px;background:var(--tb-field);
+  color:var(--muted);cursor:pointer;font-size:15px;line-height:1}
+.hist-del:hover{color:var(--err);border-color:rgba(251,113,133,.4);background:rgba(251,113,133,.1)}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);z-index:50;
+  background:var(--tb-ink);color:var(--tb-bg);font-size:13.5px;padding:10px 18px;border-radius:999px;
+  opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (min-width:1100px){
+  .wrap{max-width:1180px}
+  .cols{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:22px;align-items:start}
+  .col-side{position:sticky;top:78px}
+}
+@media print{.col-side,.back{display:none!important}.cols{display:block}}
 .hide{display:none!important}
 .fadein{animation:fadein .5s ease both}
 </style>
@@ -115,13 +155,28 @@ textarea#topic:focus{border-color:rgba(139,92,246,.7);box-shadow:0 0 0 3px rgba(
         <p class="sub">描述你想学什么 · AI 从三种思维模型拆解成三张学习导图</p>
       </div>
     </div>
-    <span class="badge"><span class="dot"></span>第一性原理 · 金字塔原理 · 贝叶斯定理</span>
+    <div class="top-right">
+      <span class="badge"><span class="dot"></span>第一性原理 · 金字塔原理 · 贝叶斯定理</span>
+      <span class="tb-mount"></span>
+    </div>
   </header>
 
+  <div class="cols">
+    <div class="col-main">
   <section class="card">
     <label class="field" for="topic">🧭 你想学什么 / 想弄明白什么问题？</label>
     <textarea id="topic" placeholder="例如：我想系统学会机器学习，该从哪里开始？该怎么安排学习顺序？&#10;例如：我想搞懂怎么快速读一本书并记住重点……"></textarea>
     <div class="chips" id="chips"></div>
+    <div class="field-row">
+      <div>
+        <label class="field" for="level">📍 现在已经会什么（可不填）</label>
+        <input class="opt-in" type="text" id="level" maxlength="200" placeholder="例：会一点 Python，数学忘光了">
+      </div>
+      <div>
+        <label class="field" for="blocker">🚧 具体卡在哪（可不填）</label>
+        <input class="opt-in" type="text" id="blocker" maxlength="200" placeholder="例：不知道第一本书从哪本开始">
+      </div>
+    </div>
     <div class="actions">
       <button type="button" id="btnRun" class="btn btn-main">
         <span class="spinner" id="spin"></span><span id="btnTxt">生成思维导图</span>
@@ -135,6 +190,7 @@ textarea#topic:focus{border-color:rgba(139,92,246,.7);box-shadow:0 0 0 3px rgba(
     <div class="card fadein">
       <div class="meta-tags" id="metaTags"></div>
       <div class="summary"><span class="icon">🧭</span><span class="stxt" id="sumText"></span></div>
+      <div class="actions" id="planBar"></div>
     </div>
 
     <div id="mapsWrap"></div>
@@ -144,12 +200,40 @@ textarea#topic:focus{border-color:rgba(139,92,246,.7);box-shadow:0 0 0 3px rgba(
       <ul id="ckList"></ul>
     </div>
   </section>
+    </div>
+    <aside class="col-side">
+      <section id="history"></section>
+    </aside>
+  </div>
 </div>
+<div class="toast" id="toast"></div>
 
 <script>
 (function(){
 'use strict';
+/* 「记录总览」直接跳过来用的：地址上带 ?r=<记录 id> 就打开那一条 */
+var deepOpened = false;
+function wantRecId(){
+  try{
+    var m = /[?&]r=([0-9]+)/.exec(window.location.search || '');
+    return m ? m[1] : '';
+  }catch(e){ return ''; }
+}
+
 function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+/* 401 交给 auth-guard.js 跳登录页；这里把各种失败翻成同一个形状 */
+function api(method, path, body){
+  var opt = { method:method, headers:{} };
+  if(body){ opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
+  return fetch(path, opt).then(function(r){
+    return r.json().catch(function(){ return { ok:false, message:'服务返回了看不懂的东西' }; });
+  }).catch(function(){ return { ok:false, message:'请求失败，看下服务还在不在' }; });
+}
+
 var EXAMPLES = [
   '我想系统学会机器学习，该怎么入门、怎么安排学习顺序？',
   '我想学会看懂上市公司财报，该先学哪些财务知识？',
@@ -158,6 +242,15 @@ var EXAMPLES = [
   '我经常学了就忘，想找到一套真正有效的学习方法。'
 ];
 
+var MAP_META = {
+  'first-principles': {no:'01', cls:'mn-fp', color:'#8b5cf6'},
+  'pyramid': {no:'02', cls:'mn-py', color:'#ffb454'},
+  'bayes': {no:'03', cls:'mn-ba', color:'#2dd4bf'}
+};
+
+/* fresh = 刚拆完还没存的；view = 正在回看的历史记录；items = 历史列表 */
+var S = { fresh:null, view:null, items:[] };
+var chartMap = {};
 
 function fillChips(){
   var host = $('chips');
@@ -171,7 +264,6 @@ function fillChips(){
     host.appendChild(c);
   });
 }
-
 function setStatus(msg, kind){
   var el = $('status');
   el.className = 'show';
@@ -179,22 +271,27 @@ function setStatus(msg, kind){
   if(kind){ el.classList.add(kind); }
   el.textContent = msg;
 }
-function clearStatus(){ var el=$('status'); el.className=''; el.textContent=''; }
-
+function clearStatus(){ var el = $('status'); el.className = ''; el.textContent = ''; }
 function busy(on){
   $('btnRun').disabled = on;
   $('spin').className = on ? 'spinner on' : 'spinner';
   $('btnTxt').textContent = on ? '正在拆解中…' : '生成思维导图';
 }
+function hint(text){
+  var s = document.createElement('span');
+  s.className = 'hint';
+  s.textContent = text;
+  return s;
+}
 
-var chartMap = {};
-
-var MAP_META = {
-  'first-principles': {no:'01', cls:'mn-fp', color:'#8b5cf6'},
-  'pyramid': {no:'02', cls:'mn-py', color:'#ffb454'},
-  'bayes': {no:'03', cls:'mn-ba', color:'#2dd4bf'}
-};
-
+/* ---------- 三张图 ---------- */
+function disposeCharts(){
+  Object.keys(chartMap).forEach(function(k){
+    var c = chartMap[k];
+    if(c){ try{ c.dispose(); }catch(e){} }
+  });
+  chartMap = {};
+}
 function buildMapCard(map){
   var meta = MAP_META[map.id] || {no:'—', cls:'mn-fp', color:'#8b5cf6'};
   var card = document.createElement('div');
@@ -220,39 +317,22 @@ function buildMapCard(map){
   card.appendChild(box);
   return card;
 }
-
 function treeOption(root, color){
   return {
     backgroundColor: 'transparent',
     tooltip: {
-      trigger: 'item',
-      triggerOn: 'mousemove',
-      backgroundColor: TBc('--tb-tip-bg'),
-      borderColor: TBc('--tb-tip-line'),
+      trigger: 'item', triggerOn: 'mousemove',
+      backgroundColor: TBc('--tb-tip-bg'), borderColor: TBc('--tb-tip-line'),
       textStyle: { color: TBc('--tb-ink'), fontSize: 12.5 },
       formatter: function(p){ return p.data.name; }
     },
     series: [{
-      type: 'tree',
-      data: [root],
-      top: '5%',
-      bottom: '6%',
-      left: '14%',
-      right: '24%',
-      orient: 'LR',
-      symbol: 'circle',
-      symbolSize: 9,
-      expandAndCollapse: true,
-      initialTreeDepth: 2,
-      animationDuration: 550,
+      type: 'tree', data: [root], top: '5%', bottom: '6%', left: '14%', right: '24%',
+      orient: 'LR', symbol: 'circle', symbolSize: 9,
+      expandAndCollapse: true, initialTreeDepth: 2, animationDuration: 550,
       label: {
-        position: 'left',
-        align: 'right',
-        verticalAlign: 'middle',
-        distance: 10,
-        fontSize: 13,
-        color: TBc('--tb-text'),
-        formatter: function(p){ return p.data.name; }
+        position: 'left', align: 'right', verticalAlign: 'middle', distance: 10,
+        fontSize: 13, color: TBc('--tb-text'), formatter: function(p){ return p.data.name; }
       },
       leaves: { label: { position: 'right', align: 'left' } },
       lineStyle: { color: TBc('--tb-line-2'), width: 1.5, curveness: .5 },
@@ -265,7 +345,6 @@ function treeOption(root, color){
     }]
   };
 }
-
 function renderMap(map){
   var meta = MAP_META[map.id] || {color:'#8b5cf6'};
   var el = $('map_' + map.id);
@@ -275,16 +354,20 @@ function renderMap(map){
   chartMap[map.id] = chart;
 }
 
-function renderResult(data){
-  chartMap = {};
-  $('sumText').textContent = data.summary || '';
+/* ---------- 渲染一次拆解：新的和回看的都走这里 ---------- */
+function renderPlan(plan, saved){
+  disposeCharts();
+  S.view = saved ? plan : null;
+  S.fresh = saved ? null : plan;
+
   var tags = $('metaTags');
   tags.innerHTML = '';
-  var items = [
-    ['💬 主题', data.topic || ''],
-    ['🤖 模型', data.model || ''],
-    ['⏱ 耗时', (data.elapsed || 0) + 's']
-  ];
+  var items = [['💬 主题', plan.topic || '']];
+  if(plan.level){ items.push(['📍 现在会的', plan.level]); }
+  if(plan.blocker){ items.push(['🚧 卡在', plan.blocker]); }
+  items.push(['🤖 模型', plan.model || '']);
+  items.push(['⏱ 耗时', (plan.elapsed || 0) + 's']);
+  if(saved){ items.push(['🗓 存于', String(plan.created_at || '').slice(0, 10)]); }
   items.forEach(function(it){
     var s = document.createElement('span');
     s.className = 'tag';
@@ -292,80 +375,253 @@ function renderResult(data){
     tags.appendChild(s);
   });
 
+  $('sumText').textContent = plan.summary || '';
+
+  var bar = $('planBar');
+  bar.innerHTML = '';
+  if(saved){
+    var back = document.createElement('button');
+    back.type = 'button';
+    back.className = 'btn btn-ghost';
+    back.textContent = '收起';
+    back.onclick = closeView;
+    bar.appendChild(back);
+    bar.appendChild(hint('勾掉做完的步骤会自动保存'));
+  } else {
+    var save = document.createElement('button');
+    save.type = 'button';
+    save.id = 'btnSave';
+    save.className = 'btn btn-main';
+    save.textContent = '存进本子';
+    save.onclick = savePlan;
+    bar.appendChild(save);
+    bar.appendChild(hint('存下来之后，右边能回看，步骤也能勾'));
+  }
+
   var wrap = $('mapsWrap');
   wrap.innerHTML = '';
-  (data.maps || []).forEach(function(map){
-    wrap.appendChild(buildMapCard(map));
-  });
-
-  (data.maps || []).forEach(function(map){
-    renderMap(map);
-  });
+  (plan.maps || []).forEach(function(m){ wrap.appendChild(buildMapCard(m)); });
+  (plan.maps || []).forEach(function(m){ renderMap(m); });
 
   var list = $('ckList');
   list.innerHTML = '';
-  (data.checklist || []).forEach(function(item, i){
+  var done = plan.done || [];
+  var steps = plan.checklist || [];
+  if(!steps.length){
+    var empty = document.createElement('li');
+    var et = document.createElement('span');
+    et.textContent = '这次没给出具体步骤，换个说法再拆一次试试。';
+    empty.appendChild(et);
+    list.appendChild(empty);
+  }
+  steps.forEach(function(text, i){
     var li = document.createElement('li');
-    var no = document.createElement('span');
-    no.className = 'no';
-    no.textContent = i + 1;
+    li.setAttribute('data-step-li', i);
+    if(saved && done[i]){ li.className = 'done'; }
+    if(saved){
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = !!done[i];
+      cb.setAttribute('data-step', i);
+      cb.onchange = function(){ toggleStep(i, cb.checked); };
+      li.appendChild(cb);
+    } else {
+      var no = document.createElement('span');
+      no.className = 'no';
+      no.textContent = i + 1;
+      li.appendChild(no);
+    }
     var tx = document.createElement('span');
-    tx.textContent = item;
-    li.appendChild(no);
+    tx.textContent = text;
     li.appendChild(tx);
     list.appendChild(li);
   });
 
   $('resultWrap').classList.remove('hide');
-  $('resultWrap').scrollIntoView({behavior:'smooth', block:'start'});
   window.setTimeout(function(){
-    (data.maps || []).forEach(function(map){
-      var c = chartMap[map.id];
-      if(c){ c.resize(); }
-    });
+    Object.keys(chartMap).forEach(function(k){ if(chartMap[k]){ chartMap[k].resize(); } });
   }, 120);
+  $('resultWrap').scrollIntoView({behavior:'smooth', block:'start'});
+}/* ---------- 轻提示 ---------- */
+function toast(msg){
+  var el = $('toast');
+  if(!el){ return; }
+  el.textContent = msg;
+  el.className = 'toast on';
+  window.clearTimeout(toast._t);
+  toast._t = window.setTimeout(function(){ el.className = 'toast'; }, 2000);
 }
 
-function run(){
-  var topic = $('topic').value.trim();
-  if(!topic){ setStatus('请先描述你想学什么或想解决的问题', 'err'); return; }
-  busy(true);
-  clearStatus();
-  setStatus('正在从「第一性原理 · 金字塔原理 · 贝叶斯定理」三个角度拆解你的问题…', 'info');
-  fetch('/study-assistant/api/analyze', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ topic: topic })
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(data){
-    if(!data.ok){
-      busy(false);
-      setStatus(data.message || '生成失败，请稍后重试', 'err');
+/* ---------- 存 / 读 / 删（都走 SQLite） ---------- */
+function savePlan(){
+  if(!S.fresh){ return; }
+  var btn = $('btnSave');
+  if(btn){ btn.disabled = true; }
+  api('POST', '/study-assistant/api/plans', S.fresh).then(function(d){
+    if(!d.ok){
+      if(btn){ btn.disabled = false; }
+      setStatus(d.message || '没存下来，再试一次', 'err');
       return;
     }
+    $('topic').value = '';
+    if($('level')){ $('level').value = ''; }
+    if($('blocker')){ $('blocker').value = ''; }
+    clearStatus();
+    toast('已存进本子');
+    renderPlan(d.item, true);
+    loadPlans();
+  });
+}
+
+function loadPlans(){
+  return api('GET', '/study-assistant/api/plans').then(function(d){
+    if(!d.ok){
+      S.items = [];
+      S.listErr = d.message || '读不到历史记录';
+    } else {
+      S.items = d.items || [];
+      S.listErr = '';
+    }
+    renderHistory();
+    var want = wantRecId();
+    if(want && !deepOpened){
+      var hit = null;
+      S.items.forEach(function(it){ if(String(it.id) === String(want)){ hit = it; } });
+      if(hit){ deepOpened = true; openPlan(want); }
+      else if(S.items.length){ deepOpened = true; }
+    }
+  });
+}
+
+function shortTime(s){
+  return String(s || '').replace('T', ' ').slice(0, 16);
+}
+
+function renderHistory(){
+  var el = $('history');
+  if(!el){ return; }
+  var h = '<div class="card"><div class="card-h">📋 我的拆解</div>';
+  if(S.listErr){
+    h += '<div class="mini">' + esc(S.listErr) + '</div></div>';
+    el.innerHTML = h;
+    return;
+  }
+  if(!S.items.length){
+    h += '<div class="mini">还没有存过。上面拆完点「存进本子」，这里就留下一条，换台设备也还在。</div></div>';
+    el.innerHTML = h;
+    return;
+  }
+  h += S.items.map(function(it){
+    var cur = S.view && String(S.view.id) === String(it.id);
+    var meta = [
+      (it.maps || []).length + ' 张图',
+      (it.checklist || []).length ? ((it.checklist || []).length + ' 步') : '',
+      shortTime(it.created_at)
+    ].filter(Boolean).join(' · ');
+    return '<div class="hist-i' + (cur ? ' on' : '') + '">' +
+      '<button class="hist-open" type="button" data-open="' + it.id + '">' +
+        '<span class="hist-t">' + esc(it.topic || '（没写主题）') + '</span>' +
+        '<span class="hist-m">' + esc(meta) + '</span></button>' +
+      '<button class="hist-del" type="button" data-del="' + it.id + '" title="删掉这条">×</button></div>';
+  }).join('');
+  h += '<div class="mini">点一条就能回看当时的三张图；勾掉的步骤会自动保存。</div></div>';
+  el.innerHTML = h;
+  Array.prototype.forEach.call(el.querySelectorAll('[data-open]'), function(b){
+    b.onclick = function(){ openPlan(b.getAttribute('data-open')); };
+  });
+  Array.prototype.forEach.call(el.querySelectorAll('[data-del]'), function(b){
+    b.onclick = function(){ delPlan(b.getAttribute('data-del')); };
+  });
+}
+
+function openPlan(id){
+  var found = null;
+  S.items.forEach(function(it){ if(String(it.id) === String(id)){ found = it; } });
+  if(!found){ return; }
+  renderPlan(found, true);
+  renderHistory();
+}
+
+function closeView(){
+  S.view = null;
+  disposeCharts();
+  $('resultWrap').classList.add('hide');
+  renderHistory();
+}
+
+function toggleStep(i, checked){
+  if(!S.view){ return; }
+  var total = (S.view.checklist || []).length;
+  var done = (S.view.done || []).slice();
+  while(done.length < total){ done.push(false); }
+  done[i] = !!checked;
+  var li = document.querySelector('[data-step-li="' + i + '"]');
+  if(li){ li.className = checked ? 'done' : ''; }
+  api('PATCH', '/study-assistant/api/plans/' + S.view.id, { patch:{ done:done } }).then(function(d){
+    if(!d.ok){
+      toast(d.message || '没保存上');
+      if(li){
+        li.className = checked ? '' : 'done';
+        var cb = li.querySelector('input[type=checkbox]');
+        if(cb){ cb.checked = !checked; }
+      }
+      return;
+    }
+    S.view.done = (d.item && d.item.done) || done;
+  });
+}
+
+function delPlan(id){
+  var found = null;
+  S.items.forEach(function(it){ if(String(it.id) === String(id)){ found = it; } });
+  if(!found){ return; }
+  if(!window.confirm('删掉「' + (found.topic || '这条拆解') + '」？删了就找不回来了。')){ return; }
+  api('DELETE', '/study-assistant/api/plans/' + id).then(function(d){
+    if(!d.ok){ toast(d.message || '没删掉'); return; }
+    if(S.view && String(S.view.id) === String(id)){ closeView(); }
+    S.items = S.items.filter(function(it){ return String(it.id) !== String(id); });
+    renderHistory();
+    toast('已删掉');
+  });
+}
+
+/* ---------- 发起一次拆解 ---------- */
+function run(){
+  var topic = ($('topic').value || '').trim();
+  if(topic.length < 4){
+    setStatus('先用一句话说清你想学什么，至少 4 个字。', 'err');
+    $('topic').focus();
+    return;
+  }
+  busy(true);
+  setStatus('正在从三个角度拆解，通常 30~90 秒，别关页面…', 'info');
+  api('POST', '/study-assistant/api/analyze', {
+    topic: topic,
+    level: $('level') ? $('level').value.trim() : '',
+    blocker: $('blocker') ? $('blocker').value.trim() : ''
+  }).then(function(d){
     busy(false);
-    setStatus('拆解完成，三张思维导图已生成 👇 点击节点可展开 / 收起分支', 'ok');
-    renderResult(data);
-  })
-  .catch(function(e){
-    busy(false);
-    setStatus('网络请求失败：' + e.message, 'err');
+    if(!d.ok){ setStatus(d.message || '拆解失败，再试一次', 'err'); return; }
+    clearStatus();
+    renderPlan(d, false);
   });
 }
 
 function init(){
   fillChips();
-  $('btnRun').addEventListener('click', run);
+  if($('btnRun')){ $('btnRun').onclick = run; }
+  var t = $('topic');
+  if(t){
+    t.addEventListener('keydown', function(e){
+      if((e.ctrlKey || e.metaKey) && e.key === 'Enter'){ e.preventDefault(); run(); }
+    });
+  }
+  loadPlans();
   window.addEventListener('resize', function(){
-    Object.keys(chartMap).forEach(function(k){ if(chartMap[k]) chartMap[k].resize(); });
+    Object.keys(chartMap).forEach(function(k){ if(chartMap[k]){ chartMap[k].resize(); } });
   });
 }
-if(document.readyState === 'loading'){
-  document.addEventListener('DOMContentLoaded', init);
-}else{
-  init();
-}
+init();
 })();
 </script>
 </body>

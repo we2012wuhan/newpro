@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#6366f1">
+<title>记录总览</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<style>
+:root{
+  --acc:#6366f1; --acc-d:#4f46e5;
+  --acc-l:rgba(99,102,241,.1); --acc-line:rgba(99,102,241,.38);
+  --bg:var(--tb-bg); --line:var(--tb-line); --ink:var(--tb-ink); --text:var(--tb-text);
+  --muted:var(--tb-muted); --field:var(--tb-field); --card:var(--tb-card);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  color:var(--text);
+  font-family:"Segoe UI","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+  font-size:14.5px; line-height:1.7; min-height:100vh;
+  background:
+    radial-gradient(1000px 480px at 8% -12%, rgba(99,102,241,.2), transparent 60%),
+    radial-gradient(820px 440px at 104% 0%, rgba(45,212,191,.12), transparent 55%),
+    linear-gradient(160deg,var(--tb-bg) 0%,var(--tb-bg-2) 55%,var(--tb-bg) 100%);
+  background-attachment:fixed;
+}
+button,input{font-family:inherit;font-size:14.5px;color:inherit}
+.wrap{max-width:880px;margin:0 auto;padding:26px 20px 80px}
+.back{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:13px;text-decoration:none;
+  margin-bottom:14px;min-height:44px}
+.back:hover{color:var(--ink)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+.logo{display:flex;align-items:center;gap:13px}
+.mark{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:22px;
+  background:linear-gradient(135deg,#6366f1,#2dd4bf);box-shadow:0 10px 28px rgba(99,102,241,.35)}
+h1{margin:0;font-size:21px;letter-spacing:.4px;color:var(--ink)}
+.sub{color:var(--muted);font-size:12.5px;margin-top:3px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;
+  backdrop-filter:blur(8px);box-shadow:0 18px 40px var(--tb-sh)}
+.card + .card{margin-top:14px}
+.card-h{font-size:14.5px;font-weight:600;color:var(--ink);margin-bottom:10px}
+.stat{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat-i{background:var(--field);border:1px solid var(--line);border-radius:12px;padding:11px 8px;text-align:center}
+.stat-n{font-size:21px;font-weight:700;color:var(--ink);line-height:1.2}
+.stat-i.warn .stat-n{color:var(--tb-warn)}
+.stat-l{font-size:11.5px;color:var(--muted);margin-top:3px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);
+  background:var(--field);color:var(--text);font-size:13px;cursor:pointer;transition:all .15s ease}
+.chip:hover{border-color:var(--acc-line)}
+.chip.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc);font-weight:600}
+.chip .n{opacity:.65;margin-left:5px;font-size:11.5px}
+.f-row{display:flex;gap:10px;margin-top:12px;align-items:center;flex-wrap:wrap}
+.f-row input[type=text]{flex:1 1 200px;min-width:0;min-height:44px;padding:0 14px;border-radius:12px;
+  border:1px solid var(--line);background:var(--field);outline:none}
+.f-row input[type=text]:focus{border-color:var(--acc-line);box-shadow:0 0 0 3px var(--acc-l)}
+.tline{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
+.tlab{font-size:12.5px;color:var(--muted);flex:none}
+.seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--field)}
+.seg button{min-height:42px;padding:0 15px;border:0;background:none;color:var(--text);
+  font-size:13px;cursor:pointer;transition:all .15s ease}
+.seg button + button{border-left:1px solid var(--line)}
+.seg button:hover{color:var(--acc)}
+.seg button.on{background:var(--acc-l);color:var(--acc);font-weight:600;box-shadow:inset 0 -2px 0 var(--acc)}
+.step{width:44px;min-height:44px;flex:none;border-radius:12px;border:1px solid var(--line);
+  background:var(--field);color:var(--text);font-size:17px;line-height:1;cursor:pointer}
+.step:hover{border-color:var(--acc-line);color:var(--acc)}
+.rtext{flex:1 1 170px;min-width:0;font-size:13.5px;color:var(--ink);font-weight:600}
+.rtext .n{color:var(--muted);font-weight:400;font-size:12.5px;margin-left:8px}
+.f-row input[type=date]{min-height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line);
+  background:var(--field);color:var(--text);outline:none;font-family:inherit;font-size:13.5px}
+.f-row input[type=date]:focus{border-color:var(--acc-line);box-shadow:0 0 0 3px var(--acc-l)}
+.chip.off{opacity:.42}
+.pager{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;margin-top:14px}
+.pg{min-height:44px;min-width:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line);
+  background:var(--field);color:var(--text);font-size:13.5px;cursor:pointer;transition:all .15s ease}
+.pg:hover:not(:disabled){border-color:var(--acc-line);color:var(--acc)}
+.pg:disabled{opacity:.4;cursor:not-allowed}
+.pg.cur{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
+.pg-dots{min-width:18px;text-align:center;color:var(--muted)}
+.pg-sum{flex:1 1 100%;text-align:center;font-size:12px;color:var(--muted);margin-top:2px}
+.tgl{min-height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--line);
+  background:var(--field);color:var(--text);cursor:pointer;white-space:nowrap;transition:all .15s ease}
+.tgl:hover{border-color:var(--acc-line)}
+.tgl.on{border-color:var(--tb-warn-line);background:var(--tb-warn-bg);color:var(--tb-warn);font-weight:600}
+.item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;
+  backdrop-filter:blur(8px);box-shadow:0 14px 32px var(--tb-sh);margin-bottom:10px}
+.item-h{display:flex;align-items:flex-start;gap:11px}
+.ico{flex:none;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:17px;
+  background:var(--acc-l);border:1px solid var(--acc-line)}
+.it{flex:1 1 auto;min-width:0}
+.t1{font-size:15px;font-weight:600;color:var(--ink);line-height:1.5;
+  overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.t2{font-size:11.5px;color:var(--muted);margin-top:4px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pill{flex:none;font-size:11px;padding:3px 9px;border-radius:999px;white-space:nowrap;
+  background:var(--tb-ok-bg);color:var(--tb-ok);border:1px solid var(--tb-ok-line)}
+.pill.open{background:var(--tb-warn-bg);color:var(--tb-warn);border-color:var(--tb-warn-line)}
+.ex{margin:10px 0 0;font-size:13.5px;line-height:1.75;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
+.item-f{display:flex;gap:16px;align-items:center;margin-top:10px}
+.lnk{background:none;border:0;padding:0;color:var(--acc);font-size:13px;cursor:pointer;
+  text-decoration:none;min-height:32px;display:inline-flex;align-items:center;font-family:inherit}
+.lnk:hover{color:var(--acc-d);text-decoration:underline}
+.lnk-go{font-weight:600}
+.lnk-go::before{content:'↗';margin-right:5px;font-size:12px}
+.detail{margin-top:10px;padding:11px 14px;border-radius:11px;background:var(--field);
+  border:1px dashed var(--line);font-size:13px;line-height:1.9;color:var(--text)}
+.detail b{color:var(--muted);font-weight:600}
+.empty{text-align:center;padding:30px 14px;color:var(--muted);font-size:13.5px;line-height:1.9}
+.empty b{display:block;color:var(--ink);font-size:15px;font-weight:600;margin-bottom:6px}
+.hide{display:none!important}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);z-index:50;
+  background:var(--tb-ink);color:var(--tb-bg);font-size:13.5px;padding:10px 18px;border-radius:999px;
+  opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.foot{font-size:12px;color:var(--muted);line-height:1.8;margin-top:14px;padding:0 2px}
+@media (max-width:560px){
+  .stat{grid-template-columns:1fr;gap:8px}
+  .stat-i{display:flex;align-items:baseline;justify-content:center;gap:10px}
+  .stat-l{margin-top:0}
+}
+</style>
+<script src="/static/auth-guard.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← 返回工具箱</a>
+  <header class="top">
+    <div class="logo">
+      <div class="mark">🗂️</div>
+      <div>
+        <h1>记录总览</h1>
+        <p class="sub">各工具里存过的记录，汇到这一页 · 只读，不新增数据</p>
+      </div>
+    </div>
+    <span class="tb-mount"></span>
+  </header>
+
+  <section class="card">
+    <div class="stat" id="stat">
+      <div class="stat-i"><div class="stat-n">—</div><div class="stat-l">全部记录</div></div>
+      <div class="stat-i"><div class="stat-n">—</div><div class="stat-l">涉及工具</div></div>
+      <div class="stat-i"><div class="stat-n">—</div><div class="stat-l">还没收尾</div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-h">筛选</div>
+    <div class="chips" id="toolChips"></div>
+    <div class="tline">
+      <span class="tlab">时间</span>
+      <div class="seg" id="segRange" role="group" aria-label="时间范围">
+        <button type="button" data-g="all" class="on">全部</button>
+        <button type="button" data-g="day">按天</button>
+        <button type="button" data-g="week">按周</button>
+        <button type="button" data-g="month">按月</button>
+      </div>
+    </div>
+    <div class="f-row hide" id="rangeRow">
+      <button class="step" id="prevRange" type="button" aria-label="往前一段">‹</button>
+      <div class="rtext" id="rangeText"></div>
+      <button class="step" id="nextRange" type="button" aria-label="往后一段">›</button>
+      <button class="tgl" id="btnToday" type="button">回到今天</button>
+      <input type="date" id="jumpDate" aria-label="跳到某一天（按周 / 按月时选那一天所在的那一周 / 那一月）">
+    </div>
+    <div class="f-row">
+      <input type="text" id="q" placeholder="搜标题和内容…" autocomplete="off">
+      <button class="tgl" id="openOnly" type="button" aria-pressed="false">只看没收尾的</button>
+    </div>
+  </section>
+
+  <section id="list"><div class="empty">正在读记录…</div></section>
+
+  <p class="foot" id="foot"></p>
+</div>
+<div class="toast" id="toast"></div><script>
+(function(){
+'use strict';
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+var PAGE_SIZE = 10;
+
+var S = { items:[], tools:[], tool:'all', q:'', openOnly:false, expanded:{},
+          range:'all', anchor:null, limit:300, page:1, err:'' };
+
+var WD = ['周日','周一','周二','周三','周四','周五','周六'];
+
+/* ---------- 日期工具：全部按本地时区算，created_at 是 'YYYY-MM-DD HH:MM:SS' ---------- */
+function pad2(n){ return (n < 10 ? '0' : '') + n; }
+function ymd(d){ return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+function today0(){
+  var n = new Date();
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+}
+function shift(d, days){ return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days); }
+function parseDay(raw){
+  var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(raw || ''));
+  if(!m){ return null; }
+  return new Date(+m[1], +m[2] - 1, +m[3]);
+}
+
+/* 一段范围的起止（含首尾）。周一算一周的头，和国内习惯一致。 */
+function rangeOf(g, anchor){
+  if(!anchor || g === 'all'){ return null; }
+  if(g === 'day'){ return { from: anchor, to: anchor }; }
+  if(g === 'week'){
+    var back = (anchor.getDay() + 6) % 7;
+    var from = shift(anchor, -back);
+    return { from: from, to: shift(from, 6) };
+  }
+  return { from: new Date(anchor.getFullYear(), anchor.getMonth(), 1),
+           to: new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0) };
+}
+function stepAnchor(g, anchor, dir){
+  if(g === 'week'){ return shift(anchor, dir * 7); }
+  if(g === 'month'){ return new Date(anchor.getFullYear(), anchor.getMonth() + dir, 1); }
+  return shift(anchor, dir);
+}
+function rangeLabel(g, anchor){
+  var t = today0();
+  if(g === 'day'){
+    var tag = '';
+    if(ymd(anchor) === ymd(t)){ tag = ' · 今天'; }
+    else if(ymd(anchor) === ymd(shift(t, -1))){ tag = ' · 昨天'; }
+    return ymd(anchor) + ' ' + WD[anchor.getDay()] + tag;
+  }
+  if(g === 'week'){
+    var rg = rangeOf('week', anchor);
+    var cur = (rg.from <= t && t <= rg.to);
+    return ymd(rg.from) + ' ~ ' + ymd(rg.to) + (cur ? ' · 本周' : '');
+  }
+  return anchor.getFullYear() + ' 年 ' + (anchor.getMonth() + 1) + ' 月';
+}
+function inRange(it, rg){
+  if(!rg){ return true; }
+  var d = parseDay(it.created_at);
+  if(!d){ return false; }
+  return d >= rg.from && d <= rg.to;
+}
+function currentRange(){ return rangeOf(S.range, S.anchor); }
+function scopedItems(){
+  var rg = currentRange();
+  return S.items.filter(function(it){ return inRange(it, rg); });
+}
+
+/* ---------- 时间显示 ---------- */
+function relTime(raw){
+  var s = String(raw || '').trim();
+  if(!s){ return ''; }
+  var d = new Date(s.replace(' ', 'T'));
+  if(isNaN(d.getTime())){ return s.slice(0, 16); }
+  var mins = Math.floor((Date.now() - d.getTime()) / 60000);
+  if(mins < 1){ return '刚刚'; }
+  if(mins < 60){ return mins + ' 分钟前'; }
+  var hours = Math.floor(mins / 60);
+  if(hours < 24){ return hours + ' 小时前'; }
+  var days = Math.floor(hours / 24);
+  if(days < 30){ return days + ' 天前'; }
+  return s.slice(0, 10);
+}
+function fullTime(raw){ return String(raw || '').slice(0, 16); }
+
+function apiGet(path){
+  return fetch(path, { method:'GET' }).then(function(r){
+    return r.json().catch(function(){ return { ok:false, message:'服务返回了看不懂的东西' }; });
+  }).catch(function(){ return { ok:false, message:'请求失败，看下服务还在不在' }; });
+}
+function toast(msg){
+  var el = $('toast');
+  if(!el){ return; }
+  el.textContent = msg;
+  el.className = 'toast on';
+  window.clearTimeout(toast._t);
+  toast._t = window.setTimeout(function(){ el.className = 'toast'; }, 2000);
+}
+
+/* ---------- 渲染 ---------- */
+function renderRange(){
+  var row = $('rangeRow');
+  if(S.range === 'all'){ row.classList.add('hide'); }
+  else { row.classList.remove('hide'); }
+  Array.prototype.forEach.call($('segRange').querySelectorAll('button'), function(b){
+    b.className = (b.getAttribute('data-g') === S.range) ? 'on' : '';
+  });
+  if(S.range === 'all'){
+    $('rangeText').textContent = '';
+    return;
+  }
+  $('rangeText').innerHTML = esc(rangeLabel(S.range, S.anchor)) +
+    '<span class="n">' + scopedItems().length + ' 条</span>';
+  $('jumpDate').value = ymd(S.anchor);
+}
+
+function renderStat(){
+  var host = $('stat').querySelectorAll('.stat-i');
+  var rows = scopedItems();
+  var openN = rows.filter(function(x){ return x.tracked && x.open; }).length;
+  var toolsN = {};
+  rows.forEach(function(x){ toolsN[x.tool] = 1; });
+  function fill(i, n, label, warn){
+    host[i].className = 'stat-i' + (warn ? ' warn' : '');
+    host[i].innerHTML = '<div class="stat-n">' + n + '</div><div class="stat-l">' + label + '</div>';
+  }
+  var scoped = S.range !== 'all';
+  fill(0, rows.length, scoped ? '该范围记录' : '全部记录');
+  fill(1, Object.keys(toolsN).length, '涉及工具');
+  fill(2, openN, '还没收尾', true);
+}
+
+function renderChips(){
+  var el = $('toolChips');
+  var rows = scopedItems();
+  var counts = {};
+  rows.forEach(function(it){ counts[it.tool] = (counts[it.tool] || 0) + 1; });
+  var h = '<button class="chip' + (S.tool === 'all' ? ' on' : '') + '" type="button" data-tool="all">' +
+          '全部<span class="n">' + rows.length + '</span></button>';
+  h += S.tools.map(function(t){
+    var n = counts[t.key] || 0;
+    var off = n ? '' : ' off';
+    return '<button class="chip' + (S.tool === t.key ? ' on' : '') + off +
+           '" type="button" data-tool="' + esc(t.key) + '">' +
+           esc(t.ico) + ' ' + esc(t.name) + '<span class="n">' + n + '</span></button>';
+  }).join('');
+  el.innerHTML = h;
+  Array.prototype.forEach.call(el.querySelectorAll('[data-tool]'), function(b){
+    b.onclick = function(){ S.tool = b.getAttribute('data-tool'); S.page = 1; renderChips(); renderList(); };
+  });
+}
+
+function visible(){
+  var q = S.q.toLowerCase();
+  return scopedItems().filter(function(it){
+    if(S.tool !== 'all' && it.tool !== S.tool){ return false; }
+    if(S.openOnly && !(it.tracked && it.open)){ return false; }
+    if(!q){ return true; }
+    var hay = [it.title, it.excerpt, it.name, (it.detail || []).join(' ')].join(' ').toLowerCase();
+    return hay.indexOf(q) >= 0;
+  });
+}
+
+/* 页码列表：页数少就全列出来，多的话首尾固定、中间跟着当前页滑动 */
+function pageNumbers(cur, pages){
+  if(pages <= 7){
+    var all = [];
+    for(var i = 1; i <= pages; i++){ all.push(i); }
+    return all;
+  }
+  var out = [1];
+  var lo = Math.max(2, cur - 1);
+  var hi = Math.min(pages - 1, cur + 1);
+  if(lo > 2){ out.push('·'); }
+  for(var j = lo; j <= hi; j++){ out.push(j); }
+  if(hi < pages - 1){ out.push('·'); }
+  out.push(pages);
+  return out;
+}
+
+function pagerHTML(total, pages){
+  if(pages <= 1){ return ''; }
+  var nums = pageNumbers(S.page, pages).map(function(n){
+    if(n === '·'){ return '<span class="pg-dots">…</span>'; }
+    return '<button class="pg' + (n === S.page ? ' cur' : '') + '" type="button" data-pg="' + n + '">' + n + '</button>';
+  }).join('');
+  return '<nav class="pager" aria-label="分页">' +
+    '<button class="pg" type="button" data-pg="prev"' + (S.page <= 1 ? ' disabled' : '') + '>‹ 上一页</button>' +
+    nums +
+    '<button class="pg" type="button" data-pg="next"' + (S.page >= pages ? ' disabled' : '') + '>下一页 ›</button>' +
+    '<span class="pg-sum">共 ' + total + ' 条 · 每页 ' + PAGE_SIZE + ' 条 · 第 ' + S.page + ' / ' + pages + ' 页</span>' +
+  '</nav>';
+}
+
+function renderList(){
+  var el = $('list');
+  if(S.err){
+    el.innerHTML = '<div class="card"><div class="empty"><b>读不到记录</b>' + esc(S.err) + '</div></div>';
+    return;
+  }
+  var rows = visible();
+  if(!rows.length){
+    var head, tip;
+    if(!S.items.length){
+      head = '还没有任何记录';
+      tip = '去判断力教练、5Why、苏格拉底、读书落地、学习模型助手这些工具里记一条，这里就会长出来。';
+    } else if(!scopedItems().length){
+      head = '这段时间没有记录';
+      tip = '用上面的 ‹ › 换一段，或者点「全部」看所有时间。';
+    } else {
+      head = '这个条件下没有记录';
+      tip = '换个筛选条件试试。';
+    }
+    el.innerHTML = '<div class="card"><div class="empty"><b>' + head + '</b>' + tip + '</div></div>';
+    return;
+  }
+  var pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  if(S.page > pages){ S.page = pages; }
+  if(S.page < 1){ S.page = 1; }
+  var from = (S.page - 1) * PAGE_SIZE;
+  var pageRows = rows.slice(from, from + PAGE_SIZE);
+  el.innerHTML = pageRows.map(function(it){
+    var on = !!S.expanded[it.id];
+    var pill = it.tracked
+      ? '<span class="pill' + (it.open ? ' open' : '') + '">' + esc(it.status) + '</span>'
+      : '';
+    var meta = [esc(it.name), esc(relTime(it.created_at)), esc(fullTime(it.created_at))];
+    var detail = '';
+    if(on){
+      var body = (it.detail && it.detail.length)
+        ? it.detail.map(function(line){
+            var i = line.indexOf('：');
+            if(i <= 0){ return esc(line); }
+            return '<b>' + esc(line.slice(0, i)) + '</b>' + esc(line.slice(i));
+          }).join('<br>')
+        : '这条没有更多可展开的内容。';
+      detail = '<div class="detail">' + body + '</div>';
+    }
+    return '<div class="item" data-id="' + it.id + '">' +
+      '<div class="item-h">' +
+        '<div class="ico">' + esc(it.ico) + '</div>' +
+        '<div class="it">' +
+          '<div class="t1">' + esc(it.title) + '</div>' +
+          '<div class="t2">' + meta.join('<span>·</span>') + '</div>' +
+        '</div>' + pill +
+      '</div>' +
+      (it.excerpt && it.excerpt !== it.title ? '<p class="ex">' + esc(it.excerpt) + '</p>' : '') +
+      '<div class="item-f">' +
+        '<button class="lnk" type="button" data-more="' + it.id + '">' + (on ? '收起' : '展开细节') + '</button>' +
+        (it.deep
+          ? '<a class="lnk lnk-go" href="' + esc(it.href) + '?r=' + it.id + '" target="_blank" rel="noopener">直接打开这一条 →</a>'
+          : '') +
+        '<a class="lnk" href="' + esc(it.href) + '">去这个工具 →</a>' +
+      '</div>' + detail + '</div>';
+  }).join('') + pagerHTML(rows.length, pages);
+  Array.prototype.forEach.call(el.querySelectorAll('[data-more]'), function(b){
+    b.onclick = function(){
+      var id = b.getAttribute('data-more');
+      if(S.expanded[id]){ delete S.expanded[id]; } else { S.expanded[id] = 1; }
+      renderList();
+    };
+  });
+  Array.prototype.forEach.call(el.querySelectorAll('[data-pg]'), function(b){
+    b.onclick = function(){
+      var v = b.getAttribute('data-pg');
+      var total = Math.max(1, Math.ceil(visible().length / PAGE_SIZE));
+      if(v === 'prev'){ S.page = Math.max(1, S.page - 1); }
+      else if(v === 'next'){ S.page = Math.min(total, S.page + 1); }
+      else { S.page = +v; }
+      renderList();
+      if(el.scrollIntoView){ el.scrollIntoView({ behavior:'smooth', block:'start' }); }
+    };
+  });
+}
+
+function renderFoot(){
+  var rows = scopedItems();
+  var tracked = rows.filter(function(x){ return x.tracked; }).length;
+  $('foot').textContent = '只有带「收尾」机制的工具才会计入「还没收尾」，所以这个数字比总数小：' +
+    rows.length + ' 条里 ' + tracked + ' 条能判断收没收尾。' +
+    '这一页只读，删记录请回各自的工具；最多汇总最近 ' + S.limit + ' 条。' +
+    '多设备看到的是同一份（都存在服务器 SQLite 里）。';
+}
+
+function renderAll(){ renderRange(); renderStat(); renderChips(); renderList(); renderFoot(); }
+
+function load(){
+  apiGet('/overview/api/items').then(function(d){
+    if(!d.ok){
+      S.err = d.message || '读不到记录';
+      S.items = []; S.tools = [];
+    } else {
+      S.err = '';
+      S.items = d.items || [];
+      S.tools = d.tools || [];
+      if(d.limit){ S.limit = d.limit; }
+    }
+    renderAll();
+  });
+}
+
+function setRange(g){
+  S.range = g;
+  if(g !== 'all'){
+    var t = today0();
+    S.anchor = (g === 'month') ? new Date(t.getFullYear(), t.getMonth(), 1) : t;
+  }
+  S.tool = 'all';
+  S.page = 1;
+  renderAll();
+}
+
+function init(){
+  load();
+  var q = $('q');
+  q.addEventListener('input', function(){ S.q = q.value.trim(); S.page = 1; renderList(); });
+  var t = $('openOnly');
+  t.onclick = function(){
+    S.openOnly = !S.openOnly;
+    t.className = S.openOnly ? 'tgl on' : 'tgl';
+    t.setAttribute('aria-pressed', S.openOnly ? 'true' : 'false');
+    S.page = 1;
+    renderList();
+  };
+  Array.prototype.forEach.call($('segRange').querySelectorAll('button'), function(b){
+    b.onclick = function(){
+      var g = b.getAttribute('data-g');
+      if(g !== S.range){ setRange(g); }
+    };
+  });
+  $('prevRange').onclick = function(){
+    if(S.range === 'all'){ return; }
+    S.anchor = stepAnchor(S.range, S.anchor, -1);
+    S.page = 1;
+    renderAll();
+  };
+  $('nextRange').onclick = function(){
+    if(S.range === 'all'){ return; }
+    S.anchor = stepAnchor(S.range, S.anchor, 1);
+    S.page = 1;
+    renderAll();
+  };
+  $('btnToday').onclick = function(){
+    if(S.range === 'all'){ return; }
+    var t2 = today0();
+    S.anchor = (S.range === 'month') ? new Date(t2.getFullYear(), t2.getMonth(), 1) : t2;
+    S.page = 1;
+    renderAll();
+  };
+  $('jumpDate').onchange = function(){
+    var d = parseDay($('jumpDate').value);
+    if(!d){ return; }
+    S.anchor = (S.range === 'month') ? new Date(d.getFullYear(), d.getMonth(), 1) : d;
+    S.page = 1;
+    renderAll();
+  };
+}
+init();
+
+})();
+</script>
+</body>
+</html>
