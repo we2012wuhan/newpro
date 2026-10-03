@@ -247,6 +247,7 @@ async def ai_chart_query(request: Request):
 # ---------------------------------------------------------------
 # 历史记录：写进 SQLite 的通用 history 表（storage.py），不再用浏览器 localStorage
 #   GET    /ai-chart/api/history?limit=10   读最近几条（按登录名隔离）
+#   GET    /ai-chart/api/history/{id}       读某一条（「记录总览」直接跳过来用）
 #   POST   /ai-chart/api/history            存一条：查询语句 + 图表数据
 #   DELETE /ai-chart/api/history            清空本账号在这个工具下的记录
 # ---------------------------------------------------------------
@@ -281,6 +282,21 @@ def ai_chart_history(request: Request, limit: int = HISTORY_MAX) -> JSONResponse
     except storage.StorageUnavailable as exc:
         return JSONResponse({'ok': False, 'items': [], 'message': str(exc)})
     return JSONResponse({'ok': True, 'items': [_history_item(r) for r in rows]})
+
+
+@router.get('/ai-chart/api/history/{rid}')
+def ai_chart_history_one(rid: int, request: Request) -> JSONResponse:
+    """读单条 —— 「记录总览」里的「直接打开这一条」跳过来时用它。
+
+    不能靠列表接口凑：列表默认只给最近 10 条，跳过来的那条多半不在里面。
+    """
+    try:
+        row = storage.get_record(_user(request), rid)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=503)
+    if not row or row.get('tool') != AI_CHART_TOOL:
+        return JSONResponse({'ok': False, 'message': '找不到这条记录。'}, status_code=404)
+    return JSONResponse({'ok': True, 'item': _history_item(row)})
 
 
 @router.post('/ai-chart/api/history')

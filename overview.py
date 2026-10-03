@@ -28,8 +28,8 @@ ITEM_MAX = 300          # 一次最多汇总多少条
 
 # 表里出现的 tool 值必须在这里，不在的直接跳过（宁可少显示，也不要显示成空白卡片）。
 # 注意几个工具的历史命名不统一：five_why / socratic 是下划线，其余是短横线。
-# deep=True 表示这个工具的页面认 `?r=<记录 id>`，能从这一页直接跳到那一条；
-# 不认的（比如 AI 图表只是出了张图）就不给「直接打开这一条」，免得点了没反应。
+# deep=True 表示这个工具的页面认 `?r=<记录 id>`，能从这一页直接跳到那一条。
+# 将来哪个工具真的没有可回看的记录，把它标成 False，就不要「直接打开这一条」了，免得点了没反应。
 TOOL_META = {
     'judgement-trainer': {'name': '判断力教练', 'ico': '🎯', 'href': '/judgement-trainer', 'deep': True},
     'five_why': {'name': '5Why 分析法', 'ico': '🔎', 'href': '/five-why', 'deep': True},
@@ -37,7 +37,7 @@ TOOL_META = {
     'study-assistant': {'name': '学习模型助手', 'ico': '🧠', 'href': '/study-assistant', 'deep': True},
     'reading-practice': {'name': '读书落地', 'ico': '📖', 'href': '/reading-practice', 'deep': True},
     'kolb': {'name': '库博学习圈', 'ico': '🔄', 'href': '/kolb', 'deep': True},
-    'ai-chart': {'name': 'AI 生成图表', 'ico': '📊', 'href': '/ai-chart', 'deep': False},
+    'ai-chart': {'name': 'AI 生成图表', 'ico': '📊', 'href': '/ai-chart', 'deep': True},
 }
 
 _FALLBACK = (

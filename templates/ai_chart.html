@@ -295,6 +295,32 @@ var HIST_MAX = 10;
 var histList = [];
 var histActiveId = null;
 
+/* 「记录总览」点「直接打开这一条」过来会带 ?r=<记录 id>，落地就把那一条恢复出来 */
+var deepOpened = false;
+function wantRecId(){
+  try{
+    var m = /[?&]r=([0-9]+)/.exec(window.location.search || '');
+    return m ? m[1] : '';
+  }catch(e){ return ''; }
+}
+async function openDeepLink(){
+  if(deepOpened){ return; }
+  var want = wantRecId();
+  if(!want){ return; }
+  deepOpened = true;
+  try{
+    var resp = await fetch('/ai-chart/api/history/' + encodeURIComponent(want));
+    var data = await resp.json();
+    if(!data.ok || !data.item){
+      setStatus(data.message || '那条图表记录找不到了。', 'err');
+      return;
+    }
+    restoreRecord(data.item);
+  }catch(e){
+    setStatus('打开那条记录失败：' + e.message, 'err');
+  }
+}
+
 function $(id){ return document.getElementById(id); }
 
 function setStatus(html, type){
@@ -1058,6 +1084,7 @@ function restoreRecord(item){
 }
 function init(){
   loadHistory();   // 从 SQLite 里读历史，读完自己会渲染列表
+  openDeepLink();  // 地址上带 ?r=<id> 就再打开那一条（和上面的列表互不干扰）
   $('btnRun').addEventListener('click', runQuery);
   $('btnExport').addEventListener('click', exportExcel);
   $('btnClearHistory').addEventListener('click', clearHistory);
