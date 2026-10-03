@@ -196,6 +196,15 @@ app.include_router(home_cats_router)
 from five_why import router as five_why_router  # noqa: E402
 app.include_router(five_why_router)
 
+# 库博学习圈：页面在 /kolb
+# 把一件真实发生过的事走完一圈 —— 具体经验 → 反思观察 → 抽象概念化 → 主动实验。
+# AI 每段只追问一个问题，逼你写具体、写边界；第三段能把你写过的话收成一句经验原则；
+# 第四段的「下次实验」能一键送进判断力教练，到期对完答案回显「已验证 / 被推翻」。
+# 每个圈存 SQLite（tool='kolb'）。
+# 浏览器访问 http://127.0.0.1:8000/kolb 即可使用。
+from kolb import router as kolb_router  # noqa: E402
+app.include_router(kolb_router)
+
 
 
 # =========================================================

@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1F7A6B">
+<title>库博学习圈</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<script src="/static/auth-guard.js"></script>
+<style>
+:root{
+  --acc:#1F7A6B; --acc-d:#155C50;
+  --acc-l:rgba(31,122,107,.10); --acc-line:rgba(31,122,107,.28);
+  --bg:var(--tb-bg); --card:var(--tb-card); --line:var(--tb-line); --line2:var(--tb-line-2);
+  --ink:var(--tb-ink); --text:var(--tb-text); --muted:var(--tb-muted); --field:var(--tb-field);
+  --ok:var(--tb-ok); --ok-bg:var(--tb-ok-bg); --ok-line:var(--tb-ok-line);
+  --warn:var(--tb-warn); --warn-bg:var(--tb-warn-bg); --warn-line:var(--tb-warn-line);
+}
+[data-theme="dark"]{--acc:#5FC9B4;--acc-d:#8ADBC9;--acc-l:rgba(95,201,180,.14);--acc-line:rgba(95,201,180,.34)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:16px 16px 56px;position:relative;z-index:1}
+h1{font-size:20px;margin:0;color:var(--ink)}
+.head{display:flex;align-items:flex-start;gap:12px;margin:4px 0 14px}
+.head .sub{margin:4px 0 0;font-size:13px;color:var(--muted);line-height:1.7}
+.head .sp{margin-left:auto}
+.cols{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+.card-h{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.hint{font-size:13px;color:var(--muted);line-height:1.75;margin:0 0 10px}
+.mini{font-size:12px;color:var(--muted);line-height:1.6}
+textarea,input[type=text],input[type=date]{width:100%;border:1px solid var(--line2);border-radius:12px;
+  padding:11px 12px;background:var(--field);color:var(--text);font-family:inherit;font-size:15px;
+  line-height:1.7;outline:none;min-height:44px}
+textarea{min-height:84px;resize:vertical}
+textarea:focus,input:focus{border-color:var(--acc-line);box-shadow:0 0 0 3px var(--acc-l)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;
+  padding:0 16px;border-radius:12px;border:1px solid var(--line2);background:var(--card);
+  color:var(--text);font-family:inherit;font-size:14px;cursor:pointer;transition:opacity .15s}
+.btn:active{opacity:.75}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:var(--tb-acc-on);font-weight:600}
+.btn.sm{min-height:40px;padding:0 13px;font-size:13px;border-radius:10px}
+.btn.block{width:100%}
+.btn.ghost{background:transparent}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0 0}
+.row .lbl{font-size:12.5px;color:var(--muted);flex:0 0 auto}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line2);
+  background:var(--card);color:var(--text);font-family:inherit;font-size:13.5px;cursor:pointer}
+.chip.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc);font-weight:600}
+.badge{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;line-height:1.8;
+  background:var(--acc-l);color:var(--acc);border:1px solid var(--acc-line)}
+.badge.g{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-line)}
+.badge.o{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-line)}
+.badge.n{background:transparent;color:var(--muted);border-color:var(--line)}
+.steps{display:flex;gap:6px;margin-top:12px}
+.steps i{flex:1;height:6px;border-radius:999px;background:var(--line2);display:block}
+.steps i.done{background:var(--acc)}
+.steps i.on{background:var(--acc);opacity:.55}
+.stage{border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;background:var(--card)}
+.stage.todo{opacity:.5}
+.stage.on{border-color:var(--acc-line);box-shadow:0 0 0 3px var(--acc-l)}
+.st-head{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+.st-head .num{width:24px;height:24px;flex:0 0 24px;border-radius:50%;background:var(--line2);
+  color:var(--muted);font-size:13px;display:grid;place-items:center;font-weight:600}
+.stage.on .st-head .num,.stage.done .st-head .num{background:var(--acc);color:var(--tb-acc-on)}
+.st-name{font-size:15px;font-weight:600;color:var(--ink)}
+.st-head .badge{margin-left:auto}
+.st-tip{font-size:12.5px;color:var(--muted);line-height:1.7;margin:0 0 10px}
+.sub-lbl{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 5px}
+.ai-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.chat{margin-top:10px}
+.bub{border-radius:12px;padding:9px 12px;font-size:13.5px;line-height:1.75;margin-bottom:7px;max-width:92%}
+.bub.me{background:var(--field);border:1px solid var(--line);margin-left:auto}
+.bub.ai{background:var(--acc-l);border:1px solid var(--acc-line);color:var(--ink)}
+.bub.wait{color:var(--muted);font-style:normal}
+.final{border-color:var(--acc-line)}
+.fin-line{margin:10px 0 0}
+.fin-line b{display:block;font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:3px}
+.fin-line p{margin:0;font-size:14.5px;line-height:1.8;color:var(--ink)}
+.fin-jt{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line2)}
+.item{border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:9px;cursor:pointer}
+.item:hover{border-color:var(--acc-line)}
+.it-t{font-size:14px;font-weight:600;color:var(--ink);line-height:1.6}
+.it-m{font-size:11.5px;color:var(--muted);margin-top:5px;display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.it-p{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.7;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.it-x{margin-top:8px;display:flex;gap:10px}
+.lnk{background:none;border:0;padding:0;color:var(--acc);font-family:inherit;font-size:12.5px;
+  cursor:pointer;min-height:28px;display:inline-flex;align-items:center}
+.lnk:hover{text-decoration:underline}
+.empty{text-align:center;padding:22px 10px;color:var(--muted);font-size:13px;line-height:1.9}
+.empty b{display:block;color:var(--ink);font-size:14.5px;margin-bottom:5px}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(12px);
+  background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:13.5px;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (min-width:1000px){
+  .cols{grid-template-columns:minmax(0,1fr) 330px}
+  .side{position:sticky;top:16px}
+}
+@media (max-width:999px){
+  .side{order:2}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <div>
+      <h1>库博学习圈</h1>
+      <p class="sub">具体经验 → 反思观察 → 抽象概念化 → 主动实验。走完一圈，就多一条能用在别处的经验。</p>
+    </div>
+    <button class="btn ghost sm sp" id="newBtn" type="button">＋ 新的一圈</button>
+  </header>
+  <div class="cols">
+    <main id="main"></main>
+    <aside class="side">
+      <div class="card">
+        <div class="card-h">历史记录</div>
+        <input type="text" id="q" placeholder="搜标题或原则">
+        <div id="hist" style="margin-top:10px"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+<div class="toast" id="toast"></div><script>
+(function(){
+'use strict';
+var API = '/kolb/api';
+
+/* 「记录总览」点「直接打开这一条」过来会带 ?r=<记录 id>，进来就打开那一条 */
+var deepOpened = false;
+function wantRecId(){
+  try{
+    var m = /[?&]r=([0-9]+)/.exec(window.location.search || '');
+    return m ? m[1] : '';
+  }catch(e){ return ''; }
+}
+
+var STAGES = [
+  {key:'ce', name:'具体经验', tip:'只写能被人看到、能量到的：你实际做了什么，结果是什么。写「他不上心」这种解释不算。'},
+  {key:'ro', name:'反思观察', tip:'回头看：哪些是事实、别人什么反应、你当时身体什么感觉、哪部分其实是你可控的。'},
+  {key:'ac', name:'抽象概念化', tip:'从这件事里说一条能用在别处的规律，再补一句：什么时候它不成立。'},
+  {key:'ae', name:'主动实验', tip:'把它变成一个下次能做的动作：遇到什么就做什么，多久内验证，怎么算有效。'}
+];
+var STAGE_NUM = {ce:1, ro:2, ac:3, ae:4};
+var DOMAINS = [{k:'work',n:'工作决策'},{k:'life',n:'人际'},{k:'learn',n:'学习'}];
+var DOMAIN_NAME = {work:'工作决策', life:'人际', learn:'学习'};
+var MODE_NAME = {quick:'快速', deep:'深入'};
+var PROBES_MAX = {quick:1, deep:3};
+var PH = {
+  ce:'例：周会上我提的方案被当场否了，我当场没再说话',
+  ro:'例：他先问的是成本，我答的是进度；我答完手心出汗，想赶紧结束',
+  ac:'例：当对方先问成本时，如果我还在讲进度，就更可能被当成没算过账',
+  ac_edge:''
+};
+
+var S = { cycles:[], cur:null, q:'', busy:'', err:'', draft:{title:'', domain:'work', mode:'quick'} };
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+  .replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function len(v){ return String(v==null?'':v).trim().length; }
+function pad2(n){ return (n<10?'0':'')+n; }
+function ymd(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+function todayStr(){ return ymd(new Date()); }
+function addDays(n){ var d=new Date(); d.setDate(d.getDate()+n); return ymd(d); }
+function shortTime(s){ return String(s||'').replace('T',' ').slice(0,16); }
+function toast(msg){
+  var el = $('toast'); if(!el){ return; }
+  el.textContent = msg; el.className = 'toast on';
+  setTimeout(function(){ el.className = 'toast'; }, 2200);
+}
+
+function api(method, path, body){
+  var opt = { method:method, headers:{} };
+  if(body !== undefined){ opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
+  return fetch(API + path, opt).then(function(r){
+    return r.json().catch(function(){ return {}; }).then(function(d){
+      if(!r.ok || !d || d.ok === false){
+        throw new Error((d && (d.message || d.msg)) || ('请求失败（' + r.status + '）'));
+      }
+      return d;
+    });
+  });
+}
+
+function refreshList(){
+  return api('GET', '/cycles').then(function(d){ S.cycles = d.items || []; return d; });
+}
+function saveCycle(patch){
+  if(!S.cur){ return Promise.resolve(); }
+  return api('PATCH', '/cycles/' + S.cur.id, { patch:patch }).then(function(d){
+    if(d.item){ S.cur = d.item; }
+    return d;
+  });
+}
+function openCycle(id){
+  return api('GET', '/cycles/' + id).then(function(d){
+    S.cur = d.item; S.err = ''; S.busy = ''; renderAll();
+    window.scrollTo({ top:0, behavior:'smooth' });
+  }).catch(function(e){ toast(e.message || '打不开'); });
+}
+function delCycle(id){
+  if(!window.confirm('删掉这一圈？删了就找不回来了。')){ return; }
+  api('DELETE', '/cycles/' + id).then(function(){
+    if(S.cur && String(S.cur.id) === String(id)){ S.cur = null; }
+    return refreshList();
+  }).then(function(){ renderAll(); toast('删掉了'); })
+    .catch(function(e){ toast(e.message || '没删掉'); });
+}
+
+/* ---------------- 渲染 ---------------- */
+function renderAll(){ renderMain(); renderHist(); }
+
+function renderMain(){
+  var el = $('main');
+  if(S.err){
+    el.innerHTML = '<div class="card"><div class="empty"><b>出问题了</b>' + esc(S.err) + '</div></div>';
+    return;
+  }
+  el.innerHTML = S.cur ? workbenchHTML() : starterHTML();
+  if(S.cur){ bindWorkbench(); } else { bindStarter(); }
+}
+
+function starterHTML(){
+  var d = S.draft;
+  return '<div class="card">' +
+    '<div class="card-h">开一圈</div>' +
+    '<p class="hint">挑一件最近真实发生过的事 —— 工作上的、跟人有关的、学习里的都行。写下这一句，就进第一段。</p>' +
+    '<textarea id="newTitle" placeholder="例：上周评审会上我提的方案被当场否了">' + esc(d.title) + '</textarea>' +
+    '<div class="row"><span class="lbl">场景</span><div class="chips">' +
+      DOMAINS.map(function(x){
+        return '<button class="chip' + (d.domain === x.k ? ' on' : '') + '" type="button" data-d="' + x.k + '">' + x.n + '</button>';
+      }).join('') + '</div></div>' +
+    '<div class="row"><span class="lbl">档位</span><div class="chips">' +
+      [['quick','快速 · 3 分钟'],['deep','深入 · 每段多问几次']].map(function(x){
+        return '<button class="chip' + (d.mode === x[0] ? ' on' : '') + '" type="button" data-m="' + x[0] + '">' + x[1] + '</button>';
+      }).join('') + '</div></div>' +
+    '<button class="btn primary block" id="startBtn" type="button" style="margin-top:14px">开始走第一段</button>' +
+  '</div>' +
+  '<div class="card">' +
+    '<div class="card-h">这四段分别在干什么</div>' +
+    STAGES.map(function(s, i){
+      return '<div class="fin-line"><b>' + (i+1) + ' · ' + s.name + '</b><p class="mini">' + esc(s.tip) + '</p></div>';
+    }).join('') +
+    '<p class="mini" style="margin-top:12px">四段走完，这一页给你一张经验卡。第四段的「下次实验」能一键送进判断力教练，到日子对完答案，回来就知道这条规律站不站得住。</p>' +
+  '</div>';
+}
+
+function bindStarter(){
+  var ta = $('newTitle');
+  ta.addEventListener('input', function(){ S.draft.title = ta.value; });
+  Array.prototype.forEach.call(document.querySelectorAll('#main [data-d]'), function(b){
+    b.onclick = function(){ S.draft.domain = b.getAttribute('data-d'); renderMain(); };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('#main [data-m]'), function(b){
+    b.onclick = function(){ S.draft.mode = b.getAttribute('data-m'); renderMain(); };
+  });
+  $('startBtn').onclick = function(){
+    var title = ($('newTitle').value || '').trim();
+    if(title.length < 2){ toast('先写一句这次发生了什么'); return; }
+    var btn = $('startBtn');
+    btn.disabled = true; btn.textContent = '正在开圈…';
+    api('POST', '/cycles', { title:title, domain:S.draft.domain, mode:S.draft.mode })
+      .then(function(d){
+        S.cur = d.item;
+        S.draft = { title:'', domain:S.draft.domain, mode:S.draft.mode };
+        return refreshList();
+      })
+      .then(function(){ renderAll(); window.scrollTo({ top:0, behavior:'smooth' }); })
+      .catch(function(e){
+        toast(e.message || '没开成');
+        btn.disabled = false; btn.textContent = '开始走第一段';
+      });
+  };
+}
+/* ---------------- 当前这一圈 ---------------- */
+function workbenchHTML(){
+  var c = S.cur, done = !!c.finished;
+  var h = '<div class="card">' +
+    '<div class="row" style="margin:0">' +
+      '<div style="flex:1;min-width:0">' +
+        '<div class="card-h" style="margin:0">' + esc(c.title) + '</div>' +
+        '<div class="it-m"><span class="badge">' + (DOMAIN_NAME[c.domain] || '工作决策') + '</span>' +
+        '<span class="badge n">' + (MODE_NAME[c.mode] || '快速') + '档</span>' +
+        '<span>' + esc(shortTime(c.createdAt)) + ' 开的圈</span></div>' +
+      '</div>' +
+      '<button class="btn sm" id="closeBtn" type="button">收起</button>' +
+    '</div>' +
+    '<div class="steps">' + STAGES.map(function(s, i){
+      var n = i + 1;
+      var cls = (done || n < c.stage) ? 'done' : (n === c.stage ? 'on' : '');
+      return '<i class="' + cls + '"></i>';
+    }).join('') + '</div>' +
+  '</div>';
+  h += STAGES.map(function(s, i){ return stageHTML(s, i + 1); }).join('');
+  if(done){ h += finalHTML(); }
+  return h;
+}
+
+function stageHTML(s, n){
+  var c = S.cur, a = c.a || {}, done = !!c.finished;
+  var reached = done || n <= c.stage;
+  var cls = (done || n < c.stage) ? 'done' : (n === c.stage ? 'on' : 'todo');
+  var h = '<div class="stage ' + cls + '" data-stage="' + n + '">';
+  h += '<div class="st-head"><span class="num">' + n + '</span><span class="st-name">' + s.name + '</span>' +
+       (cls === 'done' ? '<span class="badge g">已完成</span>'
+        : (cls === 'on' ? '<span class="badge">正在走</span>' : '<span class="badge n">还没到</span>')) +
+       '</div>';
+  h += '<p class="st-tip">' + esc(s.tip) + '</p>';
+  if(!reached){
+    h += '<p class="mini">走完第 ' + (n - 1) + ' 段就到这里。</p></div>';
+    return h;
+  }
+
+  if(s.key === 'ae'){
+    h += '<label class="sub-lbl">遇到什么（触发条件）</label>' +
+         '<input type="text" data-in="ae_trigger" value="' + esc(a.ae_trigger) + '" placeholder="例：下次评审会前，我要提一个会得罪人的方案">' +
+         '<label class="sub-lbl">我就做什么</label>' +
+         '<input type="text" data-in="ae_action" value="' + esc(a.ae_action) + '" placeholder="例：先私下跟最关键的那个人对一遍成本账">' +
+         '<label class="sub-lbl">多久内能看出来</label>' +
+         '<input type="date" data-in="ae_due" value="' + esc(a.ae_due || addDays(7)) + '">' +
+         '<label class="sub-lbl">怎么算有效</label>' +
+         '<input type="text" data-in="ae_check" value="' + esc(a.ae_check) + '" placeholder="例：会上没人当场否，或者只有一个人提了疑问">';
+  } else {
+    h += '<textarea data-in="' + s.key + '" placeholder="' + esc(PH[s.key] || '') + '">' + esc(a[s.key]) + '</textarea>';
+    if(s.key === 'ac'){
+      h += '<label class="sub-lbl">这条规律什么时候不成立</label>' +
+           '<input type="text" data-in="ac_edge" value="' + esc(a.ac_edge) + '" placeholder="例：对方是我的直属领导时，这条不管用">';
+    }
+  }
+
+  var used = probeCount(s.key), max = PROBES_MAX[c.mode] || 1;
+  h += '<div class="ai-row">';
+  if(!done && used < max){
+    h += '<button class="btn sm" type="button" data-ask="' + s.key + '">让 AI 追问我一个</button>';
+  }
+  if(!done && s.key === 'ac'){
+    h += '<button class="btn sm" type="button" data-condense="1">用我说的话收成一句原则</button>';
+  }
+  h += '<span class="mini">' + (used < max ? ('这一段的追问还能用 ' + (max - used) + ' 次') : '这一段问够了，带着它往下走') + '</span>';
+  h += '</div>';
+  h += chatHTML(s.key);
+  if(!done && n === c.stage){
+    h += '<button class="btn primary block" type="button" data-next="' + n + '" style="margin-top:12px">' +
+         (n === 4 ? '四段走完了，生成经验卡' : '带着这段进下一段') + '</button>';
+  }
+  h += '</div>';
+  return h;
+}
+
+function probeCount(key){
+  var n = STAGE_NUM[key];
+  return (S.cur.msgs || []).filter(function(m){ return m.role === 'ai' && m.stage === n; }).length;
+}
+
+function chatHTML(key){
+  var n = STAGE_NUM[key];
+  var msgs = (S.cur.msgs || []).filter(function(m){ return m.stage === n; });
+  var h = '';
+  if(msgs.length){
+    h += '<div class="chat">' + msgs.map(function(m){
+      return '<div class="bub ' + (m.role === 'ai' ? 'ai' : 'me') + '">' +
+             (m.role === 'ai' ? '<b>陪练：</b>' : '') + esc(m.text) + '</div>';
+    }).join('') + '</div>';
+  }
+  if(S.busy === key){ h += '<div class="chat"><div class="bub ai wait">陪练正在想…</div></div>'; }
+  return h;
+}
+
+function line(label, value){
+  return '<div class="fin-line"><b>' + label + '</b><p>' + (len(value) ? esc(value) : '还没写') + '</p></div>';
+}
+
+function finalHTML(){
+  var c = S.cur, a = c.a || {};
+  var h = '<div class="card final">';
+  h += '<div class="card-h">🎓 这一圈的经验卡</div>';
+  h += line('一句话原则', a.ac);
+  h += line('什么时候不成立', a.ac_edge);
+  h += line('你观察到什么', a.ro);
+  h += '<div class="fin-line"><b>下次实验</b><p>' +
+       (len(a.ae_trigger) ? '当 ' + esc(a.ae_trigger) + '，就 ' + esc(a.ae_action || '') : '还没写') +
+       (len(a.ae_due) ? '；' + esc(a.ae_due) + ' 之前看：' + esc(a.ae_check || '') : '') +
+       '</p></div>';
+  h += '<div class="fin-jt">' + jtHTML() + '</div>';
+  h += '</div>';
+  return h;
+}
+
+function jtHTML(){
+  var c = S.cur, a = c.a || {}, st = c.jtState || '';
+  if(!c.jt || !c.jt.id){
+    return '<p class="mini" style="margin-bottom:8px">把这条实验送进判断力教练，摆一个期限。到日子那边对完答案，这一页会告诉你这条规律站没站住。</p>' +
+      '<button class="btn primary" type="button" id="jtBtn"' + (S.busy === 'jt' ? ' disabled' : '') + '>' +
+      (S.busy === 'jt' ? '正在送…' : '送进判断力教练') + '</button>';
+  }
+  var txt = st === 'yes' ? '已验证：这条规律这次站住了'
+          : st === 'no' ? '被推翻：这次的迹象不支持这条规律'
+          : '还没到日子（' + esc(c.jt.due || a.ae_due || '') + '）';
+  var cls = st === 'yes' ? 'g' : (st === 'no' ? 'o' : 'n');
+  return '<div class="it-m"><span class="badge ' + cls + '">' + txt + '</span>' +
+         '<a class="lnk" href="/judgement-trainer" target="_blank" rel="noopener">去对答案 ↗</a></div>';
+}
+
+function bindWorkbench(){
+  $('closeBtn').onclick = function(){ S.cur = null; renderAll(); };
+  Array.prototype.forEach.call(document.querySelectorAll('#main [data-in]'), function(el){
+    el.addEventListener('input', function(){
+      S.cur.a = S.cur.a || {};
+      S.cur.a[el.getAttribute('data-in')] = el.value;
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('#main [data-ask]'), function(b){
+    b.onclick = function(){ askAI(b.getAttribute('data-ask')); };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('#main [data-condense]'), function(b){
+    b.onclick = condense;
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('#main [data-next]'), function(b){
+    b.onclick = function(){ nextStage(parseInt(b.getAttribute('data-next'), 10)); };
+  });
+  var jb = $('jtBtn');
+  if(jb){ jb.onclick = sendToJT; }
+}
+
+function syncInputs(){
+  if(!S.cur){ return; }
+  S.cur.a = S.cur.a || {};
+  Array.prototype.forEach.call(document.querySelectorAll('#main [data-in]'), function(el){
+    S.cur.a[el.getAttribute('data-in')] = el.value;
+  });
+}
+
+function validateStage(n, a){
+  if(n === 1 && len(a.ce) < 6){ return '第一段再写具体点：发生了什么，你实际做了什么'; }
+  if(n === 2 && len(a.ro) < 6){ return '第二段再写点：你到底观察到了什么'; }
+  if(n === 3 && len(a.ac) < 6){ return '第三段得有一句你自己的规律'; }
+  if(n === 3 && len(a.ac_edge) < 4){ return '再补一句：这条规律什么时候不成立'; }
+  if(n === 4){
+    if(len(a.ae_trigger) < 4){ return '写上触发条件：下次遇到什么'; }
+    if(len(a.ae_action) < 4){ return '写上下次具体做什么'; }
+    if(len(a.ae_due) < 8){ return '挑一个验证日期'; }
+    if(len(a.ae_check) < 4){ return '写上怎么算有效'; }
+  }
+  return '';
+}
+
+function askAI(key){
+  if(S.busy){ return; }
+  var c = S.cur;
+  var text = String((c.a || {})[key] || '').trim();
+  if(text.length < 2){ toast('先把你这一段想写的写上'); return; }
+  var used = probeCount(key), max = PROBES_MAX[c.mode] || 1;
+  if(used >= max){ toast('这一段问够了，往下走吧'); return; }
+  var n = STAGE_NUM[key];
+  S.busy = key; renderMain();
+  api('POST', '/ask', { task:'probe', stage:key, mode:c.mode, text:text,
+                        msgs:c.msgs || [], a:c.a || {}, title:c.title })
+    .then(function(d){
+      var now = new Date().toISOString();
+      c.msgs = (c.msgs || []).concat([
+        { stage:n, role:'user', text:text, at:now },
+        { stage:n, role:'ai', text:d.text, at:now }
+      ]);
+      return saveCycle({ msgs:c.msgs });
+    })
+    .then(function(){ S.busy = ''; renderAll(); })
+    .catch(function(e){ S.busy = ''; renderMain(); toast(e.message || '模型没答上来'); });
+}
+
+function condense(){
+  if(S.busy){ return; }
+  var c = S.cur;
+  S.busy = 'ac'; renderMain();
+  api('POST', '/ask', { task:'condense', stage:'ac', mode:c.mode, text:'',
+                        msgs:[], a:c.a || {}, title:c.title })
+    .then(function(d){
+      c.a = c.a || {};
+      c.a.ac = d.text;
+      return saveCycle({ a:{ ac:d.text } });
+    })
+    .then(function(){
+      S.busy = ''; renderAll();
+      toast('不满意就直接改，它只是把你说过的话收了一下');
+    })
+    .catch(function(e){ S.busy = ''; renderMain(); toast(e.message || '没收到'); });
+}
+
+function nextStage(n){
+  if(S.busy){ return; }
+  syncInputs();
+  var a = S.cur.a || {};
+  var bad = validateStage(n, a);
+  if(bad){ toast(bad); renderMain(); return; }
+  var patch = { a:a, stage:n + 1 };
+  if(n === 4){ patch.stage = 5; patch.finished = true; }
+  S.busy = 'next'; renderMain();
+  saveCycle(patch).then(function(){
+    S.busy = '';
+    renderAll();
+    var el = document.querySelector('.stage[data-stage="' + (n + 1) + '"]') || $('main');
+    if(el && el.scrollIntoView){ el.scrollIntoView({ behavior:'smooth', block:'start' }); }
+  }).catch(function(e){ S.busy = ''; renderMain(); toast(e.message || '没存上'); });
+}
+
+function sendToJT(){
+  if(S.busy){ return; }
+  syncInputs();
+  var c = S.cur, a = c.a || {};
+  if(len(a.ae_trigger) < 4 || len(a.ae_action) < 4 || len(a.ae_due) < 8){
+    toast('先把第四段的触发条件、动作和日期补上'); renderMain(); return;
+  }
+  var text = '【学习实验】' + c.title + ' —— ' + a.ae_trigger;
+  if(len(text) < 12){ text = '【学习实验】' + (a.ac || c.title) + '：' + a.ae_trigger; }
+  S.busy = 'jt'; renderMain();
+  fetch('/judgement-trainer/api/cases', {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ text:text.slice(0, 900), lean:(a.ae_action || a.ac || '').slice(0, 80),
+                           conf:60, due:a.ae_due, days:7, at:todayStr(), source:'local' })
+  }).then(function(r){
+    return r.json().catch(function(){ return {}; }).then(function(d){
+      if(!r.ok || !d || d.ok === false){ throw new Error((d && d.msg) || '没送成'); }
+      return d;
+    });
+  }).then(function(d){
+    var rid = d.item && d.item.id;
+    if(!rid){ throw new Error('判断力教练没回记录 id'); }
+    return saveCycle({ jt:{ id:rid, due:a.ae_due } });
+  }).then(function(){
+    S.busy = ''; renderAll(); toast('已经摆到判断力教练了，到日子回去对答案');
+  }).catch(function(e){ S.busy = ''; renderMain(); toast(e.message || '没送成'); });
+}
+
+/* ---------------- 右侧历史 ---------------- */
+function progressText(c){
+  if(c.finished){
+    var st = c.jtState;
+    var tail = st === 'yes' ? ' · 已验证' : (st === 'no' ? ' · 被推翻' : ((c.jt && c.jt.id) ? ' · 等对答案' : ''));
+    return '已走完' + tail;
+  }
+  return '走到第 ' + (c.stage || 1) + ' 段';
+}
+
+function renderHist(){
+  var box = $('hist'), q = (S.q || '').toLowerCase();
+  var rows = S.cycles.filter(function(c){
+    if(!q){ return true; }
+    var a = c.a || {};
+    return [c.title, a.ac, a.ce, DOMAIN_NAME[c.domain] || ''].join(' ').toLowerCase().indexOf(q) >= 0;
+  });
+  if(!rows.length){
+    box.innerHTML = '<div class="empty">' + (S.cycles.length ? '没有匹配的圈' : '还没有记录。<br>走完第一圈就会出现在这里。') + '</div>';
+    return;
+  }
+  box.innerHTML = rows.map(function(c){
+    var a = c.a || {};
+    return '<div class="item" data-open="' + c.id + '">' +
+      '<div class="it-t">' + esc(c.title) + '</div>' +
+      '<div class="it-m"><span class="badge">' + (DOMAIN_NAME[c.domain] || '工作决策') + '</span>' +
+      '<span class="badge n">' + (MODE_NAME[c.mode] || '快速') + '</span>' +
+      '<span>' + esc(progressText(c)) + '</span></div>' +
+      (len(a.ac) ? '<div class="it-p">' + esc(a.ac) + '</div>' : '') +
+      '<div class="it-x"><button class="lnk" type="button" data-del="' + c.id + '">删除</button></div>' +
+    '</div>';
+  }).join('');
+  Array.prototype.forEach.call(box.querySelectorAll('.item'), function(el){
+    el.onclick = function(e){
+      var t = e.target;
+      if(t && t.getAttribute && t.getAttribute('data-del')){ delCycle(t.getAttribute('data-del')); return; }
+      openCycle(el.getAttribute('data-open'));
+    };
+  });
+}
+
+function init(){
+  $('newBtn').onclick = function(){ S.cur = null; S.busy = ''; renderAll(); window.scrollTo({ top:0 }); };
+  var q = $('q');
+  q.addEventListener('input', function(){ S.q = q.value.trim(); renderHist(); });
+  refreshList().then(function(){
+    renderAll();
+    var want = wantRecId();
+    if(want && !deepOpened){
+      var hit = S.cycles.some(function(c){ return String(c.id) === String(want); });
+      if(hit){ deepOpened = true; openCycle(want); }
+      else if(S.cycles.length){ deepOpened = true; }
+    }
+  }).catch(function(e){
+    S.err = e.message || '读不出历史记录';
+    renderAll();
+  });
+}
+init();
+
+})();
+</script>
+</body>
+</html>

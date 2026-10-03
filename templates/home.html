@@ -590,6 +590,14 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
+    <a class="tool t-kb" data-cat="learn" href="/kolb">
+      <div class="t-icon">🔄</div>
+      <div class="t-info">
+        <h3>库博学习圈</h3>
+        <p class="desc">把一件真实发生过的事走完四段，提炼出一条能用在别处的经验，再变成下次的具体动作去验证。</p>
+        <span class="go">立即打开</span>
+      </div>
+    </a>
     <a class="tool t-ov" data-cat="learn" href="/overview">
       <div class="t-icon">🗂️</div>
       <div class="t-info">
@@ -749,7 +757,8 @@ function isCustom(){
 
 function syncReset(){
   if(!resetBtn){ return; }
-  resetBtn.classList.toggle('hide', !isCustom());
+  // 「恢复默认」入口暂时隐藏；要放出来就改回 toggle('hide', !isCustom())
+  resetBtn.classList.add('hide');
 }
 
 /* ---- 5) 和服务端打交道：分类数据全在 SQLite 里 ---- */

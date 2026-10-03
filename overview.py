@@ -36,6 +36,7 @@ TOOL_META = {
     'socratic': {'name': '苏格拉底提问', 'ico': '💬', 'href': '/socratic', 'deep': True},
     'study-assistant': {'name': '学习模型助手', 'ico': '🧠', 'href': '/study-assistant', 'deep': True},
     'reading-practice': {'name': '读书落地', 'ico': '📖', 'href': '/reading-practice', 'deep': True},
+    'kolb': {'name': '库博学习圈', 'ico': '🔄', 'href': '/kolb', 'deep': True},
     'ai-chart': {'name': 'AI 生成图表', 'ico': '📊', 'href': '/ai-chart', 'deep': False},
 }
 
@@ -74,6 +75,9 @@ def _excerpt(tool: str, payload: dict) -> str:
         if book and point:
             return book + '：' + point
         return point or book
+    if tool == 'kolb':
+        answer = payload.get('a') if isinstance(payload.get('a'), dict) else {}
+        return _text(answer.get('ac')) or _text(answer.get('ce')) or _text(payload.get('title'))
     if tool == 'ai-chart':
         return _text(payload.get('prompt'))
     return ''
@@ -103,6 +107,11 @@ def _status(tool: str, payload: dict) -> dict:
         step = payload.get('step')
         return {'tracked': True, 'open': True,
                 'label': ('走到第 %s 步' % step) if step else '还没走完'}
+    if tool == 'kolb':
+        if payload.get('finished'):
+            return {'tracked': True, 'open': False, 'label': '已走完一圈'}
+        return {'tracked': True, 'open': True,
+                'label': '走到第 %s 段' % (payload.get('stage') or 1)}
     return {'tracked': False, 'open': False, 'label': ''}
 
 
@@ -157,6 +166,15 @@ def _detail(tool: str, payload: dict) -> list:
         if steps:
             add('三步', ' / '.join(_text(x, 60) for x in steps if _text(x, 60)))
         add('算做到的标准', payload.get('done'))
+    elif tool == 'kolb':
+        answer = payload.get('a') if isinstance(payload.get('a'), dict) else {}
+        add('场景', {'work': '工作决策', 'life': '人际', 'learn': '学习'}.get(payload.get('domain')), 20)
+        add('具体经验', answer.get('ce'))
+        add('经验原则', answer.get('ac'))
+        add('什么时候不成立', answer.get('ac_edge'))
+        add('下次实验', answer.get('ae_trigger'), 120)
+        add('要做的事', answer.get('ae_action'), 120)
+        add('验证日期', answer.get('ae_due'), 20)
     elif tool == 'ai-chart':
         add('提示词', payload.get('prompt'))
         data = payload.get('data')
