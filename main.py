@@ -179,6 +179,15 @@ app.include_router(db_viewer_router)
 from home_cats import router as home_cats_router  # noqa: E402
 app.include_router(home_cats_router)
 
+# 5Why 根因分析（对话版）：页面在 /five-why
+# 输入一个问题，AI 一层层问「为什么」，每层给几个不同角度的候选答案（挑一个 / 改一个 / 自己写）；
+# 每答完一层它做两件事：顺读 + 逆读检查（这层能不能真推出上一层），以及判断「该停还是该继续」；
+# 只有落到能被直接改变的机制/条件，才让做根因验证，再挂对策（谁 / 何时 / 怎么做 / 怎么验）。
+# 进度由服务端定，报告由 Python 拼；每个会话存 SQLite（tool='five_why'，payload 带 v=2）。
+# 浏览器访问 http://127.0.0.1:8000/five-why 即可使用。
+from five_why import router as five_why_router  # noqa: E402
+app.include_router(five_why_router)
+
 
 
 # =========================================================
