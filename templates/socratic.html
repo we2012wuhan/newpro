@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="/static/theme.css">
 <script src="/static/theme.js"></script>
 <script src="/static/particles.js"></script>
+<script src="/static/auth-guard.js"></script>
 <script src="/static/voice.js"></script>
 <script src="/static/export-md.js"></script>
 <style>
@@ -134,6 +135,21 @@ textarea::placeholder{color:var(--muted);opacity:.72}
   color:var(--muted);cursor:pointer;font-size:15px;line-height:1}
 .hist-del:hover{color:var(--err);border-color:var(--err-line);background:var(--err-l)}
 .col-main{min-width:0}
+/* ===== 右侧历史：搜索框 ===== */
+.hsearch{position:relative;margin-top:6px}
+.hsearch input{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px 34px 10px 12px;
+  background:var(--field);color:var(--ink);font-family:inherit;font-size:14px;outline:none;min-height:42px}
+.hsearch input:focus{border-color:var(--acc-line);box-shadow:var(--focus-ring)}
+.hsearch input::placeholder{color:var(--muted);opacity:.72}
+.hq-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:26px;height:26px;
+  border:0;border-radius:50%;background:var(--soft);color:var(--muted);cursor:pointer;
+  font-size:15px;line-height:1;padding:0}
+.hq-clear:hover{color:var(--err)}
+.hq-info{margin-top:6px}
+.hq-info:empty{display:none}
+#history mark{background:var(--acc-l);color:var(--acc);border-radius:3px;padding:0 1px}
+.hist-s{display:block;font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.55;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (min-width:1100px){
   .topbar-in,.wrap{max-width:1180px}
   .wrap{display:grid;grid-template-columns:minmax(0,1fr) 292px;gap:22px;align-items:start}
@@ -200,7 +216,15 @@ textarea::placeholder{color:var(--muted);opacity:.72}
     <section id="chat"></section>
   </div>
   <aside class="col-side">
-    <section id="history"></section>
+    <div class="card">
+      <div class="card-h">历史记录</div>
+      <div class="hsearch">
+        <input type="text" id="hq" placeholder="搜标题、问过的话、聊过的内容" autocomplete="off" spellcheck="false" aria-label="搜索历史记录">
+        <button class="hq-clear" id="hqClear" type="button" title="清空搜索" hidden>×</button>
+      </div>
+      <div class="hq-info mini" id="hqInfo"></div>
+      <div id="history"></div>
+    </div>
   </aside>
 </main>
 <div class="toast" id="toast"></div>
@@ -223,7 +247,7 @@ var STEPS = ['澄清问题', '已有信息', '换个视角', '推导结论'];
 var S = {
   ai: true, busy: false, err: '',
   sid: null, sess: null, draft: '',
-  items: [], listErr: '',
+  items: [], listErr: '', hq: '', hit: null, listBusy: false,
   pin: true, _offScroll: null        // 流式期间要不要跟着往下贴；用户一滚就放手
 };
 
@@ -715,40 +739,106 @@ function refreshSend(){
 
 /* ===================== 右侧历史（读的是 SQLite） ===================== */
 function loadHistory(){
-  req('GET', '/socratic/api/sessions').then(function(d){
+  var q = (S.hq || '').trim();
+  var url = '/socratic/api/sessions' + (q ? ('?q=' + encodeURIComponent(q)) : '');
+  S.listBusy = true;
+  renderHqInfo();
+  req('GET', url).then(function(d){
+    S.listBusy = false;
     S.items = (d.ok && d.items) || [];
     S.listErr = d.ok ? '' : (d.message || '读不到历史记录');
+    S.hit = d.ok ? { total:(typeof d.total === 'number' ? d.total : S.items.length), q:d.q || '' } : null;
     renderHistory();
   });
+}
+
+/* 搜索框下面那行：命中几条 / 没搜到 / 搜着… */
+function renderHqInfo(){
+  var info = $('hqInfo'), clr = $('hqClear');
+  var q = (S.hq || '').trim();
+  if(clr){ clr.hidden = !q; }
+  if(!info){ return; }
+  if(!q || S.listErr){ info.textContent = ''; return; }
+  if(S.listBusy){ info.textContent = '搜着…'; return; }
+  if(!S.hit){ info.textContent = ''; return; }
+  info.textContent = S.hit.total ? ('命中 ' + S.hit.total + ' 条') : '没搜到';
+}
+
+/* 把命中的关键词标出来。先 esc 再高亮，顺序不能反。 */
+function hl(text, q){
+  var out = esc(text);
+  var terms = String(q || '').trim().split(/\s+/).filter(Boolean).slice(0, 6)
+    .map(function(t){ return esc(t); }).filter(Boolean);
+  if(!terms.length){ return out; }
+  var re = terms.map(function(t){ return t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|');
+  if(!re){ return out; }
+  try{ return out.replace(new RegExp('(' + re + ')', 'ig'), '<mark>$1</mark>'); }
+  catch(e){ return out; }
+}
+
+function hasTerm(text, q){
+  var terms = String(q || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  var low = String(text || '').toLowerCase();
+  for(var i = 0; i < terms.length; i++){ if(low.indexOf(terms[i]) >= 0){ return true; } }
+  return false;
+}
+
+/* 命中的词要是只在那件「原始需求」里，光看标题不知道为什么命中 —— 抠一句出来。
+   列表接口不带整段对话（太重），所以这里能翻的就是它当初写的那件事。 */
+function snippet(it, q){
+  var terms = String(q || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if(!terms.length){ return ''; }
+  var fields = [it.ask || '', it.title || ''];
+  for(var i = 0; i < fields.length; i++){
+    var f = String(fields[i] || '');
+    if(!f){ continue; }
+    var low = f.toLowerCase(), at = -1;
+    for(var k = 0; k < terms.length; k++){
+      var pos = low.indexOf(terms[k]);
+      if(pos >= 0 && (at < 0 || pos < at)){ at = pos; }
+    }
+    if(at < 0){ continue; }
+    var start = Math.max(0, at - 10);
+    var end = Math.min(f.length, at + 46);
+    return (start > 0 ? '…' : '') + f.slice(start, end) + (end < f.length ? '…' : '');
+  }
+  return '';
 }
 
 function renderHistory(){
   var el = $('history');
   if(!el){ return; }
-  var h = '<div class="card"><div class="card-h">聊过的（存在库里）</div>';
+  renderHqInfo();
+  var q = (S.hq || '').trim();
   if(S.listErr){
-    h += '<div class="mini" style="margin-top:6px">' + esc(S.listErr) + '</div></div>';
-    el.innerHTML = h; return;
+    el.innerHTML = '<div class="mini" style="margin-top:6px">' + esc(S.listErr) + '</div>';
+    return;
   }
   if(!S.items.length){
-    h += '<div class="mini" style="margin-top:6px">还没有。上面开始聊一次，这里就会留下一条，' +
-         '换台设备也还在。</div></div>';
-    el.innerHTML = h; return;
+    el.innerHTML = '<div class="mini" style="margin-top:6px">' + (q
+      ? ('没有含「' + esc(q) + '」的记录。换个词试试，或者它是更早以前的 —— 搜索只看最近 400 条。')
+      : '还没有。上面开始聊一次，这里就会留下一条，换台设备也还在。') + '</div>';
+    return;
   }
-  h += S.items.map(function(it){
+  var h = S.items.map(function(it){
     var cur = String(it.id) === String(S.sid);
     var state = it.finished ? '已收尾' : ('第 ' + (it.step || 1) + ' 步 · ' + stepName(it.step || 1));
     var meta = [state, (it.count || 0) + ' 条', shortTime(it.updated_at)].filter(Boolean).join(' · ');
+    var title = it.title || it.ask || '（没写标题）';
+    var snip = q ? snippet(it, q) : '';
+    var extra = (snip && !hasTerm(title, q)) ? ('<span class="hist-s">' + hl(snip, q) + '</span>') : '';
     return '<div class="hist-i' + (cur ? ' on' : '') + '">' +
       '<button class="hist-open" type="button" data-open="' + it.id + '">' +
-        '<span class="hist-t">' + esc(it.title || it.ask || '（没写标题）') + '</span>' +
-        '<span class="hist-m">' + esc(meta) + '</span>' +
+        '<span class="hist-t">' + hl(title, q) + '</span>' +
+        '<span class="hist-m">' + esc(meta) + '</span>' + extra +
       '</button>' +
       (EX ? '<button class="hist-exp" type="button" data-exp="' + it.id + '" title="导出这条 Markdown">⤓</button>' : '') +
       '<button class="hist-del" type="button" data-del="' + it.id + '" title="删掉这条">×</button>' +
     '</div>';
   }).join('');
-  h += '<div class="mini" style="margin-top:10px">点一条就能接着聊，之前说到哪、它问过什么都在。</div></div>';
+  h += '<div class="mini" style="margin-top:10px">' + (q
+    ? '点一条就能接着聊。搜索是连对话正文一起找的，中间说过什么词都算。'
+    : '点一条就能接着聊，之前说到哪、它问过什么都在。') + '</div>';
   el.innerHTML = h;
 
   Array.prototype.forEach.call(el.querySelectorAll('[data-open]'), function(b){
@@ -847,11 +937,33 @@ function del(id){
   });
 }
 
+/* 搜索框只在启动时绑一次：它不在 #history 里面，重画列表不会把它冲掉，
+   所以打字打一半不会被清空、也不会丢焦点。 */
+var hqTimer = null;
+function bindSearch(){
+  var el = $('hq');
+  if(!el){ return; }
+  el.value = S.hq || '';
+  el.oninput = function(){
+    S.hq = el.value;
+    renderHqInfo();
+    clearTimeout(hqTimer);
+    hqTimer = setTimeout(loadHistory, 260);
+  };
+  el.onkeydown = function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); clearTimeout(hqTimer); loadHistory(); }
+    else if(e.key === 'Escape'){ el.value = ''; S.hq = ''; clearTimeout(hqTimer); loadHistory(); }
+  };
+  var clr = $('hqClear');
+  if(clr){ clr.onclick = function(){ el.value = ''; S.hq = ''; clearTimeout(hqTimer); loadHistory(); el.focus(); }; }
+}
+
 function renderAll(){ renderStart(); renderChat(); refreshSend(); }
 
 /* ===================== 启动 ===================== */
 function init(){
   initVoice();
+  bindSearch();
   renderAll();
   loadHistory();
   var deepId = wantRecId();

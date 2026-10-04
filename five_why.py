@@ -57,7 +57,10 @@ REPLY_MAX = 400        # 用户一次发言（和 TEXT_MAX 对齐：单层答案
 FIELD_MAX = 80         # 问题 / 对策四字段
 ACT_MAX = 200          # 对策「做什么」可以长一点
 HIST_MAX = 24          # 一次塞给模型的最近几条
-LIST_MAX = 80
+LIST_MAX = 80         # 右侧历史最多列几条
+SCAN_MAX = 400        # 开了搜索时往后翻多少条再筛（和 list_records 的上限对齐）
+QUERY_MAX = 60        # 搜索框那串最长多少字
+QUERY_TERMS = 6       # 最多拆成几个关键词，多了没意义还慢
 MAX_LEVEL = 7          # 追到第几层开始提醒「也许该换一条链」
 MAX_CHAIN = 60         # 一条链最多多少个节点，防脏数据
 
@@ -86,6 +89,56 @@ GENERIC_ACT = re.compile(r'^(加强|提高|强化|重视|落实|加大|完善管
 
 def _clean(value, limit):
     return re.sub(r'\s+', ' ', str(value or '')).strip()[:limit]
+
+
+def _terms(raw) -> list:
+    """把搜索框那串拆成关键词：空格分隔、转小写、去重、最多 QUERY_TERMS 个。
+
+    多个关键词是「都要命中」的关系 —— 搜「发货 供应商」只会给出两样都提过的那几条。
+    纯子串匹配，不走 SQL LIKE：不用操心 % 和 _ 的转义，正文本来也都在 payload 里。
+    """
+    text = _clean(raw, QUERY_MAX).lower()
+    if not text:
+        return []
+    out = []
+    for part in text.split():
+        if part and part not in out:
+            out.append(part)
+        if len(out) >= QUERY_TERMS:
+            break
+    return out
+
+
+def _haystack(title, plan) -> str:
+    """一条会话里所有能被搜到的字：标题、原始问题、每一层的问与答、对策、报告。"""
+    parts = [str(title or ''), str(plan.get('problem') or ''),
+             str(plan.get('report') or '')]
+    ph = plan.get('ph') if isinstance(plan.get('ph'), dict) else {}
+    parts.append(str(ph.get('text') or ''))
+    for n in plan.get('chain') or []:
+        if isinstance(n, dict):
+            parts.append(str(n.get('text') or ''))
+            parts.append(str(n.get('ask') or ''))
+            parts.append(str(n.get('why') or ''))
+    for a in plan.get('actions') or []:
+        if isinstance(a, dict):
+            parts.append(str(a.get('what') or ''))
+            parts.append(str(a.get('who') or ''))
+            parts.append(str(a.get('how') or ''))
+    for m in plan.get('msgs') or []:
+        if isinstance(m, dict):
+            parts.append(str(m.get('text') or ''))
+    return ' '.join(parts).lower()
+
+
+def _matched(title, plan, terms) -> bool:
+    if not terms:
+        return True
+    hay = _haystack(title, plan)
+    for t in terms:
+        if t not in hay:
+            return False
+    return True
 
 
 def _user(request):
@@ -1002,20 +1055,31 @@ def five_why_status():
 
 
 @router.get('/five-why/api/sessions')
-def five_why_sessions(request: Request):
+def five_why_sessions(request: Request, q: str = ''):
+    """右侧历史。带 q= 时在标题、原始问题、每一层的问答、对策和报告里做模糊匹配。
+
+    不带 q 就是原样。带了 q 会先把最近 SCAN_MAX 条全捞出来筛一遍，
+    命中条数照样截到 LIST_MAX，另外把扫了多少条一起返回，免得用户以为「就这些」。
+    """
+    terms = _terms(q)
     try:
-        rows = storage.list_records(TOOL, _user(request), 400)
+        rows = storage.list_records(TOOL, _user(request), SCAN_MAX)
     except storage.StorageUnavailable as exc:
         return JSONResponse({'ok': False, 'items': [], 'message': str(exc)})
     items = []
+    scanned = 0
     for r in rows:
         plan = r.get('payload') if isinstance(r.get('payload'), dict) else {}
         if not _is_v2(plan):
             continue            # 旧版表单记录：不显示、也不删，数据还在库里
+        scanned += 1
+        if terms and not _matched(r.get('title'), plan, terms):
+            continue
         items.append(_row(r, False))
         if len(items) >= LIST_MAX:
             break
-    return JSONResponse({'ok': True, 'items': items})
+    return JSONResponse({'ok': True, 'items': items, 'q': _clean(q, QUERY_MAX),
+                         'total': len(items), 'scanned': scanned})
 
 
 @router.post('/five-why/api/sessions')

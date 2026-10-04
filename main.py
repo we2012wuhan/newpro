@@ -214,6 +214,20 @@ from script_library import router as script_library_router  # noqa: E402
 app.include_router(script_library_router)
 
 
+# 目标拆解器：页面在 /goal-split
+# 针对「心里有个目标，但从没拆过」这个毛病。工具不给建议，只做三件事：
+#   ① 逼你拆：五步一层层追问（说清目标 → 为什么是它 → 倒推里程碑 → 拆到本周 → 体检+预案），
+#      AI 每一步只问一个问题，绝不替你写答案；
+#   ② 验算你的拆解：可验证性、时间账、粒度、顺序、可控性、失败预案六条规则全部由 Python 算，
+#      模型只负责把结论讲成人话；
+#   ③ 按日期盯你：今天该做什么、动作勾没勾、里程碑到没到、这周实际投入跟计划差多少，
+#      偏离数据会回填进下一次体检的时间账。
+# 每条目标存 SQLite（tool='goal-split'），页面认 ?r=<记录 id> 深链。
+# 浏览器访问 http://127.0.0.1:8000/goal-split 即可使用。
+from goal_split import router as goal_split_router  # noqa: E402
+app.include_router(goal_split_router)
+
+
 
 # =========================================================
 # 附加功能：工具箱主页（根路径 "/"）

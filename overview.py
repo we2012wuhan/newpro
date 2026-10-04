@@ -39,6 +39,7 @@ TOOL_META = {
     'kolb': {'name': '库博学习圈', 'ico': '🔄', 'href': '/kolb', 'deep': True},
     'ai-chart': {'name': 'AI 生成图表', 'ico': '📊', 'href': '/ai-chart', 'deep': True},
     'script-library': {'name': '脚本库', 'ico': '📜', 'href': '/script-library', 'deep': True},
+    'goal-split': {'name': '目标拆解器', 'ico': '🎯', 'href': '/goal-split', 'deep': True},
 }
 
 _FALLBACK = (
@@ -83,6 +84,8 @@ def _excerpt(tool: str, payload: dict) -> str:
         return _text(payload.get('prompt'))
     if tool == 'script-library':
         return _text(payload.get('desc')) or _text(payload.get('cmd'))
+    if tool == 'goal-split':
+        return _text(payload.get('statement')) or _text(payload.get('raw'))
     return ''
 
 
@@ -115,6 +118,14 @@ def _status(tool: str, payload: dict) -> dict:
             return {'tracked': True, 'open': False, 'label': '已走完一圈'}
         return {'tracked': True, 'open': True,
                 'label': '走到第 %s 段' % (payload.get('stage') or 1)}
+    if tool == 'goal-split':
+        acts = payload.get('actions') if isinstance(payload.get('actions'), list) else []
+        done = len([x for x in acts if isinstance(x, dict) and x.get('done')])
+        if acts and done >= len(acts):
+            return {'tracked': True, 'open': False, 'label': '动作已全部勾完'}
+        if acts:
+            return {'tracked': True, 'open': True, 'label': '还差 %s/%s 个动作' % (len(acts) - done, len(acts))}
+        return {'tracked': True, 'open': True, 'label': '还没拆出动作'}
     return {'tracked': False, 'open': False, 'label': ''}
 
 
@@ -148,6 +159,16 @@ def _detail(tool: str, payload: dict) -> list:
         add('已走步数', payload.get('step'), 8)
         add('对话轮数', _count(payload.get('turns')), 8)
         add('是否收尾', '是' if payload.get('finished') else '否', 8)
+    elif tool == 'goal-split':
+        add('目标', payload.get('statement') or payload.get('raw'))
+        add('截止', payload.get('deadline'), 20)
+        ms = payload.get('milestones') if isinstance(payload.get('milestones'), list) else []
+        acts = payload.get('actions') if isinstance(payload.get('actions'), list) else []
+        if ms:
+            add('里程碑', '%s 站' % len(ms), 8)
+        if acts:
+            done = len([x for x in acts if isinstance(x, dict) and x.get('done')])
+            add('动作进度', '%s/%s' % (done, len(acts)), 8)
     elif tool == 'study-assistant':
         add('主题', payload.get('topic'))
         add('现在会的', payload.get('level'))

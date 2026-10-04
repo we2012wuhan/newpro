@@ -61,6 +61,9 @@ MSG_MAX = 800          # 单条回复
 REPLY_MAX = 1000       # 用户一次发言
 HIST_MAX = 40          # 一次塞给模型的最近几条
 LIST_MAX = 80          # 右侧历史最多列几条
+SCAN_MAX = 400         # 开了搜索时往后翻多少条再筛（list_records 上限 500）
+QUERY_MAX = 60         # 搜索框那串最长多少字
+QUERY_TERMS = 6        # 最多拆成几个关键词，多了没意义还慢
 MIN_TURNS = 2          # 一步至少问几个问题
 FORCE_TURNS = 3        # 问到第几个就必须往下走
 
@@ -363,6 +366,45 @@ def _wrap_fallback(msgs, last_text):
             % body)[:MSG_MAX]
 
 
+def _terms(raw) -> list:
+    """把搜索框那串拆成关键词：空格分隔、转小写、去重、最多 QUERY_TERMS 个。
+
+    多个关键词是「都要命中」的关系 —— 搜「离职 家里人」只会给出两样都提过的那几条。
+    不做 SQL LIKE：一是不用操心 % 和 _ 的转义，二是消息正文本来就在 payload 里，
+    拆出来比对反而更直接。
+    """
+    text = _clean(raw, QUERY_MAX).lower()
+    if not text:
+        return []
+    out = []
+    for part in text.split():
+        if part and part not in out:
+            out.append(part)
+        if len(out) >= QUERY_TERMS:
+            break
+    return out
+
+
+def _haystack(title, plan) -> str:
+    """一条会话里所有能被搜到的字：标题 + 原来那件事 + 整段对话正文。"""
+    parts = [str(title or ''), str(plan.get('ask') or '')]
+    msgs = plan.get('msgs') if isinstance(plan.get('msgs'), list) else []
+    for m in msgs:
+        if isinstance(m, dict):
+            parts.append(str(m.get('text') or ''))
+    return ' '.join(parts).lower()
+
+
+def _matched(title, plan, terms) -> bool:
+    if not terms:
+        return True
+    hay = _haystack(title, plan)
+    for t in terms:
+        if t not in hay:
+            return False
+    return True
+
+
 def _user(request):
     return getattr(request.state, 'user', '') or ''
 
@@ -557,12 +599,23 @@ def socratic_status():
 
 
 @router.get('/socratic/api/sessions')
-def socratic_sessions(request: Request):
+def socratic_sessions(request: Request, q: str = ''):
+    """右侧历史。带 q= 时在标题、原始问题和整段对话正文里做模糊匹配。
+
+    不带 q 就是原样，只取最近 LIST_MAX 条；带了 q 往后多翻一些（SCAN_MAX）再筛，
+    命中条数照样截到 LIST_MAX，另外把扫了多少条一起返回，免得用户以为「就这些」。
+    """
+    terms = _terms(q)
     try:
-        rows = storage.list_records(TOOL, _user(request), LIST_MAX)
+        rows = storage.list_records(TOOL, _user(request), SCAN_MAX if terms else LIST_MAX)
     except storage.StorageUnavailable as exc:
         return JSONResponse({'ok': False, 'items': [], 'message': str(exc)})
-    return JSONResponse({'ok': True, 'items': [_row(r, False) for r in rows]})
+    scanned = len(rows)
+    if terms:
+        rows = [r for r in rows
+                if _matched(r.get('title'), r.get('payload') or {}, terms)]
+    return JSONResponse({'ok': True, 'items': [_row(r, False) for r in rows[:LIST_MAX]],
+                         'q': _clean(q, QUERY_MAX), 'total': len(rows), 'scanned': scanned})
 
 
 @router.post('/socratic/api/sessions')
