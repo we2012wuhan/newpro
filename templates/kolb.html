@@ -27,9 +27,13 @@ body{margin:0;background:var(--bg);color:var(--text);
   font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased}
 .wrap{max-width:1180px;margin:0 auto;padding:16px 16px 56px;position:relative;z-index:1}
 h1{font-size:20px;margin:0;color:var(--ink)}
-.head{display:flex;align-items:flex-start;gap:12px;margin:4px 0 14px}
+.head{display:flex;align-items:flex-start;flex-wrap:wrap;gap:12px;margin:4px 0 14px}
 .head .sub{margin:4px 0 0;font-size:13px;color:var(--muted);line-height:1.7}
 .head .sp{margin-left:auto}
+.back{flex:0 0 auto;font-size:13px;color:var(--muted);text-decoration:none;
+  border:1px solid var(--line);background:var(--field);border-radius:999px;
+  padding:10px 14px;line-height:1.2;white-space:nowrap;align-self:flex-start}
+.back:hover{color:var(--ink);border-color:var(--acc-line)}
 .cols{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
 .card-h{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
@@ -108,6 +112,7 @@ textarea:focus,input:focus{border-color:var(--acc-line);box-shadow:0 0 0 3px var
 }
 @media (max-width:999px){
   .side{order:2}
+  .back{padding:9px 11px;font-size:12.5px}
 }
 </style>
 </head>
@@ -119,6 +124,7 @@ textarea:focus,input:focus{border-color:var(--acc-line);box-shadow:0 0 0 3px var
       <p class="sub">具体经验 → 反思观察 → 抽象概念化 → 主动实验。走完一圈，就多一条能用在别处的经验。</p>
     </div>
     <button class="btn ghost sm sp" id="newBtn" type="button">＋ 新的一圈</button>
+    <a class="back" href="/">← 返回工具箱</a>
   </header>
   <div class="cols">
     <main id="main"></main>

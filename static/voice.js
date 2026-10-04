@@ -5,7 +5,7 @@
    不联网、不花钱、不需要后端、不用配任何 Key。
 
    这不是四件套里的必备件，是按需引用的可选件。哪个工具想要朗读，多挂一行：
-       <script src="/static/voice.js"></script>
+       给页面加一个 script 标签，src 指向 /static/voice.js
 
    挂上之后有一个全局对象 window.TBVoice：
 

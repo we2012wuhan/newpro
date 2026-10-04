@@ -11,6 +11,7 @@
 <script src="/static/theme.js"></script>
 <script src="/static/particles.js"></script>
 <script src="/static/voice.js"></script>
+<script src="/static/export-md.js"></script>
 <style>
 :root{
   --acc:#4C5AA8; --acc-d:#3B4685; --acc-l:#EEF0FA; --acc-line:#CBD2EC;
@@ -161,9 +162,20 @@ textarea::placeholder{color:var(--muted);opacity:.72}
   background:none;border:0;color:var(--muted);font-size:11.5px;cursor:pointer}
 .say:hover{color:var(--acc)}
 .say.on{color:var(--acc);font-weight:600}
+.xbtn{flex:0 0 auto;min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);
+  background:var(--field);color:var(--muted);font-family:inherit;font-size:12.5px;cursor:pointer}
+.xbtn:hover{border-color:var(--acc-line);color:var(--ink)}
+.xbtn:disabled{opacity:.55;cursor:default}
+.linerow{display:flex;align-items:center;gap:10px}
+.linerow .mini{flex:1 1 auto;min-width:0}
+.hist-exp{flex:0 0 34px;border:1px solid var(--line);border-radius:10px;background:var(--field);
+  color:var(--muted);font-family:inherit;font-size:14px;cursor:pointer}
+.hist-exp:hover{color:var(--acc);border-color:var(--acc-line);background:var(--acc-l)}
+.hist-exp:disabled{opacity:.55;cursor:default}
 @media (max-width:560px){
   .vbtn{padding:0 9px;font-size:12px}
   .back{padding:8px 10px;font-size:12.5px}
+  .linerow{flex-wrap:wrap}
 }
 </style>
 </head>
@@ -292,6 +304,60 @@ function initVoice(){
   }
   var sb = $('vStop');
   if(sb){ sb.onclick = function(){ VOICE.stop(); }; }
+}
+
+/* ===================== 导出 Markdown（/static/export-md.js） =====================
+   拼文本、起文件名、落盘这些活都在那个公共件里，这里只管「把这段对话拼成
+   什么形状」。没引到 export-md.js 时导出按钮不出现，页面照常用。 */
+var EX = (window.TBExport && typeof window.TBExport.chat === 'function') ? window.TBExport : null;
+
+function expName(s){
+  return '苏格拉底提问 ' + ((s && (s.title || s.ask)) || '对话');
+}
+
+function expMarkdown(s){
+  if(!EX || !s){ return ''; }
+  var step = Number(s.step) || 1;
+  var turns = ((s.msgs) || []).map(function(m){
+    var me = m.role === 'me';
+    var n = Number(m.step) || 0;
+    return {
+      name: me ? '我' : '引导者',
+      note: me ? ('第 ' + (n || step) + ' 步')
+               : (n > 0 ? ('第 ' + n + ' 步 · ' + stepName(n)) : ''),
+      text: m.text
+    };
+  });
+  return EX.chat({
+    title: '苏格拉底提问｜' + ((s.title || s.ask) || '未命名'),
+    meta: [
+      ['想理清的事', s.ask || '—'],
+      ['走到', s.finished ? '四步走完了' : ('第 ' + step + ' 步 · ' + stepName(step))],
+      ['条数', turns.length + ' 条'],
+      ['开始', s.started_at || '—'],
+      ['最后更新', s.updated_at || '—']
+    ],
+    turns: turns
+  });
+}
+
+/* 手上就有全文的：直接存 */
+function exportSession(s){
+  if(!EX){ toast('导出件没加载，刷新一下页面'); return; }
+  EX.run({ md: expMarkdown(s), filename: EX.filename(expName(s)) }, {
+    done: function(ok){ toast(ok ? 'Markdown 存下来了' : '没存下来，再点一次'); }
+  });
+}
+
+/* 从右侧历史点一条：列表里不带正文，先把这条拉下来再存 */
+function exportById(id, btn){
+  if(!EX){ toast('导出件没加载，刷新一下页面'); return; }
+  if(btn){ btn.disabled = true; }
+  req('GET', '/socratic/api/sessions/' + id).then(function(d){
+    if(btn){ btn.disabled = false; }
+    if(!d.ok || !d.session){ toast(d.message || '这条读不出来'); return; }
+    exportSession(d.session);
+  });
 }
 
 /* 后端出错时也带 message，别让页面只看到「失败」两个字 */
@@ -470,7 +536,9 @@ function renderChat(){
     h += '<span class="prog-i ' + cls + '"><i>' + (n < step || fin ? '✓' : n) + '</i>' + STEPS[i] + '</span>';
   }
   h += '</div>';
-  h += '<div class="mini">你在理的这件事：' + esc(s.ask || '') + '</div>';
+  h += '<div class="linerow"><div class="mini">你在理的这件事：' + esc(s.ask || '') + '</div>' +
+    (EX ? '<button class="xbtn" type="button" id="expNow" title="把这段对话存成 Markdown">⤓ 导出</button>' : '') +
+    '</div>';
 
   var avG = avatarSVG('guide-' + (s.id != null ? s.id : S.sid));   // 这段对话里的引导者
   var avMe = avatarSVG('me');                                      // 我，一直是我
@@ -509,6 +577,8 @@ function renderChat(){
   el.innerHTML = h;
   bindSay();
   syncSay();
+  var expNow = $('expNow');
+  if(expNow){ expNow.onclick = function(){ exportSession(S.sess); }; }
 
   var ta = $('say');
   if(ta){
@@ -674,6 +744,7 @@ function renderHistory(){
         '<span class="hist-t">' + esc(it.title || it.ask || '（没写标题）') + '</span>' +
         '<span class="hist-m">' + esc(meta) + '</span>' +
       '</button>' +
+      (EX ? '<button class="hist-exp" type="button" data-exp="' + it.id + '" title="导出这条 Markdown">⤓</button>' : '') +
       '<button class="hist-del" type="button" data-del="' + it.id + '" title="删掉这条">×</button>' +
     '</div>';
   }).join('');
@@ -685,6 +756,9 @@ function renderHistory(){
   });
   Array.prototype.forEach.call(el.querySelectorAll('[data-del]'), function(b){
     b.onclick = function(){ del(Number(b.getAttribute('data-del'))); };
+  });
+  Array.prototype.forEach.call(el.querySelectorAll('[data-exp]'), function(b){
+    b.onclick = function(){ exportById(b.getAttribute('data-exp'), b); };
   });
 }
 

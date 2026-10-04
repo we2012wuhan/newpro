@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="/static/theme.css">
 <script src="/static/theme.js"></script>
 <script src="/static/particles.js"></script>
+<script src="/static/export-md.js"></script>
 <style>
 :root{
   --acc:#0E9384; --acc-d:#0B7A6E; --acc-l:#E7F5F2; --acc-line:#BFE1DA;
@@ -56,6 +57,20 @@ p{margin:0}
 .back{margin-left:auto;flex:0 0 auto;font-size:13px;color:var(--muted);text-decoration:none;
   border:1px solid var(--line);background:var(--field);border-radius:999px;padding:8px 14px;white-space:nowrap}
 .back:hover{color:var(--ink);border-color:var(--acc-line)}
+/* 顶栏下面的导航 */
+.tabs{max-width:840px;margin:0 auto;padding:0 16px 10px;display:flex;gap:8px;overflow-x:auto;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;min-height:38px;padding:0 16px;border-radius:999px;border:1px solid var(--line);
+  background:var(--field);color:var(--muted);font-family:inherit;font-size:13.5px;cursor:pointer;
+  transition:color .15s,border-color .15s,background .15s}
+.tab:hover{color:var(--ink);border-color:var(--acc-line)}
+.tab.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc);font-weight:600}
+/* 资料架 */
+.ref-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.ref-copy{flex:0 0 auto;margin-left:auto;font-family:inherit;font-size:11.5px;color:var(--muted);
+  border:1px solid var(--line);background:var(--field);border-radius:999px;padding:2px 10px;cursor:pointer}
+.ref-copy:hover{color:var(--acc);border-color:var(--acc-line)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;
   box-shadow:var(--sh);margin-top:14px}
 .card-h{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
@@ -142,9 +157,14 @@ p{margin:0}
     </div>
     <a class="back" href="/">← 返回工具箱</a>
   </div>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="OPC 分区">
+    <button class="tab on" type="button" role="tab" data-tab="proj" aria-selected="true">OPC 项目</button>
+    <button class="tab" type="button" role="tab" data-tab="ref" aria-selected="false">OPC 资料</button>
+  </nav>
 </header>
 
 <main class="wrap">
+  <section id="panelProj" role="tabpanel" aria-label="OPC 项目">
   <div class="card">
     <div class="sbar">
       <input id="kw" type="text" placeholder="关键词，例如 ai saas starter" autocomplete="off">
@@ -165,6 +185,19 @@ p{margin:0}
     </div>
   </div>
   <div id="out"></div>
+  </section>
+
+  <section id="panelRef" role="tabpanel" aria-label="OPC 资料" hidden>
+    <div class="card">
+      <div class="sbar">
+        <input id="rkw" type="text" placeholder="搜资料：收款、部署、社区、书…" autocomplete="off">
+      </div>
+      <div class="chips" id="refChips"></div>
+      <div class="meta"><span class="mini" id="refMeta"></span>
+        <button class="btn sm" id="refExp" type="button">导出这批</button></div>
+    </div>
+    <div id="refOut"></div>
+  </section>
 </main>
 <div class="toast" id="toast"></div>
 <script>
@@ -383,6 +416,200 @@ function paintTopics(){
   });
 }
 
+/* ============================================================
+   第二个 tab：OPC 资料
+   一个内置的资料架。纯静态内容，写在页面里，不走网络也不进库 ——
+   它不是「你的记录」，是词典。要加「我自己往里存资料」那才需要落
+   数据库，等你要了再接。
+   ============================================================ */
+var REF = [
+  { t:'收款与合规', why:'先把钱收进来，别的都好说。', items:[
+    { n:'Stripe', u:'https://stripe.com', d:'国际信用卡收款，订阅和一次性都能做。海外独立产品的默认选项。', tags:['收款'] },
+    { n:'Paddle', u:'https://www.paddle.com', d:'Merchant of Record，替你代收代缴各国的税，省掉自己研究 VAT 那一摊。', tags:['收款','MoR'] },
+    { n:'Lemon Squeezy', u:'https://www.lemonsqueezy.com', d:'也是 MoR，卖软件授权和订阅，接入比 Paddle 轻一点。', tags:['收款','MoR'] },
+    { n:'Gumroad', u:'https://gumroad.com', d:'卖电子书、模板、课程这类数字产品，开箱就能用，抽成高一些。', tags:['数字商品'] },
+    { n:'Wise', u:'https://wise.com', d:'把海外的钱提回国内账户，比银行电汇便宜也快。同类的还有 Payoneer 和万里汇。', tags:['回款'] },
+    { n:'支付宝开放平台', u:'https://opendocs.alipay.com', d:'主要卖给国内用户时用。要商家资质，个人开发者一般得先办个体户。', tags:['国内收款'] },
+    { n:'微信支付商户平台', u:'https://pay.weixin.qq.com', d:'和支付宝同理，覆盖率更高，资质要求一样。', tags:['国内收款'] }
+  ]},
+  { t:'部署与数据库', why:'一个人没人运维，能托管就别自己搭。', items:[
+    { n:'Vercel', u:'https://vercel.com', d:'前端和 Next.js 一键部署，个人项目的免费额度通常够用。', tags:['部署'] },
+    { n:'Cloudflare Pages', u:'https://pages.cloudflare.com', d:'静态站放边缘节点，速度快，免费额度给得大方。', tags:['部署'] },
+    { n:'Cloudflare Workers', u:'https://workers.cloudflare.com', d:'在边缘跑小函数，做 API 和定时任务很省。', tags:['边缘函数'] },
+    { n:'Railway', u:'https://railway.com', d:'后端加数据库一起托管，比自建 Docker 省心。', tags:['PaaS'] },
+    { n:'Fly.io', u:'https://fly.io', d:'小机器跑常驻服务，想开几个区域就开几个。', tags:['PaaS'] },
+    { n:'Supabase', u:'https://supabase.com', d:'Postgres 加登录、存储、实时推送，一个顶好几个。', tags:['数据库','登录'] },
+    { n:'Neon', u:'https://neon.tech', d:'Serverless Postgres，按用量算钱，数据库分支功能好用。', tags:['数据库'] },
+    { n:'Turso', u:'https://turso.tech', d:'SQLite 的托管版，小项目最省事，本地开发和线上是同一套。', tags:['数据库'] },
+    { n:'Cloudflare 域名', u:'https://www.cloudflare.com/products/registrar/', d:'按成本价注册域名，续费也不溢价。', tags:['域名'] }
+  ]},
+  { t:'上线以后的零碎', why:'这些都能自己写，但没必要。', items:[
+    { n:'Clerk', u:'https://clerk.com', d:'登录、注册、多租户，接进去就不用自己写账户体系。', tags:['登录'] },
+    { n:'Resend', u:'https://resend.com', d:'发验证码、收据这类事务邮件，API 简单。', tags:['邮件'] },
+    { n:'Postmark', u:'https://postmarkapp.com', d:'更在意送达率的邮件服务，贵一点但少进垃圾箱。', tags:['邮件'] },
+    { n:'Plausible', u:'https://plausible.io', d:'轻量访问统计，不用 cookie 弹窗那一套。', tags:['统计'] },
+    { n:'Umami', u:'https://umami.is', d:'一样的东西，开源，可以自建。', tags:['统计'] },
+    { n:'PostHog', u:'https://posthog.com', d:'埋点、漏斗、会话回放，想认真看用户怎么用的时候上。', tags:['行为分析'] },
+    { n:'Sentry', u:'https://sentry.io', d:'线上报错收集，出问题第一时间知道，不用等用户来骂。', tags:['监控'] },
+    { n:'Tally', u:'https://tally.so', d:'做表单和问卷，免费额度够用，长得也不难看。', tags:['表单'] }
+  ]},
+  { t:'AI 接口', why:'做 AI 功能时，先想好换模型的成本。', items:[
+    { n:'OpenRouter', u:'https://openrouter.ai', d:'一个 key 调各家模型，比价和换模型都方便。', tags:['聚合'] },
+    { n:'DeepSeek 开放平台', u:'https://platform.deepseek.com', d:'便宜，中文场景够用，本工具箱好几个工具就在用它。', tags:['模型'] },
+    { n:'OpenAI 平台', u:'https://platform.openai.com', d:'模型最全，也最贵，适合对效果要求高的环节。', tags:['模型'] }
+  ]},
+  { t:'发出去的地方', why:'产品做完了没人知道，等于没做。', items:[
+    { n:'Product Hunt', u:'https://www.producthunt.com', d:'上线当天冲一波曝光，欧美用户为主。', tags:['发布'] },
+    { n:'Hacker News · Show HN', u:'https://news.ycombinator.com/show', d:'技术向，写清楚你做了什么，硬广会被喷。', tags:['发布'] },
+    { n:'Indie Hackers', u:'https://www.indiehackers.com', d:'独立开发者社区，适合长期更新进度而不是发一次广告。', tags:['社区'] },
+    { n:'Reddit · r/SaaS', u:'https://www.reddit.com/r/SaaS/', d:'先认真回答别人的问题，再顺口提自己，直接发广告会被删。', tags:['社区'] },
+    { n:'X / Twitter', u:'https://x.com', d:'build in public 的主场，持续记录比一次发布有用得多。', tags:['社区'] },
+    { n:'即刻', u:'https://okjike.com', d:'国内独立开发者比较集中的地方。', tags:['国内'] },
+    { n:'V2EX · 分享创造', u:'https://www.v2ex.com/go/create', d:'国内技术社区，发作品一般能收到真实反馈。', tags:['国内'] },
+    { n:'少数派', u:'https://sspai.com', d:'适合写「我是怎么做的」这类长文，编辑会挑稿。', tags:['国内','内容'] }
+  ]},
+  { t:'常读', why:'花两天看完，能少走半年弯路。', items:[
+    { n:'《小而美》', d:'Company of One 的中文版。讲的就是不扩张、不融资也能活得好的公司。', tags:['书'] },
+    { n:'《The Mom Test》', d:'怎么问用户，才不会被客气话骗到。做完访谈再动手，能省一堆返工。', tags:['书'] },
+    { n:'《Start Small, Stay Small》', d:'一个人做软件的全流程，从选品、定价到上线，很实在。', tags:['书'] },
+    { n:'《Rework》', d:'小团队做事的方式，短，一晚上能翻完。', tags:['书'] },
+    { n:'《Make》', d:'Pieter Levels 写自己怎么做那十几个产品的，全是野路子。', tags:['书'] },
+    { n:'Starter Story', u:'https://www.starterstory.com', d:'大量「怎么从零起步」的案例拆解，看别人怎么定价和获客。', tags:['案例'] },
+    { n:'Indie Hackers 访谈', u:'https://www.indiehackers.com/interviews', d:'看别人怎么挣到第一笔钱，比看成功学有用。', tags:['案例'] }
+  ]}
+];
+
+/* ---- OPC 资料：筛选 + 渲染 ---- */
+var RS = { cat:'全部', kw:'' };
+var EX = (window.TBExport && typeof window.TBExport.doc === 'function') ? window.TBExport : null;
+
+/* 分类 + 关键字，两边都得过 */
+function refHit(g, it){
+  if(RS.cat !== '全部' && g.t !== RS.cat){ return false; }
+  var kw = RS.kw.trim().toLowerCase();
+  if(!kw){ return true; }
+  var hay = (it.n + ' ' + (it.d || '') + ' ' + (it.tags || []).join(' ') + ' ' + g.t).toLowerCase();
+  return hay.indexOf(kw) >= 0;
+}
+
+function refFiltered(){
+  var out = [];
+  REF.forEach(function(g){
+    var items = g.items.filter(function(it){ return refHit(g, it); });
+    if(items.length){ out.push({ t:g.t, why:g.why, items:items }); }
+  });
+  return out;
+}
+
+function refTotal(){
+  return REF.reduce(function(a, g){ return a + g.items.length; }, 0);
+}
+
+function refItemHTML(it){
+  return '<div class="repo">' +
+    '<div class="repo-h">' +
+      (it.u
+        ? '<a class="repo-n" href="' + esc(it.u) + '" target="_blank" rel="noopener noreferrer">' + esc(it.n) + ' ↗</a>' +
+          '<button class="ref-copy" type="button" data-copy="' + esc(it.u) + '">复制链接</button>'
+        : '<span class="repo-n">' + esc(it.n) + '</span>') +
+    '</div>' +
+    (it.d ? '<div class="repo-d">' + esc(it.d) + '</div>' : '') +
+    ((it.tags && it.tags.length)
+      ? '<div class="tags">' + it.tags.map(function(t){ return '<span class="tag">' + esc(t) + '</span>'; }).join('') + '</div>'
+      : '') +
+  '</div>';
+}
+
+function renderRefChips(){
+  var cats = ['全部'].concat(REF.map(function(g){ return g.t; }));
+  $('refChips').innerHTML = cats.map(function(c){
+    return '<button class="chip' + (c === RS.cat ? ' on' : '') + '" type="button" data-cat="' + esc(c) + '">' + esc(c) + '</button>';
+  }).join('');
+  Array.prototype.forEach.call($('refChips').querySelectorAll('[data-cat]'), function(b){
+    b.onclick = function(){ RS.cat = b.getAttribute('data-cat'); renderRef(); };
+  });
+}
+
+function renderRef(){
+  var groups = refFiltered();
+  var n = groups.reduce(function(a, g){ return a + g.items.length; }, 0);
+  var total = refTotal();
+
+  if(!n){
+    // 分类和关键词是「同时满足」，所以卡在某个分类里搜不到时，得点破这一层
+    var tip = (RS.cat === '全部')
+      ? '没找到。换个词试试，比如「收款」「部署」「社区」。'
+      : ('「' + RS.cat + '」这一组里没有。把上面的分类切回「全部」再搜一次。');
+    $('refOut').innerHTML = '<div class="card"><div class="card-sub">' + esc(tip) + '</div></div>';
+  } else {
+    $('refOut').innerHTML = groups.map(function(g){
+      return '<div class="sec-t">' + esc(g.t) + '</div>' +
+        (g.why ? '<div class="mini" style="margin:0 2px 2px">' + esc(g.why) + '</div>' : '') +
+        g.items.map(refItemHTML).join('');
+    }).join('');
+  }
+
+  var kw = RS.kw.trim();
+  $('refMeta').textContent = '共 ' + total + ' 条' + (n === total ? '' : ' · 命中 ' + n + ' 条') +
+    (kw ? ' · 关键词「' + kw + '」' : '') + (EX ? '' : ' · 复制功能没加载');
+  $('refExp').disabled = !n;
+
+  renderRefChips();
+  Array.prototype.forEach.call($('refOut').querySelectorAll('[data-copy]'), function(b){
+    b.onclick = function(){
+      var url = b.getAttribute('data-copy') || '';
+      if(!url){ return; }
+      if(!EX){ toast(url); return; }   // 没引到公共件也别让人白点
+      EX.copy(url).then(function(ok){ toast(ok ? '链接复制好了' : '这浏览器不让复制，手动选中吧'); });
+    };
+  });
+}
+
+/* 把当前筛出来的导成一份 Markdown，丢给谁看都行 */
+function exportRefs(){
+  if(!EX){ toast('导出件没加载，刷新一下页面'); return; }
+  var groups = refFiltered();
+  if(!groups.length){ toast('当前没内容可导'); return; }
+  var body = [];
+  groups.forEach(function(g){
+    body.push('## ' + g.t);
+    if(g.why){ body.push('> ' + g.why); }
+    g.items.forEach(function(it){
+      body.push('- **' + it.n + '**' + (it.d ? '：' + it.d : '') + (it.u ? '  <' + it.u + '>' : ''));
+    });
+  });
+  var kw = RS.kw.trim();
+  EX.run({
+    md: EX.doc({
+      title: 'OPC 资料｜一人公司 / 独立开发',
+      meta: [
+        ['筛的是', RS.cat === '全部' ? '全部分类' : RS.cat],
+        kw ? ['关键词', kw] : null,
+        ['条数', groups.reduce(function(a, g){ return a + g.items.length; }, 0) + ' 条'],
+        ['导出时间', EX.now()]
+      ],
+      body: body
+    }),
+    filename: EX.filename('OPC 资料 一人公司')
+  }, { done: function(ok){ toast(ok ? 'Markdown 存下来了' : '没存下来，再点一次'); } });
+}
+
+/* ---- 导航 ---- */
+function setTab(name, remember){
+  var t = (name === 'ref') ? 'ref' : 'proj';
+  $('panelProj').hidden = (t !== 'proj');
+  $('panelRef').hidden = (t !== 'ref');
+  Array.prototype.forEach.call($('tabs').querySelectorAll('[data-tab]'), function(b){
+    var on = b.getAttribute('data-tab') === t;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  // 换 tab 记在地址上，刷新还能回到原地；不用 pushState，免得后退键变乱
+  if(remember !== false){
+    try{ history.replaceState(null, '', t === 'ref' ? '#ref' : location.pathname + location.search); }catch(e){}
+  }
+}
+
 /* ---- 启动 ---- */
 function init(){
   aiCache = load(K_AI, {}) || {};
@@ -410,6 +637,17 @@ function init(){
     S.ghToken = !!(d && d.github_token);
     render();
   }).catch(function(){ render(); });
+
+  // 导航：两个 tab 互切，选中状态记在地址上
+  Array.prototype.forEach.call($('tabs').querySelectorAll('[data-tab]'), function(b){
+    b.onclick = function(){ setTab(b.getAttribute('data-tab')); };
+  });
+  setTab(/^#ref$/.test(location.hash) ? 'ref' : 'proj', false);
+
+  // 资料 tab：本地筛选，不发请求
+  $('rkw').oninput = function(){ RS.kw = $('rkw').value; renderRef(); };
+  $('refExp').onclick = exportRefs;
+  renderRef();
 
   runSearch(S.q);
 }
