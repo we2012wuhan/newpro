@@ -192,12 +192,17 @@ textarea::placeholder{color:var(--muted);opacity:.72}
 .cbtn svg,.acts .say svg{display:block;width:15px;height:15px}
 .cbtn:hover,.acts .say:hover{color:var(--acc)}
 .cbtn.ok{color:var(--ok)}
-.xbtn{flex:0 0 auto;min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);
+.xbtn{flex:0 0 auto;min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);white-space:nowrap;
   background:var(--field);color:var(--muted);font-family:inherit;font-size:12.5px;cursor:pointer}
 .xbtn:hover{border-color:var(--acc-line);color:var(--ink)}
 .xbtn:disabled{opacity:.55;cursor:default}
-.linerow{display:flex;align-items:center;gap:10px}
-.linerow .mini{flex:1 1 auto;min-width:0}
+/* 「你在理的这件事 + 导出 Markdown」这一行冻结住（像 Excel 首行冻结）：
+   下拉的时候只有聊天记录在动，它一直贴在顶栏下面。
+   --stick 由 syncStick() 按顶栏实际高度写入，拿不到时用兜底值。 */
+.linerow{display:flex;align-items:center;gap:10px;position:sticky;top:var(--stick,66px);z-index:5;
+  margin:0 -16px;padding:9px 16px;background:var(--card);border-bottom:1px solid var(--line)}
+.linerow .mini{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.linerow .xbtn{flex:0 0 auto}
 .hist-exp{flex:0 0 34px;border:1px solid var(--line);border-radius:10px;background:var(--field);
   color:var(--muted);font-family:inherit;font-size:14px;cursor:pointer}
 .hist-exp:hover{color:var(--acc);border-color:var(--acc-line);background:var(--acc-l)}
@@ -205,7 +210,6 @@ textarea::placeholder{color:var(--muted);opacity:.72}
 @media (max-width:560px){
   .vbtn{padding:0 9px;font-size:12px}
   .back{padding:8px 10px;font-size:12.5px}
-  .linerow{flex-wrap:wrap}
 }
 </style>
 </head>
@@ -646,8 +650,9 @@ function renderChat(){
     h += '<span class="prog-i ' + cls + '"><i>' + (n < step || fin ? '✓' : n) + '</i>' + STEPS[i] + '</span>';
   }
   h += '</div>';
-  h += '<div class="linerow"><div class="mini">你在理的这件事：' + esc(s.ask || '') + '</div>' +
-    (EX ? '<button class="xbtn" type="button" id="expNow" title="把这段对话存成 Markdown">⤓ 导出</button>' : '') +
+  h += '<div class="linerow"><div class="mini" title="你在理的这件事：' + esc(s.ask || '') + '">' +
+    '你在理的这件事：' + esc(s.ask || '') + '</div>' +
+    (EX ? '<button class="xbtn" type="button" id="expNow" title="把这段对话导出成 Markdown">⤓ 导出 Markdown</button>' : '') +
     '</div>';
 
   var avG = avatarSVG('guide-' + (s.id != null ? s.id : S.sid));   // 这段对话里的引导者
@@ -729,7 +734,8 @@ function scrollToNewest(el){
   var last = cp.previousElementSibling;        // 输入框上面那一块：消息 / 报错 / 收尾提示
   if(!last || !last.scrollIntoView){ return; }
   var bar = document.querySelector('.topbar');
-  var top = (bar ? bar.offsetHeight : 0) + 12;  // 顶栏是吸顶的，别让它盖住第一行
+  var lr = el.querySelector('.linerow');        // 冻结的那一行也会遮住内容
+  var top = (bar ? bar.offsetHeight : 0) + (lr ? lr.offsetHeight : 0) + 12;  // 顶栏是吸顶的，别让它盖住第一行
   var bottom = cp.offsetHeight + 12;            // 输入框是吸底的，别让它盖住最后一行
   last.style.scrollMarginTop = top + 'px';
   last.style.scrollMarginBottom = bottom + 'px';
@@ -759,7 +765,8 @@ function pinBottom(){
   var last = cp.previousElementSibling;
   if(!last || !last.scrollIntoView){ return; }
   var bar = document.querySelector('.topbar');
-  var top = (bar ? bar.offsetHeight : 0) + 12;
+  var lr = el.querySelector('.linerow');
+  var top = (bar ? bar.offsetHeight : 0) + (lr ? lr.offsetHeight : 0) + 12;
   var bottom = cp.offsetHeight + 12;
   last.style.scrollMarginTop = top + 'px';
   last.style.scrollMarginBottom = bottom + 'px';
@@ -1066,9 +1073,18 @@ function bindSearch(){
 function renderAll(){ renderStart(); renderChat(); refreshSend(); }
 
 /* ===================== 启动 ===================== */
+/* 把冻结行贴在顶栏下面：顶栏多高，top 就是多少（顶栏自己也是吸顶的） */
+function syncStick(){
+  var bar = document.querySelector('.topbar');
+  var h = bar ? bar.offsetHeight : 0;
+  document.documentElement.style.setProperty('--stick', (h ? h : 66) + 'px');
+}
+
 function init(){
   initVoice();
   bindSearch();
+  syncStick();
+  window.addEventListener('resize', syncStick);
   renderAll();
   loadHistory();
   var deepId = wantRecId();
