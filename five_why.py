@@ -767,6 +767,40 @@ def _need(plan):
     return 'answer'
 
 
+
+# =============================================================
+# 互送来源：别的工具把一条内容递过来时，记下它是从哪来的
+# -------------------------------------------------------------
+# 只用于在界面上标一枚「来自 xxx」的标记，不带这两个参数时行为和普通新建完全一样。
+# =============================================================
+SRC_NAME = {
+    'first_principles': '第一性原理',
+    'five_why': '5Why 分析法',
+    'socratic': '苏格拉底提问',
+}
+
+
+def _src_out(plan):
+    s = plan.get('src') if isinstance(plan, dict) else None
+    if not isinstance(s, dict):
+        return None
+    frm = _clean(s.get('from'), 30)
+    if frm not in SRC_NAME:
+        return None
+    return {'from': frm, 'name': SRC_NAME[frm], 'id': _clean(s.get('id'), 12)}
+
+
+def _src_in(payload):
+    frm = _clean((payload or {}).get('from'), 30)
+    if frm not in SRC_NAME or frm == TOOL:
+        return None
+    src = {'from': frm}
+    rid = _clean((payload or {}).get('src'), 12)
+    if rid:
+        src['id'] = rid
+    return src
+
+
 def _pack(rid, title, plan, full=True):
     ph = plan.get('ph') if isinstance(plan.get('ph'), dict) else {}
     msgs = plan.get('msgs') if isinstance(plan.get('msgs'), list) else []
@@ -782,6 +816,7 @@ def _pack(rid, title, plan, full=True):
         'finished': bool(plan.get('finished')),
         'chain': _chain_out(plan.get('chain')),
         'actions': _actions_out(plan.get('actions')),
+        'src': _src_out(plan),
         'count': len(msgs),
         'started_at': _clean(plan.get('started_at'), 20),
         'updated_at': _clean(plan.get('updated_at'), 20),
@@ -824,11 +859,13 @@ def _save(user, sid, plan, title=None):
     return JSONResponse({'ok': True, 'session': _pack(sid, title, plan)})
 
 
-def _do_create(problem, user):
+def _do_create(problem, user, src=None):
     if not llm_key():
         return JSONResponse({'ok': False, 'message': NO_KEY}, status_code=503)
     now = storage.now_str()
     plan = _new_plan(problem, now)
+    if src:
+        plan['src'] = src
     if CAUSE_LIKE.search(problem):
         msg = _calib(plan, True)
         plan['stage'] = 1
@@ -1102,7 +1139,7 @@ async def five_why_create(request: Request):
     problem = _clean(payload.get('problem') or payload.get('ask'), PROBLEM_MAX)
     if len(problem) < 4:
         return _bad('把问题写长一点，四个字以上 —— 最好是一句能看见的问题。')
-    return await run_in_threadpool(_do_create, problem, _user(request))
+    return await run_in_threadpool(_do_create, problem, _user(request), _src_in(payload))
 
 
 @router.get('/five-why/api/sessions/{sid}')

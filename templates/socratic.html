@@ -274,6 +274,14 @@ function wantRecId(){
   }catch(e){ return ''; }
 }
 
+function qs(name){
+  try{
+    var m = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search || '');
+    return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : '';
+  }catch(e){ return ''; }
+}
+/* 互送：别的工具递过来的那句话，只预填、不自动提交 —— 你还能改。 */
+var PRE = { prefill: qs('prefill'), from: qs('from'), src: qs('src') };
 
 var STEPS = ['澄清问题', '已有信息', '换个视角', '推导结论'];
 
@@ -699,7 +707,9 @@ function renderChat(){
 
   if(fin){
     h += '<div class="finish">四步走完了。上面那段是它把你自己说过的话串起来的 —— ' +
-         '结论是你自己得的，它一个字的建议都没加。想接着聊，直接说就行。</div>';
+         '结论是你自己得的，它一个字的建议都没加。想接着聊，直接说就行。' +
+         '<div style="margin-top:10px"><button class="xbtn" type="button" id="toFp" ' +
+         'title="把这段结论递到第一性原理，去拆它由什么构成">送去第一性原理</button></div></div>';
   }
 
   h += '<div class="composer">' +
@@ -715,6 +725,8 @@ function renderChat(){
   bindCopy();
   var expNow = $('expNow');
   if(expNow){ expNow.onclick = function(){ exportSession(S.sess); }; }
+  var tf = $('toFp');
+  if(tf){ tf.onclick = sendFp; }
 
   var ta = $('say');
   if(ta){
@@ -979,13 +991,29 @@ function renderHistory(){
   });
 }
 
+/* 送去第一性原理：把最后那段结论当成「我认为只能这么做」的那件事递过去。
+   只带参数、只预填，接收端不会自动提交。 */
+function sendFp(){
+  var msgs = (S.sess && S.sess.msgs) || [];
+  var text = '';
+  for(var i = msgs.length - 1; i >= 0; i--){
+    if(msgs[i].role !== 'me' && msgs[i].text){ text = msgs[i].text; break; }
+  }
+  if(!text){ toast('还没有能递过去的东西'); return; }
+  window.open('/ask-hub?tab=fp&from=socratic&src=' + encodeURIComponent(S.sid || '') +
+    '&prefill=' + encodeURIComponent(text), '_blank', 'noopener');
+}
+
 /* ===================== 动作 ===================== */
 function start(){
   var ask = S.draft.trim();
   if(ask.length < 4){ toast('把那件事写长一点'); return; }
   S.busy = true; S.err = '';
   renderStart(); renderChat();
-  req('POST', '/socratic/api/sessions', { ask:ask }).then(function(d){
+  var body = { ask:ask };
+  if(PRE.from && PRE.from !== 'socratic'){ body.from = PRE.from; }
+  if(PRE.src){ body.src = PRE.src; }
+  req('POST', '/socratic/api/sessions', body).then(function(d){
     S.busy = false;
     if(!d.ok){ S.err = d.message || '没能开始，再点一次'; renderStart(); return; }
     S.draft = '';
@@ -1096,6 +1124,7 @@ function syncStick(){
 }
 
 function init(){
+  if(PRE.prefill){ S.draft = PRE.prefill; }
   initVoice();
   bindSearch();
   syncStick();

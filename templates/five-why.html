@@ -27,18 +27,18 @@ try{if(/[?&]embed=1/.test(location.search)){document.documentElement.setAttribut
   --focus-ring:0 0 0 3px rgba(180,105,63,.12);
 }
 [data-theme="dark"]{
-  --acc:#E8A87C; --acc-d:#F2BC96; --acc-l:#2A2018; --acc-line:#4E3A2A;
-  --ink:#F3EDE8; --text:#CFC5BD; --muted:#94867C;
-  --bg:#12100E; --card:#1B1815; --line:#2E2823;
+  --acc:#93A0E8; --acc-d:#B3BCF2; --acc-l:#1A1D33; --acc-line:#343A63;
+  --ink:#EDEFF7; --text:#C6CBDD; --muted:#8B93AB;
+  --bg:#101322; --card:#171A2B; --line:#282D45;
   --ok:#7CC79E; --ok-l:#12261E; --ok-line:#2A4536;
   --warn:#E0A868; --warn-l:#241C10; --warn-line:#453722;
   --err:#FF9B8F; --err-l:#2A1416; --err-line:#52282C;
-  --sh:0 1px 2px rgba(0,0,0,.3), 0 10px 24px -14px rgba(0,0,0,.55);
-  --bg-blur:rgba(18,16,14,.92); --field:#221E1A; --soft:#262019;
-  --focus-ring:0 0 0 3px rgba(232,168,124,.18);
+  --sh:0 1px 2px rgba(0,0,0,.3), 0 10px 24px -14px rgba(0,0,0,.5);
+  --bg-blur:rgba(16,19,34,.92); --field:#1B1F33; --soft:#20253C;
+  --focus-ring:0 0 0 3px rgba(147,160,232,.16);
   color-scheme:dark;
 }
-html[data-theme="dark"] .btn.primary,html[data-theme="dark"] .btn.primary:hover{color:#1A1512}
+html[data-theme="dark"] .btn.primary,html[data-theme="dark"] .btn.primary:hover{color:#12162A}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
 body{background:var(--bg);color:var(--text);
@@ -83,6 +83,8 @@ label.f{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 5px}
   border-top-color:var(--acc);animation:sp .7s linear infinite;vertical-align:-2px}
 @keyframes sp{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.spin{animation:none}}
+.warnbox{background:var(--warn-l);border:1px solid var(--warn-line);border-radius:12px;padding:11px 14px;
+  font-size:13px;color:var(--warn);margin-top:12px;line-height:1.7}
 .err{background:var(--err-l);border:1px solid var(--err-line);border-radius:12px;padding:11px 14px;
   font-size:13px;color:var(--err);margin-top:12px;line-height:1.7}
 </style>
@@ -257,6 +259,14 @@ function wantRecId(){
   }catch(e){ return ''; }
 }
 
+function qs(name){
+  try{
+    var m = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search || '');
+    return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : '';
+  }catch(e){ return ''; }
+}
+/* 互送：别的工具递过来的那句话，只预填、不自动提交 —— 你还能改。 */
+var PRE = { prefill: qs('prefill'), from: qs('from'), src: qs('src') };
 
 var STAGES = ['确认问题', '一层层问', '根因验证', '配对策', '收尾'];
 var AV_HUES = [22, 32, 12, 40, 200, 268, 152, 340];
@@ -337,11 +347,15 @@ function avatarSVG(seed){
 function renderStart(){
   var el = $('start');
   if(S.sid){ el.innerHTML = ''; return; }
+  var srcTip = (PRE.from && PRE.from !== 'five_why')
+    ? '<div class="warnbox">这一条是从「' + esc(PRE.from === 'first_principles' ? '第一性原理' : '苏格拉底提问')
+      + '」递过来的' + (PRE.src ? ('（记录 #' + esc(PRE.src) + '）') : '') + '，已经填在下面，你可以改。</div>'
+    : '';
   var h = '<div class="card">' +
     '<div class="card-h">你现在要追的是哪个问题？</div>' +
     '<div class="card-sub">写一件真的发生过的事，一句能看见的问题最好。写「因为……」这种原因也行，' +
       '它会先把问题确认清楚再往下问。</div>' +
-    '<textarea id="ask" style="margin-top:12px;min-height:76px;font-size:15.5px" ' +
+    srcTip + '<textarea id="ask" style="margin-top:12px;min-height:76px;font-size:15.5px" ' +
       'placeholder="例：上周有 3 单订单延迟发货"></textarea>' +
     '<button class="btn primary block big" id="goBtn" style="margin-top:14px">开始追问</button>' +
     '<div class="mini" id="goTip" style="text-align:center;margin-top:8px"></div>' +
@@ -515,7 +529,8 @@ function composerHTML(s){
       '<div class="composer-row"><button class="btn" id="nRoot">还有，继续找</button>' +
       '<button class="btn primary" id="nDone">没有了，收尾出报告</button></div>';
   } else if(ui.kind === 'done'){
-    h += '<div class="composer-row"><button class="btn primary" id="newAn2">再追一个新的问题</button></div>';
+    h += '<div class="composer-row"><button class="btn primary" id="newAn2">再追一个新的问题</button>' +
+      '<button class="btn sm" id="toFp" title="把追出来的根因递到第一性原理，去拆它由什么构成">送去第一性原理</button></div>';
   } else {
     h += '<textarea id="say" placeholder="写这一层的答案 —— 一层只写一个原因">' + esc(S.draft) + '</textarea>' +
       '<div class="composer-row">' +
@@ -599,10 +614,21 @@ function bindChat(s){
   var nd = $('nDone');     if(nd){ nd.onclick = function(){ nextStep('done'); }; }
   var na = $('newAn2');
   if(na){ na.onclick = function(e){ if(e){ e.preventDefault(); } newAnalysis(); }; }
+  var tf = $('toFp');      if(tf){ tf.onclick = sendFp; }
   var cr = $('copyRep');   if(cr){ cr.onclick = copyReport; }
   var dr = $('dlRep');     if(dr){ dr.onclick = downloadReport; }
   var pr = $('printRep');  if(pr){ pr.onclick = function(){ window.print(); }; }
   refreshSend();
+}
+
+/* 送去第一性原理：把追出来的根因（没有就用原问题）当目标递过去。
+   只带参数、只预填，接收端不会自动提交。 */
+function sendFp(){
+  var roots = ((S.sess && S.sess.chain) || []).filter(function(n){ return n.root; });
+  var text = roots.length ? roots[0].text : ((S.sess && S.sess.problem) || '');
+  if(!text){ toast('还没有能递过去的东西'); return; }
+  window.open('/ask-hub?tab=fp&from=five_why&src=' + encodeURIComponent(S.sid || '') +
+    '&prefill=' + encodeURIComponent(text), '_blank', 'noopener');
 }
 
 /* ===================== 动作 ===================== */
@@ -611,7 +637,10 @@ function start(){
   if(ask.length < 4){ toast('把那件事写长一点'); return; }
   S.busy = true; S.err = ''; S.cand = -1;
   renderStart(); renderChat();
-  req('POST', '/five-why/api/sessions', { problem: ask }).then(function(d){
+  var body = { problem: ask };
+  if(PRE.from && PRE.from !== 'five_why'){ body.from = PRE.from; }
+  if(PRE.src){ body.src = PRE.src; }
+  req('POST', '/five-why/api/sessions', body).then(function(d){
     S.busy = false;
     if(!d.ok){ toast(d.message || '没能开始，再点一次'); renderStart(); return; }
     S.draft = '';
@@ -991,6 +1020,7 @@ function syncStick(){
 }
 
 function init(){
+  if(PRE.prefill){ S.draft = PRE.prefill; }
   renderAll();
   syncStick();
   window.addEventListener('resize', syncStick);

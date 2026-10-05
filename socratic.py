@@ -439,6 +439,40 @@ def _convo(plan, text):
     return out, msgs
 
 
+
+# =============================================================
+# 互送来源：别的工具把一条内容递过来时，记下它是从哪来的
+# -------------------------------------------------------------
+# 只用于在界面上标一枚「来自 xxx」的标记，不带这两个参数时行为和普通新建完全一样。
+# =============================================================
+SRC_NAME = {
+    'first_principles': '第一性原理',
+    'five_why': '5Why 分析法',
+    'socratic': '苏格拉底提问',
+}
+
+
+def _src_out(plan):
+    s = plan.get('src') if isinstance(plan, dict) else None
+    if not isinstance(s, dict):
+        return None
+    frm = _clean(s.get('from'), 30)
+    if frm not in SRC_NAME:
+        return None
+    return {'from': frm, 'name': SRC_NAME[frm], 'id': _clean(s.get('id'), 12)}
+
+
+def _src_in(payload):
+    frm = _clean((payload or {}).get('from'), 30)
+    if frm not in SRC_NAME or frm == TOOL:
+        return None
+    src = {'from': frm}
+    rid = _clean((payload or {}).get('src'), 12)
+    if rid:
+        src['id'] = rid
+    return src
+
+
 def _pack(rid, title, plan, full=True):
     """把库里的 payload 变成前端要的形状。full=False 时不带消息（列表用）。"""
     msgs = plan.get('msgs') if isinstance(plan.get('msgs'), list) else []
@@ -450,6 +484,7 @@ def _pack(rid, title, plan, full=True):
         'finished': bool(plan.get('finished')),
         'started_at': plan.get('started_at') or '',
         'updated_at': plan.get('updated_at') or '',
+        'src': _src_out(plan),
         'count': len(msgs),
     }
     if full:
@@ -475,7 +510,7 @@ def _row(row, full=True):
 # =============================================================
 # 接口
 # =============================================================
-def _do_create(ask, user):
+def _do_create(ask, user, src=None):
     if not llm_key():
         return JSONResponse({'ok': False, 'message': NO_KEY}, status_code=503)
     convo = [{'role': 'user', 'content': '我想理清的是：' + ask}]
@@ -493,6 +528,8 @@ def _do_create(ask, user):
         'started_at': now,
         'updated_at': now,
     }
+    if src:
+        plan['src'] = src
     try:
         rec = storage.add_record(TOOL, user, ask[:60], plan)
     except storage.StorageUnavailable as exc:
@@ -625,7 +662,7 @@ async def socratic_create(request: Request):
     if len(ask) < 4:
         return JSONResponse({'ok': False, 'message': '把那件事写长一点，四个字以上。'},
                             status_code=400)
-    return await run_in_threadpool(_do_create, ask, _user(request))
+    return await run_in_threadpool(_do_create, ask, _user(request), _src_in(payload))
 
 
 @router.get('/socratic/api/sessions/{sid}')

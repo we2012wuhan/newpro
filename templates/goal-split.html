@@ -36,6 +36,7 @@ h1{font-size:20px;margin:0;color:var(--ink)}
   border:1px solid var(--line);background:var(--field);border-radius:999px;
   padding:10px 14px;line-height:1.2;white-space:nowrap;align-self:flex-start}
 .back:hover{color:var(--ink);border-color:var(--acc-line)}
+.head .sp .back{align-self:center}
 .cols{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
 .card-h{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -159,7 +160,6 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc-line);box-shadow:
 </head><body>
 <div class="wrap">
   <header class="head">
-    <a class="back" href="/">← 返回工具箱</a>
     <div>
       <h1>目标拆解器</h1>
       <p class="sub">不给建议，只干三件事：逼你拆到能今天动手、用规则验算你的拆解、按日期盯着你做没做。</p>
@@ -168,6 +168,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc-line);box-shadow:
       <span class="tb-mount"></span>
       <span class="mini" id="saveState"></span>
       <button class="btn sm" id="newBtn" type="button">＋ 新的一条</button>
+      <a class="back" href="/">← 返回工具箱</a>
     </div>
   </header>
   <div class="cols">

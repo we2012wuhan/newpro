@@ -204,6 +204,18 @@ app.include_router(five_why_router)
 from ask_hub import router as ask_hub_router  # noqa: E402
 app.include_router(ask_hub_router)
 
+# 第一性原理：页面在 /first-principles（也作为 /ask-hub 的第三个 tab）。
+# 和隔壁两个工具的区别不在提示词里，在产物上：5Why 的产物是「根因 + 对策」，
+# 苏格拉底的产物是「你自己说出来的结论」，这个工具的产物是「零件表 + 下限」——
+# 把「我认为只能这么做」拆到不可再分的硬约束，把混在事实里的价格 / 惯例 /
+# 他人期待 / 自己的假设剥出来，再从剩下的约束重算一遍。
+# 五步由服务端定（摆目标 → 拆零件 → 逐条拷问 → 从零重算 → 收尾），
+# 拷问只问被标成「事实」的那些；一条都没被推翻时，它敢直接说「没有可拆解的空间」。
+# 每个会话存 SQLite（tool='first_principles'），回复走 SSE 流式，页面认 ?r=<记录 id> 深链。
+# 浏览器访问 http://127.0.0.1:8000/first-principles 即可使用。
+from first_principles import router as first_principles_router  # noqa: E402
+app.include_router(first_principles_router)
+
 # 库博学习圈：页面在 /kolb
 # 把一件真实发生过的事走完一圈 —— 具体经验 → 反思观察 → 抽象概念化 → 主动实验。
 # AI 每段只追问一个问题，逼你写具体、写边界；第三段能把你写过的话收成一句经验原则；

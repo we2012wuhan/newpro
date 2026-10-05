@@ -44,6 +44,7 @@ TOOL_META = {
     'goal-split': {'name': '目标拆解器', 'ico': '🎯', 'href': '/goal-split', 'deep': True},
     'site-collect': {'name': '网站收集', 'ico': '🔖', 'href': '/site-collect', 'deep': True},
     'langchain-test': {'name': 'LangChain 测试', 'ico': '🧪', 'href': '/langchain-test', 'deep': True},
+    'first_principles': {'name': '第一性原理', 'ico': '🧩', 'href': '/ask-hub?tab=fp', 'deep': True},
 }
 
 _FALLBACK = (
@@ -92,6 +93,8 @@ def _excerpt(tool: str, payload: dict) -> str:
         return _text(payload.get('statement')) or _text(payload.get('raw'))
     if tool == 'site-collect':
         return _text(payload.get('why')) or _text(payload.get('url'))
+    if tool == 'first_principles':
+        return _text(payload.get('goal'))
     if tool == 'langchain-test':
         return _text(payload.get('input')) or _text(payload.get('case_name'))
     return ''
@@ -134,6 +137,18 @@ def _status(tool: str, payload: dict) -> dict:
         if acts:
             return {'tracked': True, 'open': True, 'label': '还差 %s/%s 个动作' % (len(acts) - done, len(acts))}
         return {'tracked': True, 'open': True, 'label': '还没拆出动作'}
+    if tool == 'first_principles':
+        # 第 5 步是收尾（拿到对照表）；前四步都算还没走完
+        step = payload.get('step') or 1
+        try:
+            step = int(step)
+        except (TypeError, ValueError):
+            step = 1
+        if step >= 5:
+            return {'tracked': True, 'open': False, 'label': '已出对照表'}
+        names = {2: '零件待拷问', 3: '拷问中', 4: '从零重算中'}
+        return {'tracked': True, 'open': True,
+                'label': names.get(step, '还没拆零件')}
     if tool == 'langchain-test':
         # 跑一次就是一次记录，没有「收尾」这一说；标签用来标是哪个用例
         return {'tracked': False, 'open': False, 'label': _text(payload.get('case_name'), 20)}
@@ -225,6 +240,16 @@ def _detail(tool: str, payload: dict) -> list:
         add('下次实验', answer.get('ae_trigger'), 120)
         add('要做的事', answer.get('ae_action'), 120)
         add('验证日期', answer.get('ae_due'), 20)
+    elif tool == 'first_principles':
+        items = payload.get('items') if isinstance(payload.get('items'), list) else []
+        add('到第几步', payload.get('step'), 8)
+        if items:
+            add('零件数', '%s 条' % len(items), 8)
+            hard = [x for x in items if isinstance(x, dict) and x.get('kind') in ('fact', 'price')]
+            add('其中硬约束', '%s 条' % len(hard), 8)
+        add('从零重算下限', payload.get('floor'), 60)
+        if payload.get('diff'):
+            add('差额', payload.get('diff'), 60)
     elif tool == 'langchain-test':
         add('用例', payload.get('case_name'), 40)
         add('输入', payload.get('input'))
