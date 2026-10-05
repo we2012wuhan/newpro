@@ -228,6 +228,19 @@ from goal_split import router as goal_split_router  # noqa: E402
 app.include_router(goal_split_router)
 
 
+# 网站收集：页面在 /site-collect
+# 平时刷到有用的网址，随手记下来的地方。它要解决的不是「存不下」，
+# 而是「存了却不知道当初为什么要存」—— 所以每条都必填「收集理由」，空着不让存。
+# 「AI 看看值不值得收」会先由服务端真去抓这个页面（标题 / 描述 / 正文前若干字，
+# 带 SSRF 防护、只放行公网 http/https），再让模型评一句：值得留 / 看情况 / 别收了，
+# 连同「值在哪、什么场合用、可能变成再也不打开的坑、判断依据」一起给出来，
+# 分析结果连依据一起存进这条记录，下次打开还在。
+# 每条收藏存 SQLite（tool='site-collect'），按登录名隔离；页面认 ?r=<记录 id> 深链。
+# 浏览器访问 http://127.0.0.1:8000/site-collect 即可使用。
+from site_collect import router as site_collect_router  # noqa: E402
+app.include_router(site_collect_router)
+
+
 
 # =========================================================
 # 附加功能：工具箱主页（根路径 "/"）

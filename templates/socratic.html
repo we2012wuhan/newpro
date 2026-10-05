@@ -178,6 +178,20 @@ textarea::placeholder{color:var(--muted);opacity:.72}
   background:none;border:0;color:var(--muted);font-size:11.5px;cursor:pointer}
 .say:hover{color:var(--acc)}
 .say.on{color:var(--acc);font-weight:600}
+/* ===== 消息下面的小图标（复制 / 朗读） =====
+   两个按钮必须是一模一样的方块 + 居中，否则图标对不齐：
+   .say 自带 margin-top，而且原来是 emoji 加文字，字形和 svg 对不到一条线上。 */
+.acts{margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.msg.me .acts{justify-content:flex-end}
+/* 注意：这里故意不写 color，不然会把后面的 .say.on（正在朗读）的颜色盖掉 */
+.cbtn,.acts .say{width:30px;height:30px;min-height:30px;padding:0;display:inline-flex;
+  align-items:center;justify-content:center;background:none;border:0;
+  font-family:inherit;font-size:11.5px;line-height:1;cursor:pointer}
+.acts .say{margin-top:0;gap:0}
+.cbtn{color:var(--muted)}
+.cbtn svg,.acts .say svg{display:block;width:15px;height:15px}
+.cbtn:hover,.acts .say:hover{color:var(--acc)}
+.cbtn.ok{color:var(--ok)}
 .xbtn{flex:0 0 auto;min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);
   background:var(--field);color:var(--muted);font-family:inherit;font-size:12.5px;cursor:pointer}
 .xbtn:hover{border-color:var(--acc-line);color:var(--ink)}
@@ -297,6 +311,78 @@ function bindSay(){
     b.onclick = function(){
       var t = sayTexts[Number(b.getAttribute('data-say'))] || '';
       if(t){ VOICE.toggle(t); }
+    };
+  });
+}
+
+/* ===================== 复制单条消息 =====================
+   每条消息底下一个小图标，点一下复制这一条的内容。
+   聊天区会被整块重画，所以每次重画后都要重新绑一次（跟朗读一样）。 */
+var copyTexts = [];        // 这一屏里每条消息的原文，按钮上的 data-copy 就是它的下标
+var SVG_OPEN = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"' +
+  ' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+var COPY_ICO = SVG_OPEN +
+  '<rect x="8" y="8" width="13" height="13" rx="2.5"/>' +
+  '<path d="M4.5 15.5A2.5 2.5 0 0 1 2 13V4.5A2.5 2.5 0 0 1 4.5 2H13a2.5 2.5 0 0 1 2.5 2.5"/></svg>';
+var DONE_ICO = SVG_OPEN + '<path d="M20 6.5 9.5 17 4 11.5"/></svg>';
+var SPK_ICO  = SVG_OPEN +
+  '<path d="M11 5 6 9H3v6h3l5 4V5Z"/>' +
+  '<path d="M15.5 8.5a5 5 0 0 1 0 7"/>' +
+  '<path d="M18.8 5.2a9.5 9.5 0 0 1 0 13.6"/></svg>';
+
+function pushCopy(t){ copyTexts.push(String(t == null ? '' : t)); return copyTexts.length - 1; }
+
+function copyBtnHTML(i){
+  return '<button class="cbtn" type="button" data-copy="' + i + '" title="复制这条内容"' +
+    ' aria-label="复制这条内容">' + COPY_ICO + '</button>';
+}
+
+/* 线上跑的是 http，navigator.clipboard 常常不给用，必须有 execCommand 兜底 */
+function fallbackCopy(t, done, fail){
+  var ta = document.createElement('textarea');
+  ta.value = t;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  var ok = false;
+  try{ ta.select(); ta.setSelectionRange(0, t.length); ok = document.execCommand('copy'); }
+  catch(e){ ok = false; }
+  document.body.removeChild(ta);
+  if(ok){ done(); }
+  else { toast('复制不了，手动选一下吧'); if(fail){ fail(); } }
+}
+
+function copyText(t, cb){
+  var ok = function(){ cb(true); };
+  var no = function(){ cb(false); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(ok, function(){ fallbackCopy(t, ok, no); });
+  } else {
+    fallbackCopy(t, ok, no);
+  }
+}
+
+/* 复制成功后图标短暂变成对勾并变绿，1.4s 后自己变回来。
+   图标不带文字，好看不好看就靠这个反馈了。 */
+function copyBtnDone(b, ok){
+  b.classList.toggle('ok', !!ok);
+  b.innerHTML = ok ? DONE_ICO : COPY_ICO;
+  clearTimeout(b._ct);
+  if(ok){ b._ct = setTimeout(function(){
+    b.classList.remove('ok');
+    b.innerHTML = COPY_ICO;
+  }, 1400); }
+}
+
+function bindCopy(){
+  var el = $('chat');
+  if(!el){ return; }
+  Array.prototype.forEach.call(el.querySelectorAll('.cbtn[data-copy]'), function(b){
+    b.onclick = function(){
+      var t = copyTexts[Number(b.getAttribute('data-copy'))] || '';
+      if(!t){ return; }
+      copyText(t, function(ok){ copyBtnDone(b, ok); });
     };
   });
 }
@@ -567,17 +653,22 @@ function renderChat(){
   var avG = avatarSVG('guide-' + (s.id != null ? s.id : S.sid));   // 这段对话里的引导者
   var avMe = avatarSVG('me');                                      // 我，一直是我
   sayTexts = [];
+  copyTexts = [];
   msgs.forEach(function(m){
+    var cp = copyBtnHTML(pushCopy(m.text));
     if(m.role === 'me'){
       h += '<div class="msg me">' + avMe + '<div class="col"><div class="who">我</div>' +
-           '<div class="bubble">' + esc(m.text) + '</div></div></div>';
+           '<div class="bubble">' + esc(m.text) + '</div>' +
+           '<div class="acts">' + cp + '</div></div></div>';
     } else {
       var tag = m.step > 0 ? '<span class="badge n">第 ' + m.step + ' 步 · ' + stepName(m.step) + '</span>' : '';
       var say = VOICE ? '<button class="say" type="button" data-say="' + sayTexts.length +
-        '" aria-pressed="false" title="把这个问题念出来">🔊 朗读</button>' : '';
+        '" aria-pressed="false" title="把这个问题念出来"' +
+        ' aria-label="把这个问题念出来">' + SPK_ICO + '</button>' : '';
       sayTexts.push(m.text);
       h += '<div class="msg ai">' + avG + '<div class="col"><div class="who">引导者 ' + tag + '</div>' +
-           '<div class="bubble">' + esc(m.text) + '</div>' + say + '</div></div>';
+           '<div class="bubble">' + esc(m.text) + '</div>' +
+           '<div class="acts">' + cp + say + '</div></div></div>';
     }
   });
 
@@ -601,6 +692,7 @@ function renderChat(){
   el.innerHTML = h;
   bindSay();
   syncSay();
+  bindCopy();
   var expNow = $('expNow');
   if(expNow){ expNow.onclick = function(){ exportSession(S.sess); }; }
 
@@ -712,6 +804,19 @@ function streamInto(){
   }
   b.classList.add('typing');
   b.textContent = '';
+  // 流式期间也给一个复制按钮（等下整块重画时会重新绑）
+  if(col && !col.querySelector('.acts')){
+    var ac = document.createElement('div');
+    ac.className = 'acts';
+    ac.innerHTML = copyBtnHTML(pushCopy(''));
+    col.appendChild(ac);
+    var cbtn = ac.querySelector('.cbtn');
+    if(cbtn){
+      cbtn.onclick = function(){
+        copyText(b.textContent, function(ok){ copyBtnDone(cbtn, ok); });
+      };
+    }
+  }
   return b;
 }
 

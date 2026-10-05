@@ -97,6 +97,8 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .t-vw .go{background:linear-gradient(135deg,#6366f1,#4338ca);box-shadow:0 8px 20px rgba(99,102,241,.32)}
 .tool.t-sl:hover{border-color:rgba(148,163,184,.6);box-shadow:0 24px 52px rgba(100,116,139,.28)}
 .t-sl .go{background:linear-gradient(135deg,#64748b,#334155);box-shadow:0 8px 20px rgba(100,116,139,.35)}
+.tool.t-sc:hover{border-color:rgba(45,212,191,.55);box-shadow:0 24px 52px rgba(15,118,110,.28)}
+.t-sc .go{background:linear-gradient(135deg,#2dd4bf,#0f766e);box-shadow:0 8px 20px rgba(15,118,110,.34)}
 .search-col{display:flex;flex-direction:column;align-items:stretch;gap:7px;flex:1;max-width:480px;min-width:260px;margin-left:auto}
 .search-box{position:relative;width:100%}
 .search-box .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none;font-size:15px}
@@ -629,6 +631,14 @@ body.is-dragging .tool:not(.dragging){transition:none}
       <div class="t-info">
         <h3>脚本库</h3>
         <p class="desc">把散在本机的小脚本登记成卡片：干什么、怎么跑、放在哪。省得三个月后连有这东西都忘了。</p>
+        <span class="go">立即打开</span>
+      </div>
+    </a>
+    <a class="tool t-sc" data-cat="learn" href="/site-collect">
+      <div class="t-icon">🔖</div>
+      <div class="t-info">
+        <h3>网站收集</h3>
+        <p class="desc">刷到有用的网址就丢进来：网址 + 一句为什么收它。AI 会先真去抓这个页面，再告诉你值不值得留、值在哪。</p>
         <span class="go">立即打开</span>
       </div>
     </a>

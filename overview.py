@@ -40,6 +40,7 @@ TOOL_META = {
     'ai-chart': {'name': 'AI 生成图表', 'ico': '📊', 'href': '/ai-chart', 'deep': True},
     'script-library': {'name': '脚本库', 'ico': '📜', 'href': '/script-library', 'deep': True},
     'goal-split': {'name': '目标拆解器', 'ico': '🎯', 'href': '/goal-split', 'deep': True},
+    'site-collect': {'name': '网站收集', 'ico': '🔖', 'href': '/site-collect', 'deep': True},
 }
 
 _FALLBACK = (
@@ -86,6 +87,8 @@ def _excerpt(tool: str, payload: dict) -> str:
         return _text(payload.get('desc')) or _text(payload.get('cmd'))
     if tool == 'goal-split':
         return _text(payload.get('statement')) or _text(payload.get('raw'))
+    if tool == 'site-collect':
+        return _text(payload.get('why')) or _text(payload.get('url'))
     return ''
 
 
@@ -126,6 +129,10 @@ def _status(tool: str, payload: dict) -> dict:
         if acts:
             return {'tracked': True, 'open': True, 'label': '还差 %s/%s 个动作' % (len(acts) - done, len(acts))}
         return {'tracked': True, 'open': True, 'label': '还没拆出动作'}
+    if tool == 'site-collect':
+        # 收藏没有「收尾」这一说，不参与「没收尾」筛选，但状态标签照样显示
+        label = {'new': '待看', 'using': '常用', 'archived': '归档'}.get(payload.get('state'), '')
+        return {'tracked': False, 'open': False, 'label': label}
     return {'tracked': False, 'open': False, 'label': ''}
 
 
@@ -169,6 +176,17 @@ def _detail(tool: str, payload: dict) -> list:
         if acts:
             done = len([x for x in acts if isinstance(x, dict) and x.get('done')])
             add('动作进度', '%s/%s' % (done, len(acts)), 8)
+    elif tool == 'site-collect':
+        add('网址', payload.get('url'), 120)
+        add('分类', {'tool': '工具', 'learn': '学习·教程', 'doc': '文档', 'design': '设计·灵感', 'ai': 'AI', 'data': '数据', 'media': '影音', 'other': '其他'}.get(payload.get('cat')), 20)
+        add('为什么收', payload.get('why'))
+        analysis = payload.get('analysis') if isinstance(payload.get('analysis'), dict) else {}
+        if analysis:
+            add('AI 结论', analysis.get('summary'))
+            if analysis.get('score') not in (None, ''):
+                add('AI 分数', analysis.get('score'), 8)
+            add('AI 依据', analysis.get('basis'), 60)
+        add('备注', payload.get('note'))
     elif tool == 'study-assistant':
         add('主题', payload.get('topic'))
         add('现在会的', payload.get('level'))

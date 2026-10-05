@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#6D28D9">
+<title>目标拆解器</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<script src="/static/auth-guard.js"></script>
+<style>
+:root{
+  --acc:#6D28D9; --acc-d:#5B21B6;
+  --acc-l:rgba(109,40,217,.10); --acc-line:rgba(109,40,217,.28);
+  --bg:var(--tb-bg); --card:var(--tb-card); --line:var(--tb-line); --line2:var(--tb-line-2);
+  --ink:var(--tb-ink); --text:var(--tb-text); --muted:var(--tb-muted); --field:var(--tb-field);
+  --ok:var(--tb-ok); --ok-bg:var(--tb-ok-bg); --ok-line:var(--tb-ok-line);
+  --warn:var(--tb-warn); --warn-bg:var(--tb-warn-bg); --warn-line:var(--tb-warn-line);
+  --err:var(--tb-err); --err-bg:var(--tb-err-bg); --err-line:var(--tb-err-line);
+  --mono:ui-monospace,SFMono-Regular,Consolas,"Cascadia Mono",Menlo,monospace;
+}
+[data-theme="dark"]{--acc:#C4B5FD;--acc-d:#DDD6FE;--acc-l:rgba(196,181,253,.14);--acc-line:rgba(196,181,253,.34)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:16px 16px 64px;position:relative;z-index:1}
+h1{font-size:20px;margin:0;color:var(--ink)}
+.head{display:flex;align-items:flex-start;flex-wrap:wrap;gap:10px;margin:4px 0 14px}
+.head .sub{margin:4px 0 0;font-size:13px;color:var(--muted);line-height:1.7}
+.head .sp{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.back{flex:0 0 auto;font-size:13px;color:var(--muted);text-decoration:none;
+  border:1px solid var(--line);background:var(--field);border-radius:999px;
+  padding:10px 14px;line-height:1.2;white-space:nowrap;align-self:flex-start}
+.back:hover{color:var(--ink);border-color:var(--acc-line)}
+.cols{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+.card-h{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card-h .sp{margin-left:auto}
+.mini{font-size:12px;color:var(--muted);line-height:1.7}
+.hint{font-size:13px;color:var(--muted);line-height:1.75;margin:0 0 10px}
+.lbl{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 5px}
+.lbl:first-child{margin-top:0}
+input[type=text],input[type=date],input[type=number],textarea,select{
+  width:100%;border:1px solid var(--line2);border-radius:12px;padding:11px 12px;
+  background:var(--field);color:var(--text);font-family:inherit;font-size:15px;
+  line-height:1.7;outline:none;min-height:44px}
+textarea{min-height:70px;resize:vertical}
+input:focus,textarea:focus,select:focus{border-color:var(--acc-line);box-shadow:0 0 0 3px var(--acc-l)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;
+  padding:0 16px;border-radius:12px;border:1px solid var(--line2);background:var(--card);
+  color:var(--text);font-family:inherit;font-size:14px;cursor:pointer;transition:opacity .15s;text-decoration:none}
+.btn:active{opacity:.75}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:var(--tb-acc-on);font-weight:600}
+.btn.sm{min-height:38px;padding:0 13px;font-size:13px;border-radius:10px}
+.btn.block{width:100%}
+.btn.ghost{background:transparent}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0 0}
+.row .grow{flex:1;min-width:0}
+.lnk{background:none;border:0;padding:0;color:var(--acc);font-family:inherit;font-size:12.5px;
+  cursor:pointer;min-height:30px;display:inline-flex;align-items:center}
+.lnk:hover{text-decoration:underline}
+.lnk.danger{color:var(--err)}
+.badge{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;line-height:1.8;
+  background:var(--acc-l);color:var(--acc);border:1px solid var(--acc-line);white-space:nowrap}
+.badge.g{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-line)}
+.badge.o{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-line)}
+.badge.r{background:var(--err-bg);color:var(--err);border-color:var(--err-line)}
+.badge.n{background:transparent;color:var(--muted);border-color:var(--line)}
+.tabs{display:flex;gap:6px;background:var(--field);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:14px}
+.tabbtn{flex:1;min-height:40px;border:0;border-radius:9px;background:transparent;color:var(--muted);
+  font-family:inherit;font-size:14px;cursor:pointer}
+.tabbtn.on{background:var(--card);color:var(--ink);font-weight:600;box-shadow:var(--tb-glow-soft)}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.step{flex:1 1 0;min-width:96px;text-align:left;min-height:44px;border:1px solid var(--line);
+  border-radius:12px;background:var(--card);color:var(--muted);font-family:inherit;
+  font-size:12.5px;padding:7px 10px;cursor:pointer;line-height:1.35}
+.step b{display:block;font-size:12px;color:var(--muted);font-weight:600}
+.step.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc)}
+.step.on b{color:var(--acc)}
+.step.done{border-color:var(--ok-line);background:var(--ok-bg)}
+.step.done b{color:var(--ok)}
+.ask{border:1px solid var(--line);border-radius:14px;background:var(--field);padding:12px;margin-top:14px}
+.ask-h{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ask-log{max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.ask-log:empty::after{content:"它只问，不替你答。点下面的按钮，让它问第一个问题。";
+  color:var(--muted);font-size:12.5px;display:block;padding:4px 0}
+.bub{max-width:92%;border-radius:12px;padding:9px 12px;font-size:13.5px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.bub.ai{background:var(--acc-l);border:1px solid var(--acc-line);color:var(--ink);align-self:flex-start}
+.bub.me{background:var(--card);border:1px solid var(--line);align-self:flex-end}
+.ask-in{display:flex;gap:8px;align-items:flex-end;margin-top:10px}
+.ask-in textarea{min-height:56px}
+.stmt{font-size:14px;line-height:1.8;color:var(--ink);background:var(--acc-l);
+  border:1px solid var(--acc-line);border-radius:12px;padding:12px 14px;margin-top:12px}
+.stmt.empty{color:var(--muted);background:var(--field);border-color:var(--line)}
+.sub-i{border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:10px;background:var(--card)}
+.sub-i .row{margin-top:8px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px;margin-bottom:12px}
+.stat-i{border:1px solid var(--line);border-radius:12px;padding:10px 8px;text-align:center;background:var(--card)}
+.stat-n{font-size:20px;font-weight:600;color:var(--ink);line-height:1.2;font-family:var(--mono)}
+.stat-l{font-size:11px;color:var(--muted);margin-top:2px}
+.bar{height:8px;border-radius:999px;background:var(--field);border:1px solid var(--line);overflow:hidden;margin-top:8px}
+.bar>i{display:block;height:100%;background:var(--acc);border-radius:999px}
+.ck{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.ck:last-child{border-bottom:0}
+.ck-box{flex:0 0 auto;width:26px;height:26px;border-radius:8px;border:1.5px solid var(--line2);
+  background:var(--field);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  color:transparent;font-size:14px;line-height:1;margin-top:2px}
+.ck-box.on{background:var(--ok);border-color:var(--ok);color:var(--tb-acc-on)}
+.ck-body{flex:1;min-width:0}
+.ck-t{font-size:14.5px;line-height:1.65;color:var(--ink)}
+.ck-t.done{text-decoration:line-through;opacity:.6}
+.ck-m{font-size:11.5px;color:var(--muted);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chk{border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:9px;background:var(--card)}
+.chk.bad{border-color:var(--err-line);background:var(--err-bg)}
+.chk.warn{border-color:var(--warn-line);background:var(--warn-bg)}
+.chk-t{font-size:13.5px;font-weight:600;color:var(--ink)}
+.chk-d{font-size:12.5px;color:var(--text);margin-top:4px;line-height:1.7}
+.chk-f{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.7}
+.verdict{font-size:13.5px;line-height:1.85;color:var(--text);white-space:pre-wrap;
+  border-left:3px solid var(--acc-line);padding-left:12px;margin-top:12px}
+.score{font-size:30px;font-weight:700;font-family:var(--mono);line-height:1}
+.score.good{color:var(--ok)} .score.warn{color:var(--warn)} .score.bad{color:var(--err)}
+.side{display:flex;flex-direction:column;gap:0}
+.side-i{display:flex;flex-direction:column;gap:3px;width:100%;text-align:left;background:none;
+  border:0;border-bottom:1px solid var(--line);padding:9px 0;font-family:inherit;cursor:pointer;min-height:44px}
+.side-i:last-child{border-bottom:0}
+.side-i:hover .side-t{color:var(--acc)}
+.side-t{font-size:13.5px;color:var(--ink);line-height:1.5;overflow:hidden;text-overflow:ellipsis;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.side-i.on .side-t{color:var(--acc);font-weight:600}
+.side-m{font-size:11px;color:var(--muted);display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.empty{text-align:center;padding:24px 12px;color:var(--muted);font-size:13px;line-height:1.9}
+.empty b{display:block;color:var(--ink);font-size:14.5px;margin-bottom:5px}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(12px);
+  background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:13.5px;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.log-i{font-size:12.5px;color:var(--text);line-height:1.7;padding:7px 0;border-bottom:1px dashed var(--line)}
+.log-i:last-child{border-bottom:0}
+.log-i b{color:var(--ink)}
+.flow{font-size:12.5px;color:var(--muted);line-height:1.8;margin:0 0 10px;padding-left:16px}
+.flow li{margin:2px 0}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{min-height:38px;padding:0 13px;border-radius:999px;border:1px solid var(--line2);background:var(--card);color:var(--text);font-family:inherit;font-size:13px;cursor:pointer}
+.chip.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc);font-weight:600}
+@media (min-width:1000px){
+  .cols{grid-template-columns:minmax(0,1fr) 320px}
+  .side{position:sticky;top:16px}
+}
+@media (max-width:999px){ .side{order:2} }
+</style>
+</head><body>
+<div class="wrap">
+  <header class="head">
+    <a class="back" href="/">← 返回工具箱</a>
+    <div>
+      <h1>目标拆解器</h1>
+      <p class="sub">不给建议，只干三件事：逼你拆到能今天动手、用规则验算你的拆解、按日期盯着你做没做。</p>
+    </div>
+    <div class="sp">
+      <span class="tb-mount"></span>
+      <span class="mini" id="saveState"></span>
+      <button class="btn sm" id="newBtn" type="button">＋ 新的一条</button>
+    </div>
+  </header>
+  <div class="cols">
+    <main id="main"></main>
+    <aside class="side">
+      <div class="card">
+        <div class="card-h">我的目标</div>
+        <input type="text" id="q" placeholder="搜标题 / 指标">
+        <div id="goalList" style="margin-top:6px"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+(function(){
+'use strict';
+var API = '/goal-split/api';
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function toast(msg){ var t=$('toast'); if(!t) return; t.textContent=msg; t.classList.add('on');
+  clearTimeout(toast._t); toast._t=setTimeout(function(){ t.classList.remove('on'); },2400); }
+function todayStr(){ var d=new Date(), m=d.getMonth()+1, x=d.getDate();
+  return d.getFullYear()+'-'+(m<10?'0':'')+m+'-'+(x<10?'0':'')+x; }
+
+function api(path, method, body){
+  var opt = { method: method || 'GET', headers: { 'Content-Type':'application/json' } };
+  if(body !== undefined && body !== null){ opt.body = JSON.stringify(body); }
+  return fetch(API + path, opt).then(function(r){
+    return r.json().catch(function(){ return { ok:false, message:'服务返回了看不懂的内容（HTTP ' + r.status + '）' }; });
+  }).catch(function(){ return { ok:false, message:'网络断了，再试一次' }; });
+}
+
+var S = { key:false, rid:null, plan:null, tab:'split', step:1, chats:{},
+          check:null, verdict:'', items:[], busy:false };
+
+function emptyPlan(){
+  return { raw:'', metric:'', cur:'', target:'', deadline:'', why:'', cost:'', fallback:'', note:'',
+           hours_week:0, stage:1, milestones:[], actions:[], log:[] };
+}
+function assignPlan(src){
+  if(!S.plan){ S.plan = emptyPlan(); }
+  if(src){ for(var k in src){ if(Object.prototype.hasOwnProperty.call(src,k)){ S.plan[k] = src[k]; } } }
+  return S.plan;
+}
+function payloadPlan(){
+  var p = S.plan || {};
+  function ms(list){ return (list||[]).map(function(m){ return { id:m.id, name:m.name, done_when:m.done_when,
+    by:m.by, why:m.why, status:m.status, review:m.review, reviewed_at:m.reviewed_at }; }); }
+  function ac(list){ return (list||[]).map(function(a){ return { id:a.id, text:a.text, min:a.min,
+    out:a.out, on:a.on, done:!!a.done, done_at:a.done_at, actual:a.actual }; }); }
+  function lg(list){ return (list||[]).map(function(g){ return { id:g.id, kind:g.kind, text:g.text,
+    hours:g.hours, missed:g.missed, at:g.at }; }); }
+  return { raw:p.raw||'', metric:p.metric||'', cur:p.cur||'', target:p.target||'', deadline:p.deadline||'',
+           why:p.why||'', cost:p.cost||'', fallback:p.fallback||'', note:p.note||'',
+           hours_week:p.hours_week||0, stage:Math.max(p.stage||1, S.step),
+           milestones:ms(p.milestones), actions:ac(p.actions), log:lg(p.log) };
+}
+function setBusy(b){
+  S.busy = !!b;
+  var el = $('saveState');
+  if(el && b){ el.textContent = 'AI 在想…'; }
+}
+
+var saveTimer = null;
+function touch(){
+  if(!S.rid){ var el=$('saveState'); if(el) el.textContent = '还没保存'; return; }
+  var st = $('saveState'); if(st) st.textContent = '未保存…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(save, 1500);
+}
+function markSaved(){
+  var st = $('saveState'); if(st) st.textContent = '已保存 ' + todayStr();
+}
+
+function save(){
+  if(!S.plan) return;
+  var p = payloadPlan();
+  if(S.rid){
+    api('/goals/' + S.rid, 'PATCH', { plan:p }).then(function(d){
+      if(!d.ok || !d.item){ toast(d.message || '没存上'); return; }
+      assignPlan(d.item); markSaved(); renderSidebar();
+    });
+  }else{
+    if((p.raw||'').length < 2){ toast('先写一句你想做成什么'); return; }
+    api('/goals', 'POST', { plan:p }).then(function(d){
+      if(!d.ok || !d.item){ toast(d.message || '没存上'); return; }
+      S.rid = d.item.id; assignPlan(d.item); markSaved();
+      history.replaceState(null, '', '/goal-split?r=' + S.rid);
+      loadList(); render();
+    });
+  }
+}
+/* ---------------- 历史记录（右侧） ---------------- */
+function loadList(){
+  api('/goals').then(function(d){
+    S.items = (d.ok && d.items) ? d.items : [];
+    renderSidebar();
+  });
+}
+function renderSidebar(){
+  var box = $('goalList'); if(!box) return;
+  var q = (($('q') && $('q').value) || '').trim().toLowerCase();
+  var items = (S.items||[]).filter(function(it){
+    if(!q) return true;
+    var s = ((it.title||'') + ' ' + (it.metric||'') + ' ' + (it.target||'') + ' ' + (it.raw||'')).toLowerCase();
+    return s.indexOf(q) >= 0;
+  });
+  if(!items.length){
+    box.innerHTML = '<div class="empty">' + (S.items.length ? '没搜到。' : '还没有目标。<br>写一句，点「智能起步」。') + '</div>';
+    return;
+  }
+  box.innerHTML = items.map(function(it){
+    var pr = it.progress || {}, ck = it.check || {}, lvl = ck.level || '';
+    var tag = lvl === 'good' ? '<span class="badge g">体检好</span>'
+            : lvl === 'bad' ? '<span class="badge r">体检差</span>'
+            : lvl === 'warn' ? '<span class="badge o">待改</span>' : '';
+    return '<button type="button" class="side-i' + (it.id === S.rid ? ' on' : '') + '" data-id="' + it.id + '">' +
+      '<span class="side-t">' + esc(it.title || it.raw || '目标') + '</span>' +
+      '<span class="side-m"><span>' + esc(it.saved_at || '') + '</span>' +
+      (pr.actions ? '<span>' + (pr.actions_done||0) + '/' + pr.actions + ' 动作</span>' : '') +
+      tag + '</span></button>';
+  }).join('');
+  Array.prototype.forEach.call(box.querySelectorAll('[data-id]'), function(b){
+    b.onclick = function(){ openGoal(+b.getAttribute('data-id')); };
+  });
+}
+
+function openGoal(id){
+  api('/goals/' + id).then(function(d){
+    if(!d.ok || !d.item){ toast(d.message || '打不开这条'); return; }
+    S.plan = null; S.rid = id; S.chats = {};
+    assignPlan(d.item);
+    S.check = d.item.check || null; S.verdict = '';
+    S.step = d.item.stage || 1;
+    S.tab = (d.item.actions && d.item.actions.length) ? 'watch' : 'split';
+    history.replaceState(null, '', '/goal-split?r=' + id);
+    markSaved(); render(); renderSidebar(); window.scrollTo(0,0);
+  });
+}
+
+/* ---------------- 壳 ---------------- */
+function render(){
+  var main = $('main'); if(!main) return;
+  if(!S.plan){ main.innerHTML = startCardHTML() + whyCardHTML(); bindStart(); return; }
+  var html = '';
+  html += '<div class="card" id="startSmall" style="padding:12px 16px"><div class="row" style="margin:0">' +
+          '<span class="mini grow">' + esc(S.plan.raw || '（还没写原话）') + '</span>' +
+          '<button class="btn sm" type="button" id="editRaw">改原话</button></div></div>';
+  html += '<div class="tabs">' +
+          '<button type="button" class="tabbtn' + (S.tab==='split'?' on':'') + '" data-tab="split">拆解</button>' +
+          '<button type="button" class="tabbtn' + (S.tab==='watch'?' on':'') + '" data-tab="watch">监督</button>' +
+          '</div>';
+  html += '<div id="splitBox"' + (S.tab==='split'?'':' hidden') + '>' +
+          '<div class="steps" id="stepBar"></div><div id="stepBody"></div></div>';
+  html += '<div id="watchBox"' + (S.tab==='watch'?'':' hidden') + '></div>';
+  main.innerHTML = html;
+  Array.prototype.forEach.call(main.querySelectorAll('[data-tab]'), function(b){
+    b.onclick = function(){
+      S.tab = b.getAttribute('data-tab');
+      render();
+      if(S.tab === 'watch'){ window.scrollTo(0,0); }
+    };
+  });
+  var er = $('editRaw');
+  if(er) er.onclick = function(){ S.step = 1; S.tab = 'split'; render(); window.scrollTo(0,0); };
+  if(S.tab === 'split'){ renderStep(); }
+  else{ renderWatch(); }
+}
+
+function startCardHTML(){
+  return '<div class="card"><div class="card-h">先说一句：你想做成什么</div>' +
+    '<p class="hint">别写漂亮话，就写你脑子里那句。点「智能起步」它只做一件事：把<b>你已经说过</b>的数字和日期挑出来，然后开始问你问题。它不会替你想。</p>' +
+    '<textarea id="rawIn" maxlength="200" placeholder="例：想在明年 3 月前把体重从 78 公斤减到 70 公斤"></textarea>' +
+    '<div class="grid2" style="margin-top:10px">' +
+      '<div><label class="lbl">截止日期（先不填也行）</label><input type="date" id="dlIn"></div>' +
+      '<div><label class="lbl">每周能真正投入几小时</label><input type="number" id="hwIn" min="0" max="80" placeholder="按最近三周的真实情况"></div>' +
+    '</div>' +
+    '<div class="row"><button class="btn primary" type="button" id="startBtn">智能起步</button>' +
+    '<span class="mini" id="startMsg"></span></div>' +
+    '<ul class="flow" style="margin:16px 0 0;padding-left:18px">' +
+      '<li>1 说清目标 —— 量什么、现在是几、做到几、什么时候截止</li>' +
+      '<li>2 为什么是它 —— 以及你愿意为它放弃什么</li>' +
+      '<li>3 倒推里程碑 —— 每一站做到什么才算过</li>' +
+      '<li>4 拆到本周 —— 只拆第一个里程碑</li>' +
+      '<li>5 体检 + 预案 —— 时间账、粒度、顺序、可控性，一条条算给你看</li>' +
+    '</ul></div>';
+}
+function whyCardHTML(){
+  return '<div class="card"><div class="card-h">这一页不给建议</div>' +
+    '<p class="hint">给建议没用，你收藏完就忘了。它只做三件事：<b>逼你拆</b>（每步不填就走不到下一步）、' +
+    '<b>验算</b>（体检那六条是代码按规则算的，不是模型在夸你）、<b>盯着你</b>（按日期列出今天该干什么，勾了才动进度）。</p></div>';
+}
+function bindStart(){
+  var btn = $('startBtn'); if(!btn) return;
+  btn.onclick = function(){
+    var raw = ($('rawIn').value || '').trim();
+    if(raw.length < 4){ $('startMsg').textContent = '多写几个字'; return; }
+    setBusy(true);
+    api('/start', 'POST', { raw:raw, deadline:$('dlIn').value, hours_week:$('hwIn').value }).then(function(d){
+      setBusy(false);
+      if(!d.ok){ $('startMsg').textContent = d.message || '起不来，再试一次'; return; }
+      S.plan = null; S.rid = null; S.chats = {}; S.check = null; S.verdict = '';
+      assignPlan(d.plan);
+      S.step = 1; S.tab = 'split';
+      if(d.question){ S.chats[1] = [{ stage:1, role:'ai', text:d.question }]; }
+      history.replaceState(null, '', '/goal-split');
+      render();
+      if(d.fallback && d.message){ toast(d.message); }
+    });
+  };
+}
+
+/* ---------------- 五步的引导文案 ---------------- */
+var STEPS = [
+ { short:'说清目标',
+   ask:['这件事用什么数字来量？别说「变好」，说「多少」。',
+        '现在是几？（今天就能量出来的那个数）',
+        '想做到几？',
+        '什么时候截止？具体到某一天。'],
+   bad:['「提升表达力」——没有指标也没有数字，永远无法验收。',
+        '「尽快做好」——没有日期，这件事会被一直往后推。'] },
+ { short:'为什么是它',
+   ask:['不做会怎样？具体到什么代价？',
+        '这是你自己想要的，还是别人的期待？',
+        '如果今年只能保住一个目标，还保它吗？',
+        '为了它，你打算少做、或者不做哪件事？'],
+   bad:['只写「因为很重要」——等于没写，遇到阻力就丢。',
+        '一口气写三个目标，却没有一个是当下最要紧的。'] },
+ { short:'倒推里程碑',
+   ask:['要到终点，倒数第二站该停在哪？',
+        '每一站做到什么算过？（能被别人点头的那种）',
+        '这一站的日期是哪天？',
+        '各站之间真的推得下去吗？少了哪一步？'],
+   bad:['里程碑写成「努力做」「加快进度」——没有验收标准，等于没设。',
+        '所有里程碑都堆在最后一周——中间没有检查点，落后了看不见。'] },
+ { short:'拆到本周',
+   ask:['只拆第一个里程碑：这周能动的手是哪几件？',
+        '每一件小到能今天开始吗？',
+        '做完能看见什么？（文件、截图、一条发出去的消息）',
+        '大概多少分钟？哪天做？'],
+   bad:['「学习两小时」——不是动作，没有产出，也判断不出做没做。',
+        '「等对方回复后再推进」——不在你手里，会一直挂着。'] },
+ { short:'体检 + 预案',
+   ask:['最可能死在哪一步？',
+        '怎么才能提早发现自己在掉链子？',
+        '真掉链子了，第一步先做什么？',
+        '每周实际能投入多少小时？（按真实情况，不按理想）'],
+   bad:['不写失败预案——第一次掉链子就是结束。',
+        '默认自己每周有 20 小时——排不下，然后开始自责。'] }
+];
+
+function flowList(i){
+  return '<ul class="flow" style="padding-left:18px">' +
+    STEPS[i].ask.map(function(q){ return '<li>' + esc(q) + '</li>'; }).join('') + '</ul>';
+}
+function badList(i){
+  return '<p class="mini" style="margin:10px 0 0">常见的坑：' +
+    STEPS[i].bad.map(function(b){ return esc(b); }).join('　·　') + '</p>';
+}
+function chatHTML(step, hint){
+  return '<div class="ask"><div class="ask-h">AI 逼问 <span class="mini">' + esc(hint) + '</span></div>' +
+    '<div class="ask-log" id="askLog"></div>' +
+    '<div class="ask-in"><textarea id="askText" placeholder="用你自己的话答，写完点「回答」"></textarea>' +
+    '<button class="btn sm primary" type="button" id="askSend">回答</button></div>' +
+    '<div class="row"><button class="btn sm" type="button" id="askFirst">让它先问一个问题</button>' +
+    '<button class="btn sm" type="button" id="askFill">把这段对话整理进上面</button></div></div>';
+}
+function stepNav(n){
+  return '<div class="row"><button class="btn primary" type="button" id="nextBtn">下一步 →</button>' +
+    (n < 5 ? '<button class="btn" type="button" id="skipBtn">先跳过</button>' : '') +
+    '<span class="mini" id="stepMsg"></span></div>';
+}
+/* ---------------- 追问区 ---------------- */
+function renderChat(step){
+  var log = $('askLog'); if(!log) return;
+  log.innerHTML = (S.chats[step] || []).map(function(m){
+    return '<div class="bub ' + (m.role === 'ai' ? 'ai' : 'me') + '">' + esc(m.text) + '</div>';
+  }).join('');
+  log.scrollTop = log.scrollHeight;
+}
+function bindChat(step){
+  renderChat(step);
+  var first = $('askFirst'), send = $('askSend'), ta = $('askText'), fill = $('askFill');
+  if(first) first.onclick = function(){ askAI(step, ''); };
+  if(send) send.onclick = function(){ var t = (ta.value || '').trim(); if(!t) return; ta.value = ''; askAI(step, t); };
+  if(ta) ta.onkeydown = function(e){ if(e.key === 'Enter' && (e.ctrlKey || e.metaKey) && send){ e.preventDefault(); send.click(); } };
+  if(fill) fill.onclick = function(){ extractAI(step); };
+}
+function askAI(step, text){
+  var msgs = S.chats[step] || (S.chats[step] = []);
+  if(text){ msgs.push({ stage:step, role:'user', text:text }); }
+  renderChat(step);
+  setBusy(true);
+  api('/ask', 'POST', { stage:step, plan:payloadPlan(), msgs:msgs }).then(function(d){
+    setBusy(false);
+    if(d.plan){ assignPlan(d.plan); }
+    var txt = d.question || '';
+    if(txt){ msgs.push({ stage:step, role:'ai', text:txt }); renderChat(step); }
+    if(d.fallback && d.message){ toast(d.message); }
+  });
+}
+function extractAI(step){
+  var msgs = S.chats[step] || [];
+  if(!msgs.length){ toast('先让它问你几个问题、你答几句，再来整理'); return; }
+  setBusy(true);
+  api('/extract', 'POST', { stage:step, plan:payloadPlan(), msgs:msgs }).then(function(d){
+    setBusy(false);
+    if(!d.ok){ toast(d.message || '这次没整理出来，再点一次'); return; }
+    if(d.plan){ assignPlan(d.plan); }
+    renderStep();
+    toast(d.changed ? '已填进上面的表单，自己过一眼再改' : '这段对话里没有新东西可填');
+  });
+}
+
+/* ---------------- 步骤渲染 ---------------- */
+function renderStep(){
+  var bar = $('stepBar'); if(!bar) return;
+  var p = S.plan || {};
+  var full = [ !!(p.metric && p.target && p.deadline), !!(p.why && p.cost),
+               (p.milestones||[]).length > 0, (p.actions||[]).length > 0, !!p.fallback ];
+  bar.innerHTML = STEPS.map(function(s, i){
+    var n = i + 1;
+    var cls = 'step' + (S.step === n ? ' on' : '') + (full[i] ? ' done' : '');
+    return '<button type="button" class="' + cls + '" data-step="' + n + '"><b>第 ' + n + ' 步</b>' + esc(s.short) + '</button>';
+  }).join('');
+  Array.prototype.forEach.call(bar.querySelectorAll('[data-step]'), function(b){
+    b.onclick = function(){ gotoStep(+b.getAttribute('data-step')); };
+  });
+  var body = $('stepBody'); if(!body) return;
+  body.innerHTML = [null, step1HTML, step2HTML, step3HTML, step4HTML, step5HTML][S.step]();
+  [null, bind1, bind2, bind3, bind4, bind5][S.step]();
+}
+function gotoStep(n){
+  n = Math.max(1, Math.min(5, n));
+  S.plan.stage = Math.max(S.plan.stage || 1, n);
+  S.step = n;
+  renderStep();
+  window.scrollTo(0, 0);
+  touch();
+}
+function bindField(id, key, num){
+  var el = $(id); if(!el) return;
+  el.oninput = function(){
+    S.plan[key] = num ? (parseInt(el.value, 10) || 0) : el.value;
+    if(typeof liveStmt === 'function'){ liveStmt(); }
+    touch();
+  };
+}
+function liveStmt(){
+  var el = $('stmtLive'); if(!el) return;
+  var p = S.plan || {};
+  if(p.deadline && p.metric && p.target){
+    el.className = 'stmt';
+    el.textContent = p.deadline + ' 之前，把「' + p.metric + '」从 ' + (p.cur || '现在的水平') + ' 提到 ' + p.target;
+  }else{
+    var miss = [];
+    if(!p.metric){ miss.push('量什么'); }
+    if(!p.cur){ miss.push('现在是几'); }
+    if(!p.target){ miss.push('做到几'); }
+    if(!p.deadline){ miss.push('什么时候截止'); }
+    el.className = 'stmt empty';
+    el.textContent = miss.length ? ('还差：' + miss.join('、') + '。补齐了这里就是一句能验收的话。')
+                                 : '这句话已经能验收了。';
+  }
+}
+function bindNav(n){
+  var nx = $('nextBtn'); if(nx) nx.onclick = function(){ gotoStep(n + 1); };
+  var sk = $('skipBtn'); if(sk) sk.onclick = function(){ gotoStep(n + 1); };
+}
+
+function step1HTML(){
+  var p = S.plan;
+  return '<div class="card"><div class="card-h">第 1 步 · 说清目标</div>' +
+    '<p class="hint">能验收的目标只有一种写法：<b>在某个日子之前，把某个数从现在的水平做到目标水平。</b>缺一样，后面全塌。</p>' +
+    flowList(0) + badList(0) +
+    '<label class="lbl">你想做成什么（你的原话）</label>' +
+    '<textarea id="fRaw" maxlength="200" placeholder="例：想在明年 3 月前把体重从 78 公斤减到 70 公斤">' + esc(p.raw) + '</textarea>' +
+    '<div class="grid2" style="margin-top:12px">' +
+      '<div><label class="lbl">用哪个数字来量</label><input type="text" id="fMetric" value="' + esc(p.metric) + '" placeholder="例：体重（公斤）"></div>' +
+      '<div><label class="lbl">现在是多少</label><input type="text" id="fCur" value="' + esc(p.cur) + '" placeholder="例：78"></div>' +
+      '<div><label class="lbl">想做到多少</label><input type="text" id="fTarget" value="' + esc(p.target) + '" placeholder="例：70"></div>' +
+      '<div><label class="lbl">截止日期</label><input type="date" id="fDeadline" value="' + esc(p.deadline) + '"></div>' +
+    '</div>' +
+    '<label class="lbl">每周能真正投入多少小时（按最近三周的真实情况估）</label>' +
+    '<input type="number" id="fHours" min="0" max="80" value="' + (p.hours_week || '') + '">' +
+    '<div class="stmt empty" id="stmtLive"></div>' +
+    chatHTML(1, '它只问你要数字和日子，不替你想') +
+    stepNav(1) + '</div>';
+}
+function bind1(){
+  bindField('fRaw','raw'); bindField('fMetric','metric'); bindField('fCur','cur');
+  bindField('fTarget','target'); bindField('fDeadline','deadline'); bindField('fHours','hours_week', true);
+  liveStmt(); bindChat(1); bindNav(1);
+}
+
+function step2HTML(){
+  var p = S.plan;
+  return '<div class="card"><div class="card-h">第 2 步 · 为什么是它</div>' +
+    '<p class="hint">没有理由的目标，遇到第一个阻力就会被丢掉 —— 而且丢得很自然，你都不会觉得可惜。</p>' +
+    flowList(1) + badList(1) +
+    '<label class="lbl">为什么非做这件事不可</label>' +
+    '<textarea id="fWhy" maxlength="600" placeholder="写真实的那句，包括不太好意思说出口的">' + esc(p.why) + '</textarea>' +
+    '<label class="lbl">为了它，你打算少做 / 不做哪件事</label>' +
+    '<textarea id="fCost" maxlength="600" placeholder="例：晚上少刷一集剧；周末不再接零活">' + esc(p.cost) + '</textarea>' +
+    chatHTML(2, '它只问你为什么、以及愿意付什么代价') +
+    stepNav(2) + '</div>';
+}
+function bind2(){ bindField('fWhy','why'); bindField('fCost','cost'); bindChat(2); bindNav(2); }
+
+function step3HTML(){
+  return '<div class="card"><div class="card-h">第 3 步 · 倒推里程碑</div>' +
+    '<p class="hint">从截止日往回走。每一站都要能被别人点头，也要有日期 —— 没有日期的里程碑是许愿。</p>' +
+    flowList(2) + badList(2) +
+    '<div id="msList"></div>' +
+    '<div class="row"><button class="btn sm" type="button" id="msAdd">＋ 加一站</button>' +
+    '<span class="mini" id="msMsg"></span></div>' +
+    chatHTML(3, '它只问倒数第二站是哪、凭什么算过') +
+    stepNav(3) + '</div>';
+}
+function msDefaults(){ return { name:'', done_when:'', by:'', why:'', status:'todo', review:'', reviewed_at:'' }; }
+function renderMsList(){
+  var box = $('msList'); if(!box) return;
+  var ms = S.plan.milestones || [];
+  if(!ms.length){
+    box.innerHTML = '<div class="empty"><b>还没有里程碑</b>从截止日往回推：要到终点，倒数第二站该停在哪？' +
+      '<br>点下面的「＋ 加一站」，或者先在下面的追问区里答几句，再点「整理进上面」。</div>';
+    return;
+  }
+  box.innerHTML = ms.map(function(m, i){
+    return '<div class="sub-i"><div class="row" style="margin:0">' +
+      '<span class="badge">第 ' + (i+1) + ' 站</span>' +
+      '<button class="lnk danger" type="button" data-msdel="' + i + '" style="margin-left:auto">删除</button></div>' +
+      '<label class="lbl">这一站叫什么</label>' +
+      '<input type="text" data-ms="' + i + '" data-k="name" value="' + esc(m.name) + '" placeholder="例：能对着镜头自述工作 3 分钟">' +
+      '<label class="lbl">做到什么算过</label>' +
+      '<input type="text" data-ms="' + i + '" data-k="done_when" value="' + esc(m.done_when) + '" placeholder="例：录音里没有超过 5 秒的卡壳">' +
+      '<div class="grid2" style="margin-top:0">' +
+        '<div><label class="lbl">日期</label><input type="date" data-ms="' + i + '" data-k="by" value="' + esc(m.by) + '"></div>' +
+        '<div><label class="lbl">为什么是这一站</label><input type="text" data-ms="' + i + '" data-k="why" value="' + esc(m.why) + '"></div>' +
+      '</div></div>';
+  }).join('');
+  Array.prototype.forEach.call(box.querySelectorAll('[data-ms]'), function(el){
+    el.oninput = function(){
+      var i = +el.getAttribute('data-ms'), k = el.getAttribute('data-k');
+      S.plan.milestones[i][k] = el.value; touch();
+    };
+  });
+  Array.prototype.forEach.call(box.querySelectorAll('[data-msdel]'), function(b){
+    b.onclick = function(){
+      S.plan.milestones.splice(+b.getAttribute('data-msdel'), 1);
+      renderMsList(); touch();
+    };
+  });
+}
+function bind3(){
+  renderMsList();
+  var add = $('msAdd');
+  if(add) add.onclick = function(){
+    if((S.plan.milestones || []).length >= 6){ toast('最多 6 站。再多就是没想清楚'); return; }
+    S.plan.milestones = S.plan.milestones || [];
+    S.plan.milestones.push(msDefaults());
+    renderMsList(); touch();
+  };
+  bindChat(3); bindNav(3);
+}
+function step4HTML(){
+  return '<div class="card"><div class="card-h">第 4 步 · 拆到本周</div>' +
+    '<p class="hint">只拆第一个里程碑。动作要满足三条：<b>今天就能开始、有能看见的产出、一小时上下做得完</b>。</p>' +
+    flowList(3) + badList(3) +
+    '<div id="actList"></div>' +
+    '<div class="row"><button class="btn sm" type="button" id="actAdd">＋ 加一条动作</button>' +
+    '<span class="mini" id="actMsg"></span></div>' +
+    chatHTML(4, '它只问这件小事能不能今天就动手') +
+    stepNav(4) + '</div>';
+}
+function actDefaults(){ return { text:'', min:0, out:'', on:'', done:false, done_at:'', actual:0 }; }
+function renderActList(){
+  var box = $('actList'); if(!box) return;
+  var acts = S.plan.actions || [];
+  if(!acts.length){
+    box.innerHTML = '<div class="empty"><b>还没有动作</b>把第一个里程碑切成「今天能干的手」。<br>' +
+      '点「＋ 加一条动作」，或者先在下面的追问区答几句，再点「整理进上面」。</div>';
+    return;
+  }
+  box.innerHTML = acts.map(function(a, i){
+    return '<div class="sub-i"><div class="row" style="margin:0">' +
+      '<span class="badge n">动作 ' + (i+1) + '</span>' +
+      '<button class="lnk danger" type="button" data-actdel="' + i + '" style="margin-left:auto">删除</button></div>' +
+      '<label class="lbl">要做的事（动词开头）</label>' +
+      '<input type="text" data-act2="' + i + '" data-k="text" value="' + esc(a.text) + '" placeholder="例：录一段 3 分钟的自我介绍">' +
+      '<div class="grid3" style="margin-top:0">' +
+        '<div><label class="lbl">预估分钟</label><input type="number" min="0" max="1440" data-act2="' + i + '" data-k="min" value="' + (a.min || '') + '"></div>' +
+        '<div><label class="lbl">哪天做</label><input type="date" data-act2="' + i + '" data-k="on" value="' + esc(a.on) + '"></div>' +
+        '<div><label class="lbl">做完能看见什么</label><input type="text" data-act2="' + i + '" data-k="out" value="' + esc(a.out) + '" placeholder="例：一个 mp3 文件"></div>' +
+      '</div></div>';
+  }).join('');
+  Array.prototype.forEach.call(box.querySelectorAll('[data-act2]'), function(el){
+    el.oninput = function(){
+      var i = +el.getAttribute('data-act2'), k = el.getAttribute('data-k');
+      S.plan.actions[i][k] = (k === 'min') ? (parseInt(el.value, 10) || 0) : el.value;
+      touch();
+    };
+  });
+  Array.prototype.forEach.call(box.querySelectorAll('[data-actdel]'), function(b){
+    b.onclick = function(){ S.plan.actions.splice(+b.getAttribute('data-actdel'), 1); renderActList(); touch(); };
+  });
+}
+function bind4(){
+  renderActList();
+  var add = $('actAdd');
+  if(add) add.onclick = function(){
+    if((S.plan.actions || []).length >= 24){ toast('最多 24 条。再多就不是这周做得完的'); return; }
+    S.plan.actions = S.plan.actions || [];
+    S.plan.actions.push(actDefaults());
+    renderActList(); touch();
+  };
+  bindChat(4); bindNav(4);
+}
+
+function step5HTML(){
+  var p = S.plan;
+  return '<div class="card"><div class="card-h">第 5 步 · 体检 + 失败预案</div>' +
+    '<p class="hint">先跑一遍体检，看这份拆解在规则上站不站得住；再写一句「掉链子了怎么办」。体检那六条是代码按规则算的，不是模型在夸你。</p>' +
+    flowList(4) + badList(4) +
+    '<div class="row" style="margin-top:0"><button class="btn primary" type="button" id="reviewBtn">跑一遍体检</button>' +
+    '<span class="mini" id="reviewMsg"></span></div>' +
+    '<div id="reviewBox"></div>' +
+    '<label class="lbl">掉链子之后，第一步先做什么</label>' +
+    '<textarea id="fFallback" maxlength="600" placeholder="例：连续 3 天没动，就只做 5 分钟的最小版本，先把链条接上">' + esc(p.fallback) + '</textarea>' +
+    chatHTML(5, '它只问最可能死在哪、以及怎么回来') +
+    '<div class="row"><button class="btn primary" type="button" id="saveGoBtn">保存并开始盯 →</button>' +
+    '<button class="btn" type="button" id="backBtn">← 回到第 4 步</button></div></div>';
+}
+function bind5(){
+  bindField('fFallback','fallback');
+  var rb = $('reviewBtn'); if(rb) rb.onclick = function(){ runReview(); };
+  var sg = $('saveGoBtn'); if(sg) sg.onclick = function(){ saveAndWatch(); };
+  var bb = $('backBtn'); if(bb) bb.onclick = function(){ gotoStep(4); };
+  renderReview(); bindChat(5);
+}
+function renderReview(){
+  var box = $('reviewBox'); if(!box) return;
+  var c = S.check;
+  if(!c){ box.innerHTML = '<p class="mini" style="margin-top:10px">还没跑过体检。</p>'; return; }
+  var head = '<div class="row" style="margin-top:14px;align-items:flex-end">' +
+    '<div class="score ' + esc(c.level) + '">' + c.score + '</div>' +
+    '<div class="mini grow">体检分（满分 100）<br>严重 ' + c.bad + ' 条 · 提醒 ' + c.warn + ' 条</div></div>';
+  var items = c.items.length ? c.items.map(function(it){
+    return '<div class="chk ' + esc(it.level) + '"><div class="chk-t">' +
+      (it.level === 'bad' ? '严重' : '提醒') + ' · ' + esc(it.title) + '</div>' +
+      '<div class="chk-d">' + esc(it.detail) + '</div>' +
+      (it.fix ? '<div class="chk-f">改法：' + esc(it.fix) + '</div>' : '') + '</div>';
+  }).join('') : '<div class="chk"><div class="chk-t">规则这一关没挑出问题</div>' +
+    '<div class="chk-d">六条都过了。现在缺的不是计划，是今天把第一条动作勾掉。</div></div>';
+  box.innerHTML = head + '<div style="margin-top:12px">' + items + '</div>' +
+    (S.verdict ? '<div class="verdict">' + esc(S.verdict) + '</div>' : '');
+}
+function runReview(){
+  setBusy(true);
+  api('/review', 'POST', { plan: payloadPlan() }).then(function(d){
+    setBusy(false);
+    if(!d.ok){ toast(d.message || '体检没跑起来'); return; }
+    if(d.plan){ assignPlan(d.plan); }
+    S.check = d.check || null; S.verdict = d.verdict || '';
+    var msg = $('reviewMsg');
+    if(msg && S.check){ msg.textContent = '刚跑完：严重 ' + S.check.bad + ' 条 / 提醒 ' + S.check.warn + ' 条'; }
+    renderReview();
+    if(S.rid){ saveInstant(); }
+  });
+}
+function saveAndWatch(){
+  var p = payloadPlan();
+  if((p.raw || '').length < 2){ toast('先写一句你想做成什么'); gotoStep(1); return; }
+  setBusy(true);
+  var done = function(d){
+    setBusy(false);
+    if(!d.ok || !d.item){ toast(d.message || '没存上'); return; }
+    S.rid = d.item.id; assignPlan(d.item);
+    if(S.check){ S.plan.check = S.check; }
+    S.tab = 'watch'; markSaved();
+    history.replaceState(null, '', '/goal-split?r=' + S.rid);
+    render(); loadList(); window.scrollTo(0,0);
+    toast('存上了。接下来按日期盯你');
+  };
+  if(S.rid){ api('/goals/' + S.rid, 'PATCH', { plan:p }).then(done); }
+  else{ api('/goals', 'POST', { plan:p }).then(done); }
+}
+/* ---------------- 监督 ---------------- */
+function hm(m){ m = m || 0; if(m < 60){ return m + ' 分'; } return (Math.round(m / 6) / 10) + ' 小时'; }
+function stat(n, l){ return '<div class="stat-i"><div class="stat-n">' + esc(n) + '</div><div class="stat-l">' + esc(l) + '</div></div>'; }
+function saveInstant(){ clearTimeout(saveTimer); save(); }
+function addLog(kind, text, hours, missed){
+  S.plan.log = S.plan.log || [];
+  S.plan.log.push({ kind:kind, text:text, hours:hours || 0, missed:missed || 0, at:todayStr() });
+}
+function ckRow(a, i){
+  return '<div class="ck"><button type="button" class="ck-box' + (a.done ? ' on' : '') + '" data-done="' + i + '">✓</button>' +
+    '<div class="ck-body"><div class="ck-t' + (a.done ? ' done' : '') + '">' + esc(a.text || '（没写内容）') + '</div>' +
+    '<div class="ck-m">' + (a.on ? '<span>' + esc(a.on) + '</span>' : '<span>没写日期</span>') +
+    (a.min ? '<span>预估 ' + a.min + ' 分钟</span>' : '<span>没估时间</span>') +
+    (a.out ? '<span>产出：' + esc(a.out) + '</span>' : '') +
+    (a.done && a.done_at ? '<span class="badge g">' + esc(a.done_at) + ' 完成</span>' : '') +
+    '</div></div></div>';
+}
+function statusChip(i, val, label, cur){
+  return '<button type="button" class="chip' + (cur === val ? ' on' : '') + '" data-mst="' + i + ':' + val + '">' + label + '</button>';
+}
+function renderWatch(){
+  var box = $('watchBox'); if(!box) return;
+  var p = S.plan || {}, acts = p.actions || [], ms = p.milestones || [];
+  var today = todayStr();
+  var doneA = acts.filter(function(a){ return a.done; }).length;
+  var doneM = ms.filter(function(m){ return m.status === 'done'; }).length;
+  var planMin = acts.reduce(function(s, a){ return s + (a.min || 0); }, 0);
+  var realMin = acts.filter(function(a){ return a.done; }).reduce(function(s, a){ return s + (a.actual || a.min || 0); }, 0);
+  var todo = [];
+  acts.forEach(function(a, i){ if(!a.done && (!a.on || a.on <= today)){ todo.push({ a:a, i:i }); } });
+  var overdue = acts.filter(function(a){ return !a.done && a.on && a.on < today; }).length;
+  var days = p.deadline ? Math.round((new Date(p.deadline) - new Date(today)) / 86400000) : null;
+  var ck = S.check || null;
+  var pct = acts.length ? Math.round(doneA * 100 / acts.length) : 0;
+  var h = '';
+
+  h += '<div class="card"><div class="card-h">进度' +
+    (ck ? '<span class="sp badge ' + (ck.level === 'good' ? 'g' : (ck.level === 'bad' ? 'r' : 'o')) + '">体检 ' + ck.score + '</span>' : '') +
+    '</div>';
+  h += '<div class="stat">' + stat(doneA + '/' + acts.length, '动作完成') + stat(doneM + '/' + ms.length, '里程碑') +
+    stat(hm(planMin), '计划投入') + stat(hm(realMin), '实际投入') +
+    stat(todo.length, '今天该做') + stat(overdue, '已逾期') + '</div>';
+  h += '<div class="bar"><i style="width:' + pct + '%"></i></div>';
+  h += '<div class="mini" style="margin-top:6px">' +
+    (p.deadline ? ('截止 ' + esc(p.deadline) + (days === null ? '' : ('（还有 ' + days + ' 天）'))) : '没写截止日期') +
+    '　·　原话：' + esc(p.raw || '—') + '</div>';
+  h += '<div class="row"><button class="btn sm" type="button" data-w="review">跑一遍体检</button>' +
+    '<button class="btn sm" type="button" data-w="split">回去改拆解</button>' +
+    '<button class="btn sm" type="button" data-w="del" style="margin-left:auto">删除这条</button></div></div>';
+
+  h += '<div class="card"><div class="card-h">今天该做<span class="mini sp">按日期排的，勾了才动进度</span></div>';
+  if(!acts.length){
+    h += '<div class="empty"><b>还没有动作</b>回到「拆解」第 4 步，把第一个里程碑拆成本周能动的手。</div>';
+  }else if(!todo.length){
+    h += '<div class="empty">' + (doneA === acts.length ? '这一批全勾完了。回去拆下一批，或者登记一次偏离。' : '今天没有到期的动作。') + '</div>';
+  }else{
+    h += todo.map(function(x){ return ckRow(x.a, x.i); }).join('');
+  }
+  h += '</div>';
+
+  h += '<div class="card"><div class="card-h">全部动作<span class="mini sp">改完自动存</span></div>';
+  if(!acts.length){ h += '<div class="empty">还没有动作。</div>'; }
+  acts.forEach(function(a, i){
+    h += '<div class="sub-i"><div class="row" style="margin:0">' +
+      '<button type="button" class="ck-box' + (a.done ? ' on' : '') + '" data-done="' + i + '">✓</button>' +
+      '<input type="text" class="grow" data-act="' + i + '" data-k="text" value="' + esc(a.text) + '" style="min-height:40px">' +
+      '<button class="lnk danger" type="button" data-actdel="' + i + '">删</button></div>' +
+      '<div class="grid3" style="margin-top:8px">' +
+        '<div><label class="lbl">分钟</label><input type="number" min="0" max="1440" data-act="' + i + '" data-k="min" value="' + (a.min || '') + '"></div>' +
+        '<div><label class="lbl">哪天做</label><input type="date" data-act="' + i + '" data-k="on" value="' + esc(a.on) + '"></div>' +
+        '<div><label class="lbl">做完能看见什么</label><input type="text" data-act="' + i + '" data-k="out" value="' + esc(a.out) + '"></div>' +
+      '</div></div>';
+  });
+  h += '<div class="row"><button class="btn sm" type="button" data-w="actadd">＋ 加一条动作</button></div></div>';
+
+  h += '<div class="card"><div class="card-h">里程碑</div>';
+  if(!ms.length){ h += '<div class="empty">还没有里程碑。</div>'; }
+  ms.forEach(function(m, i){
+    var st = m.status || 'todo';
+    var late = st !== 'done' && m.by && m.by < today;
+    h += '<div class="sub-i"><div class="ck-t">第 ' + (i+1) + ' 站 · ' + esc(m.name || '（没写名字）') + '</div>' +
+      '<div class="ck-m">' + (m.by ? '<span>' + esc(m.by) + '</span>' : '<span>没写日期</span>') +
+      (m.done_when ? '<span>算过：' + esc(m.done_when) + '</span>' : '<span class="badge o">没写验收标准</span>') +
+      (late ? '<span class="badge r">已经过期</span>' : '') + '</div>' +
+      '<div class="chips" style="margin-top:8px">' + statusChip(i,'todo','未开始',st) + statusChip(i,'doing','进行中',st) +
+      statusChip(i,'done','完成',st) + statusChip(i,'missed','没赶上',st) + '</div>' +
+      ((st === 'done' || st === 'missed') ? ('<label class="lbl">回访：实际发生了什么</label>' +
+        '<textarea data-msr="' + i + '" placeholder="这个结果和当初想的差在哪">' + esc(m.review) + '</textarea>') : '') +
+      '</div>';
+  });
+  h += '</div>';
+
+  h += '<div class="card"><div class="card-h">这周实际怎么样<span class="mini sp">登记了会算进下一次体检</span></div>' +
+    '<div class="grid2">' +
+      '<div><label class="lbl">这周实际投入几小时</label><input type="number" id="dHours" min="0" max="168" placeholder="例：3"></div>' +
+      '<div><label class="lbl">漏掉了几件事</label><input type="number" id="dMissed" min="0" max="99" placeholder="例：2"></div>' +
+    '</div>' +
+    '<label class="lbl">发生了什么（可空）</label>' +
+    '<input type="text" id="dText" maxlength="600" placeholder="例：周三开始加班，后面全断了">' +
+    '<div class="row"><button class="btn sm primary" type="button" data-w="drift">登记</button>' +
+    '<span class="mini">体检会拿真实投入去算时间账，不再信自报数</span></div></div>';
+
+  var logs = (p.log || []).slice().reverse().slice(0, 20);
+  h += '<div class="card"><div class="card-h">记录</div>';
+  h += logs.length ? logs.map(function(g){
+    var label = g.kind === 'drift' ? ('偏离登记 · 投入 ' + (g.hours || 0) + ' 小时 · 漏 ' + (g.missed || 0) + ' 件')
+              : (g.kind === 'review' ? '里程碑回访' : '备注');
+    return '<div class="log-i"><b>' + esc(g.at) + '</b> · ' + esc(label) + (g.text ? '<br>' + esc(g.text) : '') + '</div>';
+  }).join('') : '<div class="empty">还没有记录。勾一条动作、回访一个里程碑，或者登记一次偏离，这里就会长东西。</div>';
+  h += '</div>';
+
+  box.innerHTML = h;
+  box.onclick = watchClick;
+  Array.prototype.forEach.call(box.querySelectorAll('[data-act]'), function(el){
+    el.oninput = function(){
+      var i = +el.getAttribute('data-act'), k = el.getAttribute('data-k');
+      S.plan.actions[i][k] = (k === 'min') ? (parseInt(el.value, 10) || 0) : el.value;
+      touch();
+    };
+  });
+  Array.prototype.forEach.call(box.querySelectorAll('[data-msr]'), function(el){
+    el.oninput = function(){ S.plan.milestones[+el.getAttribute('data-msr')].review = el.value; touch(); };
+  });
+}
+function watchClick(e){
+  var t = e.target;
+  if(!t || !t.getAttribute){ return; }
+  var w = t.getAttribute('data-w');
+  if(w === 'review'){ S.tab = 'split'; S.step = 5; render(); runReview(); return; }
+  if(w === 'split'){ S.tab = 'split'; render(); window.scrollTo(0,0); return; }
+  if(w === 'del'){ delGoal(); return; }
+  if(w === 'drift'){ addDrift(); return; }
+  if(w === 'actadd'){
+    if((S.plan.actions || []).length >= 24){ toast('最多 24 条'); return; }
+    S.plan.actions = S.plan.actions || [];
+    S.plan.actions.push(actDefaults());
+    renderWatch(); touch(); return;
+  }
+  var d = t.getAttribute('data-done');
+  if(d !== null){ toggleDone(+d); return; }
+  var ad = t.getAttribute('data-actdel');
+  if(ad !== null){ S.plan.actions.splice(+ad, 1); renderWatch(); touch(); return; }
+  var mst = t.getAttribute('data-mst');
+  if(mst !== null){ setMsStatus(mst); return; }
+}
+function toggleDone(i){
+  var a = S.plan.actions[i]; if(!a){ return; }
+  a.done = !a.done;
+  a.done_at = a.done ? todayStr() : '';
+  if(a.done){ addLog('note', '完成：' + String(a.text || '').slice(0, 60), 0, 0); }
+  renderWatch();
+  if(S.rid){ saveInstant(); } else { touch(); }
+}
+function setMsStatus(v){
+  var parts = String(v).split(':');
+  var i = +parts[0], st = parts[1];
+  var m = S.plan.milestones[i]; if(!m){ return; }
+  m.status = st;
+  if(st === 'done' || st === 'missed'){
+    m.reviewed_at = todayStr();
+    addLog('review', '第 ' + (i+1) + ' 站「' + (m.name || '') + '」→ ' + (st === 'done' ? '完成' : '没赶上'), 0, 0);
+  }
+  renderWatch(); saveInstant();
+}
+function addDrift(){
+  var hh = parseInt(($('dHours') || {}).value, 10) || 0;
+  var mm = parseInt(($('dMissed') || {}).value, 10) || 0;
+  if(!hh && !mm){ toast('至少填一个数：投入几小时，或者漏了几件'); return; }
+  addLog('drift', (($('dText') || {}).value || '').slice(0, 600), hh, mm);
+  renderWatch(); saveInstant();
+  toast('登记了。下次体检按真实投入重算时间账');
+}
+function delGoal(){
+  if(!S.rid){ return; }
+  if(!confirm('删掉这条目标？动作、里程碑和记录会一起删，没法撤回。')){ return; }
+  api('/goals/' + S.rid, 'DELETE').then(function(d){
+    if(!d.ok){ toast(d.message || '没删掉'); return; }
+    S.rid = null; S.plan = null; S.chats = {}; S.check = null; S.verdict = '';
+    history.replaceState(null, '', '/goal-split');
+    loadList(); render(); toast('删掉了');
+  });
+}
+
+/* ---------------- 启动 ---------------- */
+function init(){
+  var nb = $('newBtn');
+  if(nb) nb.onclick = function(){
+    S.rid = null; S.plan = null; S.chats = {}; S.check = null; S.verdict = '';
+    history.replaceState(null, '', '/goal-split');
+    render();
+    var el = $('rawIn'); if(el){ el.focus(); }
+  };
+  var q = $('q'); if(q) q.oninput = renderSidebar;
+  loadList();
+  var m = /[?&]r=(\d+)/.exec(location.search);
+  if(m){ openGoal(+m[1]); } else { render(); }
+  api('/status').then(function(d){ if(d && d.ok){ S.key = !!d.key; } });
+}
+init();
+})();
+</script>
+</body>
+</html>

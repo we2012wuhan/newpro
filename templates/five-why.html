@@ -125,6 +125,14 @@ label.f{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 5px}
 .msg.me{flex-direction:row-reverse}
 .msg.me .col{display:flex;flex-direction:column;align-items:flex-end}
 .msg.think .bubble{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:13.5px}
+/* ===== 复制单条消息（DeepSeek 那种，消息下面一个小图标） ===== */
+.acts{margin-top:6px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.msg.me .acts{justify-content:flex-end}
+.cbtn{display:inline-flex;align-items:center;gap:5px;min-height:28px;padding:0;background:none;
+  border:0;color:var(--muted);font-family:inherit;font-size:11.5px;line-height:1;cursor:pointer}
+.cbtn svg{display:block}
+.cbtn:hover{color:var(--acc)}
+.cbtn.ok{color:var(--ok);font-weight:600}
 
 /* ===== 候选 ===== */
 .cands{margin-top:9px;display:flex;flex-direction:column;gap:6px;max-width:min(100%,600px)}
@@ -414,11 +422,13 @@ function renderChat(){
   var lastAi = -1;
   msgs.forEach(function(m, idx){ if(m.role === 'ai'){ lastAi = idx; } });
 
+  copyTexts = [];
   msgs.forEach(function(m, idx){
     var isLast = (idx === lastAi) && !S.busy;
     if(m.role === 'me'){
       h += '<div class="msg me">' + avMe + '<div class="col"><div class="who">我</div>' +
-           '<div class="bubble">' + esc(m.text) + '</div></div></div>';
+           '<div class="bubble">' + esc(m.text) + '</div>' +
+           '<div class="acts">' + copyBtnHTML(pushCopy(m.text)) + '</div></div></div>';
       return;
     }
     var ui = m.ui || {};
@@ -432,7 +442,8 @@ function renderChat(){
            '<button class="btn sm" id="dlRep">下载 .md</button>' +
            '<button class="btn sm" id="printRep">打印 / 存 PDF</button></div>';
     } else {
-      h += '<div class="bubble">' + esc(m.text) + '</div>';
+      h += '<div class="bubble">' + esc(m.text) + '</div>' +
+           '<div class="acts">' + copyBtnHTML(pushCopy(m.text)) + '</div>';
       if(isLast && ui.kind === 'answer' && (ui.cands || []).length){
         h += '<div class="cands">' + ui.cands.map(function(c, ci){
           return '<button class="cand' + (S.cand === ci ? ' on' : '') + '" type="button" ' +
@@ -544,6 +555,7 @@ function refreshSend(){
 
 function bindChat(s){
   var el = $('chat');
+  bindCopy();
   Array.prototype.forEach.call(el.querySelectorAll('[data-cand]'), function(b){
     b.onclick = function(){
       var ci = Number(b.getAttribute('data-cand'));
@@ -740,16 +752,19 @@ function del(id){
 function reportText(){
   return (S.sess && S.sess.report) ? String(S.sess.report) : '';
 }
-function fallbackCopy(t, done){
+function fallbackCopy(t, done, fail){
   var ta = document.createElement('textarea');
   ta.value = t;
+  ta.setAttribute('readonly', '');
   ta.style.position = 'fixed';
   ta.style.left = '-9999px';
   document.body.appendChild(ta);
-  ta.select();
-  try{ document.execCommand('copy'); done(); }
-  catch(e){ toast('复制不了，手动选一下吧'); }
+  var ok = false;
+  try{ ta.select(); ta.setSelectionRange(0, t.length); ok = document.execCommand('copy'); }
+  catch(e){ ok = false; }
   document.body.removeChild(ta);
+  if(ok){ done(); }
+  else { toast('复制不了，手动选一下吧'); if(fail){ fail(); } }
 }
 function copyReport(){
   var t = reportText();
@@ -760,6 +775,56 @@ function copyReport(){
   } else {
     fallbackCopy(t, done);
   }
+}
+
+/* ===================== 复制单条消息 =====================
+   每条消息底下一个小图标，点一下复制这一条的内容。
+   聊天区会被整块重画，所以每次重画后都要重新绑一次。 */
+var copyTexts = [];        // 这一屏里每条消息的原文，按钮上的 data-copy 就是它的下标
+var COPY_ICO = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"' +
+  ' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<rect x="9" y="9" width="11" height="11" rx="2.5"/>' +
+  '<path d="M6.5 15H5.5A1.5 1.5 0 0 1 4 13.5v-8A1.5 1.5 0 0 1 5.5 4h8A1.5 1.5 0 0 1 15 5.5v1"/></svg>';
+
+function pushCopy(t){ copyTexts.push(String(t == null ? '' : t)); return copyTexts.length - 1; }
+
+function copyBtnHTML(i){
+  return '<button class="cbtn" type="button" data-copy="' + i + '" title="复制这条内容"' +
+    ' aria-label="复制这条内容">' + COPY_ICO + '<span class="ctxt">复制</span></button>';
+}
+
+function copyText(t, cb){
+  var ok = function(){ cb(true); };
+  var no = function(){ cb(false); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(ok, function(){ fallbackCopy(t, ok, no); });
+  } else {
+    fallbackCopy(t, ok, no);
+  }
+}
+
+/* 复制成功后按钮短暂变成「已复制」，跟 DeepSeek 一样给个反馈 */
+function copyBtnDone(b, ok){
+  var s = b.querySelector('.ctxt');
+  b.classList.toggle('ok', !!ok);
+  if(s){ s.textContent = ok ? '已复制' : '复制'; }
+  clearTimeout(b._ct);
+  if(ok){ b._ct = setTimeout(function(){
+    b.classList.remove('ok');
+    if(s){ s.textContent = '复制'; }
+  }, 1400); }
+}
+
+function bindCopy(){
+  var el = $('chat');
+  if(!el){ return; }
+  Array.prototype.forEach.call(el.querySelectorAll('.cbtn[data-copy]'), function(b){
+    b.onclick = function(){
+      var t = copyTexts[Number(b.getAttribute('data-copy'))] || '';
+      if(!t){ return; }
+      copyText(t, function(ok){ copyBtnDone(b, ok); });
+    };
+  });
 }
 function downloadReport(){
   var t = reportText();
