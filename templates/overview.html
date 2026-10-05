@@ -434,7 +434,7 @@ function renderList(){
       '<div class="item-f">' +
         '<button class="lnk" type="button" data-more="' + it.id + '">' + (on ? '收起' : '展开细节') + '</button>' +
         (it.deep
-          ? '<a class="lnk lnk-go" href="' + esc(it.href) + '?r=' + it.id + '" target="_blank" rel="noopener">直接打开这一条 →</a>'
+          ? '<a class="lnk lnk-go" href="' + esc(it.href) + (it.href.indexOf('?') >= 0 ? '&r=' : '?r=') + it.id + '" target="_blank" rel="noopener">直接打开这一条 →</a>'
           : '') +
         '<a class="lnk" href="' + esc(it.href) + '">去这个工具 →</a>' +
       '</div>' + detail + '</div>';

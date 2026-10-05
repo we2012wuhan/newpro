@@ -32,8 +32,10 @@ ITEM_MAX = 300          # 一次最多汇总多少条
 # 将来哪个工具真的没有可回看的记录，把它标成 False，就不要「直接打开这一条」了，免得点了没反应。
 TOOL_META = {
     'judgement-trainer': {'name': '判断力教练', 'ico': '🎯', 'href': '/judgement-trainer', 'deep': True},
-    'five_why': {'name': '5Why 分析法', 'ico': '🔎', 'href': '/five-why', 'deep': True},
-    'socratic': {'name': '苏格拉底提问', 'ico': '💬', 'href': '/socratic', 'deep': True},
+    # five_why 和 socratic 已经并到一页了（/ask-hub），但库里始终是两个 tool 名，各存各的。
+    # 所以这里保持两条、分开筛；href 指到合并页并把 tab 带上，点进去正好落在那一页。
+    'five_why': {'name': '5Why 分析法', 'ico': '🔎', 'href': '/ask-hub?tab=why', 'deep': True},
+    'socratic': {'name': '苏格拉底提问', 'ico': '💬', 'href': '/ask-hub?tab=soc', 'deep': True},
     'study-assistant': {'name': '学习模型助手', 'ico': '🧠', 'href': '/study-assistant', 'deep': True},
     'reading-practice': {'name': '读书落地', 'ico': '📖', 'href': '/reading-practice', 'deep': True},
     'kolb': {'name': '库博学习圈', 'ico': '🔄', 'href': '/kolb', 'deep': True},
@@ -41,6 +43,7 @@ TOOL_META = {
     'script-library': {'name': '脚本库', 'ico': '📜', 'href': '/script-library', 'deep': True},
     'goal-split': {'name': '目标拆解器', 'ico': '🎯', 'href': '/goal-split', 'deep': True},
     'site-collect': {'name': '网站收集', 'ico': '🔖', 'href': '/site-collect', 'deep': True},
+    'langchain-test': {'name': 'LangChain 测试', 'ico': '🧪', 'href': '/langchain-test', 'deep': True},
 }
 
 _FALLBACK = (
@@ -89,6 +92,8 @@ def _excerpt(tool: str, payload: dict) -> str:
         return _text(payload.get('statement')) or _text(payload.get('raw'))
     if tool == 'site-collect':
         return _text(payload.get('why')) or _text(payload.get('url'))
+    if tool == 'langchain-test':
+        return _text(payload.get('input')) or _text(payload.get('case_name'))
     return ''
 
 
@@ -129,6 +134,9 @@ def _status(tool: str, payload: dict) -> dict:
         if acts:
             return {'tracked': True, 'open': True, 'label': '还差 %s/%s 个动作' % (len(acts) - done, len(acts))}
         return {'tracked': True, 'open': True, 'label': '还没拆出动作'}
+    if tool == 'langchain-test':
+        # 跑一次就是一次记录，没有「收尾」这一说；标签用来标是哪个用例
+        return {'tracked': False, 'open': False, 'label': _text(payload.get('case_name'), 20)}
     if tool == 'site-collect':
         # 收藏没有「收尾」这一说，不参与「没收尾」筛选，但状态标签照样显示
         label = {'new': '待看', 'using': '常用', 'archived': '归档'}.get(payload.get('state'), '')
@@ -217,6 +225,10 @@ def _detail(tool: str, payload: dict) -> list:
         add('下次实验', answer.get('ae_trigger'), 120)
         add('要做的事', answer.get('ae_action'), 120)
         add('验证日期', answer.get('ae_due'), 20)
+    elif tool == 'langchain-test':
+        add('用例', payload.get('case_name'), 40)
+        add('输入', payload.get('input'))
+        add('返回块数', _count(payload.get('blocks')) or None, 8)
     elif tool == 'ai-chart':
         add('提示词', payload.get('prompt'))
         data = payload.get('data')

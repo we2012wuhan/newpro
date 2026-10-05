@@ -6,9 +6,11 @@
 # 说不清根因的人，缺的从来不是输入框，是想不出下一层该往哪儿问。
 # 所以这一版由 AI 主导对话，它每一轮干三件事：
 #   1. 问出下一个「为什么」，并且给 2–3 个不同角度的候选答案（挑一个、改一个、自己写都行）；
-#   2. 顺读检查 —— 把上一层读成「所以……」，看这一层能不能真的推出它，跳步就打回重问；
-#   3. 该停还是该继续 —— 落到「可以被直接改变的机制」就提示可以停，
+#   2. 顺读 / 逆读检查 —— 把上一层读成「所以……」看能不能推出它、倒着推看能不能解释问题；
+#   3. 该停还是该继续 —— 落到「可以被直接改变的机制」就转去根因验证，
 #      还停在「某人不小心 / 沟通不畅 / 责任心不强」就带着一句具体的追问让他继续。
+#   这三项**只在出问题时才显示在对话里**（跳步 / 解释不了 / 答案不可操作），
+#   一切正常就什么都不说、直接把下一个问题递上来 —— 见 _verdict_line 的说明。
 #
 # 进度（第几层、在哪个阶段）由服务端定，不是模型自己报的：
 #   · 正文（下一个问题）和判定（顺读 / 停继续）发两个请求并行跑，不额外等时间；
@@ -466,16 +468,20 @@ def _judge_layer(parent_text, answer, level):
     本地规则先过一遍（deterministic，模型挂了也拦得住），模型再复核一次。
     模型说「可以停」但本地规则命中了不可操作表述时，以本地为准 —— 这类词没有解释空间。
     """
-    out = {'read': '', 'back': '', 'stop': '继续', 'why': '', 'ask': ''}
+    # hard=True 表示这条答案确实有问题（不可操作 / 只是人名），必须在对话里点出来；
+    # 一切正常时保持沉默，见 _verdict_line 的说明。
+    out = {'read': '', 'back': '', 'stop': '继续', 'why': '', 'ask': '', 'hard': False}
     ans = _clean(answer, TEXT_MAX)
 
     if VAGUE_WORD.search(ans):
         out['why'] = '这句指不到任何能改的东西，还不能停。'
         out['ask'] = _nudge(ans)
+        out['hard'] = True
         return out
     if PERSON_WORD.search(ans):
         out['why'] = '这是人名 / 部门名，不是原因。'
         out['ask'] = '「谁」做了什么本身改不了。什么机制让他这样做？哪一步本该拦住它？'
+        out['hard'] = True
         return out
     if parent_text and _similar(parent_text, ans) >= 0.6:
         out['read'] = '跳步'
@@ -652,19 +658,25 @@ def _sibling_labels(plan, parent, level, exclude=''):
 
 
 def _verdict_line(v):
+    """对话里那几行提示：**只在出问题的时候说话**。
+
+    一开始的写法是每层都播报一遍「顺读成立 / 逆读能解释 / 还得往下追」。
+    但前两句的净信息量是零，到第三四层就成了复读机 —— 人会开始习惯性跳过，
+    真出问题的那一层（跳步）也跟着被一起跳过，护栏反而失效。
+    所以现在只有三种情况出声：
+      · 跳步          —— 这一层推不出上一层，答案白写，必须打断
+      · 解释不了      —— 链子跑偏了，得把人拉回来
+      · 答案不可操作  —— 命中「沟通不畅 / 某人不小心」这类词，本地规则抓到的
+      · （可以停不出声）—— 下一步就是根因验证，那句话本身已经把这个节点讲清楚了
+    其余情况返回空串，页面上就干净剩一个「第 N 个为什么」。
+    """
     bits = []
-    if v.get('read') == '成立':
-        bits.append('顺读：成立 —— 把上一层读成「所以」，这一层确实能推出它。')
-    elif v.get('read') == '跳步':
-        bits.append('顺读：跳步 —— 中间缺了一环，这一层的答案还推不出上一层。')
-    if v.get('back') == '能解释':
-        bits.append('逆读：倒着推，能解释最上面那个现象。')
-    elif v.get('back') == '解释不了':
-        bits.append('逆读：倒着推，解释不了最上面那个现象 —— 这条链可能串偏了。')
-    if v.get('stop') == '可以停':
-        bits.append('判断：可以停在这里了 —— 这一层已经是能直接改的东西。')
-    elif v.get('why'):
-        bits.append('判断：还得往下追 —— ' + v['why'])
+    if v.get('read') == '跳步':
+        bits.append('跳步了 —— ' + (v.get('why') or '中间缺了一环，这一层的答案还推不出上一层。'))
+    if v.get('back') == '解释不了':
+        bits.append('这条链可能串偏了 —— 倒着推，它解释不了最上面那个现象。')
+    if v.get('read') != '跳步' and v.get('hard') and v.get('why'):
+        bits.append(v['why'])
     return '\n'.join(bits)
 
 
@@ -936,8 +948,10 @@ def _do_reply(sid, payload, user):
             q, cands = qa
             plan['cur_parent'] = parent_id if branch else node['id']
             plan['level'] = next_level
+            # 那句「具体追问」只在答案确实有问题时才显示（跟 _verdict_line 一个原则）：
+            # 一切正常时它跟下面的「第 N 个为什么」是重复的，说了反而把问题挤到下面去。
             warn = ''
-            if verdict.get('ask'):
+            if verdict.get('hard') and verdict.get('ask'):
                 warn += verdict['ask'] + '\n\n'
             if not branch and next_level > MAX_LEVEL:
                 warn += ('（已经到第 %d 层了。5 层是经验值，不是硬规定；但追到这儿还在描述，'

@@ -144,10 +144,12 @@ app.include_router(writing_ideas_router)
 from predict_diary import router as predict_diary_router  # noqa: E402
 app.include_router(predict_diary_router)
 
-# 附加功能：LangChain 学习（七课入门实操，页面上每一课都能真跑一次，看真实的模型输出）
-# 浏览器访问 http://127.0.0.1:8000/langchain-learn 即可使用。
-from langchain_learn import router as langchain_learn_router  # noqa: E402
-app.include_router(langchain_learn_router)
+# 附加功能：LangChain 测试台（四个最小用例：大模型调用 / 提示词模板 / 工具调用 / 上下文；
+# 页面上显示的源码是服务端现读的，每次运行落一条 SQLite 记录，右侧可回看）
+# 浏览器访问 http://127.0.0.1:8000/langchain-test 即可使用。
+from langchain_test import router as langchain_test_router  # noqa: E402
+app.include_router(langchain_test_router)
+
 # 附加功能：内耗拆解（工作上的糟心事反复想 -> 先花 90 秒把身体拉回来 -> AI 把一团拆成一条条 ->
 # 分成「我能动的 / 动不了的」-> 落成一件今天就能做的事；数据只存浏览器，服务端不存）
 # 浏览器访问 http://127.0.0.1:8000/rumination 即可使用。
@@ -195,6 +197,12 @@ app.include_router(home_cats_router)
 # 浏览器访问 http://127.0.0.1:8000/five-why 即可使用。
 from five_why import router as five_why_router  # noqa: E402
 app.include_router(five_why_router)
+
+# 附加功能：5Why 分析 + 苏格拉底提问（把上面这两个「只会提问」的工具合成一页，
+# 顶上用 tab 切换；两个工具自己的接口和页面都还在，这里只是一层壳，用 iframe 装）
+# 浏览器访问 http://127.0.0.1:8000/ask-hub 即可使用。
+from ask_hub import router as ask_hub_router  # noqa: E402
+app.include_router(ask_hub_router)
 
 # 库博学习圈：页面在 /kolb
 # 把一件真实发生过的事走完一圈 —— 具体经验 → 反思观察 → 抽象概念化 → 主动实验。

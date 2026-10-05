@@ -7,6 +7,9 @@
 <title>苏格拉底提问</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<script>/* 被 /ask-hub 用 iframe 嵌进来时（?embed=1）：外层已经有标题栏和背景了，
+   这里就藏掉自己的顶栏、也不再铺一层粒子，免得两层叠在一起又丑又费电。 */
+try{if(/[?&]embed=1/.test(location.search)){document.documentElement.setAttribute('data-embed','1');window.TB_NO_FX=true;}}catch(e){}</script>
 <link rel="stylesheet" href="/static/theme.css">
 <script src="/static/theme.js"></script>
 <script src="/static/particles.js"></script>
@@ -135,6 +138,11 @@ textarea::placeholder{color:var(--muted);opacity:.72}
   color:var(--muted);cursor:pointer;font-size:15px;line-height:1}
 .hist-del:hover{color:var(--err);border-color:var(--err-line);background:var(--err-l)}
 .col-main{min-width:0}
+/* 「历史记录」这一行：标题在左，朗读按钮在右，两者垂直居中对齐 */
+.hist-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.hist-head .card-h{margin-bottom:0}
+.hist-head .vctl{margin-left:auto}
+.vctl[hidden]{display:none}
 /* ===== 右侧历史：搜索框 ===== */
 .hsearch{position:relative;margin-top:6px}
 .hsearch input{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px 34px 10px 12px;
@@ -153,7 +161,7 @@ textarea::placeholder{color:var(--muted);opacity:.72}
 @media (min-width:1100px){
   .topbar-in,.wrap{max-width:1180px}
   .wrap{display:grid;grid-template-columns:minmax(0,1fr) 292px;gap:22px;align-items:start}
-  .col-side{position:sticky;top:78px}
+  .col-side{position:sticky;top:var(--stick,78px)}
 }
 .err{background:var(--err-l);border:1px solid var(--err-line);border-radius:12px;padding:11px 14px;
   font-size:13px;color:var(--err);margin-top:12px;line-height:1.7}
@@ -210,7 +218,12 @@ textarea::placeholder{color:var(--muted);opacity:.72}
 @media (max-width:560px){
   .vbtn{padding:0 9px;font-size:12px}
   .back{padding:8px 10px;font-size:12.5px}
-}
+}/* ===== embed 模式（被 /ask-hub 嵌进 iframe）：
+   标题和「返回工具箱」外层已经有了，整条顶栏藏掉；
+   朗读按钮不在顶栏了，它挪到了右栏「历史记录」那一行的右边。
+   顶栏一藏，吸顶偏移也得跟着归零，右栏才能和左栏的顶部对齐。 ===== */
+html[data-embed]{--stick:0px}
+html[data-embed] .topbar{display:none}
 </style>
 </head>
 <body>
@@ -221,10 +234,6 @@ textarea::placeholder{color:var(--muted);opacity:.72}
       <div class="sub">它只会问你问题，不会替你回答</div>
     </div>
     <a class="back" href="/">← 返回工具箱</a>
-    <div class="vctl" id="vctl" hidden>
-      <button class="vbtn" id="vStop" type="button" hidden>⏹ 停</button>
-      <button class="vbtn" id="vAuto" type="button" aria-pressed="false">🔊 自动朗读</button>
-    </div>
   </div>
 </header>
 
@@ -235,7 +244,13 @@ textarea::placeholder{color:var(--muted);opacity:.72}
   </div>
   <aside class="col-side">
     <div class="card">
-      <div class="card-h">历史记录</div>
+      <div class="hist-head">
+        <div class="card-h">历史记录</div>
+        <div class="vctl" id="vctl" hidden>
+          <button class="vbtn" id="vStop" type="button" hidden>⏹ 停</button>
+          <button class="vbtn" id="vAuto" type="button" aria-pressed="false">🔊 自动朗读</button>
+        </div>
+      </div>
       <div class="hsearch">
         <input type="text" id="hq" placeholder="搜标题、问过的话、聊过的内容" autocomplete="off" spellcheck="false" aria-label="搜索历史记录">
         <button class="hq-clear" id="hqClear" type="button" title="清空搜索" hidden>×</button>
@@ -1076,8 +1091,8 @@ function renderAll(){ renderStart(); renderChat(); refreshSend(); }
 /* 把冻结行贴在顶栏下面：顶栏多高，top 就是多少（顶栏自己也是吸顶的） */
 function syncStick(){
   var bar = document.querySelector('.topbar');
-  var h = bar ? bar.offsetHeight : 0;
-  document.documentElement.style.setProperty('--stick', (h ? h : 66) + 'px');
+  var shown = bar && window.getComputedStyle(bar).display !== 'none';
+  document.documentElement.style.setProperty('--stick', (shown ? bar.offsetHeight : 0) + 'px');
 }
 
 function init(){

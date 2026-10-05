@@ -75,14 +75,12 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .t-jt .go{background:linear-gradient(135deg,#34d399,#10b981);box-shadow:0 8px 20px rgba(52,211,153,.3)}
 .tool.t-pd:hover{border-color:rgba(45,212,191,.55);box-shadow:0 24px 52px rgba(45,212,191,.22)}
 .t-pd .go{background:linear-gradient(135deg,#2dd4bf,#0e8f79);box-shadow:0 8px 20px rgba(45,212,191,.32)}
-    .tool.t-5w:hover{border-color:rgba(232,168,124,.55);box-shadow:0 24px 52px rgba(196,138,94,.22)}
-    .t-5w .go{background:linear-gradient(135deg,#e8a87c,#c98a5e);box-shadow:0 8px 20px rgba(201,138,94,.32)}
-.tool.t-lc:hover{border-color:rgba(47,191,143,.55);box-shadow:0 24px 52px rgba(47,191,143,.22)}
-.t-lc .go{background:linear-gradient(135deg,#2fbf8f,#124b3c);box-shadow:0 8px 20px rgba(47,191,143,.32)}
+.tool.t-lct:hover{border-color:rgba(56,189,248,.55);box-shadow:0 24px 52px rgba(14,165,233,.24)}
+.t-lct .go{background:linear-gradient(135deg,#38bdf8,#0284c7);box-shadow:0 8px 20px rgba(14,165,233,.32)}
 .tool.t-sdd:hover{border-color:rgba(129,140,248,.55);box-shadow:0 24px 52px rgba(129,140,248,.22)}
 .t-sdd .go{background:linear-gradient(135deg,#818cf8,#6366f1);box-shadow:0 8px 20px rgba(129,140,248,.32)}
-.tool.t-soc:hover{border-color:rgba(91,141,239,.55);box-shadow:0 24px 52px rgba(91,141,239,.22)}
-.t-soc .go{background:linear-gradient(135deg,#5b8def,#3b82f6);box-shadow:0 8px 20px rgba(91,141,239,.32)}
+.tool.t-ask:hover{border-color:rgba(140,120,200,.55);box-shadow:0 24px 52px rgba(120,100,180,.24)}
+.t-ask .go{background:linear-gradient(135deg,#b4693f,#4c5aa8);box-shadow:0 8px 20px rgba(120,100,180,.32)}
 .tool.t-wi:hover{border-color:rgba(255,180,84,.55);box-shadow:0 24px 52px rgba(255,180,84,.2)}
 .t-wi .go{background:linear-gradient(135deg,#ffb454,#f59e0b);box-shadow:0 8px 20px rgba(255,180,84,.32)}
 .tool.t-rm:hover{border-color:rgba(185,166,240,.6);box-shadow:0 24px 52px rgba(124,107,176,.28)}
@@ -99,6 +97,8 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .t-sl .go{background:linear-gradient(135deg,#64748b,#334155);box-shadow:0 8px 20px rgba(100,116,139,.35)}
 .tool.t-sc:hover{border-color:rgba(45,212,191,.55);box-shadow:0 24px 52px rgba(15,118,110,.28)}
 .t-sc .go{background:linear-gradient(135deg,#2dd4bf,#0f766e);box-shadow:0 8px 20px rgba(15,118,110,.34)}
+.tool.t-life:hover{border-color:rgba(251,191,36,.55);box-shadow:0 24px 52px rgba(217,119,6,.22)}
+.t-life .go{background:linear-gradient(135deg,#fbbf24,#d97706);box-shadow:0 8px 20px rgba(217,119,6,.32)}
 .search-col{display:flex;flex-direction:column;align-items:stretch;gap:7px;flex:1;max-width:480px;min-width:260px;margin-left:auto}
 .search-box{position:relative;width:100%}
 .search-box .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none;font-size:15px}
@@ -498,6 +498,14 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开 ↗</span>
       </div>
     </a>
+    <a class="tool t-life" data-cat="ext" href="http://123.57.222.118:8090/" target="_blank" rel="noopener noreferrer">
+      <div class="t-icon">💰</div>
+      <div class="t-info">
+        <h3>高性价比人生指南</h3>
+        <p class="desc">按「性价比」排序的人生指南：658 条建议，每条都写清成本、收益和证据出处。</p>
+        <span class="go">立即打开 ↗</span>
+      </div>
+    </a>
     <a class="tool t-ocr" data-cat="ai" href="/ocr">
       <div class="t-icon">🔍</div>
       <div class="t-info">
@@ -514,14 +522,6 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-5w" data-cat="think" href="/five-why">
-      <div class="t-icon">🌳</div>
-      <div class="t-info">
-        <h3>5Why 分析法</h3>
-        <p class="desc">输入一个问题，AI 一层层问你「为什么」，每层给几个候选答案；拦住「沟通不畅」这类空话，追到根因后配上对策和报告。</p>
-        <span class="go">立即打开</span>
-      </div>
-    </a>
     <a class="tool t-pd" data-cat="think" href="/predict-diary">
       <div class="t-icon">🎯</div>
       <div class="t-info">
@@ -530,11 +530,11 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-lc" data-cat="learn" href="/langchain-learn">
-      <div class="t-icon">🔗</div>
+    <a class="tool t-lct" data-cat="learn" href="/langchain-test">
+      <div class="t-icon">🧪</div>
       <div class="t-info">
-        <h3>LangChain 学习</h3>
-        <p class="desc">七课入门实操：invoke、提示词模板、管道、结构化输出、少样本、工具调用、流式。每一课都能点一下真跑，看真实输出。</p>
+        <h3>LangChain 测试</h3>
+        <p class="desc">四个最小可跑的例子：调大模型、提示词模板、工具调用、上下文。每行代码都写了注释，页面上显示的源码就是服务端正在跑的那份；跑完落库，右侧能回看。</p>
         <span class="go">立即打开</span>
       </div>
     </a>
@@ -546,11 +546,11 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-soc" data-cat="think" href="/socratic">
-      <div class="t-icon">🏛️</div>
+    <a class="tool t-ask" data-cat="think" href="/ask-hub">
+      <div class="t-icon">🧩</div>
       <div class="t-info">
-        <h3>苏格拉底提问</h3>
-        <p class="desc">把纠结的那件事说给它，它一次只问你一个问题，按澄清问题、已有信息、换个视角、推导结论四步陪你走完，从不替你回答。聊过的都在库里，换台设备也能接着聊。</p>
+        <h3>5Why 分析 + 苏格拉底提问</h3>
+        <p class="desc">一对只会提问的工具，合成了一页，顶上切 tab。5Why 一层层问你为什么、拦住「沟通不畅」这类空话、追到根因配对策；苏格拉底一次只问一个问题，按澄清、已有信息、换视角、推导四步陪你走完，从不替你回答。两边的历史记录各归各，都还在库里。</p>
         <span class="go">立即打开</span>
       </div>
     </a>

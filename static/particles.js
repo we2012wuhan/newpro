@@ -16,6 +16,9 @@
 (function () {
   'use strict';
   if (window.TBFx) { return; }
+  // 被别的页面用 iframe 嵌进来时（embed 模式）不要重复铺粒子：
+  // 外层已经有背景了，里面再画一层只会白烧 CPU。由被嵌页面在 <head> 里置位。
+  if (window.TB_NO_FX) { return; }
 
   var reduced = false;
   try { reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}

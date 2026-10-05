@@ -7,6 +7,9 @@
 <title>5Why 分析法</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<script>/* 被 /ask-hub 用 iframe 嵌进来时（?embed=1）：外层已经有标题栏和背景了，
+   这里就藏掉自己的顶栏、也不再铺一层粒子，免得两层叠在一起又丑又费电。 */
+try{if(/[?&]embed=1/.test(location.search)){document.documentElement.setAttribute('data-embed','1');window.TB_NO_FX=true;}}catch(e){}</script>
 <link rel="stylesheet" href="/static/theme.css">
 <script src="/static/theme.js"></script>
 <script src="/static/particles.js"></script>
@@ -194,7 +197,7 @@ label.f{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 5px}
 @media (min-width:1100px){
   .topbar-in,.wrap{max-width:1180px}
   .wrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:22px;align-items:start}
-  .col-side{position:sticky;top:78px}
+  .col-side{position:sticky;top:var(--stick,78px)}
 }
 @media print{
   .topbar,.col-side,.composer,.toast,.back{display:none!important}
@@ -205,6 +208,11 @@ label.f{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 5px}
 /* 表单比较高的时候别吸底，否则会盖住对话 */
 .composer.tall{position:static}
 .composer.tall .composer-row{margin-top:12px}
+/* ===== embed 模式（被 /ask-hub 嵌进 iframe）：
+   自己的顶栏和外层重复，藏掉；顶栏一藏，吸顶偏移也归零，
+   右栏「历史记录」才能和左栏的提问框顶部对齐。 ===== */
+html[data-embed]{--stick:0px}
+html[data-embed] .topbar{display:none}
 </style>
 </head>
 <body>
@@ -340,7 +348,7 @@ function renderStart(){
     '<ol class="steps5">' +
       '<li><b>确认问题</b>一句话说清要追什么；写了原因也没关系，它会问回来</li>' +
       '<li><b>一层层问</b>每层它给几个不同角度的候选，挑一个或自己写</li>' +
-      '<li><b>顺读逆读</b>自动检查这一层能不能推出上一层、能不能解释问题</li>' +
+      '<li><b>顺读逆读</b>自动检查这一层能不能推出上一层、能不能解释问题；没问题就不吭声</li>' +
       '<li><b>根因验证</b>如果它不存在，问题还会发生吗</li>' +
       '<li><b>收尾</b>根因 + 对策（谁 / 什么时候 / 怎么做 / 怎么看有没有用）</li>' +
     '</ol></div>';
@@ -975,8 +983,17 @@ function bindSearch(){
 
 function renderAll(){ renderStart(); renderChat(); }
 
+/* 右栏吸顶的偏移量 = 顶栏实际高度（顶栏藏起来时是 0），保证和左栏顶部对齐 */
+function syncStick(){
+  var bar = document.querySelector('.topbar');
+  var shown = bar && window.getComputedStyle(bar).display !== 'none';
+  document.documentElement.style.setProperty('--stick', (shown ? bar.offsetHeight : 0) + 'px');
+}
+
 function init(){
   renderAll();
+  syncStick();
+  window.addEventListener('resize', syncStick);
   bindSearch();
   renderHistory();
   loadHistory();
