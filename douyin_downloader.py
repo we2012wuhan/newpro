@@ -3,7 +3,8 @@
 抖音无水印视频下载器（网页版）
 ==============================
 本项目是 FastAPI 学习项目里的一个实用小工具：
-粘贴一条抖音分享链接 -> 自动解析 -> 浏览器直接保存 mp4 视频。
+粘贴一条抖音分享链接 -> 自动解析 -> 浏览器直接保存 mp4 视频；
+也可以一键取这条视频的文字文案（正文 / 话题 / 发布时间 / 互动数据），导出成 Markdown。
 
 两种启动方式：
     1. 独立启动：python douyin_downloader.py
@@ -20,7 +21,7 @@
 
 由于抖音官方没有开放下载接口，反爬策略也在不断变化，
 如果某天所有通道都失败，请先升级 yt-dlp（pip install -U yt-dlp），
-或在页面"帮助"里按步骤更新一份最新 Cookie。
+或按页面"帮助"里的步骤更新一份最新 Cookie（写进 douyin_cookies.txt）。
 """
 
 import os
@@ -101,6 +102,8 @@ _PAGE_HTML = r"""<!DOCTYPE html>
 <link rel="stylesheet" href="/static/theme.css">
 <script src="/static/theme.js"></script>
 <script src="/static/particles.js"></script>
+<script src="/static/export-md.js"></script>
+<script src="/static/auth-guard.js"></script>
 <style>
   * { box-sizing: border-box; }
   body { margin:0; background:var(--tb-bg); color:var(--tb-text); font-family:"Microsoft YaHei",system-ui,sans-serif; }
@@ -136,6 +139,7 @@ _PAGE_HTML = r"""<!DOCTYPE html>
     border:1px solid var(--tb-line-2); border-radius:10px; resize:vertical; background:var(--tb-field); color:inherit; }
   .save-note { font-size:13px; color:var(--tb-muted); margin-top:8px; }
   .result-box { background:var(--tb-ok-bg); border:1px solid var(--tb-ok-line); border-radius:10px; padding:12px 14px; }
+  [hidden] { display:none !important; }
 </style>
 </head>
 <body>
@@ -150,6 +154,7 @@ _PAGE_HTML = r"""<!DOCTYPE html>
       <input id="url" type="text" autocomplete="off"
         placeholder="例如：https://v.douyin.com/xxxxxxx/ （也可直接粘贴 App 里的整段分享文字）">
       <button id="btn" class="btn btn-primary">解析并下载</button>
+      <button id="capBtn" class="btn btn-ghost">📝 获取文案</button>
     </div>
     <div class="opts">
       <input type="checkbox" id="useBrowser" checked>
@@ -158,31 +163,39 @@ _PAGE_HTML = r"""<!DOCTYPE html>
     <div id="status"></div>
   </div>
 
-  <div class="card">
-    <label>手动提供 Cookie（遇到风控时的备用方案）</label>
-    <p class="save-note">抖音要求请求携带"游客 Cookie"（不需要登录）。如果自动下载失败，请按下方
-      帮助里的步骤复制一份 Cookie 粘贴到这里并保存，之后每次解析都会自动使用。有效期通常很长。</p>
-    <textarea id="cookieText" placeholder="粘贴 douyin.com 请求头里的 Cookie 值，形如：s_v_web_id=xxxx; ttwid=xxxx; ..."></textarea>
-    <div style="margin-top:10px;">
-      <button class="btn btn-ghost" onclick="saveCookie()">💾 保存 Cookie</button>
-      <span id="cookieStatus" class="save-note"></span>
+  <div class="card" id="capCard" hidden>
+    <div class="row" style="align-items:center;justify-content:space-between;">
+      <label style="margin:0;">📝 视频文案（Markdown）</label>
+      <div class="row">
+        <button class="btn btn-ghost" id="capCopy" style="padding:8px 14px;font-size:13px;">复制</button>
+        <button class="btn btn-ghost" id="capDl" style="padding:8px 14px;font-size:13px;">下载 .md</button>
+      </div>
     </div>
+    <p class="save-note">取的是这条视频的<b>文字文案</b>：作者正文 + 话题标签 + 发布时间 / 互动数据。
+      抖音没有公开的字幕接口，所以视频里"说出来"的内容不会出现在这里。</p>
+    <textarea id="capOut" readonly style="min-height:280px;margin-top:8px;"></textarea>
+    <p class="save-note" id="capMeta"></p>
   </div>
 
   <details>
-    <summary>❓ 下载失败？先看这里（重要）</summary>
+    <summary>❓ 下载 / 取文案失败？先看这里（重要）</summary>
     <div class="step">1. 先用 Chrome / Edge 打开 <a href="https://www.douyin.com/" target="_blank" rel="noopener">www.douyin.com</a>，随便刷一刷（<b>不用登录</b>）。</div>
     <div class="step">2. 回到本页面重新点"解析并下载"（上面的"自动读取浏览器 Cookie"勾选框保持打开）。</div>
-    <div class="step">3. 如果还是失败：回到抖音页面按 <code>F12</code> → 切到 <b>Network（网络）</b> → 刷新页面 →
-        点击第一个 <code>douyin.com</code> 请求 → 在 <b>Request Headers</b> 里找到 <code>Cookie</code> 一行，
-        右键 → <b>Copy value</b>，粘贴到上面输入框并点"保存 Cookie"，然后重新下载。</div>
-    <div class="step">4. 依旧失败：多半是抖音更新了风控，请在终端执行 <code>pip install -U yt-dlp</code> 升级后再试。</div>
+    <div class="step">3. 如果还是失败：把 Chrome / Edge <b>完全关掉</b>再试一次 —— 浏览器开着时 Cookie 数据库被占用，读不出来。</div>
+    <div class="step">4. 反复失败：抖音要求请求带一份"游客 Cookie"。在能正常打开抖音的浏览器里按 <code>F12</code> →
+        切到 <b>Network（网络）</b> → 刷新页面 → 点第一个 <code>douyin.com</code> 请求 →
+        在 <b>Request Headers</b> 里找到 <code>Cookie</code> 一行，右键 → <b>Copy value</b>，
+        把整条值存成本机文件 <code>douyin_cookies.txt</code>（放在工具所在目录；容器里用环境变量
+        <code>TB_DOUYIN_COOKIE</code> 指到挂载卷），之后解析和取文案都会自动使用。</div>
+    <div class="step">5. 依旧失败：多半是抖音更新了风控，请在终端执行 <code>pip install -U yt-dlp</code> 升级后再试。</div>
   </details>
 </div>
 
 <script>
 var BASE = '';
 var dlUrl = null;
+var capMd = '';       // 最近一次取到的文案 Markdown
+var capName = '';     // 后端建议的文件名
 
 function show(html) {
   var box = document.getElementById('status');
@@ -192,7 +205,6 @@ function show(html) {
 async function start() {
   var raw = document.getElementById('url').value.trim();
   var useBrowser = document.getElementById('useBrowser').checked;
-  var cookie = document.getElementById('cookieText').value.trim();
   var btn = document.getElementById('btn');
   if (!raw) { show('<span class="err">请先粘贴抖音链接。</span>'); return; }
   btn.disabled = true;
@@ -201,7 +213,7 @@ async function start() {
     var resp = await fetch(BASE + '/douyin/api/parse', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: raw, cookie: cookie, use_browser: useBrowser })
+      body: JSON.stringify({ url: raw, use_browser: useBrowser })
     });
     var data = await resp.json();
     if (data.ok) {
@@ -228,25 +240,65 @@ async function start() {
   }
 }
 
-async function saveCookie() {
-  var cookie = document.getElementById('cookieText').value.trim();
-  var st = document.getElementById('cookieStatus');
+function setCapMeta(text) {
+  document.getElementById('capMeta').textContent = text || '';
+}
+
+/* 取视频文案：Markdown 由后端拼好回传，这里只管展示和复制 / 下载 */
+async function getCaption() {
+  var raw = document.getElementById('url').value.trim();
+  var useBrowser = document.getElementById('useBrowser').checked;
+  var btn = document.getElementById('capBtn');
+  if (!raw) { show('<span class="err">请先粘贴抖音链接。</span>'); return; }
+  btn.disabled = true;
+  show('<span class="spinner"></span> 正在抓取视频文案…（正常需要几秒）');
   try {
-    var resp = await fetch(BASE + '/douyin/api/cookie', {
+    var resp = await fetch(BASE + '/douyin/api/caption', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cookie: cookie })
+      body: JSON.stringify({ url: raw, use_browser: useBrowser })
     });
     var data = await resp.json();
-    st.textContent = data.message || '';
-    st.style.color = data.ok ? TBc('--tb-ok') : TBc('--tb-err');
+    if (data.ok && data.markdown) {
+      capMd = data.markdown;
+      capName = data.filename || '';
+      document.getElementById('capOut').value = capMd;
+      setCapMeta('✅ 已取到（通道：' + (data.channel || '未知') + '）。复制或下载都可以。');
+      document.getElementById('capCard').hidden = false;
+      show('<span class="info">✅ 文案取到了，就在下面的「视频文案」卡片里。</span>');
+      try {
+        document.getElementById('capCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } catch (e) { /* 老浏览器不吃带参数的 scrollIntoView，忽略 */ }
+    } else {
+      var hint = data.hint ? '<div class="info">💡 ' + data.hint + '</div>' : '';
+      show('<span class="err">❌ ' + (data.message || '获取文案失败') + '</span>' + hint);
+    }
   } catch (e) {
-    st.textContent = '保存失败：' + e;
-    st.style.color = TBc('--tb-err');
+    show('<span class="err">网络或服务器异常：' + e + '</span>');
+  } finally {
+    btn.disabled = false;
   }
 }
 
+function copyCaption() {
+  if (!capMd) return;
+  if (!window.TBExport) { setCapMeta('导出模块没加载上，请手动全选下面的内容复制。'); return; }
+  TBExport.copy(capMd).then(function (ok) {
+    setCapMeta(ok ? '✅ 已复制到剪贴板。' : '这浏览器不让复制，请手动全选下面的内容。');
+  });
+}
+
+function downloadCaption() {
+  if (!capMd) return;
+  if (!window.TBExport) { setCapMeta('导出模块没加载上，请手动全选下面的内容复制。'); return; }
+  var name = capName || TBExport.filename('抖音文案', { ext: 'md' });
+  setCapMeta(TBExport.download(capMd, name) ? '✅ 已开始下载。' : '这浏览器不支持直接下载，请手动复制。');
+}
+
 document.getElementById('btn').addEventListener('click', start);
+document.getElementById('capBtn').addEventListener('click', getCaption);
+document.getElementById('capCopy').addEventListener('click', copyCaption);
+document.getElementById('capDl').addEventListener('click', downloadCaption);
 document.getElementById('url').addEventListener('keydown', function (e) {
   if (e.key === 'Enter') start();
 });
@@ -270,7 +322,7 @@ def _cookie_kind_hint():
     return (
         "抖音当前需要携带网页访问 Cookie（游客状态即可，无需登录）。"
         "请先在浏览器打开一次 douyin.com，再重试；仍不行就按页面下方帮助步骤，"
-        "手动复制一份最新 Cookie 粘贴保存后再试。"
+        "把最新的一份 Cookie 写进 douyin_cookies.txt（容器里用 TB_DOUYIN_COOKIE 指定路径）后再试。"
     )
 
 
@@ -548,8 +600,9 @@ def _pick_detail_url(video_info):
     return max(candidates, key=score)["url"]
 
 
-def _detail_api_parse(video_id, cookie_text):
-    """通道：用游客 Cookie 直接请求抖音 Web 详情接口（页面同款参数），拿到视频直链。"""
+def _detail_api_fetch(video_id, cookie_text):
+    """请求抖音 Web 详情接口（页面同款参数），返回原始 aweme_detail 字典。
+    下载和取文案共用这一份，省得两处各写一遍请求头。"""
     api_url = ("https://www.douyin.com/aweme/v1/web/aweme/detail/?"
                "device_platform=webapp&aid=6383&channel=channel_pc_web"
                "&aweme_id=" + video_id + "&request_source=600&origin_type=video_page"
@@ -579,6 +632,12 @@ def _detail_api_parse(video_id, cookie_text):
     if not detail:
         raise DouyinError("游客 Cookie 详情接口未返回视频数据（偶发风控或 Cookie 失效）",
                           "blocked", hint=_cookie_kind_hint())
+    return detail
+
+
+def _detail_api_parse(video_id, cookie_text):
+    """通道：用游客 Cookie 直接请求抖音 Web 详情接口，拿到视频直链。"""
+    detail = _detail_api_fetch(video_id, cookie_text)
     video_info = detail.get("video") or {}
     play_url = _pick_detail_url(video_info)
     if not play_url:
@@ -802,7 +861,7 @@ def _do_parse(raw_text, manual_cookie, use_browser):
     if browser_locked:
         hints.append("另外：自动读取浏览器 Cookie 失败，多半是 Chrome/Edge 正在运行导致数据库被占用。"
                      "请先完全关闭 Chrome/Edge 再重试；若关闭后仍失败（新版浏览器加密 Cookie），"
-                     "就按页面下方帮助步骤，手动复制一份 Cookie 粘贴保存，最省事。")
+                     "就按页面下方帮助步骤，把一份最新 Cookie 写进 douyin_cookies.txt，最省事。")
     hint = " ".join(hints)
     raise DouyinError(message, "blocked", hint=hint)
 
@@ -837,6 +896,203 @@ def _register_job(result):
         "created": time.time(),
     }
     return token
+
+
+# =========================================================
+# 视频文案：抓下来拼成一份 Markdown
+#   文案 = 作者写的正文（desc）+ 话题标签 + 发布时间 / 互动数据，
+#   不是语音转写 —— 抖音没有公开的字幕接口，视频里"说"的内容取不到。
+# =========================================================
+def _fmt_publish(ts):
+    """秒级时间戳 -> 'YYYY-MM-DD HH:MM'；拿不到就返回空串。"""
+    try:
+        ts = int(ts)
+    except (TypeError, ValueError):
+        return ""
+    if ts <= 0:
+        return ""
+    try:
+        return time.strftime("%Y-%m-%d %H:%M", time.localtime(ts))
+    except (ValueError, OSError):
+        return ""
+
+
+def _fmt_count(n):
+    """12345 -> '1.2万'；拿不到 -> 空串（调用方直接跳过这一项）。"""
+    try:
+        n = int(n)
+    except (TypeError, ValueError):
+        return ""
+    if n < 0:
+        return ""
+    if n >= 100000000:
+        return ("%.1f" % (n / 100000000.0)).rstrip("0").rstrip(".") + "亿"
+    if n >= 10000:
+        return ("%.1f" % (n / 10000.0)).rstrip("0").rstrip(".") + "万"
+    return str(n)
+
+
+def _caption_meta(**kw):
+    """文案字段统一在这张表里补齐，后面拼 Markdown 时不用到处 get。"""
+    meta = {"video_id": "", "share_url": "", "desc": "", "author": "",
+            "publish": "", "duration": "", "tags": [], "stats": "", "channel": ""}
+    meta.update(kw)
+    return meta
+
+
+def _tags_from_desc(desc):
+    """接口没给话题列表时，从正文里的 #xxx 兜底捞一遍。"""
+    tags = []
+    for tag in re.findall(r"#([^\s#]{1,30})", desc or ""):
+        tag = tag.strip()
+        if tag and tag not in tags:
+            tags.append(tag)
+    return tags
+
+
+def _caption_from_detail(detail, video_id, share_url, channel):
+    """详情接口这条路信息最全：正文、话题、发布时间、互动数据都有。"""
+    author_info = detail.get("author") or {}
+    desc = (detail.get("desc") or "").strip()
+    tags = []
+    for item in detail.get("text_extra") or []:
+        tag = (item.get("hashtag_name") or "").strip()
+        if tag and tag not in tags:
+            tags.append(tag)
+    if not tags:
+        tags = _tags_from_desc(desc)
+    duration = (detail.get("video") or {}).get("duration") or 0
+    stats = detail.get("statistics") or {}
+    parts = []
+    for label, key in (("点赞", "digg_count"), ("评论", "comment_count"),
+                       ("收藏", "collect_count"), ("分享", "share_count")):
+        value = _fmt_count(stats.get(key))
+        if value:
+            parts.append(label + " " + value)
+    return _caption_meta(
+        video_id=video_id, share_url=share_url, desc=desc,
+        author=author_info.get("nickname") or author_info.get("unique_id") or "",
+        publish=_fmt_publish(detail.get("create_time")),
+        duration=("%g" % (int(duration) / 1000.0)) if duration else "",
+        tags=tags, stats=" · ".join(parts), channel=channel,
+    )
+
+
+def _caption_from_ytdl(info, video_id, share_url, channel):
+    """yt-dlp 兜底：抖音 extractor 会把文案塞在 description / title 里。"""
+    desc = (info.get("description") or "").strip() or (info.get("title") or "").strip()
+    tags = []
+    for tag in info.get("tags") or []:
+        tag = str(tag).strip().lstrip("#")
+        if tag and tag not in tags:
+            tags.append(tag)
+    if not tags:
+        tags = _tags_from_desc(desc)
+    publish = str(info.get("upload_date") or "")
+    if len(publish) == 8:
+        publish = publish[:4] + "-" + publish[4:6] + "-" + publish[6:]
+    parts = []
+    for label, key in (("点赞", "like_count"), ("评论", "comment_count"),
+                       ("收藏", "favorite_count"), ("分享", "repost_count")):
+        value = _fmt_count(info.get(key))
+        if value:
+            parts.append(label + " " + value)
+    duration = info.get("duration")
+    return _caption_meta(
+        video_id=video_id, share_url=share_url, desc=desc,
+        author=info.get("channel") or info.get("uploader") or info.get("creator") or "",
+        publish=publish,
+        duration=("%g" % float(duration)) if duration else "",
+        tags=tags, stats=" · ".join(parts), channel=channel,
+    )
+
+
+def _caption_title(meta):
+    """拿正文第一行当标题，没有就退回 douyin_<id>；文件名也用它。"""
+    desc = (meta.get("desc") or "").strip()
+    for line in desc.splitlines():
+        line = re.sub(r"\s+", " ", line).strip()
+        if line:
+            return line[:60]
+    return ("douyin_" + (meta.get("video_id") or "")) if meta.get("video_id") else "抖音文案"
+
+
+def _caption_markdown(meta):
+    """归一化字段 -> 一份可以直接贴出去的 Markdown。"""
+    desc = (meta.get("desc") or "").strip()
+    out = ["# " + _caption_title(meta), ""]
+    pairs = [("视频链接", meta.get("share_url") or "")]
+    for key, label, suffix in (("author", "作者", ""), ("publish", "发布时间", ""),
+                               ("duration", "时长", " 秒"), ("stats", "互动", ""),
+                               ("channel", "获取通道", "")):
+        value = meta.get(key)
+        value = value.strip() if isinstance(value, str) else value
+        if value:
+            pairs.append((label, str(value) + suffix))
+    out.append("\n".join("- **" + k + "**：" + v for k, v in pairs))
+    out.append("")
+    out.append("## 文案正文")
+    out.append("")
+    out.append(desc if desc else "（这条视频没有文字文案）")
+    if meta.get("tags"):
+        out.append("")
+        out.append("## 话题标签")
+        out.append("")
+        out.append(" ".join("#" + str(t) for t in meta["tags"]))
+    return "\n".join(out).strip() + "\n"
+
+
+def _do_caption(raw_text, manual_cookie, use_browser):
+    """按通道顺序取文案信息，返回归一化后的字段。
+
+    1. 游客 Cookie 详情接口：文案 / 话题 / 发布时间 / 互动数据最全
+    2. yt-dlp（带 Cookie，再不带 Cookie）：至少能拿到正文和作者
+    3. 实在不行退回完整解析链路，能捞一点是一点
+    """
+    link = _extract_link_from_text(raw_text)
+    host = _host_of(link)
+    if not _is_douyin_host(host):
+        raise DouyinError("目前只支持抖音链接（douyin.com / v.douyin.com）", "bad_url")
+    final_url = _resolve_url(link)
+    video_id = _extract_video_id(final_url)
+    share_url = "https://www.douyin.com/video/" + video_id
+    cookie_text = (manual_cookie or "").strip() or _load_saved_cookie()
+
+    errors = []
+
+    if cookie_text:
+        try:
+            detail = _detail_api_fetch(video_id, cookie_text)
+            return _caption_from_detail(detail, video_id, share_url, "游客 Cookie 详情接口")
+        except DouyinError as exc:
+            errors.append(("游客Cookie详情接口", exc))
+        try:
+            info = _ytdl_extract(share_url, cookie_jar=_cookie_header_to_jar(cookie_text))
+            return _caption_from_ytdl(info, video_id, share_url, "yt-dlp（带 Cookie）")
+        except DouyinError as exc:
+            errors.append(("yt-dlp（带 Cookie）", exc))
+
+    try:
+        info = _ytdl_extract(share_url)
+        return _caption_from_ytdl(info, video_id, share_url, "yt-dlp")
+    except DouyinError as exc:
+        errors.append(("yt-dlp", exc))
+
+    try:
+        result = _do_parse(raw_text, manual_cookie, use_browser)
+        desc = result.get("title") or ""
+        if desc.strip() == ("douyin_" + video_id):
+            desc = ""  # 那是占位标题，不是真文案
+        return _caption_meta(
+            video_id=video_id, share_url=share_url, desc=desc,
+            author=result.get("author") or "", duration=result.get("duration") or "",
+            channel=result.get("channel") or "",
+        )
+    except DouyinError as exc:
+        errors.append(("完整解析链路", exc))
+
+    message = str(errors[-1][1]) if errors else "所有方式都没能取到这条视频的文案"
+    raise DouyinError(message, "blocked", hint=_cookie_kind_hint())
 
 
 # =========================================================
@@ -883,6 +1139,53 @@ def _douyin_parse_json(url, cookie, use_browser):
             "duration": result["duration"],
             "channel": result["channel"],
             "dl_url": f"/douyin/dl/{token}",
+        })
+    except DouyinError as exc:
+        return JSONResponse({
+            "ok": False,
+            "message": str(exc),
+            "kind": exc.kind,
+            "hint": exc.hint,
+        })
+    except Exception as exc:  # 兜底：任何意外错误都转成可读消息
+        return JSONResponse({
+            "ok": False,
+            "message": f"服务器内部错误：{exc.__class__.__name__}: {exc}",
+            "hint": "如果问题持续，请查看运行终端的日志。",
+        })
+
+
+@router.get("/douyin/api/caption")
+def douyin_caption_get(url: str = "", cookie: str = "", use_browser: bool = True):
+    """GET 版本，方便用浏览器地址栏或命令行直接调试。"""
+    return _douyin_caption_json(url, cookie, use_browser)
+
+
+@router.post("/douyin/api/caption")
+async def douyin_caption_post(request: Request):
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    # 里面会发同步网络请求，放线程池里跑，别卡住事件循环
+    return await run_in_threadpool(
+        _douyin_caption_json,
+        payload.get("url", ""),
+        payload.get("cookie", ""),
+        bool(payload.get("use_browser", True)),
+    )
+
+
+def _douyin_caption_json(url, cookie, use_browser):
+    try:
+        meta = _do_caption(url, cookie, use_browser)
+        return JSONResponse({
+            "ok": True,
+            "markdown": _caption_markdown(meta),
+            "title": _caption_title(meta),
+            "author": meta.get("author") or "",
+            "channel": meta.get("channel") or "",
+            "filename": _safe_filename(_caption_title(meta), "douyin_caption") + ".md",
         })
     except DouyinError as exc:
         return JSONResponse({
