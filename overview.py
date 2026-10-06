@@ -138,14 +138,14 @@ def _status(tool: str, payload: dict) -> dict:
             return {'tracked': True, 'open': True, 'label': '还差 %s/%s 个动作' % (len(acts) - done, len(acts))}
         return {'tracked': True, 'open': True, 'label': '还没拆出动作'}
     if tool == 'first_principles':
-        # 第 5 步是收尾（拿到对照表）；前四步都算还没走完
+        # 第 5 步就算收尾了；前四步都算还没走完
         step = payload.get('step') or 1
         try:
             step = int(step)
         except (TypeError, ValueError):
             step = 1
         if step >= 5:
-            return {'tracked': True, 'open': False, 'label': '已出对照表'}
+            return {'tracked': True, 'open': False, 'label': '已收尾'}
         names = {2: '零件待拷问', 3: '拷问中', 4: '从零重算中'}
         return {'tracked': True, 'open': True,
                 'label': names.get(step, '还没拆零件')}

@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2F7E7A">
+<title>第一性原理</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<script>/* 被 /ask-hub 用 iframe 嵌进来时（?embed=1）：外层已经有标题栏和背景了，
+   这里就藏掉自己的顶栏、也不再铺一层粒子，免得两层叠在一起又丑又费电。 */
+try{if(/[?&]embed=1/.test(location.search)){document.documentElement.setAttribute('data-embed','1');window.TB_NO_FX=true;}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<script src="/static/auth-guard.js"></script>
+<script src="/static/voice.js?v=2"></script>
+<script src="/static/asr.js?v=1"></script>
+<script src="/static/export-md.js"></script>
+<style>
+/* 第一性原理：把「我认为只能这么做」拆到不可再分的硬约束，再从零算一遍。
+   配色取青绿（和 5Why 的暖棕、苏格拉底的靛蓝区分开），深色底沿用同一套中性色。 */
+:root{
+  --acc:#2F7E7A; --acc-d:#256360; --acc-l:#EAF4F3; --acc-line:#BFDCD9;
+  --ink:#1B2A2A; --text:#3B4A4A; --muted:#7E9291;
+  --bg:#F5F8F8; --card:#FFFFFF; --line:#E2EAEA;
+  --ok:#3F7A5B; --ok-l:#EDF6F1; --ok-line:#CFE6DA;
+  --warn:#9E6A2C; --warn-l:#FBF3E8; --warn-line:#EBDCC0;
+  --err:#C0392B; --err-l:#FBEDEB; --err-line:#EFD3CE;
+  --r:16px; --sh:0 1px 2px rgba(16,24,40,.04), 0 10px 24px -14px rgba(16,24,40,.18);
+  --bg-blur:rgba(245,248,248,.9); --field:#FFFFFF; --soft:#F1F5F5;
+  --focus-ring:0 0 0 3px rgba(47,126,122,.1);
+}
+[data-theme="dark"]{
+  --acc:#7FD1C8; --acc-d:#A6E0D9; --acc-l:#14231F; --acc-line:#2C4A45;
+  --ink:#EDEFF7; --text:#C6CBDD; --muted:#8B93AB;
+  --bg:#101322; --card:#171A2B; --line:#282D45;
+  --ok:#7CC79E; --ok-l:#12261E; --ok-line:#2A4536;
+  --warn:#E0A868; --warn-l:#241C10; --warn-line:#453722;
+  --err:#FF9B8F; --err-l:#2A1416; --err-line:#52282C;
+  --sh:0 1px 2px rgba(0,0,0,.3), 0 10px 24px -14px rgba(0,0,0,.5);
+  --bg-blur:rgba(16,19,34,.92); --field:#1B1F33; --soft:#20253C;
+  --focus-ring:0 0 0 3px rgba(127,209,200,.16);
+  color-scheme:dark;
+}
+html[data-theme="dark"] .btn.primary,html[data-theme="dark"] .btn.primary:hover{color:#0F1F1D}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+button,input,textarea,select{font-family:inherit;font-size:15px;color:inherit}
+.wrap{max-width:820px;margin:0 auto;padding:0 16px calc(48px + env(safe-area-inset-bottom))}
+.topbar{position:sticky;top:0;z-index:20;background:var(--bg-blur);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line)}
+.topbar-in{max-width:820px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px}
+.ttl{font-size:17px;font-weight:600;color:var(--ink);line-height:1.3}
+.sub{font-size:12px;color:var(--muted);line-height:1.4;margin-top:2px}
+.back{margin-left:auto;flex:0 0 auto;font-size:13px;color:var(--muted);text-decoration:none;
+  border:1px solid var(--line);background:var(--field);border-radius:999px;padding:8px 14px;white-space:nowrap}
+.back:hover{color:var(--ink);border-color:var(--acc-line)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;
+  box-shadow:var(--sh);margin-top:14px}
+.card-h{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.card-sub{font-size:12.5px;color:var(--muted);line-height:1.65}
+.mini{font-size:11.5px;color:var(--muted);line-height:1.7}
+.sec-t{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.02em;margin:20px 2px 0}
+textarea,input[type=text],select{width:100%;border:1px solid var(--line);border-radius:12px;padding:11px 12px;
+  background:var(--field);outline:none;min-height:44px;line-height:1.7;color:var(--ink)}
+textarea{min-height:80px;resize:vertical}
+textarea:focus,input[type=text]:focus,select:focus{border-color:var(--acc-line);box-shadow:var(--focus-ring)}
+textarea::placeholder,input::placeholder{color:var(--muted);opacity:.72}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;
+  border-radius:12px;border:1px solid var(--line);background:var(--field);color:var(--text);cursor:pointer}
+.btn:hover{border-color:var(--acc-line)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.primary:hover{background:var(--acc-d);border-color:var(--acc-d)}
+.btn.primary:disabled{background:var(--soft);border-color:var(--line);color:var(--muted);opacity:1}
+.btn.block{width:100%}
+.btn.big{min-height:52px;font-size:16px;font-weight:600}
+.go-row{display:flex;gap:10px;align-items:stretch}
+.go-row .btn{flex:1 1 auto}
+.btn.sm{min-height:38px;padding:0 12px;font-size:13px;border-radius:10px}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;line-height:1.7;
+  background:var(--acc-l);color:var(--acc);border:1px solid var(--acc-line)}
+.badge.n{background:var(--soft);color:var(--muted);border-color:var(--line)}
+.badge.g{background:var(--ok-l);color:var(--ok);border-color:var(--ok-line)}
+.badge.w{background:var(--warn-l);color:var(--warn);border-color:var(--warn-line)}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+/* ===== 五步进度 ===== */
+.prog{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.prog-i{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;padding:4px 10px;border-radius:999px;
+  border:1px solid var(--line);background:var(--field);color:var(--muted);cursor:default}
+.prog-i i{font-style:normal;font-size:10.5px;width:15px;height:15px;border-radius:50%;
+  background:var(--soft);display:flex;align-items:center;justify-content:center}
+.prog-i.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc);font-weight:600}
+.prog-i.on i{background:var(--acc);color:#fff}
+.prog-i.done{color:var(--ok);border-color:var(--ok-line);background:var(--ok-l)}
+.prog-i.done i{background:var(--ok);color:#fff}
+.steps5{margin:14px 0 0;padding:0;list-style:none;counter-reset:s5}
+.steps5 li{counter-increment:s5;position:relative;padding-left:30px;font-size:12.5px;color:var(--muted);
+  line-height:1.6;margin-bottom:7px}
+.steps5 li::before{content:counter(s5);position:absolute;left:0;top:1px;width:20px;height:20px;
+  border-radius:50%;background:var(--acc-l);color:var(--acc);border:1px solid var(--acc-line);
+  font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.steps5 li b{color:var(--ink);font-weight:600}
+
+/* ===== 零件表（这个工具的产物，不是聊完就散的对话） ===== */
+.meta-line{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.it{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;
+  padding:10px 12px;margin-top:8px;background:var(--field)}
+.it.hard{box-shadow:inset 3px 0 0 var(--acc);border-color:var(--acc-line)}
+.it.soft{opacity:.86}
+.it.ask{border-color:var(--acc);background:var(--acc-l)}
+.it-main{flex:1 1 auto;min-width:0}
+.it-t{font-size:14px;color:var(--ink);line-height:1.6;word-break:break-word}
+.it-t.edit{cursor:text;border-radius:8px;margin:-2px -5px;padding:2px 5px}
+.it-t.edit:hover{background:rgba(47,126,122,.08)}
+.it-t.edit:focus{outline:none;background:rgba(47,126,122,.12)}
+.it-edit{width:100%;min-height:44px;font-size:14px;line-height:1.6;border-radius:9px;
+  padding:6px 8px;border:1px solid var(--acc);background:var(--card);color:var(--text);
+  font-family:inherit;resize:vertical}
+.it-m{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
+.it select{width:auto;min-width:118px;min-height:34px;padding:4px 8px;font-size:12.5px;border-radius:9px}
+.it-x{flex:0 0 32px;width:32px;height:32px;border-radius:9px;border:1px solid var(--line);
+  background:var(--field);color:var(--muted);cursor:pointer;font-size:15px;line-height:1;padding:0}
+.it-x:hover{color:var(--err);border-color:var(--err-line);background:var(--err-l)}
+.it-send{min-height:30px;padding:0 9px;border-radius:8px;border:1px solid var(--line);
+  background:var(--field);color:var(--muted);font-size:11.5px;cursor:pointer;white-space:nowrap}
+.it-send:hover{color:var(--acc);border-color:var(--acc-line)}
+.addrow{display:flex;gap:8px;align-items:flex-start;margin-top:12px;flex-wrap:wrap}
+.addrow input[type=text]{flex:1 1 200px;min-width:0}
+.addrow select{width:auto;min-width:120px}
+/* ===== 拷问对象：多条「事实」时，明确指出正在问哪一条，可以直接点着换 ===== */
+.probebar{border:1px solid var(--acc-line);background:var(--acc-l);border-radius:12px;
+  padding:10px 12px;margin-top:12px}
+.probebar-h{font-size:12.5px;font-weight:600;color:var(--acc);margin-bottom:4px}
+.pchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.pchip{display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:5px 11px;max-width:100%;
+  border-radius:999px;border:1px solid var(--line);background:var(--field);color:var(--text);
+  font-family:inherit;font-size:12.5px;line-height:1.4;text-align:left}
+.pchip:not(:disabled){cursor:pointer}
+.pchip:not(:disabled):hover{border-color:var(--acc);color:var(--ink)}
+.pchip b{flex:0 0 auto;font-weight:600;font-size:11.5px;color:var(--muted)}
+.pchip .t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:min(50vw,300px)}
+.pchip i{flex:0 0 auto;font-style:normal;font-size:11px;color:var(--muted)}
+.pchip.on{border-color:var(--acc);background:var(--card);box-shadow:inset 0 0 0 1px var(--acc)}
+.pchip.on b,.pchip.on i{color:var(--acc)}
+.pchip.on i{font-weight:600}
+.pchip.done{background:var(--ok-l);border-color:var(--ok-line);opacity:.9}
+.pchip.done i{color:var(--ok)}
+.pchip.wait{background:var(--warn-l);border-color:var(--warn-line)}
+.pchip.wait i{color:var(--warn);font-weight:600}
+.pchip:disabled{cursor:default}
+/* 四个问题问完 → 收不收尾由他自己点，两个按钮就放在这条下面 */
+.askdone{margin-top:10px;padding-top:10px;border-top:1px dashed var(--acc-line)}
+.askdone .mini{margin-bottom:8px}
+.askdone-row{display:flex;gap:8px;flex-wrap:wrap}
+.askdone-row .btn{flex:1 1 auto;min-width:150px}
+
+/* 聊天里每条消息挂着「这是在说哪一条零件」 */
+.qtag{display:inline-flex;align-items:center;max-width:100%;font-size:11px;color:var(--acc);
+  background:var(--acc-l);border:1px solid var(--acc-line);border-radius:999px;padding:1px 9px}
+.qtag .t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:min(54vw,320px)}
+
+/* ===== 对话 ===== */
+.msg{margin-top:14px;display:flex;flex-direction:row;align-items:flex-start;gap:9px}
+.msg.me{flex-direction:row-reverse}
+.msg .col{min-width:0;display:flex;flex-direction:column;align-items:flex-start}
+.msg.me .col{align-items:flex-end}
+.av{flex:0 0 34px;width:34px;height:34px;border-radius:11px;overflow:hidden;
+  background:var(--soft);border:1px solid var(--line)}
+.av svg{display:block;width:100%;height:100%}
+.who{font-size:11.5px;color:var(--muted);margin-bottom:5px;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.bubble{border:1px solid var(--line);background:var(--field);border-radius:14px;padding:11px 14px;
+  font-size:15px;line-height:1.75;color:var(--ink);max-width:min(100%,560px);white-space:pre-wrap;word-break:break-word}
+.msg.ai .bubble{border-top-left-radius:4px;box-shadow:inset 3px 0 0 var(--acc-line)}
+.msg.me .bubble{border-top-right-radius:4px;background:var(--acc-l);border-color:var(--acc-line)}
+.msg.think .bubble{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:13.5px}
+.bubble.typing::after{content:'\258D';margin-left:2px;color:var(--acc);opacity:.6;
+  animation:caret 1.05s steps(1) infinite}
+@keyframes caret{50%{opacity:0}}
+.acts{margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.msg.me .acts{justify-content:flex-end}
+.cbtn,.acts .say{width:30px;height:30px;min-height:30px;padding:0;display:inline-flex;align-items:center;
+  justify-content:center;background:none;border:0;font-family:inherit;font-size:11.5px;line-height:1;cursor:pointer}
+.acts .say{margin-top:0;gap:0}
+.cbtn svg,.acts .say svg{display:block;width:15px;height:15px}
+.cbtn{color:var(--muted)}
+.cbtn:hover,.acts .say:hover{color:var(--acc)}
+.cbtn.ok{color:var(--ok)}
+.say.on{color:var(--acc);font-weight:600}
+
+/* ===== 输入 ===== */
+.composer{position:sticky;bottom:0;z-index:2;background:var(--card);border-top:1px dashed var(--line);
+  margin-top:16px;padding:12px 0 4px}
+/* 输入框上面那行「正在拷问第几条」：打字的时候也一直看得见 */
+.composer-ask{display:flex;align-items:baseline;gap:6px;font-size:12px;color:var(--acc);
+  margin-bottom:7px;min-width:0}
+.composer-ask b{flex:0 0 auto;font-weight:600}
+.composer-ask .t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:12.5px;color:var(--ink)}
+.composer textarea{min-height:64px}
+.composer-wait{margin-top:8px}
+.composer-wait .mini{margin-bottom:8px}
+.composer-row{display:flex;align-items:center;gap:10px;margin-top:9px}
+.composer-row .mini{flex:1 1 auto}
+.composer-row .btn{flex:0 0 auto}
+
+/* ===== 收尾对照表 / 从零重算表单 ===== */
+.formrow{margin-top:10px}
+.formrow label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px}
+.report{white-space:pre-wrap;font-size:13.5px;line-height:1.8;color:var(--text);
+  background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+  max-height:460px;overflow:auto;font-family:inherit}
+.honest{border:1px solid var(--ok-line);background:var(--ok-l);color:var(--ok);border-radius:12px;
+  padding:12px 14px;font-size:13.5px;line-height:1.75}
+.err{background:var(--err-l);border:1px solid var(--err-line);border-radius:12px;padding:11px 14px;
+  font-size:13px;color:var(--err);margin-top:12px;line-height:1.7}
+.warnbox{background:var(--warn-l);border:1px solid var(--warn-line);border-radius:12px;padding:11px 14px;
+  font-size:13px;color:var(--warn);margin-top:12px;line-height:1.7}
+.spin{display:inline-block;width:13px;height:13px;border-radius:50%;border:2px solid var(--line);
+  border-top-color:var(--acc);animation:sp .7s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}.bubble.typing::after{animation:none;opacity:.6}}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);z-index:50;
+  background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:10px 16px;
+  font-size:13.5px;box-shadow:var(--sh);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* ===== 冻结行（像 Excel 首行冻结）：下拉时只有下面的对话在动 =====
+   --stick 由 syncStick() 按顶栏实际高度写入，拿不到时用兜底值。 */
+.linerow{display:flex;align-items:center;gap:10px;position:sticky;top:var(--stick,66px);z-index:5;
+  margin:16px -16px 0;padding:9px 16px;background:var(--card);border-bottom:1px solid var(--line)}
+.linerow .mini{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.linerow .btn{flex:0 0 auto}
+
+/* ===== 右侧历史 ===== */
+.hist-i{display:flex;align-items:stretch;gap:4px;margin-top:8px}
+.hist-open{flex:1 1 auto;min-width:0;text-align:left;padding:10px 12px;border:1px solid var(--line);
+  border-radius:12px;background:var(--field);cursor:pointer;transition:border-color .15s,background .15s}
+.hist-open:hover{border-color:var(--acc-line);background:var(--acc-l)}
+.hist-i.on .hist-open{border-color:var(--acc);background:var(--acc-l);box-shadow:inset 3px 0 0 var(--acc)}
+.hist-t{display:block;font-size:14px;font-weight:600;color:var(--ink);line-height:1.45;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist-m{display:block;font-size:11px;color:var(--muted);margin-top:3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist-del{flex:0 0 34px;border:1px solid var(--line);border-radius:10px;background:var(--field);
+  color:var(--muted);cursor:pointer;font-size:15px;line-height:1}
+.hist-del:hover{color:var(--err);border-color:var(--err-line);background:var(--err-l)}
+.hist-exp{flex:0 0 34px;border:1px solid var(--line);border-radius:10px;background:var(--field);
+  color:var(--muted);font-family:inherit;font-size:14px;cursor:pointer}
+.hist-exp:hover{color:var(--acc);border-color:var(--acc-line);background:var(--acc-l)}
+.hist-exp:disabled{opacity:.55;cursor:default}
+.col-main{min-width:0}
+.hist-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.hist-head .card-h{margin-bottom:0}
+.hist-head .vctl{margin-left:auto}
+.vctl{display:flex;gap:8px;align-items:center;flex:0 0 auto}
+.vctl[hidden]{display:none}
+.vbtn{min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);
+  background:var(--field);color:var(--muted);font-size:12.5px;cursor:pointer;white-space:nowrap}
+.vbtn:hover{border-color:var(--acc-line);color:var(--ink)}
+.vbtn.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc);font-weight:600}
+.vbtn[hidden]{display:none}
+.hsearch{position:relative;margin-top:6px}
+.hsearch input{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px 34px 10px 12px;
+  background:var(--field);color:var(--ink);font-size:14px;outline:none;min-height:42px}
+.hsearch input:focus{border-color:var(--acc-line);box-shadow:var(--focus-ring)}
+.hq-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:26px;height:26px;
+  border:0;border-radius:50%;background:var(--soft);color:var(--muted);cursor:pointer;
+  font-size:15px;line-height:1;padding:0}
+.hq-clear:hover{color:var(--err)}
+.hq-info{margin-top:6px}
+.hq-info:empty{display:none}
+#history mark{background:var(--acc-l);color:var(--acc);border-radius:3px;padding:0 1px}
+.hist-s{display:block;font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.55;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (min-width:1100px){
+  .topbar-in,.wrap{max-width:1180px}
+  .wrap{display:grid;grid-template-columns:minmax(0,1fr) 292px;gap:22px;align-items:start}
+  .col-side{position:sticky;top:var(--stick,78px)}
+}
+@media (max-width:560px){
+  .vbtn{padding:0 9px;font-size:12px}
+  .back{padding:8px 10px;font-size:12.5px}
+  .it{flex-wrap:wrap}
+}
+/* ===== embed 模式（被 /ask-hub 嵌进 iframe）：
+   标题和「返回工具箱」外层已经有了，整条顶栏藏掉；
+   顶栏一藏，吸顶偏移也得跟着归零，右栏才能和左栏的顶部对齐。 ===== */
+html[data-embed]{--stick:0px}
+html[data-embed] .topbar{display:none}
+/* ===== 语音输入（/static/asr.js） =====
+   录音按钮：和发送按钮并排的一个方形图标钮；录的时候红色呼吸，转文字时变色。 */
+.mic{flex:0 0 auto;width:44px;height:44px;min-height:44px;padding:0;display:inline-flex;
+  align-items:center;justify-content:center;border-radius:12px;border:1px solid var(--line);
+  background:var(--field);color:var(--muted);cursor:pointer;
+  transition:border-color .15s,color .15s,background .15s}
+.mic svg{display:block;width:19px;height:19px}
+.mic:hover{border-color:var(--acc-line);color:var(--ink)}
+.mic.rec{border-color:var(--err);background:var(--err-l);color:var(--err);animation:micPulse 1.3s ease-out infinite}
+.mic.busy{border-color:var(--acc-line);color:var(--acc)}
+@keyframes micPulse{0%{box-shadow:0 0 0 0 rgba(192,57,43,.30)}70%{box-shadow:0 0 0 8px rgba(192,57,43,0)}100%{box-shadow:0 0 0 0 rgba(192,57,43,0)}}
+@media (prefers-reduced-motion:reduce){.mic.rec{animation:none}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div>
+      <div class="ttl">第一性原理</div>
+      <div class="sub">把「只能这么做」拆成零件，再从零算一遍</div>
+    </div>
+    <a class="back" href="/">← 返回工具箱</a>
+    <span class="tb-mount"></span>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="col-main">
+    <section id="start"></section>
+    <section id="panel"></section>
+    <section id="chat"></section>
+  </div>
+  <aside class="col-side">
+    <div class="card">
+      <div class="hist-head">
+        <div class="card-h">历史记录</div>
+        <div class="vctl" id="vctl" hidden>
+          <button class="vbtn" id="vStop" type="button" hidden>⏹ 停</button>
+          <button class="vbtn" id="vAuto" type="button" aria-pressed="false">🔊 自动朗读</button>
+        </div>
+      </div>
+      <div class="hsearch">
+        <input type="text" id="hq" placeholder="搜目标、零件、聊过的内容" autocomplete="off" spellcheck="false" aria-label="搜索历史记录">
+        <button class="hq-clear" id="hqClear" type="button" title="清空搜索" hidden>×</button>
+      </div>
+      <div class="hq-info mini" id="hqInfo"></div>
+      <div id="history"></div>
+    </div>
+  </aside>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+(function(){
+'use strict';
+
+/* 第一性原理：五步由服务端定进度，这里只负责画和发。
+   和 5Why 的区别不在提示词里，在产物上 —— 这个工具的产物是那张零件表 + 下限，
+   所以零件表在屏幕上一直是主角，对话只是过程记录。 */
+
+var STEPS = ['摆目标', '拆零件', '逐条拷问', '从零重算', '收尾'];
+/* 收尾对照表：先不显示，等这个工具用熟了再决定要不要。
+   后端一直在算并存着对照表，想打开就把这行改成 true。 */
+var SHOW_REPORT = false;
+/* 每条零件要问几个问题。默认 4，/status 拿到真值后覆盖。 */
+var PROBE_TOTAL = 4;
+
+var S = {
+  ai: true, busy: false, err: '',
+  sid: null, sess: null, draft: '',
+  kinds: [], probe: [], stepName: [],
+  items: [], listErr: '', hq: '', pin: true, _offScroll: null,
+  sendNote: null            // 「送去 5Why / 苏格拉底」用
+};
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function toast(msg){
+  var t = $('toast');
+  if(!t){ return; }
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function(){ t.classList.remove('show'); }, 2400);
+}
+function stepName(n){
+  n = Number(n) || 0;
+  if(n <= 0){ return '开场'; }
+  return STEPS[Math.min(n, STEPS.length) - 1];
+}
+function kindName(key){
+  for(var i = 0; i < S.kinds.length; i++){
+    if(S.kinds[i].key === key){ return S.kinds[i].name; }
+  }
+  return key === 'fact' ? '事实' : (key || '未分类');
+}
+function shortTime(t){
+  var s = String(t || '');
+  return s.length >= 16 ? s.slice(5, 16) : s;
+}
+function short(text, n){
+  var t = String(text == null ? '' : text);
+  return t.length > n ? (t.slice(0, n - 1) + '…') : t;
+}
+/* 当前正在拷问哪一条，顺带给出它在零件表里的序号 */
+function askNow(){
+  var s = S.sess || {};
+  var items = s.items || [];
+  for(var i = 0; i < items.length; i++){
+    if(String(items[i].id) === String(s.ask_item)){ return { it:items[i], no:i + 1 }; }
+  }
+  return null;
+}
+function curPi(){
+  var v = Number((S.sess || {}).ask_pi);
+  return (isNaN(v) || v < 0) ? 0 : v;
+}
+/* 这条消息是在说哪一条零件。那条零件被删了就不显示，不拿 id 糊弄人。 */
+function itemTagHTML(id, mine){
+  if(!id || !S.sess){ return ''; }
+  var items = S.sess.items || [];
+  for(var i = 0; i < items.length; i++){
+    if(String(items[i].id) === String(id)){
+      return '<span class="qtag" title="' + esc(items[i].text) + '">' + (mine ? '回答 · ' : '') +
+        '第 ' + (i + 1) + ' 条 · <span class="t">' + esc(short(items[i].text, 16)) + '</span></span>';
+    }
+  }
+  return '';
+}
+function qParam(name){
+  try{
+    var m = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search || '');
+    return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : '';
+  }catch(e){ return ''; }
+}
+function wantRecId(){
+  var v = qParam('r');
+  return /^[0-9]+$/.test(v) ? v : '';
+}
+/* 互送：接住别的工具递过来的那句话，只预填、不自动提交 —— 他还能改。
+   不带这几个参数时，行为和普通新建一模一样。 */
+var PRE = { prefill: qParam('prefill'), from: qParam('from'), src: qParam('src') };
+
+/* ===================== 朗读（/static/voice.js） =====================
+   声音只有一种：服务端的火山引擎（豆包）。没引到 voice.js，整块朗读自动消失。 */
+var VOICE = (window.TBVoice && window.TBVoice.available()) ? window.TBVoice : null;
+var sayTexts = [];
+var autoReadNext = false;
+
+function syncSay(st){
+  if(!VOICE){ return; }
+  st = st || { speaking: VOICE.isSpeaking(), text: VOICE.currentText() };
+  var cur = String(st.text || '');
+  Array.prototype.forEach.call(document.querySelectorAll('.say[data-say]'), function(b){
+    var t = sayTexts[Number(b.getAttribute('data-say'))] || '';
+    var on = !!(st.speaking && t && t === cur);
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  var sb = $('vStop');
+  if(sb){ sb.hidden = !st.speaking; }
+}
+function syncAuto(){
+  var b = $('vAuto');
+  if(b && VOICE){ b.classList.toggle('on', VOICE.autoOn()); }
+}
+function bindSay(){
+  if(!VOICE){ return; }
+  Array.prototype.forEach.call(document.querySelectorAll('.say[data-say]'), function(b){
+    b.onclick = function(){
+      var t = sayTexts[Number(b.getAttribute('data-say'))] || '';
+      if(t){ VOICE.toggle(t); }
+    };
+  });
+}
+function autoReadLast(){
+  if(!VOICE || !VOICE.autoOn()){ return; }
+  var msgs = (S.sess && S.sess.msgs) || [];
+  for(var i = msgs.length - 1; i >= 0; i--){
+    if(msgs[i].role !== 'me' && msgs[i].text){ VOICE.speak(msgs[i].text); return; }
+  }
+}
+function initVoice(){
+  var box = $('vctl');
+  if(!VOICE){ if(box){ box.hidden = true; } return; }
+  if(box){ box.hidden = false; }
+  /* 念不出来时（没配 Key / 断网 / 被浏览器拦），把服务端那句话直接弹出来，
+     不要静悄悄地什么都不发生。 */
+  document.addEventListener('tbvoice:error', function(e){
+    toast((e.detail && e.detail.message) || '朗读失败了');
+  });
+  VOICE.on(syncSay);
+  VOICE.on(syncAuto);
+  var auto = $('vAuto');
+  if(auto){
+    auto.onclick = function(){
+      var on = !VOICE.autoOn();
+      VOICE.setAuto(on);
+      syncAuto();
+      if(!on){ VOICE.stop(); return; }
+      toast(VOICE.hasZhVoice() ? '新回复会自动念出来' : '这台设备好像没装中文语音，念起来可能有点怪');
+    };
+  }
+  var sb = $('vStop');
+  if(sb){ sb.onclick = function(){ VOICE.stop(); }; }
+}
+
+/* ===================== 语音输入（/static/asr.js） =====================
+   点一下开始录、再点一下结束，识别出来的文字填进输入框 —— 不自动发送，
+   识别错一个字改一下比删了重打便宜。
+   录音必须 https（或者 127.0.0.1），不是的话按钮还在，点了会告诉你为什么。
+   没引到 asr.js 时按钮直接不出现，页面照常用。 */
+var MIC_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"' +
+  ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<rect x="9" y="2.5" width="6" height="11" rx="3"/>' +
+  '<path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/><path d="M8.5 21h7"/></svg>';
+
+function micBtnHTML(btnId){
+  if(!window.TBASR){ return ''; }
+  return '<button class="mic" type="button" id="' + (btnId || 'micBtn') + '" aria-label="语音输入"' +
+    ' title="语音输入（点一下开始，再点一下结束）">' + MIC_ICO + '</button>';
+}
+
+/* 聊天框直接 bindMic()；开始那张卡的输入框不是 #say，要把输入框 id 传进来 */
+function bindMic(inputId, btnId){
+  var btn = $(btnId || 'micBtn');
+  if(!btn || !window.TBASR){ return; }
+  TBASR.bind(btn, { input: $(inputId || 'say'), onError: toast });
+}
+
+/* ===================== 复制单条消息 ===================== */
+var copyTexts = [];
+var SVG_OPEN = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"' +
+  ' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+var COPY_ICO = SVG_OPEN +
+  '<rect x="8" y="8" width="13" height="13" rx="2.5"/>' +
+  '<path d="M4.5 15.5A2.5 2.5 0 0 1 2 13V4.5A2.5 2.5 0 0 1 4.5 2H13a2.5 2.5 0 0 1 2.5 2.5"/></svg>';
+var DONE_ICO = SVG_OPEN + '<path d="M20 6.5 9.5 17 4 11.5"/></svg>';
+var SPK_ICO  = SVG_OPEN +
+  '<path d="M11 5 6 9H3v6h3l5 4V5Z"/>' +
+  '<path d="M15.5 8.5a5 5 0 0 1 0 7"/>' +
+  '<path d="M18.8 5.2a9.5 9.5 0 0 1 0 13.6"/></svg>';
+
+function pushCopy(t){ copyTexts.push(String(t == null ? '' : t)); return copyTexts.length - 1; }
+function copyBtnHTML(i){
+  return '<button class="cbtn" type="button" data-copy="' + i + '" title="复制这条内容"' +
+    ' aria-label="复制这条内容">' + COPY_ICO + '</button>';
+}
+function fallbackCopy(t, done, fail){
+  var ta = document.createElement('textarea');
+  ta.value = t;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  var ok = false;
+  try{ ta.select(); ta.setSelectionRange(0, t.length); ok = document.execCommand('copy'); }
+  catch(e){ ok = false; }
+  document.body.removeChild(ta);
+  if(ok){ done(); }
+  else { toast('复制不了，手动选一下吧'); if(fail){ fail(); } }
+}
+function copyText(t, cb){
+  var ok = function(){ cb(true); };
+  var no = function(){ cb(false); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(ok, function(){ fallbackCopy(t, ok, no); });
+  } else {
+    fallbackCopy(t, ok, no);
+  }
+}
+function copyBtnDone(b, ok){
+  b.classList.toggle('ok', !!ok);
+  b.innerHTML = ok ? DONE_ICO : COPY_ICO;
+  clearTimeout(b._ct);
+  if(ok){ b._ct = setTimeout(function(){ b.classList.remove('ok'); b.innerHTML = COPY_ICO; }, 1400); }
+}
+function bindCopy(){
+  var el = $('chat');
+  if(!el){ return; }
+  Array.prototype.forEach.call(el.querySelectorAll('.cbtn[data-copy]'), function(b){
+    b.onclick = function(){
+      var t = copyTexts[Number(b.getAttribute('data-copy'))] || '';
+      if(!t){ return; }
+      copyText(t, function(ok){ copyBtnDone(b, ok); });
+    };
+  });
+}
+/* ===================== 导出 Markdown（/static/export-md.js） ===================== */
+var EX = (window.TBExport && typeof window.TBExport.doc === 'function') ? window.TBExport : null;
+
+function exportMeta(s){
+  var meta = [['目标', s.goal || '—'], ['记于', s.started_at || '—']];
+  if(s.blocked){ meta.push(['结论', '没有可拆解的空间']); }
+  else if(s.step >= 5){ meta.push(['结论', '拷问后有可拆解空间']); }
+  if(s.src && s.src.name){
+    meta.push(['来自', s.src.name + (s.src.id ? (' #' + s.src.id) : '')]);
+  }
+  return meta;
+}
+function exportMd(s){
+  var body = String(s.report || '').replace(/^#[^\n]*\n+/, '');
+  return EX.doc({ title: '第一性原理拆解：' + (s.goal || ''), meta: exportMeta(s), body: [body] });
+}
+function exportSession(s){
+  if(!EX || !s){ return; }
+  EX.download(exportMd(s), EX.filename('第一性原理 ' + (s.title || s.goal || '拆解')));
+}
+function exportById(id, btn){
+  if(!EX){ return; }
+  if(btn){ btn.disabled = true; }
+  req('GET', '/first-principles/api/sessions/' + id).then(function(d){
+    if(btn){ btn.disabled = false; }
+    if(!d.ok){ toast(d.message || '这条读不出来，导不了'); return; }
+    exportSession(d.session);
+  });
+}
+
+/* ===================== 请求 ===================== */
+function req(method, path, body){
+  var opt = { method:method, headers:{} };
+  if(body !== undefined){ opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
+  return fetch(path, opt).then(function(r){
+    return r.text().then(function(txt){
+      var d = {};
+      try{ d = JSON.parse(txt) || {}; }catch(e){ d = {}; }
+      if(d.ok === undefined){ d.ok = r.ok; }
+      if(!d.ok && !d.message){ d.message = '服务返回 ' + r.status; }
+      return d;
+    });
+  }).catch(function(){ return { ok:false, message:'请求失败，看看服务还在不在' }; });
+}
+
+/* 流式：服务端一个字一个字推（SSE 的 data: 行里包着 JSON），边收边回调。 */
+function streamReq(path, body, onEvent){
+  return fetch(path, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify(body)
+  }).then(function(r){
+    if(!r.ok || !r.body || !r.body.getReader){
+      return r.text().then(function(txt){
+        var d = {};
+        try{ d = JSON.parse(txt) || {}; }catch(e){ d = {}; }
+        return { ok:false, message: d.message || ('服务返回 ' + r.status) };
+      });
+    }
+    var reader = r.body.getReader();
+    var dec = new TextDecoder('utf-8');
+    var buf = '', out = {};
+    function drain(raw){
+      var lines = raw.split('\n');
+      for(var i = 0; i < lines.length; i++){
+        var line = lines[i];
+        if(line.indexOf('data:') !== 0){ continue; }
+        var payload = line.slice(5).trim();
+        if(!payload){ continue; }
+        var d = null;
+        try{ d = JSON.parse(payload); }catch(e){ continue; }
+        if(!d){ continue; }
+        if(d.err){ out.err = d.err; continue; }
+        if(d.cut){ out.cut = d.cut; continue; }
+        if(onEvent){ onEvent(d); }
+      }
+    }
+    function pump(){
+      return reader.read().then(function(res){
+        if(res.done){ drain(buf); buf = ''; return; }
+        buf += dec.decode(res.value, { stream:true });
+        var i;
+        while((i = buf.indexOf('\n\n')) >= 0){
+          drain(buf.slice(0, i));
+          buf = buf.slice(i + 2);
+        }
+        return pump();
+      });
+    }
+    return pump().then(function(){
+      if(out.err){ return { ok:false, message: out.err }; }
+      return { ok:true, cut: out.cut || '' };
+    });
+  }).catch(function(){
+    return { ok:false, message:'连接断了，看看服务还在不在' };
+  });
+}
+
+/* ===================== 五步进度 ===================== */
+function renderProg(){
+  var el = $('prog');
+  if(!el){ return; }
+  var step = S.sess ? (Number(S.sess.step) || 1) : 1;
+  var h = STEPS.map(function(name, i){
+    var n = i + 1;
+    var cls = n < step ? 'done' : (n === step ? 'on' : '');
+    var mark = n < step ? '✓' : String(n);
+    return '<span class="prog-i ' + cls + '"><i>' + mark + '</i>' + esc(name) + '</span>';
+  }).join('');
+  el.innerHTML = h;
+}
+
+/* ===================== 第一步：摆目标 ===================== */
+function renderStart(){
+  var el = $('start');
+  if(!el){ return; }
+  if(S.sid){ el.innerHTML = ''; return; }
+  var srcTip = (PRE.from && PRE.from !== 'first_principles')
+    ? '<div class="warnbox">这一条是从「' + esc(PRE.from === 'five_why' ? '5Why 分析法' : '苏格拉底提问')
+      + '」递过来的' + (PRE.src ? ('（记录 #' + esc(PRE.src) + '）') : '') + '，已经填在下面，你可以改。</div>'
+    : '';
+  el.innerHTML = '<div class="card">' +
+    '<div class="prog" id="prog"></div>' +
+    '<div class="card-h">你认为「只能这么做」的那件事，是什么</div>' +
+    '<div class="card-sub">写成一句你打算做的事。它会被拆成零件，逐条拷问，再从零算一遍。</div>' +
+    srcTip + (S.err ? '<div class="err">' + esc(S.err) + '</div>' : '') +
+    '<textarea id="goal" style="margin-top:12px;min-height:76px;font-size:15.5px" ' +
+      'placeholder="例：我打算把发货方式定成只能走顺丰"></textarea>' +
+    '<div class="go-row">' + micBtnHTML('micStart') +
+    '<button class="btn primary big" id="goBtn">拆零件</button></div>' +
+    '<div class="mini" id="goTip" style="text-align:center;margin-top:8px"></div>' +
+    '<ol class="steps5">' +
+      '<li><b>摆目标</b>你到底认定「只能这么做」的是哪件事</li>' +
+      '<li><b>拆零件</b>每条打上类型：事实 / 价格 / 惯例 / 他人期待 / 我自己的假设</li>' +
+      '<li><b>逐条拷问</b>只问那些被标成「事实」的：量出来的还是估的、谁说的、去掉最坏怎样、有人做到过吗</li>' +
+      '<li><b>从零重算</b>只拿剩下的硬约束，算出下限，和现在比</li>' +
+      '<li><b>收尾</b>把这次拆解收个尾</li>' +
+    '</ol></div>';
+
+  var ta = $('goal');
+  ta.value = S.draft;
+  ta.oninput = function(){ S.draft = ta.value; refreshGo(); };
+  ta.onkeydown = function(e){
+    if(e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); start(); }
+  };
+  $('goBtn').onclick = start;
+  bindMic('goal', 'micStart');
+  refreshGo();
+  if(S.draft){ ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+}
+function refreshGo(){
+  var b = $('goBtn');
+  if(!b){ return; }
+  var ok = S.draft.trim().length >= 4;
+  b.disabled = !ok || S.busy;
+  var tip = $('goTip');
+  if(tip){
+    tip.textContent = S.busy ? '正在拆零件…'
+      : (!S.ai ? '服务端没配模型 Key，这个工具用不了' : (ok ? '' : '写满四个字再开始'));
+  }
+}
+
+/* ===================== 头像 =====================
+   由 seed 算出来的一张小图，不用图片、不用网络。同一个 seed 永远长一样。 */
+var AV_HUES = [176, 152, 190, 214, 128, 44, 26];
+function hashOf(str){
+  var h = 2166136261;
+  for(var i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return Math.abs(h);
+}
+function rngFrom(seed){
+  var n = (hashOf(String(seed)) % 2147483647) || 1;
+  return function(){ n = (n * 48271) % 2147483647; return n / 2147483647; };
+}
+function cellRect(x, y){
+  var c = 20;
+  return '<rect x="' + (x * c + 1) + '" y="' + (y * c + 1) + '" width="' + (c - 2) +
+         '" height="' + (c - 2) + '" rx="4"/>';
+}
+function avatarSVG(seed){
+  var rnd = rngFrom(seed);
+  var hue = AV_HUES[Math.floor(rnd() * AV_HUES.length)];
+  var body = '', count = 0;
+  for(var y = 0; y < 5; y++){
+    for(var x = 0; x < 3; x++){
+      if(rnd() < 0.46){ continue; }
+      count++;
+      body += cellRect(x, y);
+      if(x < 2){ body += cellRect(4 - x, y); }
+    }
+  }
+  if(!count){ body = cellRect(2, 2); }
+  return '<span class="av" style="color:hsl(' + hue + ',46%,48%)" aria-hidden="true">' +
+    '<svg viewBox="-8 -8 116 116"><g fill="currentColor">' + body + '</g></svg></span>';
+}
+
+/* ===================== 零件表（这个工具的产物） ===================== */
+function itemRow(it, step){
+  var cur = String(it.id) === String(S.sess.ask_item) && step === 3;
+  var cls = 'it ' + (it.kind === 'fact' ? 'hard' : 'soft') + (cur ? ' ask' : '');
+  var opts = '<option value=""' + (it.kind ? '' : ' selected') + '>未分类</option>';
+  S.kinds.forEach(function(k){
+    opts += '<option value="' + esc(k.key) + '"' + (it.kind === k.key ? ' selected' : '') + '>' +
+      esc(k.name) + '</option>';
+  });
+  var tag = it.kind === 'fact'
+    ? (it.probed ? '<span class="badge g">已拷问</span>'
+        : (it.pending ? '<span class="badge w">四问问完 · 等你定</span>'
+        : (cur ? '<span class="badge w">拷问中 · 第 ' + (curPi() + 1) + '/' + PROBE_TOTAL + ' 问</span>'
+               : (Number(it.pi) > 0 ? '<span class="badge w">已问 ' + Number(it.pi) + ' 问</span>'
+                                    : '<span class="badge w">待拷问</span>'))))
+    : '<span class="badge n">不算硬约束</span>';
+  var send = (it.kind && it.kind !== 'fact')
+    ? '<button class="it-send" type="button" data-send="why" data-id="' + esc(it.id) + '" title="把这一条当成问题，去 5Why 追根因">→ 5Why</button>' +
+      '<button class="it-send" type="button" data-send="soc" data-id="' + esc(it.id) + '" title="把这一条带去苏格拉底，理清它">→ 苏格拉底</button>'
+    : '';
+  var canEdit = step <= 3;          /* 第 5 步的对照表已经生成，再改正文就对不上了 */
+  return '<div class="' + cls + '"><div class="it-main">' +
+    '<div class="it-t' + (canEdit ? ' edit' : '') + '"' + (canEdit
+      ? ' data-edit="' + esc(it.id) + '" tabindex="0" role="button" title="点一下改这句话"'
+      : '') + '>' + esc(it.text) + '</div>' +
+    '<div class="it-m"><select data-kind="' + esc(it.id) + '" aria-label="这一条的类型">' + opts + '</select>' +
+    tag + send + '</div></div>' +
+    '<button class="it-x" type="button" data-del-item="' + esc(it.id) + '" title="删掉这一条">×</button></div>';
+}
+
+/* 拷问对象条：一次只问一条，正在问的那条高亮；没收尾的可以点着换过去。
+   四个问题问完只是一轮走完 —— 收不收尾要他自己点，代码不替他判「问完了」。 */
+function probeBar(items){
+  var s = S.sess || {};
+  var facts = items.filter(function(it){ return it.kind === 'fact'; });
+  if(!facts.length){ return ''; }
+  var left = facts.filter(function(it){ return !it.probed; }).length;
+  var chips = [];
+  var pends = [];
+  items.forEach(function(it, i){
+    if(it.kind !== 'fact'){ return; }
+    if(it.pending){ pends.push(it); }
+    var on = String(it.id) === String(s.ask_item);
+    var pi = on ? curPi() : Math.max(0, Number(it.pi) || 0);
+    var note;
+    if(it.probed){ note = '✓ 已拷问'; }
+    else if(it.pending){ note = '问完了 · 等你定'; }
+    else if(on){ note = '第 ' + Math.min(pi + 1, PROBE_TOTAL) + '/' + PROBE_TOTAL + ' 问'; }
+    else { note = pi > 0 ? ('已问 ' + pi + ' 问') : '待拷问'; }
+    var cls = on ? 'pchip on' : (it.probed ? 'pchip done' : (it.pending ? 'pchip wait' : 'pchip'));
+    var title = it.probed ? '这一条已经拷问完了'
+      : (it.pending ? '四个问题问完了 —— 点一下回到这一条，收不收尾你说了算'
+        : (on ? '正在拷问这一条' : '点一下换到这一条，问题接着它自己的进度问'));
+    chips.push('<button class="' + cls + '" type="button"' + ((on || it.probed) ? ' disabled' : '') +
+      ' data-ask="' + esc(it.id) + '" title="' + title + '">' +
+      '<b>第 ' + (i + 1) + ' 条</b><span class="t">' + esc(short(it.text, 26)) + '</span>' +
+      '<i>' + note + '</i></button>');
+  });
+  var wait = null;
+  for(var k = 0; k < pends.length; k++){
+    if(String(pends[k].id) === String(s.ask_item)){ wait = pends[k]; break; }
+  }
+  if(!wait && pends.length){ wait = pends[0]; }
+  var ask = '';
+  if(wait){
+    var mine = String(wait.id) === String(s.ask_item);
+    ask = '<div class="askdone">' +
+      '<div class="mini">' + (mine
+        ? '这一条四个问题走完了 —— 「问完了」不等于「问出结论了」，收不收尾你说了算：'
+        : '「' + esc(short(wait.text, 18)) + '」这条四个问题走完了，等你定：') + '</div>' +
+      '<div class="askdone-row">' +
+      '<button class="btn sm primary" type="button" data-close="' + esc(wait.id) + '">' +
+        '这条问透了' + (mine ? '，看下一条' : '') + '</button>' +
+      '<button class="btn sm" type="button" data-redo="' + esc(wait.id) + '">还没问透，再追一轮</button>' +
+      '</div></div>';
+  }
+  return '<div class="probebar">' +
+    '<div class="probebar-h">拷问对象</div>' +
+    '<div class="mini">' + facts.length + ' 条「事实」，还剩 ' + left + ' 条没收尾 —— ' +
+      '一次只问一条，点一下就能换过去，问题从那条自己的进度接着问。四个问题问完不等于问完了，'
+      + '收不收尾由你点。</div>' +
+    '<div class="pchips">' + chips.join('') + '</div>' + ask +
+  '</div>';
+}
+
+function renderPanel(){
+  var el = $('panel');
+  if(!el){ return; }
+  var s = S.sess;
+  if(!s){ el.innerHTML = ''; return; }
+  var step = Number(s.step) || 1;
+  var items = s.items || [];
+  var hard = items.filter(function(i){ return i.kind === 'fact'; }).length;
+  var soft = items.length - hard;
+
+  var h = '<div class="card">' +
+    '<div class="prog" id="prog"></div>' +
+    '<div class="card-h">零件表</div>' +
+    '<div class="meta-line">' +
+      '<span class="badge">硬约束 ' + hard + ' 条</span>' +
+      '<span class="badge n">不算硬约束 ' + soft + ' 条</span>' +
+      '<span class="mini">共 ' + items.length + ' 条</span>' +
+      (s.blocked ? '<span class="badge g">结论：没有可拆解的空间</span>' : '') +
+    '</div>' +
+    '<div class="card-sub">类型不对就改下拉 —— 一改，它就不再算硬约束；' +
+    '把「其实只是惯例 / 我以为」的那些找出来，正是这个工具的活。正文点一下能直接改。</div>';
+
+  if(step === 3){
+    h += probeBar(items);
+  }
+  if(!items.length){
+    h += '<div class="mini" style="margin-top:10px">还没有零件。下面加一条，或者重开一条让模型拆。</div>';
+  }
+  items.forEach(function(it){ h += itemRow(it, step); });
+
+  if(step === 2){
+    h += '<div class="addrow">' +
+      '<input type="text" id="newItem" placeholder="再加一条零件" maxlength="120" autocomplete="off">' +
+      '<select id="newKind" aria-label="新零件的类型">' +
+        S.kinds.map(function(k){ return '<option value="' + esc(k.key) + '">' + esc(k.name) + '</option>'; }).join('') +
+      '</select>' +
+      '<button class="btn sm" type="button" id="addBtn">加一条</button></div>' +
+      '<button class="btn primary block" type="button" id="probeBtn" style="margin-top:12px">分类完成，开始拷问</button>' +
+      '<div class="mini" style="margin-top:6px">「逐条拷问」只问被标成「事实」的那些。一条事实都没有也能往下走 —— ' +
+      '那就等于全部可拆。</div>';
+  }
+
+  if(step === 4){
+    h += '<div class="hr" style="height:1px;background:var(--line);margin:14px 0"></div>' +
+      '<div class="card-h">从零重算</div>' +
+      '<div class="card-sub">把价格、惯例、他人期待全去掉，只拿上面那些硬约束，最少需要多少？' +
+      '数字填得下就填数字，差额能自动算；填不了就写人话。</div>' +
+      '<div class="formrow"><label>下限（最少的人 / 时间 / 钱）</label>' +
+        '<input type="text" id="fFloor" maxlength="60" value="' + esc(s.floor || '') + '" placeholder="例：2 人 3 天"></div>' +
+      '<div class="formrow"><label>当前实际值</label>' +
+        '<input type="text" id="fNow" maxlength="60" value="' + esc(s.now_value || '') + '" placeholder="例：5 人 10 天"></div>' +
+      '<div class="formrow"><label>如果今天从零开始做，你会怎么做</label>' +
+        '<textarea id="fPlan" maxlength="300" placeholder="写你自己的做法。这个工具不会替你给方案。">' + esc(s.plan || '') + '</textarea></div>' +
+      '<div class="mini" style="margin-top:6px">' +
+        (s.diff === null || s.diff === undefined ? '两边都填出数字，差额自动算。'
+          : ('现在算出来：当前比下限多 ' + s.diff + '（按两边第一个数字算）。')) + '</div>' +
+      '<button class="btn primary block" type="button" id="finishBtn" style="margin-top:12px">收尾</button>';
+  }
+
+  if(step >= 5){
+    /* 硬约束那句话不是对照表，它是这个工具的底线，一直留着 */
+    if(s.blocked){
+      h += '<div class="honest" style="margin-top:12px">这件事拆出来的每一条，拷问之后都还站得住 —— 它们是真正的硬约束，' +
+        '没有可拆解的空间。这个工具不会为了显得有用而硬凑一个方案。</div>';
+    }
+    h += '<div class="hr" style="height:1px;background:var(--line);margin:14px 0"></div>';
+    if(SHOW_REPORT){
+      h += '<div class="card-h">收尾对照表</div>' +
+        '<div class="report" style="margin-top:10px">' + esc(s.report || '') + '</div>' +
+        '<div class="btn-row">' +
+          (EX ? '<button class="btn sm" type="button" id="expNow">⤓ 导出 Markdown</button>' : '') +
+          '<button class="btn sm" type="button" id="copyReport">复制对照表</button>' +
+        '</div>';
+    } else {
+      h += '<div class="card-h">收尾</div>' +
+        '<div class="card-sub">五步走完了 —— 这次的产物就是上面那张零件表。</div>' +
+        (EX ? '<div class="btn-row"><button class="btn sm" type="button" id="expNow">⤓ 导出 Markdown</button></div>' : '');
+    }
+  }
+
+  h += '</div>';
+  el.innerHTML = h;
+  bindPanel();
+}
+function curItems(){
+  return (S.sess.items || []).map(function(i){
+    return { id:i.id, text:i.text, kind:i.kind, probe:i.probe, probed:i.probed };
+  });
+}
+function bindPanel(){
+  var el = $('panel');
+  if(!el){ return; }
+  Array.prototype.forEach.call(el.querySelectorAll('[data-kind]'), function(sel){
+    sel.onchange = function(){ saveKind(sel.getAttribute('data-kind'), sel.value); };
+  });
+  Array.prototype.forEach.call(el.querySelectorAll('[data-del-item]'), function(b){
+    b.onclick = function(){ delItem(b.getAttribute('data-del-item')); };
+  });
+  Array.prototype.forEach.call(el.querySelectorAll('[data-edit]'), function(t){
+    t.onclick = function(){ editItem(t.getAttribute('data-edit'), t); };
+    t.onkeydown = function(e){
+      if((e.key === 'Enter' || e.key === ' ') && !e.isComposing){ e.preventDefault(); editItem(t.getAttribute('data-edit'), t); }
+    };
+  });
+  Array.prototype.forEach.call(el.querySelectorAll('[data-send]'), function(b){
+    b.onclick = function(){ sendTo(b.getAttribute('data-send'), b.getAttribute('data-id')); };
+  });
+  Array.prototype.forEach.call(el.querySelectorAll('[data-ask]'), function(b){
+    b.onclick = function(){ switchAsk(b.getAttribute('data-ask')); };
+  });
+  bindAskDone(el);
+  var ab = $('addBtn');
+  if(ab){ ab.onclick = addItem; }
+  var ni = $('newItem');
+  if(ni){ ni.onkeydown = function(e){ if(e.key === 'Enter' && !e.isComposing){ e.preventDefault(); addItem(); } }; }
+  var pb = $('probeBtn');
+  if(pb){ pb.onclick = startProbe; }
+  var fb = $('finishBtn');
+  if(fb){ fb.onclick = finish; }
+  var en = $('expNow');
+  if(en){ en.onclick = function(){ exportSession(S.sess); }; }
+  var cr = $('copyReport');
+  if(cr){ cr.onclick = function(){ copyText(S.sess.report || '', function(ok){ toast(ok ? '对照表已复制' : '复制失败'); }); }; }
+}
+
+/* 送去 5Why / 苏格拉底：只带上那句话和来源标记，接收端预填、不自动提交。
+   这样过去之后他还改得了，也省掉一次模型调用。 */
+function sendTo(which, id){
+  var it = null;
+  (S.sess.items || []).forEach(function(x){ if(String(x.id) === String(id)){ it = x; } });
+  if(!it){ return; }
+  var url = '/ask-hub?tab=' + (which === 'why' ? 'why' : 'soc') +
+    '&from=first_principles&src=' + encodeURIComponent(S.sid) +
+    '&prefill=' + encodeURIComponent(it.text);
+  window.open(url, '_blank', 'noopener');
+}
+
+/* ===================== 对话 ===================== */
+function renderChat(){
+  var el = $('chat');
+  if(!el){ return; }
+  var s = S.sess;
+  if(!s){ el.innerHTML = ''; return; }
+  var msgs = s.msgs || [];
+  var step = Number(s.step) || 1;
+  var canTalk = (step === 3 || step === 4);
+
+  var h = '<div class="card" style="padding-top:10px">';
+  var srcTag = (s.src && s.src.name)
+    ? '<span class="badge n" title="这条是从别的工具递过来的">来自 ' + esc(s.src.name) + '</span>' : '';
+  h += '<div class="linerow">' + srcTag + '<div class="mini" title="目标：' + esc(s.goal || '') + '">目标：' + esc(s.goal || '') + '</div>' +
+    (EX ? '<button class="btn sm" type="button" id="expTop">⤓ 导出 Markdown</button>' : '') +
+    '<button class="btn sm" type="button" id="newBtn">重开一条</button></div>';
+
+  var avG = avatarSVG('fp-' + (s.id != null ? s.id : S.sid));
+  var avMe = avatarSVG('me');
+  sayTexts = [];
+  copyTexts = [];
+  msgs.forEach(function(m){
+    var cp = copyBtnHTML(pushCopy(m.text));
+    if(m.role === 'me'){
+      h += '<div class="msg me">' + avMe + '<div class="col"><div class="who">我' + itemTagHTML(m.item, true) + '</div>' +
+           '<div class="bubble">' + esc(m.text) + '</div><div class="acts">' + cp + '</div></div></div>';
+    } else {
+      var tag = m.step > 0 ? '<span class="badge n">第 ' + m.step + ' 步 · ' + esc(stepName(m.step)) + '</span>' : '';
+      var say = VOICE ? '<button class="say" type="button" data-say="' + sayTexts.length +
+        '" aria-pressed="false" title="把这段念出来" aria-label="把这段念出来">' + SPK_ICO + '</button>' : '';
+      sayTexts.push(m.text);
+      h += '<div class="msg ai">' + avG + '<div class="col"><div class="who">拷问者 ' + tag +
+           itemTagHTML(m.item) + '</div>' +
+           '<div class="bubble">' + esc(m.text) + '</div><div class="acts">' + cp + say + '</div></div></div>';
+    }
+  });
+
+  if(S.busy){ h += '<div class="msg ai think">' + avG + '<div class="col"><div class="bubble">' +
+    '<span class="spin"></span>正在想…</div></div></div>'; }
+  if(S.err){ h += '<div class="err">' + esc(S.err) + '</div>'; }
+  if(s.blocked){
+    h += '<div class="honest" style="margin-top:14px">这个工具没给你方案 —— 因为它不该给。' +
+      '拆出来的约束一条都没被推翻，这就是结论。</div>';
+  } else if(step === 5){
+    h += '<div class="honest" style="margin-top:14px">收尾了。方案是你自己写的，工具只负责把账算清楚。</div>';
+  }
+
+  if(canTalk){
+    var aw = (step === 3) ? askNow() : null;
+    var waiting = !!(aw && aw.it.pending);
+    h += '<div class="composer">' +
+      (aw ? '<div class="composer-ask">正在拷问<b>第 ' + aw.no + ' 条</b><span class="t">' +
+        esc(aw.it.text) + '</span></div>' : '');
+    if(waiting){
+      h += '<div class="composer-wait">' +
+        '<div class="mini">这条四个问题走完了 —— 收不收尾你说了算：</div>' +
+        '<div class="askdone-row">' +
+        '<button class="btn primary" type="button" data-close="' + esc(aw.it.id) +
+          '">这条问透了，看下一条</button>' +
+        '<button class="btn" type="button" data-redo="' + esc(aw.it.id) +
+          '">还没问透，再追一轮</button>' +
+        '</div></div>';
+    } else {
+      h += '<textarea id="say" rows="2" placeholder="' +
+        (step === 3 ? '回答上面那个问题…' : '说说你算出来的数，或者你的做法…') + '"></textarea>' +
+        '<div class="composer-row"><span class="mini">Enter 发送 · Shift+Enter 换行 · 答不上来就直说，它会再追你一句</span>' +
+        micBtnHTML() + '<button class="btn primary" id="sendBtn">发送</button></div>';
+    }
+    h += '</div>';
+  }
+  h += '</div>';
+  el.innerHTML = h;
+
+  bindSay(); syncSay(); bindCopy(); bindAskDone(el); bindMic();
+  var et = $('expTop');
+  if(et){ et.onclick = function(){ exportSession(S.sess); }; }
+  var nb = $('newBtn');
+  if(nb){ nb.onclick = function(){
+    S.sid = null; S.sess = null; S.err = ''; S.draft = ''; S.pin = true;
+    renderAll(); loadHistory();
+  }; }
+  var ta = $('say');
+  if(ta){
+    ta.value = S.draft;
+    ta.oninput = function(){ S.draft = ta.value; refreshSend(); };
+    ta.onkeydown = function(e){
+      if(e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); send(); }
+    };
+  }
+  var sb = $('sendBtn');
+  if(sb){ sb.onclick = send; }
+  refreshSend();
+  if(S.focusSay && ta){
+    ta.focus({ preventScroll:true });
+    S.focusSay = false;
+    scrollToNewest(el);
+  }
+}
+
+/* 滚到最新那条消息。输入框是吸底的，对 Composer 调 scrollIntoView 没用 ——
+   要滚的是「输入框上面那一块」。装得下就贴到输入框上方，装不下就从第一行开始显示。 */
+function scrollToNewest(el){
+  var cp = el.querySelector('.composer');
+  if(!cp){ return; }
+  var last = cp.previousElementSibling;
+  if(!last || !last.scrollIntoView){ return; }
+  var bar = document.querySelector('.topbar');
+  var lr = el.querySelector('.linerow');
+  var top = (bar ? bar.offsetHeight : 0) + (lr ? lr.offsetHeight : 0) + 12;
+  var bottom = cp.offsetHeight + 12;
+  last.style.scrollMarginTop = top + 'px';
+  last.style.scrollMarginBottom = bottom + 'px';
+  var room = window.innerHeight - top - bottom;
+  setTimeout(function(){
+    last.scrollIntoView({ behavior:'smooth', block: last.offsetHeight <= room ? 'end' : 'start' });
+  }, 40);
+}
+function nearBottom(){
+  var doc = document.documentElement;
+  var y = window.scrollY || doc.scrollTop || 0;
+  return (doc.scrollHeight - y - window.innerHeight) <= 140;
+}
+function pinBottom(){
+  var el = $('chat');
+  if(!el){ return; }
+  var cp = el.querySelector('.composer');
+  if(!cp){ return; }
+  var last = cp.previousElementSibling;
+  if(!last || !last.scrollIntoView){ return; }
+  var bar = document.querySelector('.topbar');
+  var lr = el.querySelector('.linerow');
+  var top = (bar ? bar.offsetHeight : 0) + (lr ? lr.offsetHeight : 0) + 12;
+  var bottom = cp.offsetHeight + 12;
+  last.style.scrollMarginTop = top + 'px';
+  last.style.scrollMarginBottom = bottom + 'px';
+  var room = window.innerHeight - top - bottom;
+  last.scrollIntoView({ block: last.offsetHeight <= room ? 'end' : 'start' });
+}
+function watchScroll(){
+  S.pin = nearBottom();
+  function off(){ S.pin = false; }
+  S._offScroll = function(){
+    window.removeEventListener('wheel', off);
+    window.removeEventListener('touchmove', off);
+    S._offScroll = null;
+  };
+  window.addEventListener('wheel', off, { passive:true });
+  window.addEventListener('touchmove', off, { passive:true });
+}
+function unwatchScroll(){ if(S._offScroll){ S._offScroll(); } }
+/* 把「正在想…」的占位气泡就地接管成真正的回复气泡。
+   之后每个片段只改这个节点的 textContent，不整块重画 —— 否则每来一个字都会闪。 */
+function streamInto(){
+  var el = $('chat');
+  if(!el){ return null; }
+  var b = el.querySelector('.msg.think .bubble');
+  if(!b){ return null; }
+  var col = b.parentNode;
+  var box = col ? col.parentNode : null;
+  if(box){ box.classList.remove('think'); }
+  if(col && !col.querySelector('.who')){
+    var st = Number((S.sess || {}).step) || 1;
+    var w = document.createElement('div');
+    w.className = 'who';
+    w.innerHTML = '拷问者 <span class="badge n">第 ' + st + ' 步 · ' + esc(stepName(st)) + '</span>' +
+      itemTagHTML((S.sess || {}).ask_item);
+    col.insertBefore(w, b);
+  }
+  b.classList.add('typing');
+  b.textContent = '';
+  if(col && !col.querySelector('.acts')){
+    var ac = document.createElement('div');
+    ac.className = 'acts';
+    ac.innerHTML = copyBtnHTML(pushCopy(''));
+    col.appendChild(ac);
+    var cbtn = ac.querySelector('.cbtn');
+    if(cbtn){ cbtn.onclick = function(){ copyText(b.textContent, function(ok){ copyBtnDone(cbtn, ok); }); }; }
+  }
+  return b;
+}
+
+/* 流完了从库里把权威状态取回来 —— 屏幕上先照旧显示刚流出来的字，取回后才整块重画。 */
+function reload(){
+  if(!S.sid){ S.busy = false; renderAll(); return; }
+  req('GET', '/first-principles/api/sessions/' + S.sid).then(function(d){
+    S.busy = false;
+    if(d.ok){ S.sess = d.session; }
+    else { S.err = d.message || '这条读不回来了'; }
+    S.focusSay = true;
+    renderAll();
+    loadHistory();
+    if(d.ok && autoReadNext){ autoReadNext = false; autoReadLast(); }
+  });
+}
+function refreshSend(){
+  var b = $('sendBtn');
+  if(!b){ return; }
+  b.disabled = S.busy || !S.draft.trim();
+  b.textContent = S.busy ? '等它一下…' : '发送';
+}
+
+/* ===================== 右侧历史（读的是 SQLite） ===================== */
+function loadHistory(){
+  var q = (S.hq || '').trim();
+  var url = '/first-principles/api/sessions' + (q ? ('?q=' + encodeURIComponent(q)) : '');
+  S.listBusy = true;
+  renderHqInfo();
+  req('GET', url).then(function(d){
+    S.listBusy = false;
+    S.items = (d.ok && d.items) || [];
+    S.listErr = d.ok ? '' : (d.message || '读不到历史记录');
+    S.hit = d.ok ? { total:(typeof d.total === 'number' ? d.total : S.items.length), q:d.q || '' } : null;
+    renderHistory();
+  });
+}
+function renderHqInfo(){
+  var info = $('hqInfo'), clr = $('hqClear');
+  var q = (S.hq || '').trim();
+  if(clr){ clr.hidden = !q; }
+  if(!info){ return; }
+  if(!q || S.listErr){ info.textContent = ''; return; }
+  if(S.listBusy){ info.textContent = '搜着…'; return; }
+  if(!S.hit){ info.textContent = ''; return; }
+  info.textContent = S.hit.total ? ('命中 ' + S.hit.total + ' 条') : '没搜到';
+}
+/* 先 esc 再高亮，顺序不能反。 */
+function hl(text, q){
+  var out = esc(text);
+  var terms = String(q || '').trim().split(/\s+/).filter(Boolean).slice(0, 6)
+    .map(function(t){ return esc(t); }).filter(Boolean);
+  if(!terms.length){ return out; }
+  var re = terms.map(function(t){ return t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|');
+  if(!re){ return out; }
+  try{ return out.replace(new RegExp('(' + re + ')', 'ig'), '<mark>$1</mark>'); }
+  catch(e){ return out; }
+}
+function hasTerm(text, q){
+  var terms = String(q || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  var low = String(text || '').toLowerCase();
+  for(var i = 0; i < terms.length; i++){ if(low.indexOf(terms[i]) >= 0){ return true; } }
+  return false;
+}
+function snippet(it, q){
+  var terms = String(q || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if(!terms.length){ return ''; }
+  var fields = [it.goal || '', it.title || ''];
+  for(var i = 0; i < fields.length; i++){
+    var f = String(fields[i] || '');
+    if(!f){ continue; }
+    var low = f.toLowerCase(), at = -1;
+    for(var k = 0; k < terms.length; k++){
+      var pos = low.indexOf(terms[k]);
+      if(pos >= 0 && (at < 0 || pos < at)){ at = pos; }
+    }
+    if(at < 0){ continue; }
+    var start = Math.max(0, at - 10);
+    var end = Math.min(f.length, at + 46);
+    return (start > 0 ? '…' : '') + f.slice(start, end) + (end < f.length ? '…' : '');
+  }
+  return '';
+}
+
+function renderHistory(){
+  var el = $('history');
+  if(!el){ return; }
+  renderHqInfo();
+  var q = (S.hq || '').trim();
+  if(S.listErr){
+    el.innerHTML = '<div class="mini" style="margin-top:6px">' + esc(S.listErr) + '</div>';
+    return;
+  }
+  if(!S.items.length){
+    el.innerHTML = '<div class="mini" style="margin-top:6px">' + (q
+      ? ('没有含「' + esc(q) + '」的记录。换个词试试 —— 搜索只看最近 400 条。')
+      : '还没有。上面拆一次，这里就会留下一条，换台设备也还在。') + '</div>';
+    return;
+  }
+  var h = S.items.map(function(it){
+    var cur = String(it.id) === String(S.sid);
+    var state = it.blocked ? '没有可拆空间'
+      : (it.step >= 5 ? '已收尾' : ('第 ' + (it.step || 1) + ' 步 · ' + stepName(it.step || 1)));
+    var meta = [state, (it.count || 0) + ' 条', shortTime(it.updated_at)].filter(Boolean).join(' · ');
+    var title = it.title || it.goal || '（没写目标）';
+    var snip = q ? snippet(it, q) : '';
+    var extra = (snip && !hasTerm(title, q)) ? ('<span class="hist-s">' + hl(snip, q) + '</span>') : '';
+    return '<div class="hist-i' + (cur ? ' on' : '') + '">' +
+      '<button class="hist-open" type="button" data-open="' + it.id + '">' +
+        '<span class="hist-t">' + hl(title, q) + '</span>' +
+        '<span class="hist-m">' + esc(meta) + '</span>' + extra +
+      '</button>' +
+      (EX ? '<button class="hist-exp" type="button" data-exp="' + it.id + '" title="导出这条 Markdown">⤓</button>' : '') +
+      '<button class="hist-del" type="button" data-del="' + it.id + '" title="删掉这条">×</button>' +
+    '</div>';
+  }).join('');
+  h += '<div class="mini" style="margin-top:10px">' + (q
+    ? '点一条就能接着拆。搜索连零件和对话正文一起找。'
+    : '点一条就能接着拆，零件表和问到哪一步都在。') + '</div>';
+  el.innerHTML = h;
+  Array.prototype.forEach.call(el.querySelectorAll('[data-open]'), function(b){
+    b.onclick = function(){ open(Number(b.getAttribute('data-open'))); };
+  });
+  Array.prototype.forEach.call(el.querySelectorAll('[data-del]'), function(b){
+    b.onclick = function(){ del(Number(b.getAttribute('data-del'))); };
+  });
+  Array.prototype.forEach.call(el.querySelectorAll('[data-exp]'), function(b){
+    b.onclick = function(){ exportById(b.getAttribute('data-exp'), b); };
+  });
+}
+/* ===================== 动作 ===================== */
+function patch(body){
+  if(!S.sid){ return; }
+  S.busy = true; S.err = '';
+  renderAll();
+  req('PATCH', '/first-principles/api/sessions/' + S.sid, body).then(function(d){
+    S.busy = false;
+    if(!d.ok){ S.err = d.message || '没存上'; toast(S.err); }
+    else { S.sess = d.session; }
+    renderAll();
+    loadHistory();
+  });
+}
+/* 换到另一条零件去拷问。当前那条问到第几问存回库里，换过去的那条从它自己的进度接着问。 */
+function switchAsk(id){
+  if(S.busy || !S.sid || !S.sess){ return; }
+  if(!id || String(id) === String(S.sess.ask_item)){ return; }
+  S.busy = true; S.err = '';
+  renderAll();
+  req('PATCH', '/first-principles/api/sessions/' + S.sid, { act:'switch', item:String(id) }).then(function(d){
+    S.busy = false;
+    if(!d.ok){
+      S.err = d.message || '没能换过去';
+      toast(S.err);
+      renderAll();
+      return;
+    }
+    S.sess = d.session;
+    S.focusSay = true;      /* 换完直接把光标放进输入框，接着答就行 */
+    renderAll();
+    loadHistory();
+  });
+}
+/* 四问问完之后的两个出口 —— 都是他自己点，代码不替他判「这条问完了」 */
+function bindAskDone(root){
+  if(!root){ return; }
+  Array.prototype.forEach.call(root.querySelectorAll('[data-close]'), function(b){
+    b.onclick = function(){ closeAsk(b.getAttribute('data-close')); };
+  });
+  Array.prototype.forEach.call(root.querySelectorAll('[data-redo]'), function(b){
+    b.onclick = function(){ redoAsk(b.getAttribute('data-redo')); };
+  });
+}
+function closeAsk(id){
+  if(S.busy || !S.sid || !S.sess){ return; }
+  S.busy = true; S.err = '';
+  renderAll();
+  req('PATCH', '/first-principles/api/sessions/' + S.sid,
+      { act:'close', item:String(id) }).then(function(d){
+    S.busy = false;
+    if(!d.ok){ S.err = d.message || '没收住'; toast(S.err); renderAll(); return; }
+    S.sess = d.session;
+    S.focusSay = true;
+    renderAll();
+    loadHistory();
+  });
+}
+/* 「还没问透」：这一条四个问题再走一遍，他之前答的留着，不清空 */
+function redoAsk(id){
+  if(S.busy || !S.sid || !S.sess){ return; }
+  S.busy = true; S.err = '';
+  renderAll();
+  req('PATCH', '/first-principles/api/sessions/' + S.sid,
+      { act:'redo', item:String(id) }).then(function(d){
+    S.busy = false;
+    if(!d.ok){ S.err = d.message || '没能重来'; toast(S.err); renderAll(); return; }
+    S.sess = d.session;
+    S.focusSay = true;
+    renderAll();
+    loadHistory();
+  });
+}
+function saveKind(id, kind){
+  var items = curItems();
+  items.forEach(function(i){ if(String(i.id) === String(id)){ i.kind = kind; } });
+  patch({ items: items });
+}
+/* 点正文就地改这一条 —— 模型偶尔把一句话写歪，不该逼人删了重加 */
+function editItem(id, host){
+  if(!host || host.getAttribute('data-editing')){ return; }
+  var it = null;
+  (S.sess.items || []).forEach(function(x){ if(String(x.id) === String(id)){ it = x; } });
+  if(!it){ return; }
+  var old = it.text || '';
+  host.setAttribute('data-editing', '1');
+  var box = document.createElement('textarea');
+  box.className = 'it-edit';
+  box.rows = 2;
+  box.maxLength = 120;
+  box.value = old;
+  host.textContent = '';
+  host.appendChild(box);
+  box.focus();
+  try{ box.setSelectionRange(old.length, old.length); }catch(e){}
+  var done = false;
+  function close(keep){
+    if(done){ return; }
+    done = true;
+    var v = (box.value || '').trim();
+    host.removeAttribute('data-editing');
+    if(!keep || !v || v === old){ renderPanel(); return; }
+    var items = curItems();
+    items.forEach(function(x){ if(String(x.id) === String(id)){ x.text = v; } });
+    patch({ items: items });
+  }
+  box.onblur = function(){ close(true); };
+  box.onkeydown = function(e){
+    if(e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); close(true); }
+    else if(e.key === 'Escape'){ e.preventDefault(); close(false); }
+  };
+}
+function delItem(id){
+  var items = curItems().filter(function(i){ return String(i.id) !== String(id); });
+  if(!items.length){ toast('一条都不剩了 —— 至少留一条'); return; }
+  patch({ items: items });
+}
+function addItem(){
+  var t = ($('newItem') ? $('newItem').value : '').trim();
+  if(t.length < 2){ toast('太短了，写两个字以上'); return; }
+  var items = curItems();
+  if(items.length >= 24){ toast('最多 24 条'); return; }
+  items.push({ text:t, kind:($('newKind') ? $('newKind').value : '') });
+  patch({ items: items });
+}
+function startProbe(){
+  S.busy = true; S.err = '';
+  renderAll();
+  req('PATCH', '/first-principles/api/sessions/' + S.sid, { act:'probe' }).then(function(d){
+    S.busy = false;
+    if(!d.ok){ S.err = d.message || '没能往下走'; toast(S.err); renderAll(); return; }
+    S.sess = d.session;
+    S.focusSay = true;
+    renderAll(); loadHistory();
+    if(VOICE && VOICE.autoOn()){ autoReadNext = true; }
+  });
+}
+function finish(){
+  var body = {
+    act:'finish',
+    floor: ($('fFloor') ? $('fFloor').value : (S.sess.floor || '')),
+    now_value: ($('fNow') ? $('fNow').value : (S.sess.now_value || '')),
+    plan_text: ($('fPlan') ? $('fPlan').value : (S.sess.plan || ''))
+  };
+  // 先写回本地，这样重画时输入框不会空掉
+  S.sess.floor = body.floor; S.sess.now_value = body.now_value; S.sess.plan = body.plan_text;
+  S.busy = true; S.err = '';
+  renderAll();
+  req('PATCH', '/first-principles/api/sessions/' + S.sid, body).then(function(d){
+    S.busy = false;
+    if(!d.ok){ S.err = d.message || '没存上'; toast(S.err); renderAll(); return; }
+    S.sess = d.session;
+    renderAll(); loadHistory();
+  });
+}
+
+function start(){
+  var goal = S.draft.trim();
+  if(goal.length < 4){ toast('把那件事写长一点'); return; }
+  S.busy = true; S.err = '';
+  renderStart(); renderProg();
+  var body = { goal: goal };
+  if(PRE.from && PRE.from !== 'first_principles'){ body.from = PRE.from; }
+  if(PRE.src){ body.src = PRE.src; }
+  req('POST', '/first-principles/api/sessions', body).then(function(d){
+    S.busy = false;
+    if(!d.ok){ S.err = d.message || '没能开始，再点一次'; renderStart(); return; }
+    S.draft = '';
+    S.sess = d.session;
+    S.sid = d.session.id;
+    S.focusSay = true;
+    renderAll();
+    loadHistory();
+  });
+}
+
+function open(id){
+  if(String(id) === String(S.sid)){ return; }
+  S.busy = true; S.err = ''; S.draft = ''; S.sid = id; S.sess = null;
+  renderAll();
+  req('GET', '/first-principles/api/sessions/' + id).then(function(d){
+    S.busy = false;
+    if(!d.ok){
+      S.sid = null; S.err = '';
+      toast(d.message || '打不开这条记录');
+      renderAll(); return;
+    }
+    S.sess = d.session;
+    S.focusSay = true;
+    renderAll();
+  });
+}
+
+function send(){
+  var text = S.draft.trim();
+  if(!text || S.busy || !S.sid || !S.sess){ return; }
+  var nowAsk = (Number(S.sess.step) === 3) ? askNow() : null;
+  if(nowAsk && nowAsk.it.pending){
+    toast('这条四个问题走完了 —— 先点「这条问透了」或「还没问透，再追一轮」');
+    return;
+  }
+  if(VOICE){ VOICE.stop(); }
+  var mine = { role:'me', text:text, at:'', step:Number(S.sess.step) || 1, item:S.sess.ask_item || '' };
+  S.sess.msgs = (S.sess.msgs || []).concat([mine]);
+  S.draft = ''; S.busy = true; S.err = '';
+  S.focusSay = true;
+  renderAll();
+
+  var bubble = null, acc = '';
+  watchScroll();
+  streamReq('/first-principles/api/sessions/' + S.sid + '/reply', { text:text }, function(ev){
+    if(!ev.t){ return; }
+    acc += ev.t;
+    if(!bubble){ bubble = streamInto(); }
+    if(!bubble){ return; }
+    bubble.textContent = acc;
+    if(S.pin){ pinBottom(); }
+  }).then(function(d){
+    unwatchScroll();
+    if(!d.ok || !acc){
+      S.busy = false;
+      S.sess.msgs.pop();
+      S.draft = text;
+      S.err = d.message || '这次没发出去，再试一次';
+      S.focusSay = true;
+      renderAll();
+      loadHistory();
+      return;
+    }
+    if(d.cut){ toast(d.cut); }
+    autoReadNext = true;
+    reload();
+  });
+}
+
+function del(id){
+  if(!confirm('删掉这条拆解记录？删了就找不回来了。')){ return; }
+  req('DELETE', '/first-principles/api/sessions/' + id).then(function(d){
+    if(!d.ok){ toast(d.message || '没删掉'); return; }
+    if(String(id) === String(S.sid)){ S.sid = null; S.sess = null; S.err = ''; }
+    renderAll();
+    loadHistory();
+  });
+}
+
+var hqTimer = null;
+function bindSearch(){
+  var el = $('hq');
+  if(!el){ return; }
+  el.value = S.hq;
+  el.oninput = function(){
+    S.hq = el.value;
+    renderHqInfo();
+    clearTimeout(hqTimer);
+    hqTimer = setTimeout(loadHistory, 260);
+  };
+  el.onkeydown = function(e){ if(e.key === 'Enter'){ clearTimeout(hqTimer); loadHistory(); } };
+  var clr = $('hqClear');
+  if(clr){ clr.onclick = function(){ S.hq = ''; el.value = ''; renderHqInfo(); loadHistory(); }; }
+}
+
+function renderAll(){
+  renderStart();
+  renderPanel();
+  renderChat();
+  renderProg();      /* 必须在两张卡画完之后：进度条现在挂在卡里面 */
+}
+
+/* ===================== 启动 ===================== */
+/* 冻结行贴在顶栏下面：顶栏多高，top 就是多少 */
+function syncStick(){
+  var bar = document.querySelector('.topbar');
+  var shown = bar && window.getComputedStyle(bar).display !== 'none';
+  document.documentElement.style.setProperty('--stick', (shown ? bar.offsetHeight : 0) + 'px');
+}
+
+function init(){
+  initVoice();
+  bindSearch();
+  syncStick();
+  window.addEventListener('resize', syncStick);
+  if(PRE.prefill){ S.draft = PRE.prefill; }
+  renderAll();
+  loadHistory();
+  var deepId = wantRecId();
+  if(deepId){ open(Number(deepId)); }
+  req('GET', '/first-principles/api/status').then(function(d){
+    if(d && d.steps && d.steps.length){ STEPS = d.steps; }
+    if(d && d.kinds && d.kinds.length){ S.kinds = d.kinds; }
+    if(d && d.probe && d.probe.length){ PROBE_TOTAL = d.probe.length; }
+    S.ai = !!(d && d.ai);
+    if(!S.ai){ S.err = '服务端没配模型 Key（DEEPSEEK_API_KEY），新建拆不了 —— 历史记录还能打开和导出。'; }
+    renderAll();
+  });
+}
+init();
+
+})();
+</script>
+</body>
+</html>

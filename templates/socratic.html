@@ -14,7 +14,8 @@ try{if(/[?&]embed=1/.test(location.search)){document.documentElement.setAttribut
 <script src="/static/theme.js"></script>
 <script src="/static/particles.js"></script>
 <script src="/static/auth-guard.js"></script>
-<script src="/static/voice.js"></script>
+<script src="/static/voice.js?v=2"></script>
+<script src="/static/asr.js?v=1"></script>
 <script src="/static/export-md.js"></script>
 <style>
 :root{
@@ -75,6 +76,8 @@ textarea::placeholder{color:var(--muted);opacity:.72}
 .btn.primary:disabled{background:var(--soft);border-color:var(--line);color:var(--muted);opacity:1}
 .btn.block{width:100%}
 .btn.big{min-height:52px;font-size:16px;font-weight:600}
+.go-row{display:flex;gap:10px;align-items:stretch}
+.go-row .btn{flex:1 1 auto}
 .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;line-height:1.7;
   background:var(--acc-l);color:var(--acc);border:1px solid var(--acc-line)}
 .badge.n{background:var(--soft);color:var(--muted);border-color:var(--line)}
@@ -224,6 +227,18 @@ textarea::placeholder{color:var(--muted);opacity:.72}
    顶栏一藏，吸顶偏移也得跟着归零，右栏才能和左栏的顶部对齐。 ===== */
 html[data-embed]{--stick:0px}
 html[data-embed] .topbar{display:none}
+/* ===== 语音输入（/static/asr.js） =====
+   录音按钮：和发送按钮并排的一个方形图标钮；录的时候红色呼吸，转文字时变色。 */
+.mic{flex:0 0 auto;width:44px;height:44px;min-height:44px;padding:0;display:inline-flex;
+  align-items:center;justify-content:center;border-radius:12px;border:1px solid var(--line);
+  background:var(--field);color:var(--muted);cursor:pointer;
+  transition:border-color .15s,color .15s,background .15s}
+.mic svg{display:block;width:19px;height:19px}
+.mic:hover{border-color:var(--acc-line);color:var(--ink)}
+.mic.rec{border-color:var(--err);background:var(--err-l);color:var(--err);animation:micPulse 1.3s ease-out infinite}
+.mic.busy{border-color:var(--acc-line);color:var(--acc)}
+@keyframes micPulse{0%{box-shadow:0 0 0 0 rgba(192,57,43,.30)}70%{box-shadow:0 0 0 8px rgba(192,57,43,0)}100%{box-shadow:0 0 0 0 rgba(192,57,43,0)}}
+@media (prefers-reduced-motion:reduce){.mic.rec{animation:none}}
 </style>
 </head>
 <body>
@@ -306,8 +321,7 @@ function toast(msg){
 }
 
 /* ===================== 朗读（/static/voice.js） =====================
-   用浏览器自带语音，不联网、不花钱、不用后端。
-   没引到 voice.js、或浏览器不支持，整块朗读自动消失，页面照常用。 */
+   声音只有一种：服务端的火山引擎（豆包）。没引到 voice.js，整块朗读自动消失。 */
 var VOICE = (window.TBVoice && window.TBVoice.available()) ? window.TBVoice : null;
 var sayTexts = [];         // 这一屏里每条引导者回复的原文，按钮上的 data-say 就是它的下标
 var autoReadNext = false;  // 这一次回复取回来之后要不要念
@@ -340,6 +354,29 @@ function bindSay(){
       if(t){ VOICE.toggle(t); }
     };
   });
+}
+
+/* ===================== 语音输入（/static/asr.js） =====================
+   点一下开始录、再点一下结束，识别出来的文字填进输入框 —— 不自动发送，
+   识别错一个字改一下比删了重打便宜。
+   录音必须 https（或者 127.0.0.1），不是的话按钮还在，点了会告诉你为什么。
+   没引到 asr.js 时按钮直接不出现，页面照常用。 */
+var MIC_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"' +
+  ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<rect x="9" y="2.5" width="6" height="11" rx="3"/>' +
+  '<path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/><path d="M8.5 21h7"/></svg>';
+
+function micBtnHTML(btnId){
+  if(!window.TBASR){ return ''; }
+  return '<button class="mic" type="button" id="' + (btnId || 'micBtn') + '" aria-label="语音输入"' +
+    ' title="语音输入（点一下开始，再点一下结束）">' + MIC_ICO + '</button>';
+}
+
+/* 聊天框直接 bindMic()；开始那张卡的输入框不是 #say，要把输入框 id 传进来 */
+function bindMic(inputId, btnId){
+  var btn = $(btnId || 'micBtn');
+  if(!btn || !window.TBASR){ return; }
+  TBASR.bind(btn, { input: $(inputId || 'say'), onError: toast });
 }
 
 /* ===================== 复制单条消息 =====================
@@ -427,6 +464,11 @@ function initVoice(){
   var box = $('vctl');
   if(!VOICE){ if(box){ box.hidden = true; } return; }
   if(box){ box.hidden = false; }
+  /* 念不出来时（没配 Key / 断网 / 被浏览器拦），把服务端那句话直接弹出来，
+     不要静悄悄地什么都不发生。 */
+  document.addEventListener('tbvoice:error', function(e){
+    toast((e.detail && e.detail.message) || '朗读失败了');
+  });
   VOICE.on(syncSay);
   VOICE.on(syncAuto);
   var auto = $('vAuto');
@@ -627,7 +669,8 @@ function renderStart(){
     '<div class="card-sub">它不会给你答案，会陪你按四步把这件事想清楚。一次只问你一个问题。</div>' +
     '<textarea id="ask" style="margin-top:12px;min-height:76px;font-size:15.5px" ' +
       'placeholder="例：我该不该辞职去做独立开发"></textarea>' +
-    '<button class="btn primary block big" id="goBtn" style="margin-top:14px">开始梳理</button>' +
+    '<div class="go-row">' + micBtnHTML('micStart') +
+    '<button class="btn primary big" id="goBtn">开始梳理</button></div>' +
     '<div class="mini" id="goTip" style="text-align:center;margin-top:8px"></div>' +
     '<ol class="steps4">' +
       '<li><b>澄清问题</b>你想理的到底是什么</li>' +
@@ -644,6 +687,7 @@ function renderStart(){
     if(e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); start(); }
   };
   $('goBtn').onclick = start;
+  bindMic('ask', 'micStart');
   refreshGo();
   ta.focus();
 }
@@ -716,13 +760,14 @@ function renderChat(){
     '<textarea id="say" rows="2" placeholder="' + (fin ? '还想接着聊就写在这儿…' : '写下你的回答…') + '"></textarea>' +
     '<div class="composer-row"><span class="mini">Enter 发送 · Shift+Enter 换行 · ' +
     '想不出来就说「先跳过」</span>' +
-    '<button class="btn primary" id="sendBtn">发送</button></div>' +
+    micBtnHTML() + '<button class="btn primary" id="sendBtn">发送</button></div>' +
     '</div>';
   h += '</div>';
   el.innerHTML = h;
   bindSay();
   syncSay();
   bindCopy();
+  bindMic();
   var expNow = $('expNow');
   if(expNow){ expNow.onclick = function(){ exportSession(S.sess); }; }
   var tf = $('toFp');

@@ -1,16 +1,18 @@
 /* ============================================================
    voice.js —— 全站通用的「朗读」能力
    ------------------------------------------------------------
-   用的是浏览器自带语音（window.speechSynthesis）：走操作系统本地音色，
-   不联网、不花钱、不需要后端、不用配任何 Key。
+   只有一种声音：本站服务端 /api/tts，由火山引擎（豆包）合成 mp3 传回来播。
+   浏览器自带的 speechSynthesis 已经彻底不用了 —— 那个声音太出戏，
+   宁可念不出来，也不要换来换去两种嗓子。
 
-   这不是四件套里的必备件，是按需引用的可选件。哪个工具想要朗读，多挂一行：
+   哪个工具想要朗读，多挂一行就行（不是四件套必备件）：
        给页面加一个 script 标签，src 指向 /static/voice.js
 
    挂上之后有一个全局对象 window.TBVoice：
 
-     TBVoice.available()             这台设备 / 这个浏览器能不能读
-     TBVoice.hasZhVoice()            有没有中文音色（没有的话读中文会很怪）
+     TBVoice.available()             这个页面能不能读（云端由服务端保证，恒为 true）
+     TBVoice.hasZhVoice()            读中文正不正常（豆包是中文音色，恒为 true）
+     TBVoice.voices()                兼容老页面留着，现在恒返回空数组
      TBVoice.speak(text, opts)       读一段；再读会自动顶掉上一段
      TBVoice.toggle(text, opts)      正在读同一段就停，否则开始读
      TBVoice.stop()                  立刻停
@@ -19,14 +21,21 @@
      TBVoice.attach(btn, getText)    把一个按钮变成「读 / 停」开关，状态自动同步
      TBVoice.on(fn)                  状态变了通知你，fn({speaking, text, hasZhVoice})
      TBVoice.autoOn() / setAuto(v)   「自动朗读」这个开关（存 localStorage）
+     TBVoice.lastError()             上一次没念出来的原因（没配 Key / 断网 / 被浏览器拦）
 
    opts: { key: '任意标识' } 只是给调用方自己认的，内部不解释。
 
-   两个坑，代码里都绕开了：
-   1. 一长段文字整个丢给朗读引擎，Safari 和部分安卓会读一半就停
-      —— 所以按标点切成小段排队读。
-   2. Chrome 连续读十几秒会自己卡住 —— 所以每段都短（60 字以内），
-      另挂 keep-alive：真卡住了把它 resume 回来。
+   念不出来的时候不会假装没事：会往 document 上发一个 `tbvoice:error` 事件
+   （detail.message 是一句人话），页面自己接去提示用户。用法：
+       document.addEventListener('tbvoice:error', function(e){ toast(e.detail.message); });
+
+   传进来的正文是 Markdown，直接念会把 ** 、# 、- 都念出来，所以先洗一遍
+   （见 stripMd）：代码块整个跳过，链接只念文字，符号全部去掉。
+
+   为什么按标点切成小段：云端一次只合成一句，首字出声快
+   （整段几百字丢过去要等一分钟）。段与段之间会「预取下一段」——
+   正在播第 1 段时，第 2 段已经在合成的路上了，所以听感上基本是连着的。
+   中间任何一段失败，这一次朗读就整体停掉并报错，不会念一半换个嗓子接着念。
 
    注意：这里只管「读」。语音输入（录音转文字）要 HTTPS + 云端识别，
    是另一件事，没做。
@@ -38,52 +47,54 @@
   var MAX_LEN = 58;                // 一段最多多少字
   var MIN_LEN = 26;                // 攒够这么长、又刚好碰到句末，就断一段
   var CUTS = '，、,';              // 硬切时优先挑这些地方断
+  var END = '。！？；!?;…';        // 。！？；!?;…
 
-  var synth = global.speechSynthesis || null;
-  var Utt = global.SpeechSynthesisUtterance || null;
+  var TTS_URL = '/api/tts';        // 服务端合成接口（要登录，同源）
+  var CACHE_MAX = 40;              // 浏览器这边的音频缓存条数（服务端还有一层）
 
   var listeners = [];
   var parts = [];
-  var at = 0;
   var token = 0;                   // 每次新朗读 +1；回调里对不上号就丢掉
   var curText = '';
-  var timer = 0;
+  var lastError = '';
 
-  function available() { return !!(synth && Utt); }
-  function isSpeaking() { return !!(synth && (synth.speaking || synth.pending)); }
+  var audio = null;                // 正在播的 <audio>
+  var playing = false;
+  var audioCache = {};             // 文本 -> blob URL
+  var cacheOrder = [];
+  var pending = {};                // 文本 -> Promise（正在取音频，避免重复请求）
+
+  function available() { return true; }
+  function isSpeaking() { return !!playing; }
   function currentText() { return curText; }
+  function voices() { return []; }
+  function hasZhVoice() { return true; }
+  function lastErrorText() { return lastError; }
 
-  function voices() {
-    if (!synth || typeof synth.getVoices !== 'function') return [];
-    try { return synth.getVoices() || []; } catch (e) { return []; }
-  }
-
-  function hasZhVoice() {
-    var vs = voices();
-    for (var i = 0; i < vs.length; i++) {
-      var lang = String(vs[i].lang || '').toLowerCase().replace('_', '-');
-      if (lang.indexOf('zh') === 0 || lang.indexOf('cmn') === 0) return true;
-    }
-    return false;
-  }
-
-  function pickVoice() {
-    var vs = voices(), zh = [], i, lang;
-    for (i = 0; i < vs.length; i++) {
-      lang = String(vs[i].lang || '').toLowerCase().replace('_', '-');
-      if (lang.indexOf('zh') === 0 || lang.indexOf('cmn') === 0) zh.push(vs[i]);
-    }
-    for (i = 0; i < zh.length; i++) {
-      lang = String(zh[i].lang || '').toLowerCase().replace('_', '-');
-      if (lang.indexOf('zh-cn') === 0) return zh[i];
-    }
-    return zh[0] || null;
+  /* 把 Markdown 洗成「适合念」的纯文字：不是给人看的，是给嘴用的 */
+  function stripMd(text) {
+    var s = String(text == null ? '' : text);
+    s = s.replace(/```[\s\S]*?```/g, ' ');              // 代码块：整块不念
+    s = s.replace(/`([^`]*)`/g, '$1');                  // 行内代码：去掉反引号
+    s = s.replace(/!\[[^\]]*\]\([^)]*\)/g, ' ');        // 图片：跳过
+    s = s.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');      // 链接：只念文字
+    s = s.replace(/^\s{0,3}#{1,6}\s*/gm, '');           // 标题的 #
+    s = s.replace(/\*\*|__|~~|\*/g, '');                // 粗体 / 斜体 / 删除线
+    s = s.replace(/^\s{0,3}>\s?/gm, '');                // 引用的 >
+    s = s.replace(/^\s{0,3}[-*+]\s+/gm, '');            // 无序列表的点
+    s = s.replace(/^\s{0,3}\d+[.)]\s+/gm, '');          // 有序列表的序号
+    s = s.replace(/^\s{0,3}(-{3,}|\*{3,}|_{3,})\s*$/gm, '');  // 分割线
+    /* 表情符号念不出来（会读成「笑脸」之类），直接去掉 */
+    s = s.replace(/[\u2190-\u21FF\u2300-\u27BF\u2B00-\u2BFF\uFE0F\u200D]/g, ' ')
+         .replace(/[\uD83C-\uDBFF][\uDC00-\uDFFF]/g, ' ');
+    s = s.replace(/[\u200b\ufeff\u00a0]/g, ' ');
+    s = s.replace(/[ \t]{2,}/g, ' ');
+    return s.replace(/\n{3,}/g, '\n\n').trim();
   }
 
   /* 按标点把长文切成小段 */
   function chunk(text) {
     var flat = String(text == null ? '' : text).replace(/\r/g, '');
-    var END = '\u3002\uff01\uff1f\uff1b!?;…';   // 。！？；!?;…
     var out = [], buf = '', i, k;
     for (i = 0; i < flat.length; i++) {
       var ch = flat[i];
@@ -107,7 +118,8 @@
       }
     }
     if (buf.trim()) out.push(buf.trim());
-    return out.filter(function (s) { return !!s; });
+    /* 只剩标点 / 空白的段直接丢掉，别浪费一次合成 */
+    return out.filter(function (s) { return /[\u4e00-\u9fa5A-Za-z0-9]/.test(s); });
   }
 
   function fire(ev) {
@@ -122,52 +134,155 @@
     fire(ev);
   }
 
+  /* 念不出来时唯一要说的话：往 document 上发个事件，别自己吞掉 */
+  function report(msg) {
+    lastError = String(msg || '朗读失败了');
+    try {
+      global.document.dispatchEvent(new CustomEvent('tbvoice:error', { detail: { message: lastError } }));
+    } catch (e) { /* 很老的浏览器没有 CustomEvent，那就只剩 console 了 */ }
+    if (global.console && global.console.warn) {
+      try { global.console.warn('[TBVoice] ' + lastError); } catch (e) {}
+    }
+  }
+
+  /* ---------------- 云端音频 ---------------- */
+  function cacheGet(text) {
+    var url = audioCache[text];
+    if (!url) return null;
+    var i = cacheOrder.indexOf(text);
+    if (i >= 0) { cacheOrder.splice(i, 1); cacheOrder.push(text); }
+    return url;
+  }
+
+  function cachePut(text, url) {
+    audioCache[text] = url;
+    cacheOrder.push(text);
+    while (cacheOrder.length > CACHE_MAX) {
+      var old = cacheOrder.shift();
+      if (old === text) continue;
+      var dead = audioCache[old];
+      delete audioCache[old];
+      if (dead) { try { URL.revokeObjectURL(dead); } catch (e) {} }
+    }
+  }
+
+  /* 取一段音频。成功给 blob URL；失败把服务端那句人话抛出来 */
+  function fetchAudio(text) {
+    return global.fetch(TTS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ text: text })
+    }).then(function (r) {
+      var ct = (r.headers && r.headers.get && r.headers.get('content-type')) || '';
+      if (!r.ok || ct.indexOf('audio') < 0) {
+        return r.text().then(function (raw) {
+          var msg = '';
+          try { msg = (JSON.parse(raw) || {}).message || ''; } catch (e) { msg = ''; }
+          throw new Error(msg || ('朗读接口返回了 ' + r.status));
+        }, function () {
+          throw new Error('朗读接口返回了 ' + r.status);
+        });
+      }
+      return r.blob();
+    }).then(function (blob) {
+      if (!blob || !blob.size) throw new Error('朗读接口没有返回声音');
+      return URL.createObjectURL(blob);
+    });
+  }
+
+  function cloudAudio(text) {
+    var hit = cacheGet(text);
+    if (hit) return Promise.resolve(hit);
+    if (pending[text]) return pending[text];
+    var p = fetchAudio(text).then(function (url) {
+      cachePut(text, url);
+      return url;
+    });
+    pending[text] = p;
+    var clear = function () { delete pending[text]; };
+    p.then(clear, clear);
+    return p;
+  }
+
+  /* 播一段。成功 resolve，失败 reject（带一句人话） */
+  function playCloud(text, my) {
+    return cloudAudio(text).then(function (url) {
+      if (my !== token) return false;
+      return new Promise(function (resolve, reject) {
+        var a = new Audio(url);
+        var done = false;
+        function finish(ok, err) {
+          if (done) return;
+          done = true;
+          if (audio === a) { audio = null; playing = false; }
+          if (ok) resolve(true);
+          else reject(err || new Error('这段声音没能播出来'));
+        }
+        a.onended = function () { finish(true); };
+        a.onerror = function () { finish(false, new Error('这段音频解不开')); };
+        audio = a;
+        playing = true;
+        var pr = a.play();
+        if (pr && pr['catch']) {
+          /* 浏览器拦住自动播放时会走这里：再点一次通常就成了 */
+          pr['catch'](function () { finish(false, new Error('浏览器拦住了播放，再点一下小喇叭试试')); });
+        }
+      });
+    });
+  }
+
+  /* 一段接一段地放；正在放第 i 段时就把第 i+1 段的音频先取上。
+     中间任何一段出事：整次朗读停掉 + 报错，绝不换嗓子接着念。 */
+  function run(my) {
+    var i = 0;
+    function step() {
+      if (my !== token) return;
+      if (i >= parts.length) { stop(false); return; }
+      var text = parts[i++];
+      if (i < parts.length) {
+        cloudAudio(parts[i])['catch'](function () { /* 预取失败不吭声，真播到它再说 */ });
+      }
+      playCloud(text, my).then(function () {
+        if (my !== token) return;
+        step();
+      }, function (err) {
+        if (my !== token) return;
+        stop(true);
+        state({ done: true, error: true });
+        report(err && err.message ? err.message : '朗读失败了');
+      });
+    }
+    step();
+  }
+
   function stop(quiet) {
-    if (!available()) return;
     token++;
     curText = '';
     parts = [];
-    at = 0;
-    if (timer) { clearInterval(timer); timer = 0; }
-    try { synth.cancel(); } catch (e) { /* 有些浏览器 cancel 会抛 */ }
+    if (audio) {
+      try { audio.pause(); } catch (e) { /* 有些浏览器 pause 会抛 */ }
+      audio = null;
+    }
+    playing = false;
     if (!quiet) state({ done: true });
   }
 
   function speak(text, opts) {
     opts = opts || {};
     if (!available()) return false;
-    var list = chunk(text);
+    var list = chunk(stripMd(text));
     if (!list.length) return false;
 
     stop(true);
     var my = ++token;
     parts = list;
-    at = 0;
     curText = String(text == null ? '' : text);
-    var voice = pickVoice();
-
-    function next() {
-      if (my !== token) return;                 // 已经被新的一次朗读顶掉了
-      if (at >= parts.length) { stop(false); return; }
-      var u = new Utt(parts[at++]);
-      if (voice) { u.voice = voice; u.lang = voice.lang || 'zh-CN'; }
-      else { u.lang = 'zh-CN'; }                // 没有中文音色也先按中文请求，让引擎自己挑
-      u.rate = 1;
-      u.pitch = 1;
-      u.onend = next;
-      u.onerror = function () { if (my === token) stop(false); };
-      try { synth.speak(u); } catch (e) { stop(false); }
-    }
-
     state({ speaking: true, started: true });
-    next();
-
-    timer = setInterval(function () {
-      if (my !== token || !synth.speaking) { clearInterval(timer); timer = 0; return; }
-      if (synth.paused) { try { synth.resume(); } catch (e) {} }
-    }, 4000);
+    run(my);
     return true;
   }
+
   function toggle(text, opts) {
     if (isSpeaking() && curText === String(text == null ? '' : text)) stop();
     else speak(text, opts);
@@ -222,17 +337,10 @@
     stop: stop,
     isSpeaking: isSpeaking,
     currentText: currentText,
+    lastError: lastErrorText,
     attach: attach,
     on: on,
     autoOn: autoOn,
     setAuto: setAuto
   };
-
-  /* 音色列表在 Chrome 上是异步填充的，先把监听挂上，等它好了通知一声 */
-  if (available()) {
-    voices();
-    var wake = function () { state({ voicesReady: true }); };
-    if (typeof synth.addEventListener === 'function') synth.addEventListener('voiceschanged', wake);
-    else synth.onvoiceschanged = wake;
-  }
 })(window);

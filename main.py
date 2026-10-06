@@ -86,7 +86,18 @@ from pathlib import Path  # noqa: E402
 from html import escape  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 _static_dir = Path(__file__).resolve().parent / 'static'
-app.mount('/static', StaticFiles(directory=str(_static_dir), check_dir=False), name='static')  # noqa: E402
+class _NoCacheStatic(StaticFiles):  # noqa: E402
+    # 知识点 9（继承与方法重写）：直接拿 StaticFiles 来用，只改一个地方 ——
+    # 回包时加上 Cache-Control: no-cache。不设它的话，浏览器会按启发式规则
+    # 自己决定缓存多久，改了前端 JS / CSS 用户那边可能还在跑旧文件（踩过）。
+    # no-cache 不是「不缓存」，是「每次回来问一句」，没变就还是 304，很便宜。
+    def file_response(self, *args, **kwargs):
+        resp = super().file_response(*args, **kwargs)
+        resp.headers['Cache-Control'] = 'no-cache'
+        return resp
+
+
+app.mount('/static', _NoCacheStatic(directory=str(_static_dir), check_dir=False), name='static')  # noqa: E402
 from ai_chart import router as ai_chart_router  # noqa: E402
 app.include_router(ai_chart_router)
 
@@ -259,6 +270,25 @@ app.include_router(goal_split_router)
 # 浏览器访问 http://127.0.0.1:8000/site-collect 即可使用。
 from site_collect import router as site_collect_router  # noqa: E402
 app.include_router(site_collect_router)
+
+
+# 朗读：语音合成（火山引擎 / 豆包）
+# 页面上的「🔊 自动朗读」和每条回复下面的小喇叭，声音都从这儿来。
+# 为什么绕一层服务端而不是浏览器直连火山：Key 写进前端 JS 就等于公开，
+# 而且服务端能顺手缓存 —— 同一句话读第二遍直接返回音频，不重复计费。
+# 没配 VOLC_TTS_API_KEY、或者火山那边报错，接口返回 ok:false 带一句人话，
+# /static/voice.js 直接把它弹给用户，绝不换成浏览器自带语音顶上去。
+from volc_tts import router as volc_tts_router  # noqa: E402
+app.include_router(volc_tts_router)
+
+
+# 语音输入：语音识别（火山引擎 / 豆包）
+# 页面输入框旁边那个麦克风图标就是它：录一段 -> 传上来转文字 -> 填回输入框。
+# 和朗读一样绕一层服务端（Key 不进前端），失败时返回 ok:false 带一句人话，前端照弹。
+# 想用必须先满足两个条件：页面是 https（浏览器才给用麦克风）、
+# 火山控制台里开通「大模型语音识别」。两条缺哪条都会在页面上写清楚缺哪条。
+from volc_asr import router as volc_asr_router  # noqa: E402
+app.include_router(volc_asr_router)
 
 
 

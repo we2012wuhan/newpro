@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#4C5AA8">
+<title>5Why 分析 + 苏格拉底提问</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/auth-guard.js"></script>
+<style>
+/* 这个页面本身只是一层「壳」：上面一条标题栏 + 一条 tab 栏，下面整个区域让给 iframe。
+   两个工具各自的配色不同（5Why 是暖棕，苏格拉底是靛蓝），所以这套壳的颜色
+   跟着当前 tab 走 —— 见下面 body[data-tab=...] 那两条。这样壳和内容之间没有色差接缝。 */
+:root{
+  --hub-bg:#F8F6F4;      /* 默认取 5Why 的底色，避免首帧闪一下 */
+  --hub-line:#EBE5E0;
+  --hub-ink:#2A211B;
+  --hub-muted:#96867C;
+  --hub-acc:#B4693F;
+}
+[data-theme="dark"]{
+  --hub-bg:#12100E;
+  --hub-line:#2E2823;
+  --hub-ink:#F3EDE8;
+  --hub-muted:#94867C;
+  --hub-acc:#E8A87C;
+}
+body[data-tab="why"]{ --hub-bg:#F8F6F4; --hub-line:#EBE5E0; --hub-ink:#2A211B; --hub-muted:#96867C; --hub-acc:#B4693F; }
+body[data-tab="soc"]{ --hub-bg:#F6F7FA; --hub-line:#E6EAF0; --hub-ink:#1F2A37; --hub-muted:#8492A3; --hub-acc:#4C5AA8; }
+body[data-tab="fp"]{ --hub-bg:#F5F8F8; --hub-line:#E2EAEA; --hub-ink:#1B2A2A; --hub-muted:#7E9291; --hub-acc:#2F7E7A; }
+html[data-theme="dark"] body[data-tab="why"]{ --hub-bg:#101322; --hub-line:#282D45; --hub-ink:#EDEFF7; --hub-muted:#8B93AB; --hub-acc:#93A0E8; }
+html[data-theme="dark"] body[data-tab="soc"]{ --hub-bg:#101322; --hub-line:#282D45; --hub-ink:#EDEFF7; --hub-muted:#8B93AB; --hub-acc:#93A0E8; }
+html[data-theme="dark"] body[data-tab="fp"]{ --hub-bg:#101322; --hub-line:#282D45; --hub-ink:#EDEFF7; --hub-muted:#8B93AB; --hub-acc:#7FD1C8; }
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;padding:0}
+body{
+  background:var(--hub-bg); color:var(--hub-ink);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased;
+  display:flex; flex-direction:column; overflow:hidden;
+}
+button{font-family:inherit;font-size:15px;color:inherit}
+
+/* 顶栏 */
+.topbar{flex:0 0 auto}
+.topbar-in{max-width:1180px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px}
+.ttl{font-size:16px;font-weight:600;color:var(--hub-ink);line-height:1.3}
+.sub{font-size:12px;color:var(--hub-muted);line-height:1.4;margin-top:2px}
+.back{margin-left:auto;flex:0 0 auto;font-size:13px;color:var(--hub-muted);text-decoration:none;
+  border:1px solid var(--hub-line);border-radius:999px;padding:7px 13px;white-space:nowrap}
+.back:hover{color:var(--hub-ink);border-color:var(--hub-acc)}
+
+/* tab 栏 */
+.tabs{flex:0 0 auto;border-bottom:1px solid var(--hub-line)}
+.tabs-in{max-width:1180px;margin:0 auto;padding:0 16px;display:flex;gap:4px}
+.tab{position:relative;min-height:46px;padding:0 16px;border:0;background:none;cursor:pointer;
+  color:var(--hub-muted);border-bottom:2px solid transparent;
+  display:inline-flex;align-items:center;justify-content:center}
+.tab b{font-size:14px;font-weight:600;color:inherit}
+.tab:hover b{color:var(--hub-ink)}
+.tab.on{color:var(--hub-acc);border-bottom-color:var(--hub-acc)}
+.tab.on b{color:var(--hub-acc)}
+.tab:focus-visible{outline:2px solid var(--hub-acc);outline-offset:-4px;border-radius:8px}
+
+/* 内容区：整个剩下高度都给 iframe */
+.frames{position:relative;flex:1 1 auto;min-height:0;background:var(--hub-bg)}
+.frame{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:transparent}
+.frame[hidden]{display:none}
+
+@media (max-width:600px){
+  .topbar-in{padding:9px 12px;gap:8px}
+  .ttl{font-size:15px}
+  .sub{display:none}
+  .back{padding:6px 11px;font-size:12.5px}
+  .tabs-in{padding:0 12px;gap:2px}
+  .tab{padding:0 12px}
+  .tab b{font-size:13.5px}
+}
+</style>
+</head>
+<body data-tab="why">
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div>
+      <div class="ttl">5Why 分析 + 苏格拉底提问</div>
+      <div class="sub">两个都只靠提问干活：一个帮你追到根因，一个陪你把话说清楚</div>
+    </div>
+    <a class="back" href="/">← 返回工具箱</a>
+    <span class="tb-mount"></span>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="工具切换">
+  <div class="tabs-in" id="tabs">
+    <button class="tab on" type="button" role="tab" aria-selected="true" data-tab="why">
+      <b>5Why 分析法</b>
+    </button>
+    <button class="tab" type="button" role="tab" aria-selected="false" data-tab="soc">
+      <b>苏格拉底提问</b>
+    </button>
+    <button class="tab" type="button" role="tab" aria-selected="false" data-tab="fp">
+      <b>第一性原理</b>
+    </button>
+  </div>
+</nav>
+
+<div class="frames">
+  <iframe class="frame" allow="microphone" id="f-why" title="5Why 分析法" hidden></iframe>
+  <iframe class="frame" allow="microphone" id="f-soc" title="苏格拉底提问" hidden></iframe>
+  <iframe class="frame" allow="microphone" id="f-fp" title="第一性原理" hidden></iframe>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* 两个工具各自是一整页（自己的配色、自己的 DOM id、自己的历史面板）。
+   硬把两份代码拼成一个文件必然互相污染，所以这里用 iframe 各装一份：
+   切 tab 只是显示 / 隐藏，一个页面都不重新加载 —— 聊到一半切过去再切回来，
+   对话和历史都还在原地。iframe 的 src 第一次要显示时才设，没点开的那个不会发请求。 */
+
+var TABS = [
+  { key: 'why', frame: 'f-why', url: '/five-why' },
+  { key: 'soc', frame: 'f-soc', url: '/socratic' },
+  { key: 'fp', frame: 'f-fp', url: '/first-principles' }
+];
+var MAP = {};
+TABS.forEach(function(t){ MAP[t.key] = t; });
+
+var cur = 'why';
+
+function $(id){ return document.getElementById(id); }
+
+/* 地址里的 ?r=<记录 id>：从「记录总览」点「直接打开这一条」进来时带上的，
+   只在第一次显示那个 tab 时透传给 iframe（iframe 里的页面自己认得 ?r=）。 */
+/* 互送参数（from / src / prefill）：原样透传给被嵌的那个工具，
+   它自己会预填输入框、并标出这条是从哪来的。不带这些参数时一个都不加。 */
+function qs(name){
+  try{
+    var m = new RegExp('[?&]' + name + '=([^&]*)').exec(location.search || '');
+    return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : '';
+  }catch(e){ return ''; }
+}
+function passParams(){
+  var out = '';
+  ['from', 'src', 'prefill'].forEach(function(n){
+    var v = qs(n);
+    if(v){ out += '&' + n + '=' + encodeURIComponent(v); }
+  });
+  return out;
+}
+
+function rParam(){
+  var m = /[?&]r=([0-9]+)/.exec(location.search || '');
+  return m ? m[1] : '';
+}
+
+/* 每个 iframe 只设一次 src：设第二次就等于重新加载，会把页面状态清掉 */
+function load(t, r){
+  var f = $(t.frame);
+  if(!f){ return; }
+  if(!t.done){
+    t.done = true;
+    f.setAttribute('src', t.url + '?embed=1' + (r ? '&r=' + r : '') + passParams());
+  }
+  f.hidden = false;
+}
+
+function show(key, r){
+  var t = MAP[key] || MAP.why;
+  cur = t.key;
+  document.body.setAttribute('data-tab', cur);   /* 壳的颜色跟着 tab 走 */
+
+  TABS.forEach(function(x){
+    var on = (x.key === cur);
+    var b = document.querySelector('.tab[data-tab="' + x.key + '"]');
+    if(b){ b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); }
+    var f = $(x.frame);
+    if(f){ f.hidden = !on; }
+  });
+
+  load(t, r);
+
+  /* 地址栏跟着 tab 走：刷新还在这一页，链接也能直接分享。
+     用 replaceState 不新增历史记录 —— 否则按一下返回只退到上一个 tab，挺烦人的。 */
+  try{ history.replaceState(null, '', location.pathname + '?tab=' + cur); }catch(e){}
+}
+
+function init(){
+  var m = /[?&]tab=(why|soc|fp)/.exec(location.search || '');
+  /* 只给了 ?r= 没给 tab 时按 5Why 算（正常入口都会把 tab 带上，见 overview.py） */
+  show(m ? m[1] : 'why', rParam());
+
+  Array.prototype.forEach.call(document.querySelectorAll('.tab[data-tab]'), function(b){
+    b.onclick = function(){ show(b.getAttribute('data-tab'), ''); };
+  });
+}
+init();
+
+})();
+</script>
+</body>
+</html>
