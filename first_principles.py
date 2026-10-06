@@ -104,14 +104,26 @@ KIND_KEYS = [k for k, _ in KINDS]
 KIND_NAME = dict(KINDS)
 
 # 拷问清单：只问「这条到底是不是真的」，不问「为什么」。
-# 逐条轮着问，保证四类问题都会被问到 —— 这是代码算的，不是交给模型即兴发挥。
-PROBE_Q = [
-    '这个数字是量出来的，还是估的，从哪来的？',
-    '这条是谁定的，说这话的人有没有立场？',
-    '如果把它去掉，最坏会怎样？',
-    '有没有人已经做到过，是物理上做不到，还是只是没人试过？',
+# 四类角度一定要全覆盖（这是代码算的，不许跳），但**怎么问**交给模型：
+# 每一条零件、每一次追问，问题都得长在他的原话上 ——
+# 拿同一句话去套所有零件，用户的感觉就是「你根本没在听我说什么」。
+PROBE_ANGLES = [
+    {'name': '出处',
+     'aim': '这个数是哪来的 —— 谁量的、怎么量的、什么时候量的，还是他自己估的',
+     'ask': '这个数字是量出来的，还是估的，从哪来的？'},
+    {'name': '立场',
+     'aim': '这条是谁定的 —— 说这话的人是不是获利的一方、他为什么要这么说',
+     'ask': '这条是谁定的，说这话的人有没有立场？'},
+    {'name': '代价',
+     'aim': '把它去掉最坏会怎样 —— 逼他看见这条到底挡住了什么',
+     'ask': '如果把它去掉，最坏会怎样？'},
+    {'name': '先例',
+     'aim': '有没有人已经做到过 —— 分清是物理上做不到，还是只是没人试过',
+     'ask': '有没有人已经做到过，是物理上做不到，还是只是没人试过？'},
 ]
-PROBE_LEN = len(PROBE_Q)
+PROBE_LEN = len(PROBE_ANGLES)
+# 兜底用：模型没配 Key、或者这次没吐出问句时，退回这四句
+PROBE_Q = [a['ask'] for a in PROBE_ANGLES]
 
 def _pi_of(*vals):
     # 这条零件问到第几个问题了（0 起）。零件上存 pi，会话上存 probe_idx，两个都认。
@@ -521,6 +533,36 @@ def _one_q(pieces):
     if held:
         yield {'t': held}
 
+def _probe_sys(item_text, idx):
+    """这一轮的系统提示：零件 + 落点。问法由模型自己定。"""
+    a = PROBE_ANGLES[_pi_of(idx)]
+    return PROBE_SYS % (item_text, a['name'], a['aim'])
+
+
+def _one_q_text(text):
+    """非流式路径用：留到第一个问号为止（跟 _one_q 一个规矩）。"""
+    t = _swap(str(text or '')).strip()
+    cut = _q_at(t)
+    return t[:cut + 1].strip() if cut >= 0 else t
+
+
+_OPEN_NOTE = '（这一条刚开问，他还没说话 —— 别写「你说得对」这种回应，直接问。）'
+
+
+def _ask_question(item, idx, tries=1):
+    """开场 / 换条 / 重来时的第一个问题：让模型照着这条零件写。
+
+    没配 Key、或者这次没吐出问句，就退回兜底那句 —— 工具不能因此卡住。
+    """
+    a = PROBE_ANGLES[_pi_of(idx)]
+    out, _err = _chat_text(_probe_sys(_clean(item.get('text'), ITEM_MAX), idx),
+                           [{'role': 'user', 'content': _OPEN_NOTE}], tries=tries)
+    q = _one_q_text(out)
+    if not q or _q_at(q) < 0 or len(q) > 90:
+        return a['ask']
+    return q
+
+
 def _pieces(text, size=16):
     """把一段固定文字切成小块推出去，前端看起来也像「在说话」。"""
     t = _swap(str(text or ''))
@@ -713,16 +755,32 @@ ITEM_SYS = '\n'.join([
 ITEM_ASK = '这件事是：%s'
 ITEM_RETRY = '太少了，再补几条。每条一行，一共至少 %d 条。' % MIN_ITEMS
 
+# 给模型的只有「这一轮的落点」，剩下的用他的话问出来。
 PROBE_SYS = '\n'.join([
     '你在帮一个人做「第一性原理拆解」，现在到「逐条拷问」这一步。',
-    '你正在拷问这一条被标成「事实」的零件：%s',
+    '他认定这件事只能这么做，理由里有一条被他当成「事实」：%s',
+    '',
+    '这一轮要逼他答的落点是【%s】：%s',
     '',
     '你只做两件事：',
-    '1. 先用一句话回应他刚才说的（不评价、不表扬、不给建议、不下结论）；',
-    '2. 然后把下面这个问题问出来，可以调语气，但一个字都不许换成别的问题：',
-    '   %s',
+    '1. 先用一句话接住他刚说的（不评价、不表扬、不给建议、不下结论）；',
+    '2. 再问一个问题，只问上面这个落点。',
     '',
-    '规矩：全篇不超过 70 字；只许有这一个问号；不许给答案、不许给方案、不许说「你应该」。',
+    '问题怎么问是最要紧的：',
+    '· 必须长在他说过的话上 —— 把他原话里的数字、名词、时间、人名抄进去，',
+    '  让他一眼看出你在问「他这一条」，而不是在念一句谁都能用的通用问题；',
+    '· 他答得含糊、答非所问，就照着他的原话追漏洞；答得实在，就往深一层要细节；',
+    '· 上面已经问过同一个落点的，换个切入点再问，别把上一轮那句原话又说一遍；',
+    '· 不许把落点本身当句子念出来，也不许出现「一般来说」「据说」这种和这条零件无关的套话；',
+    '',
+    '参照（左边是他的零件，右边是问法 —— 问法要跟着零件变）：',
+    '· 「一车最多装 800 箱」→「800 箱是按你们那种车实测出来的，还是照体积估的？」',
+    '· 「顺丰要求 24 小时内出库」→「24 小时这条是顺丰合同里写死的，还是仓库自己怕超时定的？」',
+    '· 「客户不接受涨价」→「这个客户跟你明说过不接受，还是你觉得他接受不了？」',
+    '反面例子（这种等于没问，一律不许）：「这个数字是量出来的，还是估的？」',
+    '',
+    '规矩：全篇不超过 70 字；只许有这一个问号；不要开场白、不要总结；',
+    '不许给答案、不许给方案、不许说「你应该」。',
 ])
 
 # 一条问完四个问题之后，不再自动跳下一条：先把「听到的」收拢成一句，交给他自己定收没收。
@@ -1007,8 +1065,11 @@ def _stream_probe(sid, text, user, plan):
             convo, _msgs = _convo(plan, text)
             # 这一条只剩最后一问了：不问下一问，改成把他说的收拢成一句，交给他自己定
             last_q = idx >= PROBE_LEN - 1
+            # idx 是「他正在答的那一问」：开场问的是第 0 问，所以这里要问下一问（idx+1）。
+            # 这里以前用的是 idx，等于把刚答完的那一问再问一遍 —— 第一问会被连着问两次，
+            # 最后一问（先例）反而永远轮不到。
             sys_p = RECAP_SYS % _clean(cur.get('text'), ITEM_MAX) if last_q else \
-                PROBE_SYS % (_clean(cur.get('text'), ITEM_MAX), PROBE_Q[idx])
+                _probe_sys(_clean(cur.get('text'), ITEM_MAX), idx + 1)
             said = []
             for ev in _plain(_one_q(_chat_stream(sys_p, convo, max_tokens=300))):
                 if 'err' in ev:
@@ -1193,7 +1254,7 @@ def _do_patch(sid, payload, user, row):
             plan['msgs'].append({'role': 'ai', 'at': now, 'step': 3,
                                  'item': _clean(first.get('id'), 12), 'text':
                                  '先看这一条：\n\n「%s」\n\n%s'
-                                 % (_clean(first.get('text'), ITEM_MAX), PROBE_Q[0])})
+                                 % (_clean(first.get('text'), ITEM_MAX), _ask_question(first, 0))})
     elif act == 'finish':
         if step < 4:
             return JSONResponse({'ok': False, 'message': '还没到收尾这一步。'}, status_code=409)
@@ -1233,7 +1294,7 @@ def _do_patch(sid, payload, user, row):
                              WAIT_CLOSE % _clean(dst.get('text'), ITEM_MAX) if dst.get('pending')
                              else '%s\n\n「%s」\n\n%s'
                              % ('接着问这一条：' if pi else '换到这一条：',
-                                _clean(dst.get('text'), ITEM_MAX), PROBE_Q[pi]))})
+                                _clean(dst.get('text'), ITEM_MAX), _ask_question(dst, pi)))})
     elif act == 'close':
         # 「这条问透了」：四个问题走完只是问过，收没收尾得他自己点头
         if step != 3:
@@ -1269,7 +1330,7 @@ def _do_patch(sid, payload, user, row):
                                  WAIT_CLOSE % _clean(dst.get('text'), ITEM_MAX) if dst.get('pending')
                                  else '接着看下一条：\n\n「%s」\n\n%s'
                                  % (_clean(dst.get('text'), ITEM_MAX),
-                                    PROBE_Q[_pi_of(dst.get('pi'))]))})
+                                    _ask_question(dst, dst.get('pi'))))})
     elif act == 'redo':
         # 「还没问透」：这一条四个问题再走一遍；他之前答的留着，不清空
         if step != 3:
@@ -1293,7 +1354,7 @@ def _do_patch(sid, payload, user, row):
         plan['msgs'].append({'role': 'ai', 'at': now, 'step': 3,
                              'item': _clean(cur.get('id'), 12), 'text':
                              '再来一遍这一条，这回挑重点答：\n\n「%s」\n\n%s'
-                             % (_clean(cur.get('text'), ITEM_MAX), PROBE_Q[0])})
+                             % (_clean(cur.get('text'), ITEM_MAX), _ask_question(cur, 0))})
     elif act not in ('', 'items'):
         return JSONResponse({'ok': False, 'message': '不认识这个操作。'}, status_code=400)
 

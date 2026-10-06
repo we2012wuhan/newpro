@@ -80,8 +80,6 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .tool.t-sdd:hover{border-color:rgba(129,140,248,.55);box-shadow:0 24px 52px rgba(129,140,248,.22)}
 .t-sdd .go{background:linear-gradient(135deg,#818cf8,#6366f1);box-shadow:0 8px 20px rgba(129,140,248,.32)}
 .tool.t-ask:hover{border-color:rgba(140,120,200,.55);box-shadow:0 24px 52px rgba(120,100,180,.24)}
-.tool.t-fp:hover{border-color:rgba(47,126,122,.55);box-shadow:0 24px 52px rgba(32,110,104,.26)}
-.t-fp .go{background:linear-gradient(135deg,#2f7e7a,#4fb3a8);box-shadow:0 8px 20px rgba(47,126,122,.3)}
 .t-ask .go{background:linear-gradient(135deg,#b4693f,#4c5aa8);box-shadow:0 8px 20px rgba(120,100,180,.32)}
 .tool.t-wi:hover{border-color:rgba(255,180,84,.55);box-shadow:0 24px 52px rgba(255,180,84,.2)}
 .t-wi .go{background:linear-gradient(135deg,#ffb454,#f59e0b);box-shadow:0 8px 20px rgba(255,180,84,.32)}
@@ -99,8 +97,6 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .t-sl .go{background:linear-gradient(135deg,#64748b,#334155);box-shadow:0 8px 20px rgba(100,116,139,.35)}
 .tool.t-sc:hover{border-color:rgba(45,212,191,.55);box-shadow:0 24px 52px rgba(15,118,110,.28)}
 .t-sc .go{background:linear-gradient(135deg,#2dd4bf,#0f766e);box-shadow:0 8px 20px rgba(15,118,110,.34)}
-.tool.t-life:hover{border-color:rgba(251,191,36,.55);box-shadow:0 24px 52px rgba(217,119,6,.22)}
-.t-life .go{background:linear-gradient(135deg,#fbbf24,#d97706);box-shadow:0 8px 20px rgba(217,119,6,.32)}
 .search-col{display:flex;flex-direction:column;align-items:stretch;gap:7px;flex:1;max-width:480px;min-width:260px;margin-left:auto}
 .search-box{position:relative;width:100%}
 .search-box .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none;font-size:15px}
@@ -248,60 +244,6 @@ body.is-dragging .tool:not(.dragging){transition:none}
   .quotes{display:none}
   .qside{display:flex}
 }
-/* ===== 两侧灯笼：纯装饰，不参与交互 ===== */
-.lanterns{position:fixed;top:0;left:0;right:0;height:0;z-index:0;pointer-events:none}
-.lantern{position:fixed;top:0;width:114px}
-.lantern.lan-l{right:calc(50% + 522px);transform-origin:100% 0}
-.lantern.lan-r{left:calc(50% + 522px);transform-origin:0 0}
-.lantern-in{position:relative;width:114px;height:248px;transform-origin:50% 0;
-  animation:lanSwing 4.4s ease-in-out infinite alternate}
-.lantern.lan-r .lantern-in{animation-duration:5.2s;animation-delay:-1.7s}
-.lan-cord,.lan-hang{position:absolute;left:50%;width:2px;margin-left:-1px;border-radius:2px;
-  background:linear-gradient(180deg,#f2d072,#d8a72c)}
-.lan-cord{top:0;height:22px}
-.lan-hang{top:148px;height:22px}
-.lan-knob{position:absolute;left:50%;top:17px;width:26px;height:10px;margin-left:-13px;border-radius:3px;
-  background:linear-gradient(180deg,#ffeeb6,#e0b13f 58%,#a97c1d)}
-.lan-crown{position:absolute;left:50%;top:24px;width:48px;height:18px;margin-left:-24px;
-  background:linear-gradient(180deg,#ffe9a4,#e5b840 58%,#b98c22);
-  clip-path:polygon(15% 0,85% 0,100% 100%,0 100%)}
-.lan-crown::before{content:"";position:absolute;left:20%;right:20%;top:2.5px;height:2.5px;border-radius:2px;
-  background:rgba(255,255,255,.5)}
-.lan-band{position:absolute;left:50%;top:39px;width:64px;height:11px;margin-left:-32px;border-radius:3px;
-  background:linear-gradient(180deg,#f7d879,#c9992a);box-shadow:0 1px 3px rgba(90,50,0,.28)}
-.lan-band::before{content:"";position:absolute;inset:3px 5px 2px;
-  background-image:radial-gradient(circle,rgba(255,255,255,.9) 0 1.3px,rgba(255,255,255,0) 1.9px);
-  background-size:11px 100%;background-repeat:repeat-x}
-.lan-body{position:absolute;left:0;top:45px;width:114px;height:102px;border-radius:50%;overflow:hidden;
-  background:
-    radial-gradient(46% 40% at 50% 45%,rgba(255,250,230,.98),rgba(255,206,110,0) 74%),
-    radial-gradient(125% 125% at 50% 44%,#ffc95c 0%,#fa5f1d 28%,#dd1710 60%,#8f0b06 100%);
-  box-shadow:inset 0 -12px 22px -10px rgba(90,4,0,.72),inset 0 12px 20px -10px rgba(255,206,130,.5),
-    0 18px 36px -18px rgba(170,20,20,.65)}
-.lan-ribs{position:absolute;inset:0;border-radius:50%;
-  background:repeating-linear-gradient(90deg,rgba(255,214,120,0) 0 13px,rgba(255,216,128,.8) 13px 15px);
-  -webkit-mask:radial-gradient(50% 50% at 50% 50%,#000 0 58%,rgba(0,0,0,.35) 84%,transparent 98%);
-  mask:radial-gradient(50% 50% at 50% 50%,#000 0 58%,rgba(0,0,0,.35) 84%,transparent 98%)}
-.lan-base{position:absolute;left:50%;top:138px;width:38px;height:12px;margin-left:-19px;border-radius:50%;
-  background:linear-gradient(180deg,#ffe9a4,#dcae35 55%,#a97c1d);box-shadow:0 2px 4px rgba(90,40,0,.32)}
-.lan-bead{position:absolute;left:50%;top:166px;width:14px;height:14px;margin-left:-7px;border-radius:50%;
-  background:radial-gradient(circle at 34% 28%,#e2ffdc,#4ddc63 38%,#1b9b34 72%,#0b641f 100%);
-  box-shadow:0 1px 3px rgba(0,60,10,.4)}
-.lan-ring{position:absolute;left:50%;top:179px;width:11px;height:7px;margin-left:-5.5px;border-radius:50%;
-  background:linear-gradient(180deg,#ffeeb6,#c9992a)}
-.lan-tassel{position:absolute;left:50%;top:185px;width:16px;height:58px;margin-left:-8px;border-radius:3px;
-  background:linear-gradient(180deg,#ffe488,#f4bb28 55%,#d99a10);
-  box-shadow:0 8px 16px -10px rgba(150,90,0,.7)}
-@keyframes lanSwing{from{transform:rotate(-4.5deg)}to{transform:rotate(4.5deg)}}
-[data-theme="dark"] .lantern-in{filter:drop-shadow(0 0 30px rgba(255,120,60,.35))}
-[data-theme="dark"] .lan-body{
-  background:
-    radial-gradient(42% 36% at 50% 45%,rgba(255,252,236,.98),rgba(255,214,120,0) 74%),
-    radial-gradient(125% 125% at 50% 44%,#ffd06a 0%,#ff6b22 28%,#e51f14 60%,#9c120c 100%)}
-@media (max-width:1439px){.lantern{transform:scale(.86)}}
-@media (max-width:1279px){.lantern{transform:scale(.66)}}
-@media (max-width:1199px){.lanterns{display:none}}
-@media (prefers-reduced-motion:reduce){.lantern-in{animation:none}}
 /* ===== 今天要处理的事：只在有到期内容时出现，其余时间完全隐藏 ===== */
 .today{margin:0 0 18px;padding:15px 17px;border-radius:18px;
   background:linear-gradient(180deg,var(--tb-card),var(--tb-card-2));
@@ -339,32 +281,6 @@ body.is-dragging .tool:not(.dragging){transition:none}
 <script src="/static/auth-guard.js"></script>
 </head>
 <body>
-<div class="lanterns" aria-hidden="true">
-  <div class="lantern lan-l"><div class="lantern-in">
-    <span class="lan-cord"></span>
-    <span class="lan-knob"></span>
-    <span class="lan-crown"></span>
-    <span class="lan-band"></span>
-    <span class="lan-body"><i class="lan-ribs"></i></span>
-    <span class="lan-base"></span>
-    <span class="lan-hang"></span>
-    <span class="lan-bead"></span>
-    <span class="lan-ring"></span>
-    <span class="lan-tassel"></span>
-  </div></div>
-  <div class="lantern lan-r"><div class="lantern-in">
-    <span class="lan-cord"></span>
-    <span class="lan-knob"></span>
-    <span class="lan-crown"></span>
-    <span class="lan-band"></span>
-    <span class="lan-body"><i class="lan-ribs"></i></span>
-    <span class="lan-base"></span>
-    <span class="lan-hang"></span>
-    <span class="lan-bead"></span>
-    <span class="lan-ring"></span>
-    <span class="lan-tassel"></span>
-  </div></div>
-</div>
 <div class="wrap">
   <div class="today" id="today" hidden></div>
   <div class="quotes" id="quotes" aria-label="每日名言"></div>
@@ -500,14 +416,6 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开 ↗</span>
       </div>
     </a>
-    <a class="tool t-life" data-cat="ext" href="http://123.57.222.118:8090/" target="_blank" rel="noopener noreferrer">
-      <div class="t-icon">💰</div>
-      <div class="t-info">
-        <h3>高性价比人生指南</h3>
-        <p class="desc">按「性价比」排序的人生指南：658 条建议，每条都写清成本、收益和证据出处。</p>
-        <span class="go">立即打开 ↗</span>
-      </div>
-    </a>
     <a class="tool t-ocr" data-cat="ai" href="/ocr">
       <div class="t-icon">🔍</div>
       <div class="t-info">
@@ -551,16 +459,8 @@ body.is-dragging .tool:not(.dragging){transition:none}
     <a class="tool t-ask" data-cat="think" href="/ask-hub">
       <div class="t-icon">🧩</div>
       <div class="t-info">
-        <h3>5Why 分析 + 苏格拉底提问</h3>
-        <p class="desc">两个只问不答的工具：一个追根因，一个理思路。</p>
-        <span class="go">立即打开</span>
-      </div>
-    </a>
-    <a class="tool t-fp" data-cat="think" href="/ask-hub?tab=fp">
-      <div class="t-icon">🧱</div>
-      <div class="t-info">
-        <h3>第一性原理</h3>
-        <p class="desc">把「只能这么做」拆成一条条零件，分出哪条是真事实、哪条只是惯例或你自己的假设，再拿剩下的硬约束从零算一遍。一条都没被推翻时，它会直接告诉你没有可拆解的空间。和 5Why、苏格拉底在同一页，顶部切 tab。</p>
+        <h3>5Why 分析 + 苏格拉底提问 + 第一性原理</h3>
+        <p class="desc">三个只问不答的工具合在一页，顶上切 tab：一个追根因，一个理思路，一个拆假设 —— 把「只能这么做」拆成一条条零件，分出哪条是真事实、哪条只是惯例或你自己的假设，再拿剩下的硬约束从零算一遍。一条都没被推翻时，它会直接说「没有可拆解的空间」。</p>
         <span class="go">立即打开</span>
       </div>
     </a>
