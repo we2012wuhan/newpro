@@ -166,6 +166,9 @@ textarea::placeholder{color:var(--muted);opacity:.72}
   .topbar-in,.wrap{max-width:1180px}
   .wrap{display:grid;grid-template-columns:minmax(0,1fr) 292px;gap:22px;align-items:start}
   .col-side{position:sticky;top:var(--stick,78px)}
+  /* 页面最底下不留那截空白：不留的话，左栏到底了滚动条还能再往下拉一截，
+     一拉整块内容就跟着往上挪。留环境变量是给 iPad 横屏的底部安全区。 */
+  .wrap{padding-bottom:env(safe-area-inset-bottom)}
 }
 .err{background:var(--err-l);border:1px solid var(--err-line);border-radius:12px;padding:11px 14px;
   font-size:13px;color:var(--err);margin-top:12px;line-height:1.7}

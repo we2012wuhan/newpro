@@ -220,6 +220,9 @@ label.f{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 5px}
   .topbar-in,.wrap{max-width:1180px}
   .wrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:22px;align-items:start}
   .col-side{position:sticky;top:var(--stick,78px)}
+  /* 页面最底下不留那截空白：不留的话，左栏到底了滚动条还能再往下拉一截，
+     一拉整块内容就跟着往上挪。留环境变量是给 iPad 横屏的底部安全区。 */
+  .wrap{padding-bottom:env(safe-area-inset-bottom)}
 }
 @media print{
   .topbar,.col-side,.composer,.toast,.back{display:none!important}
