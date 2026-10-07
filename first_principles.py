@@ -85,6 +85,9 @@ HIST_MAX = 24      # 一次塞给模型的最近几条
 LIST_MAX = 80      # 右侧历史最多列几条
 SCAN_MAX = 400     # 开了搜索时往后翻多少条再筛
 QUERY_MAX = 60     # 搜索框那串最长多少字
+PAGE_SIZE = 6      # 右侧历史一页几条（前端可以传 size 覆盖）
+PAGE_MIN = 4       # 一页最少几条
+PAGE_MAX = 30      # 一页最多几条
 QUERY_TERMS = 6    # 最多拆成几个关键词
 ITEMS_MAX = 24     # 一次拆解最多留多少条零件
 MIN_ITEMS = 2      # 少于两条不算拆开
@@ -1399,10 +1402,40 @@ def first_principles_status():
                          'kinds': [{'key': k, 'name': n} for k, n in KINDS],
                          'probe': PROBE_Q})
 
+def _page_args(page, size):
+    """分页参数归一化：页码从 1 起，一页几条夹在 PAGE_MIN..PAGE_MAX 之间。"""
+    try:
+        p = int(page)
+    except (TypeError, ValueError):
+        p = 1
+    try:
+        n = int(size)
+    except (TypeError, ValueError):
+        n = PAGE_SIZE
+    return max(1, p), min(PAGE_MAX, max(PAGE_MIN, n))
+
+
+def _paged(items, page, size):
+    """把筛完的列表切成一页。页码越界就夹回合法范围。
+
+    返回 (这一页, 夹好的页码, 总页数, 总条数)。
+    """
+    total = len(items)
+    pages = max(1, (total + size - 1) // size)
+    page = min(max(1, page), pages)
+    start = (page - 1) * size
+    return items[start:start + size], page, pages, total
+
+
 @router.get('/first-principles/api/sessions')
-def first_principles_sessions(request: Request, q: str = ''):
-    """右侧历史。带 q= 时在目标、每条零件、拷问回答、对话正文里做模糊匹配。"""
+def first_principles_sessions(request: Request, q: str = '', page: int = 1,
+                              size: int = PAGE_SIZE):
+    """右侧历史。带 q= 时在目标、每条零件、拷问回答、对话正文里做模糊匹配。
+
+    筛完再按 page / size 切出这一页，命中总数一起返回。
+    """
     terms = _terms(q)
+    page, size = _page_args(page, size)
     try:
         rows = storage.list_records(TOOL, _user(request), SCAN_MAX if terms else LIST_MAX)
     except storage.StorageUnavailable as exc:
@@ -1418,9 +1451,10 @@ def first_principles_sessions(request: Request, q: str = ''):
         items.append(_row(r, False))
         if len(items) >= LIST_MAX:
             break
-    return JSONResponse({'ok': True, 'items': items, 'q': _clean(q, QUERY_MAX),
-                         'total': len(items), 'scanned': scanned})
-
+    one, page, pages, total = _paged(items, page, size)
+    return JSONResponse({'ok': True, 'items': one, 'q': _clean(q, QUERY_MAX),
+                         'page': page, 'pages': pages, 'size': size,
+                         'total': total, 'scanned': scanned})
 @router.post('/first-principles/api/sessions')
 async def first_principles_create(request: Request):
     payload = await _body(request)

@@ -105,6 +105,13 @@ label.f{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 5px}
 .prog-i.done{color:var(--ok);border-color:var(--ok-line);background:var(--ok-l)}
 .prog-i.done i{background:var(--ok);color:#fff}
 
+/* ===== 冻结行（像 Excel 首行冻结）：下拉时只有下面的对话在动 =====
+   --stick 由 syncStick() 按顶栏实际高度写入，拿不到时用兜底值。 */
+.linerow{display:flex;align-items:center;gap:10px;position:sticky;top:var(--stick,66px);z-index:5;
+  margin:0 -16px;padding:9px 16px;background:var(--card);border-bottom:1px solid var(--line)}
+.linerow .mini{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.linerow .btn{flex:0 0 auto}
+
 /* ===== 因果链 ===== */
 .chain{border:1px solid var(--line);background:var(--soft);border-radius:12px;padding:10px 12px;margin:0 0 14px}
 .chain-h{font-size:12px;font-weight:600;color:var(--ink);margin-bottom:6px;display:flex;
@@ -207,6 +214,16 @@ label.f{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 5px}
 .hq-info{margin-top:6px}
 .hq-info:empty{display:none}
 #history mark{background:var(--acc-l);color:var(--acc);border-radius:3px;padding:0 1px}
+/* ===== 右侧历史：翻页（页码，直接点某一页） ===== */
+.hist-pager{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px;margin-top:10px}
+.hist-pager:empty{display:none}
+.hist-pager .pg{flex:0 0 auto;min-width:30px;height:30px;padding:0 7px;border:1px solid var(--line);
+  border-radius:9px;background:var(--field);color:var(--text);font-family:inherit;
+  font-size:12.5px;line-height:1;cursor:pointer}
+.hist-pager .pg:hover:enabled{border-color:var(--acc-line);background:var(--acc-l);color:var(--ink)}
+.hist-pager .pg.on{background:var(--acc);border-color:var(--acc);color:var(--card);font-weight:600;cursor:default}
+.hist-pager .pg-gap{color:var(--muted);font-size:12.5px}
+.hist-pager .pg-n{flex:1 1 100%;text-align:center;font-size:11.5px;color:var(--muted)}
 .hist-s{display:block;font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.55;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hint{font-size:12.5px;color:var(--muted);line-height:1.7;margin-top:8px}
@@ -223,6 +240,11 @@ label.f{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 5px}
   /* 页面最底下不留那截空白：不留的话，左栏到底了滚动条还能再往下拉一截，
      一拉整块内容就跟着往上挪。留环境变量是给 iPad 横屏的底部安全区。 */
   .wrap{padding-bottom:env(safe-area-inset-bottom)}
+  /* 右栏不再无限长：左栏至少占满一屏，历史卡片最多和它一样高 ——
+     记录再多也只在卡片内部翻页，框不会一路往下长出去。 */
+  .col-main{min-height:calc(100vh - var(--stick,78px) - 28px)}
+  .col-side>.card{display:flex;flex-direction:column;max-height:calc(100vh - var(--stick,78px) - 28px)}
+  .col-side #history{min-height:0;overflow:auto;overscroll-behavior:contain}
 }
 @media print{
   .topbar,.col-side,.composer,.toast,.back{display:none!important}
@@ -284,6 +306,7 @@ html[data-embed] .topbar{display:none}
       </div>
       <div class="hq-info mini" id="hqInfo"></div>
       <div id="history"></div>
+      <div class="hist-pager" id="histPager"></div>
     </div>
   </aside>
 </main>
@@ -316,6 +339,7 @@ var S = {
   ai: true, busy: false, err: '',
   sid: null, sess: null, draft: '', cand: -1,
   items: [], listErr: '', hq: '', hit: null, listBusy: false,
+  page: 1, pages: 1, total: 0, size: 6,      /* 右侧历史翻页：当前页 / 总页数 / 总条数 / 一页几条 */
   act: { what:'', who:'', when:'', how:'' },
   focusNewest: false
 };
@@ -479,7 +503,10 @@ function renderChat(){
   }
   h += '</div>';
   var phTxt = (s.ph && s.ph.text) ? s.ph.text : (s.problem || '');
-  h += '<div class="mini">在追的这件事：' + esc(phTxt) + '</div>';
+  h += '<div class="linerow"><div class="mini" title="在追的这件事：' + esc(phTxt) + '">' +
+    '在追的这件事：' + esc(phTxt) + '</div>' +
+    '<button class="btn sm" type="button" id="newBtn" title="关掉这条，回到上面重开一条">重开一条</button>' +
+    '</div>';
   h += chainHTML(s);
 
   var avG = avatarSVG('why-' + (s.id != null ? s.id : S.sid));
@@ -582,8 +609,7 @@ function composerHTML(s){
         micBtnHTML() + '<button class="btn primary" id="sendBtn">就这个</button>' +
         '<button class="btn sm" id="branchBtn" title="这一层还有别的原因：先记下这条，再问一条并列的">' +
           '还有别的原因</button>' +
-        '<button class="btn sm" id="undoBtn" title="撤掉上一层，重新答">撤销上一层</button></div>' +
-      '<div class="mini" style="margin-top:6px">Enter 直接发，Shift+Enter 换行；点上面的候选能直接填进来。</div>';
+        '<button class="btn sm" id="undoBtn" title="撤掉上一层，重新答">撤销上一层</button></div>';
   }
   h += '</div>';
   return h;
@@ -594,7 +620,8 @@ function scrollToNewest(){
   var last = document.querySelector('[data-last="1"]');
   if(!last){ return; }
   var bar = document.querySelector('.topbar');
-  var top = (bar ? bar.offsetHeight : 0) + 12;
+  var lr = document.querySelector('.linerow');   // 冻结的那一行也会遮住内容
+  var top = (bar ? bar.offsetHeight : 0) + (lr ? lr.offsetHeight : 0) + 12;
   var bottom = (cp && cp.offsetHeight < window.innerHeight * 0.5 ? cp.offsetHeight : 0) + 12;
   last.style.scrollMarginTop = top + 'px';
   last.style.scrollMarginBottom = bottom + 'px';
@@ -659,6 +686,11 @@ function bindChat(s){
   var nd = $('nDone');     if(nd){ nd.onclick = function(){ nextStep('done'); }; }
   var na = $('newAn2');
   if(na){ na.onclick = function(e){ if(e){ e.preventDefault(); } newAnalysis(); }; }
+  var nb = $('newBtn');
+  if(nb){ nb.onclick = function(){
+    if(S.busy){ toast('等它回完再重开'); return; }   /* 正在回的时候重开会把状态弄乱 */
+    newAnalysis();
+  }; }
   var tf = $('toFp');      if(tf){ tf.onclick = sendFp; }
   var cr = $('copyRep');   if(cr){ cr.onclick = copyReport; }
   var dr = $('dlRep');     if(dr){ dr.onclick = downloadReport; }
@@ -694,6 +726,7 @@ function start(){
     autoReadLast();
     S.focusNewest = true;
     renderAll();
+    S.page = 1;               /* 新开的一条在最新那页 */
     loadHistory();
   });
 }
@@ -1036,15 +1069,83 @@ function downloadReport(){
 /* ===================== 右侧历史（读的是 SQLite） ===================== */
 function loadHistory(){
   var q = (S.hq || '').trim();
-  var url = '/five-why/api/sessions' + (q ? ('?q=' + encodeURIComponent(q)) : '');
+  var url = '/five-why/api/sessions?page=' + (S.page || 1) + '&size=' + (S.size || 6)
+          + (q ? ('&q=' + encodeURIComponent(q)) : '');
   S.listBusy = true;
   renderHqInfo();
   req('GET', url).then(function(d){
     S.listBusy = false;
     S.items = (d.ok && d.items) || [];
     S.listErr = d.ok ? '' : (d.message || '读不到历史记录');
-    S.hit = d.ok ? { total:(typeof d.total === 'number' ? d.total : S.items.length), q:d.q || '' } : null;
+    S.total = (d.ok && typeof d.total === 'number') ? d.total : S.items.length;
+    S.pages = (d.ok && typeof d.pages === 'number') ? d.pages : 1;
+    S.page = (d.ok && typeof d.page === 'number') ? d.page : 1;   /* 服务端会把越界的页码夹回来 */
+    S.hit = d.ok ? { total:S.total, q:d.q || '' } : null;
     renderHistory();
+    fitList();                 /* 估的条数装不下就少放一条，别让列表出现内部滚动条 */
+  });
+}
+
+/* 页码：页少就全列出，页多就 1 … 当前附近 … 末页（列表里的 0 = 省略号） */
+function pageList(cur, pages){
+  var out = [], i;
+  if(pages <= 7){
+    for(i = 1; i <= pages; i++){ out.push(i); }
+    return out;
+  }
+  var from = Math.max(2, Math.min(cur - 1, pages - 3));
+  var to = from + 2;
+  out.push(1);
+  if(from > 2){ out.push(0); }
+  for(i = from; i <= to; i++){ out.push(i); }
+  if(to < pages - 1){ out.push(0); }
+  out.push(pages);
+  return out;
+}
+
+/* 一页几条：按当前窗口高度估一个，让一页正好把卡片填满 */
+function fitSize(){
+  try{
+    var stick = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--stick')) || 66;
+    var room = window.innerHeight - stick - 28 - 210;   /* 210 ≈ 标题 + 搜索框 + 翻页条 */
+    return Math.max(4, Math.min(20, Math.floor(room / 68)));
+  }catch(e){ return 6; }
+}
+
+/* 估多了就往下降：宁可这一页少放一条，也不要列表自己带滚动条 */
+function fitList(){
+  var el = $('history');
+  if(!el || S.listBusy || S.listErr || S.size <= 4){ return; }
+  var over = el.scrollHeight - el.clientHeight;
+  if(over <= 1){ return; }
+  S.size = Math.max(4, S.size - Math.max(1, Math.ceil(over / 68)));
+  loadHistory();
+}
+
+/* 翻页：页码变了就重新拉这一页，服务端算总页数 */
+function goPage(n){
+  if(S.listBusy){ return; }
+  n = Number(n) || 1;
+  if(n < 1 || n > (S.pages || 1) || n === S.page){ return; }
+  S.page = n;
+  loadHistory();
+}
+
+function renderPager(){
+  var el = $('histPager');
+  if(!el){ return; }
+  var pages = S.pages || 1;
+  if(S.listErr || pages <= 1){ el.innerHTML = ''; return; }
+  var h = pageList(S.page || 1, pages).map(function(n){
+    if(!n){ return '<span class="pg-gap">…</span>'; }
+    var on = (n === S.page);
+    return '<button class="pg' + (on ? ' on' : '') + '" type="button" data-pg="' + n + '"' +
+      (on ? ' aria-current="page"' : '') + '>' + n + '</button>';
+  }).join('');
+  h += '<span class="pg-n">共 ' + (S.total || 0) + ' 条</span>';
+  el.innerHTML = h;
+  Array.prototype.forEach.call(el.querySelectorAll('[data-pg]'), function(b){
+    b.onclick = function(){ goPage(Number(b.getAttribute('data-pg'))); };
   });
 }
 
@@ -1107,6 +1208,7 @@ function renderHistory(){
   var el = $('history');
   if(!el){ return; }
   renderHqInfo();
+  renderPager();
   var q = (S.hq || '').trim();
   if(S.listErr){
     el.innerHTML = '<div class="mini" style="margin-top:6px">' + esc(S.listErr) + '</div>';
@@ -1133,9 +1235,6 @@ function renderHistory(){
         '<span class="hist-m">' + esc(meta) + '</span>' + extra + '</button>' +
       '<button class="hist-del" type="button" data-del="' + it.id + '" title="删掉这条">×</button></div>';
   }).join('');
-  h += '<div class="mini" style="margin-top:10px">' + (q
-    ? '点一条就能接着追。搜索是连每一层的问答和对策一起找的，中间说过什么词都算。'
-    : '点一条就能接着追，问到哪一层、当时的判定都在。') + '</div>';
   el.innerHTML = h;
   Array.prototype.forEach.call(el.querySelectorAll('[data-open]'), function(b){
     b.onclick = function(){ open(Number(b.getAttribute('data-open'))); };
@@ -1154,16 +1253,17 @@ function bindSearch(){
   el.value = S.hq || '';
   el.oninput = function(){
     S.hq = el.value;
+    S.page = 1;                 /* 换了搜索词就回到第一页 */
     renderHqInfo();
     clearTimeout(hqTimer);
     hqTimer = setTimeout(loadHistory, 260);
   };
   el.onkeydown = function(e){
     if(e.key === 'Enter'){ e.preventDefault(); clearTimeout(hqTimer); loadHistory(); }
-    else if(e.key === 'Escape'){ el.value = ''; S.hq = ''; clearTimeout(hqTimer); loadHistory(); }
+    else if(e.key === 'Escape'){ el.value = ''; S.hq = ''; S.page = 1; clearTimeout(hqTimer); loadHistory(); }
   };
   var clr = $('hqClear');
-  if(clr){ clr.onclick = function(){ el.value = ''; S.hq = ''; clearTimeout(hqTimer); loadHistory(); el.focus(); }; }
+  if(clr){ clr.onclick = function(){ el.value = ''; S.hq = ''; S.page = 1; clearTimeout(hqTimer); loadHistory(); el.focus(); }; }
 }
 
 function renderAll(){ renderStart(); renderChat(); }
@@ -1180,8 +1280,11 @@ function init(){
   renderAll();
   syncStick();
   window.addEventListener('resize', syncStick);
+  var fitT = null;
+  window.addEventListener('resize', function(){ clearTimeout(fitT); fitT = setTimeout(fitList, 320); });
   bindSearch();
   renderHistory();
+  S.size = fitSize();          /* 一页几条按窗口高度定 */
   loadHistory();
   var deepId = wantRecId();
   if(deepId){ open(Number(deepId)); }

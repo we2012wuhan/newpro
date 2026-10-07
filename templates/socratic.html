@@ -160,6 +160,16 @@ textarea::placeholder{color:var(--muted);opacity:.72}
 .hq-info{margin-top:6px}
 .hq-info:empty{display:none}
 #history mark{background:var(--acc-l);color:var(--acc);border-radius:3px;padding:0 1px}
+/* ===== 右侧历史：翻页（页码，直接点某一页） ===== */
+.hist-pager{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px;margin-top:10px}
+.hist-pager:empty{display:none}
+.hist-pager .pg{flex:0 0 auto;min-width:30px;height:30px;padding:0 7px;border:1px solid var(--line);
+  border-radius:9px;background:var(--field);color:var(--text);font-family:inherit;
+  font-size:12.5px;line-height:1;cursor:pointer}
+.hist-pager .pg:hover:enabled{border-color:var(--acc-line);background:var(--acc-l);color:var(--ink)}
+.hist-pager .pg.on{background:var(--acc);border-color:var(--acc);color:var(--card);font-weight:600;cursor:default}
+.hist-pager .pg-gap{color:var(--muted);font-size:12.5px}
+.hist-pager .pg-n{flex:1 1 100%;text-align:center;font-size:11.5px;color:var(--muted)}
 .hist-s{display:block;font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.55;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (min-width:1100px){
@@ -169,6 +179,11 @@ textarea::placeholder{color:var(--muted);opacity:.72}
   /* 页面最底下不留那截空白：不留的话，左栏到底了滚动条还能再往下拉一截，
      一拉整块内容就跟着往上挪。留环境变量是给 iPad 横屏的底部安全区。 */
   .wrap{padding-bottom:env(safe-area-inset-bottom)}
+  /* 右栏不再无限长：左栏至少占满一屏，历史卡片最多和它一样高 ——
+     记录再多也只在卡片内部翻页，框不会一路往下长出去。 */
+  .col-main{min-height:calc(100vh - var(--stick,78px) - 28px)}
+  .col-side>.card{display:flex;flex-direction:column;max-height:calc(100vh - var(--stick,78px) - 28px)}
+  .col-side #history{min-height:0;overflow:auto;overscroll-behavior:contain}
 }
 .err{background:var(--err-l);border:1px solid var(--err-line);border-radius:12px;padding:11px 14px;
   font-size:13px;color:var(--err);margin-top:12px;line-height:1.7}
@@ -276,6 +291,7 @@ html[data-embed] .topbar{display:none}
       </div>
       <div class="hq-info mini" id="hqInfo"></div>
       <div id="history"></div>
+      <div class="hist-pager" id="histPager"></div>
     </div>
   </aside>
 </main>
@@ -308,6 +324,7 @@ var S = {
   ai: true, busy: false, err: '',
   sid: null, sess: null, draft: '',
   items: [], listErr: '', hq: '', hit: null, listBusy: false,
+  page: 1, pages: 1, total: 0, size: 6,      /* 右侧历史翻页：当前页 / 总页数 / 总条数 / 一页几条 */
   pin: true, _offScroll: null        // 流式期间要不要跟着往下贴；用户一滚就放手
 };
 
@@ -672,7 +689,7 @@ function renderStart(){
   var h = '<div class="card"><div class="card-h">把你现在纠结的那件事，写一句话</div>' +
     '<div class="card-sub">它不会给你答案，会陪你按四步把这件事想清楚。一次只问你一个问题。</div>' +
     '<textarea id="ask" style="margin-top:12px;min-height:76px;font-size:15.5px" ' +
-      'placeholder="例：我该不该辞职去做独立开发"></textarea>' +
+      'placeholder="例：冬季应该注意一些什么？"></textarea>' +
     '<div class="go-row">' + micBtnHTML('micStart') +
     '<button class="btn primary big" id="goBtn">开始梳理</button></div>' +
     '<div class="mini" id="goTip" style="text-align:center;margin-top:8px"></div>' +
@@ -724,6 +741,7 @@ function renderChat(){
   h += '<div class="linerow"><div class="mini" title="你在理的这件事：' + esc(s.ask || '') + '">' +
     '你在理的这件事：' + esc(s.ask || '') + '</div>' +
     (EX ? '<button class="xbtn" type="button" id="expNow" title="把这段对话导出成 Markdown">⤓ 导出 Markdown</button>' : '') +
+    '<button class="xbtn" type="button" id="newBtn" title="关掉这条，回到上面重开一条">重开一条</button>' +
     '</div>';
 
   var avG = avatarSVG('guide-' + (s.id != null ? s.id : S.sid));   // 这段对话里的引导者
@@ -762,8 +780,7 @@ function renderChat(){
 
   h += '<div class="composer">' +
     '<textarea id="say" rows="2" placeholder="' + (fin ? '还想接着聊就写在这儿…' : '写下你的回答…') + '"></textarea>' +
-    '<div class="composer-row"><span class="mini">Enter 发送 · Shift+Enter 换行 · ' +
-    '想不出来就说「先跳过」</span>' +
+    '<div class="composer-row"><span class="mini">想不出来就说「先跳过」</span>' +
     micBtnHTML() + '<button class="btn primary" id="sendBtn">发送</button></div>' +
     '</div>';
   h += '</div>';
@@ -774,6 +791,12 @@ function renderChat(){
   bindMic();
   var expNow = $('expNow');
   if(expNow){ expNow.onclick = function(){ exportSession(S.sess); }; }
+  var newBtn = $('newBtn');
+  if(newBtn){ newBtn.onclick = function(){
+    if(S.busy){ toast('等它回完再重开'); return; }   /* 正在回的时候重开会把状态弄乱 */
+    S.sid = null; S.sess = null; S.err = ''; S.draft = ''; S.pin = true;
+    renderAll(); loadHistory();
+  }; }
   var tf = $('toFp');
   if(tf){ tf.onclick = sendFp; }
 
@@ -913,6 +936,7 @@ function reload(){
     else { S.err = d.message || '这次会话读不回来了'; }
     S.focusSay = true;
     renderAll();
+    S.page = 1;               /* 新开的一条在最新那页 */
     loadHistory();
     if(d.ok && autoReadNext){ autoReadNext = false; autoReadLast(); }
   });
@@ -928,15 +952,83 @@ function refreshSend(){
 /* ===================== 右侧历史（读的是 SQLite） ===================== */
 function loadHistory(){
   var q = (S.hq || '').trim();
-  var url = '/socratic/api/sessions' + (q ? ('?q=' + encodeURIComponent(q)) : '');
+  var url = '/socratic/api/sessions?page=' + (S.page || 1) + '&size=' + (S.size || 6)
+          + (q ? ('&q=' + encodeURIComponent(q)) : '');
   S.listBusy = true;
   renderHqInfo();
   req('GET', url).then(function(d){
     S.listBusy = false;
     S.items = (d.ok && d.items) || [];
     S.listErr = d.ok ? '' : (d.message || '读不到历史记录');
-    S.hit = d.ok ? { total:(typeof d.total === 'number' ? d.total : S.items.length), q:d.q || '' } : null;
+    S.total = (d.ok && typeof d.total === 'number') ? d.total : S.items.length;
+    S.pages = (d.ok && typeof d.pages === 'number') ? d.pages : 1;
+    S.page = (d.ok && typeof d.page === 'number') ? d.page : 1;   /* 服务端会把越界的页码夹回来 */
+    S.hit = d.ok ? { total:S.total, q:d.q || '' } : null;
     renderHistory();
+    fitList();                 /* 估的条数装不下就少放一条，别让列表出现内部滚动条 */
+  });
+}
+
+/* 页码：页少就全列出，页多就 1 … 当前附近 … 末页（列表里的 0 = 省略号） */
+function pageList(cur, pages){
+  var out = [], i;
+  if(pages <= 7){
+    for(i = 1; i <= pages; i++){ out.push(i); }
+    return out;
+  }
+  var from = Math.max(2, Math.min(cur - 1, pages - 3));
+  var to = from + 2;
+  out.push(1);
+  if(from > 2){ out.push(0); }
+  for(i = from; i <= to; i++){ out.push(i); }
+  if(to < pages - 1){ out.push(0); }
+  out.push(pages);
+  return out;
+}
+
+/* 一页几条：按当前窗口高度估一个，让一页正好把卡片填满 */
+function fitSize(){
+  try{
+    var stick = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--stick')) || 66;
+    var room = window.innerHeight - stick - 28 - 210;   /* 210 ≈ 标题 + 搜索框 + 翻页条 */
+    return Math.max(4, Math.min(20, Math.floor(room / 68)));
+  }catch(e){ return 6; }
+}
+
+/* 估多了就往下降：宁可这一页少放一条，也不要列表自己带滚动条 */
+function fitList(){
+  var el = $('history');
+  if(!el || S.listBusy || S.listErr || S.size <= 4){ return; }
+  var over = el.scrollHeight - el.clientHeight;
+  if(over <= 1){ return; }
+  S.size = Math.max(4, S.size - Math.max(1, Math.ceil(over / 68)));
+  loadHistory();
+}
+
+/* 翻页：页码变了就重新拉这一页，服务端算总页数 */
+function goPage(n){
+  if(S.listBusy){ return; }
+  n = Number(n) || 1;
+  if(n < 1 || n > (S.pages || 1) || n === S.page){ return; }
+  S.page = n;
+  loadHistory();
+}
+
+function renderPager(){
+  var el = $('histPager');
+  if(!el){ return; }
+  var pages = S.pages || 1;
+  if(S.listErr || pages <= 1){ el.innerHTML = ''; return; }
+  var h = pageList(S.page || 1, pages).map(function(n){
+    if(!n){ return '<span class="pg-gap">…</span>'; }
+    var on = (n === S.page);
+    return '<button class="pg' + (on ? ' on' : '') + '" type="button" data-pg="' + n + '"' +
+      (on ? ' aria-current="page"' : '') + '>' + n + '</button>';
+  }).join('');
+  h += '<span class="pg-n">共 ' + (S.total || 0) + ' 条</span>';
+  el.innerHTML = h;
+  Array.prototype.forEach.call(el.querySelectorAll('[data-pg]'), function(b){
+    b.onclick = function(){ goPage(Number(b.getAttribute('data-pg'))); };
   });
 }
 
@@ -997,6 +1089,7 @@ function renderHistory(){
   var el = $('history');
   if(!el){ return; }
   renderHqInfo();
+  renderPager();
   var q = (S.hq || '').trim();
   if(S.listErr){
     el.innerHTML = '<div class="mini" style="margin-top:6px">' + esc(S.listErr) + '</div>';
@@ -1024,9 +1117,6 @@ function renderHistory(){
       '<button class="hist-del" type="button" data-del="' + it.id + '" title="删掉这条">×</button>' +
     '</div>';
   }).join('');
-  h += '<div class="mini" style="margin-top:10px">' + (q
-    ? '点一条就能接着聊。搜索是连对话正文一起找的，中间说过什么词都算。'
-    : '点一条就能接着聊，之前说到哪、它问过什么都在。') + '</div>';
   el.innerHTML = h;
 
   Array.prototype.forEach.call(el.querySelectorAll('[data-open]'), function(b){
@@ -1150,16 +1240,17 @@ function bindSearch(){
   el.value = S.hq || '';
   el.oninput = function(){
     S.hq = el.value;
+    S.page = 1;                 /* 换了搜索词就回到第一页 */
     renderHqInfo();
     clearTimeout(hqTimer);
     hqTimer = setTimeout(loadHistory, 260);
   };
   el.onkeydown = function(e){
     if(e.key === 'Enter'){ e.preventDefault(); clearTimeout(hqTimer); loadHistory(); }
-    else if(e.key === 'Escape'){ el.value = ''; S.hq = ''; clearTimeout(hqTimer); loadHistory(); }
+    else if(e.key === 'Escape'){ el.value = ''; S.hq = ''; S.page = 1; clearTimeout(hqTimer); loadHistory(); }
   };
   var clr = $('hqClear');
-  if(clr){ clr.onclick = function(){ el.value = ''; S.hq = ''; clearTimeout(hqTimer); loadHistory(); el.focus(); }; }
+  if(clr){ clr.onclick = function(){ el.value = ''; S.hq = ''; S.page = 1; clearTimeout(hqTimer); loadHistory(); el.focus(); }; }
 }
 
 function renderAll(){ renderStart(); renderChat(); refreshSend(); }
@@ -1178,7 +1269,10 @@ function init(){
   bindSearch();
   syncStick();
   window.addEventListener('resize', syncStick);
+  var fitT = null;
+  window.addEventListener('resize', function(){ clearTimeout(fitT); fitT = setTimeout(fitList, 320); });
   renderAll();
+  S.size = fitSize();          /* 一页几条按窗口高度定 */
   loadHistory();
   var deepId = wantRecId();
   if(deepId){ open(Number(deepId)); }

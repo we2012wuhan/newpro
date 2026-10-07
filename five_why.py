@@ -62,6 +62,9 @@ HIST_MAX = 24          # 一次塞给模型的最近几条
 LIST_MAX = 80         # 右侧历史最多列几条
 SCAN_MAX = 400        # 开了搜索时往后翻多少条再筛（和 list_records 的上限对齐）
 QUERY_MAX = 60        # 搜索框那串最长多少字
+PAGE_SIZE = 6         # 右侧历史一页几条（前端可以传 size 覆盖）
+PAGE_MIN = 4          # 一页最少几条
+PAGE_MAX = 30         # 一页最多几条
 QUERY_TERMS = 6       # 最多拆成几个关键词，多了没意义还慢
 MAX_LEVEL = 7          # 追到第几层开始提醒「也许该换一条链」
 MAX_CHAIN = 60         # 一条链最多多少个节点，防脏数据
@@ -1105,14 +1108,41 @@ def five_why_status():
     return JSONResponse({'ai': bool(llm_key()), 'stages': STAGES, 'maxLevel': MAX_LEVEL})
 
 
+def _page_args(page, size):
+    """分页参数归一化：页码从 1 起，一页几条夹在 PAGE_MIN..PAGE_MAX 之间。"""
+    try:
+        p = int(page)
+    except (TypeError, ValueError):
+        p = 1
+    try:
+        n = int(size)
+    except (TypeError, ValueError):
+        n = PAGE_SIZE
+    return max(1, p), min(PAGE_MAX, max(PAGE_MIN, n))
+
+
+def _paged(items, page, size):
+    """把筛完的列表切成一页。页码越界就夹回合法范围。
+
+    返回 (这一页, 夹好的页码, 总页数, 总条数)。
+    """
+    total = len(items)
+    pages = max(1, (total + size - 1) // size)
+    page = min(max(1, page), pages)
+    start = (page - 1) * size
+    return items[start:start + size], page, pages, total
+
+
 @router.get('/five-why/api/sessions')
-def five_why_sessions(request: Request, q: str = ''):
+def five_why_sessions(request: Request, q: str = '', page: int = 1, size: int = PAGE_SIZE):
     """右侧历史。带 q= 时在标题、原始问题、每一层的问答、对策和报告里做模糊匹配。
 
     不带 q 就是原样。带了 q 会先把最近 SCAN_MAX 条全捞出来筛一遍，
-    命中条数照样截到 LIST_MAX，另外把扫了多少条一起返回，免得用户以为「就这些」。
+    再按 page / size 切出这一页；命中总数和扫了多少条一起返回，
+    免得用户以为「就这些」。
     """
     terms = _terms(q)
+    page, size = _page_args(page, size)
     try:
         rows = storage.list_records(TOOL, _user(request), SCAN_MAX)
     except storage.StorageUnavailable as exc:
@@ -1129,9 +1159,10 @@ def five_why_sessions(request: Request, q: str = ''):
         items.append(_row(r, False))
         if len(items) >= LIST_MAX:
             break
-    return JSONResponse({'ok': True, 'items': items, 'q': _clean(q, QUERY_MAX),
-                         'total': len(items), 'scanned': scanned})
-
+    one, page, pages, total = _paged(items, page, size)
+    return JSONResponse({'ok': True, 'items': one, 'q': _clean(q, QUERY_MAX),
+                         'page': page, 'pages': pages, 'size': size,
+                         'total': total, 'scanned': scanned})
 
 @router.post('/five-why/api/sessions')
 async def five_why_create(request: Request):
