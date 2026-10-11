@@ -116,6 +116,10 @@ def service_worker():  # noqa: E305
 from ai_chart import router as ai_chart_router  # noqa: E402
 app.include_router(ai_chart_router)
 
+# 实时语音对话：页面上是 /voice-chat，音频走 WebSocket /ws/voice（转发到豆包端到端实时语音）
+from realtime_voice import router as realtime_voice_router  # noqa: E402
+app.include_router(realtime_voice_router)
+
 # 附加功能：购物比价助手（输入商品与需求 -> 淘宝 / 京东 按销量价格对比 + 建议 + 购买链接）
 # 浏览器访问 http://127.0.0.1:8000/buy-helper 即可使用。
 from buy_helper import router as buy_helper_router  # noqa: E402

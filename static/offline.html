@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#6d7cff">
+<title>连不上服务器 · 我的工具箱</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<!-- 这张页要能在断网时独立打开，所以样式全写在这儿，不引任何外部文件 -->
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--ink:#1f2a37;--text:#3b4859;--muted:#8492a3;--line:#e6eaf0;--acc:#6d7cff}
+[data-theme="dark"]{--bg:#0a0f1e;--card:rgba(255,255,255,.06);--ink:#edeff7;--text:#c6cbdd;
+  --muted:#8b93ab;--line:#282d45;--acc:#93a0e8;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{background:var(--bg);color:var(--text);display:flex;align-items:center;justify-content:center;
+  padding:24px;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;font-size:15px;line-height:1.7}
+.box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px 24px;
+  max-width:420px;width:100%;text-align:center;box-shadow:0 10px 30px -18px rgba(16,24,40,.35)}
+.ico{font-size:34px;line-height:1}
+h1{font-size:18px;color:var(--ink);margin:14px 0 8px}
+p{margin:0 0 6px}
+.mini{font-size:12.5px;color:var(--muted);margin-top:14px}
+button{margin-top:18px;min-height:46px;padding:0 22px;border-radius:12px;border:1px solid var(--acc);
+  background:var(--acc);color:#fff;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer}
+button:active{opacity:.85}
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="ico">📡</div>
+    <h1>现在连不上服务器</h1>
+    <p>页面本身没坏 —— 是这台设备当前没有网，或者服务器一时不可达。</p>
+    <p>连上网络后点下面按钮重试，一切照旧。</p>
+    <button id="retry" type="button">重新加载</button>
+    <div class="mini" id="tip">网络一恢复，这里会自动重试</div>
+  </div>
+<script>
+(function () {
+  'use strict';
+  var btn = document.getElementById('retry');
+  var tip = document.getElementById('tip');
+  btn.onclick = function () { location.reload(); };
+  /* 网络回来了自动重试一次，省得用户手动点 */
+  window.addEventListener('online', function () {
+    tip.textContent = '网络回来了，正在重试…';
+    location.reload();
+  });
+})();
+</script>
+</body>
+</html>
