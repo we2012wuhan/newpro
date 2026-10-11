@@ -65,10 +65,11 @@ FAIL_WINDOW = 300                # 触发锁定后的冷却秒数
 # 白名单：只有这些路径不登录也能访问
 PUBLIC_PATHS = {
     '/login', '/favicon.ico', '/favicon.svg',
+    '/sw.js',                      # Service Worker 必须能匿名取到（离线提示页靠它）
     '/api/auth/login', '/api/auth/logout', '/api/auth/me',
     '/api/auth/status', '/api/auth/setup',
 }
-PUBLIC_PREFIXES = ('/static/',)
+PUBLIC_PREFIXES = ('/static/', '/.well-known/')
 
 
 def _now() -> str:

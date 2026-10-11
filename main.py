@@ -44,7 +44,7 @@ from typing import Annotated, Optional  # typing：类型注解工具
 
 from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request
 from pydantic import BaseModel, Field  # pydantic：数据校验库
-from fastapi.responses import HTMLResponse  # 用于返回主页 HTML
+from fastapi.responses import FileResponse, HTMLResponse  # 用于返回主页 HTML / 静态文件
 
 # =========================================================
 # 知识点 2：类的实例化
@@ -98,6 +98,21 @@ class _NoCacheStatic(StaticFiles):  # noqa: E402
 
 
 app.mount('/static', _NoCacheStatic(directory=str(_static_dir), check_dir=False), name='static')  # noqa: E402
+# 安卓 TWA（手机 App 外壳）要在这个固定路径上拿到 assetlinks.json，用来跟包名+签名指纹对账；
+# 它必须是公开可访问的（auth.py 的 PUBLIC_PREFIXES 里放了 /.well-known/）。
+app.mount('/.well-known', _NoCacheStatic(directory=str(_static_dir / 'wellknown'), check_dir=False),
+          name='wellknown')  # noqa: E402
+
+
+@app.get('/sw.js', include_in_schema=False)  # noqa: E301,E302
+def service_worker():  # noqa: E305
+    """Service Worker 必须挂在站点根路径下：SW 的作用域默认只到它自己的目录，
+    放在 /static/ 下就只能管 /static/，管不到页面导航。断网时的离线提示页靠它。"""
+    resp = FileResponse(_static_dir / 'sw.js', media_type='application/javascript')
+    resp.headers['Cache-Control'] = 'no-cache'      # 每次都回源校验，改了立刻生效
+    return resp
+
+
 from ai_chart import router as ai_chart_router  # noqa: E402
 app.include_router(ai_chart_router)
 

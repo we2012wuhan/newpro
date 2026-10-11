@@ -17,7 +17,7 @@ try{if(/[?&]embed=1/.test(location.search)){document.documentElement.setAttribut
 <script src="/static/voice.js?v=2"></script>
 <script src="/static/asr.js?v=1"></script>
 <script src="/static/export-md.js"></script>
-<script src="/static/hist-fold.js?v=1"></script>
+<script src="/static/history-panel.js?v=1"></script>
 <style>
 /* 第一性原理：把「我认为只能这么做」拆到不可再分的硬约束，再从零算一遍。
    配色取青绿（和 5Why 的暖棕、苏格拉底的靛蓝区分开），深色底沿用同一套中性色。 */
@@ -236,72 +236,12 @@ textarea::placeholder,input::placeholder{color:var(--muted);opacity:.72}
 .linerow .mini{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .linerow .btn{flex:0 0 auto}
 
-/* ===== 右侧历史 ===== */
-.hist-i{display:flex;align-items:stretch;gap:4px;margin-top:8px}
-.hist-open{flex:1 1 auto;min-width:0;text-align:left;padding:10px 12px;border:1px solid var(--line);
-  border-radius:12px;background:var(--field);cursor:pointer;transition:border-color .15s,background .15s}
-.hist-open:hover{border-color:var(--acc-line);background:var(--acc-l)}
-.hist-i.on .hist-open{border-color:var(--acc);background:var(--acc-l);box-shadow:inset 3px 0 0 var(--acc)}
-.hist-t{display:block;font-size:14px;font-weight:600;color:var(--ink);line-height:1.45;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hist-m{display:block;font-size:11px;color:var(--muted);margin-top:3px;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hist-del{flex:0 0 34px;border:1px solid var(--line);border-radius:10px;background:var(--field);
-  color:var(--muted);cursor:pointer;font-size:15px;line-height:1}
-.hist-del:hover{color:var(--err);border-color:var(--err-line);background:var(--err-l)}
-.hist-exp{flex:0 0 34px;border:1px solid var(--line);border-radius:10px;background:var(--field);
-  color:var(--muted);font-family:inherit;font-size:14px;cursor:pointer}
-.hist-exp:hover{color:var(--acc);border-color:var(--acc-line);background:var(--acc-l)}
-.hist-exp:disabled{opacity:.55;cursor:default}
-.col-main{min-width:0}
-.hist-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
-.hist-head .card-h{margin-bottom:0}
-.hist-head .vctl{margin-left:auto}
-.vctl{display:flex;gap:8px;align-items:center;flex:0 0 auto}
-.vctl[hidden]{display:none}
-.vbtn{min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);
-  background:var(--field);color:var(--muted);font-size:12.5px;cursor:pointer;white-space:nowrap}
-.vbtn:hover{border-color:var(--acc-line);color:var(--ink)}
-.vbtn.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc);font-weight:600}
-.vbtn[hidden]{display:none}
-.hsearch{position:relative;margin-top:6px}
-.hsearch input{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px 34px 10px 12px;
-  background:var(--field);color:var(--ink);font-size:14px;outline:none;min-height:42px}
-.hsearch input:focus{border-color:var(--acc-line);box-shadow:var(--focus-ring)}
-.hq-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:26px;height:26px;
-  border:0;border-radius:50%;background:var(--soft);color:var(--muted);cursor:pointer;
-  font-size:15px;line-height:1;padding:0}
-.hq-clear:hover{color:var(--err)}
-.hq-info{margin-top:6px}
-.hq-info:empty{display:none}
-#history mark{background:var(--acc-l);color:var(--acc);border-radius:3px;padding:0 1px}
-/* ===== 右侧历史：翻页（页码，直接点某一页） ===== */
-.hist-pager{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px;margin-top:10px}
-.hist-pager:empty{display:none}
-.hist-pager .pg{flex:0 0 auto;min-width:30px;height:30px;padding:0 7px;border:1px solid var(--line);
-  border-radius:9px;background:var(--field);color:var(--text);font-family:inherit;
-  font-size:12.5px;line-height:1;cursor:pointer}
-.hist-pager .pg:hover:enabled{border-color:var(--acc-line);background:var(--acc-l);color:var(--ink)}
-.hist-pager .pg.on{background:var(--acc);border-color:var(--acc);color:var(--card);font-weight:600;cursor:default}
-.hist-pager .pg-gap{color:var(--muted);font-size:12.5px}
-.hist-pager .pg-n{flex:1 1 100%;text-align:center;font-size:11.5px;color:var(--muted)}
-.hist-s{display:block;font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.55;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (min-width:1100px){
   .topbar-in,.wrap{max-width:1180px}
   .wrap{display:grid;grid-template-columns:minmax(0,1fr) 292px;gap:22px;align-items:start}
   .col-side{position:sticky;top:var(--stick,78px)}
-  /* 页面最底下不留那截空白：不留的话，左栏到底了滚动条还能再往下拉一截，
-    一拉整块内容就跟着往上挪。留环境变量是给 iPad 横屏的底部安全区。 */
-  .wrap{padding-bottom:env(safe-area-inset-bottom)}
-  /* 右栏不再无限长：左栏至少占满一屏，历史卡片最多和它一样高 ——
-     记录再多也只在卡片内部翻页，框不会一路往下长出去。 */
-  .col-main{min-height:calc(100vh - var(--stick,78px) - 28px)}
-  .col-side>.card{display:flex;flex-direction:column;max-height:calc(100vh - var(--stick,78px) - 28px)}
-  .col-side #history{min-height:0;overflow:auto;overscroll-behavior:contain}
 }
 @media (max-width:560px){
-  .vbtn{padding:0 9px;font-size:12px}
   .back{padding:8px 10px;font-size:12.5px}
   .it{flex-wrap:wrap}
 }
@@ -381,8 +321,7 @@ var S = {
   ai: true, busy: false, err: '',
   sid: null, sess: null, draft: '',
   kinds: [], probe: [], stepName: [],
-  items: [], listErr: '', hq: '', pin: true, _offScroll: null,
-  page: 1, pages: 1, total: 0, size: 6,      /* 右侧历史翻页：当前页 / 总页数 / 总条数 / 一页几条 */
+  pin: true, _offScroll: null,   /* 列表 / 页码 / 搜索词的状态归共用组件 TBHistory */
   sendNote: null            // 「送去 5Why / 苏格拉底」用
 };
 
@@ -1099,7 +1038,7 @@ function renderChat(){
   var nb = $('newBtn');
   if(nb){ nb.onclick = function(){
     S.sid = null; S.sess = null; S.err = ''; S.draft = ''; S.pin = true;
-    renderAll(); loadHistory();
+    renderAll(); TBHistory.reload();
   }; }
   var ta = $('say');
   if(ta){
@@ -1210,8 +1149,7 @@ function reload(){
     else { S.err = d.message || '这条读不回来了'; }
     S.focusSay = true;
     renderAll();
-    S.page = 1;               /* 新开的一条在最新那页 */
-    loadHistory();
+    TBHistory.reload({reset:true});   /* 新开的一条在最新那页 */
     if(d.ok && autoReadNext){ autoReadNext = false; autoReadLast(); }
   });
 }
@@ -1220,180 +1158,6 @@ function refreshSend(){
   if(!b){ return; }
   b.disabled = S.busy || !S.draft.trim();
   b.textContent = S.busy ? '等它一下…' : '发送';
-}
-
-/* ===================== 右侧历史（读的是 SQLite） ===================== */
-function loadHistory(){
-  var q = (S.hq || '').trim();
-  var url = '/first-principles/api/sessions?page=' + (S.page || 1) + '&size=' + (S.size || 6)
-          + (q ? ('&q=' + encodeURIComponent(q)) : '');
-  S.listBusy = true;
-  renderHqInfo();
-  req('GET', url).then(function(d){
-    S.listBusy = false;
-    S.items = (d.ok && d.items) || [];
-    S.listErr = d.ok ? '' : (d.message || '读不到历史记录');
-    S.total = (d.ok && typeof d.total === 'number') ? d.total : S.items.length;
-    S.pages = (d.ok && typeof d.pages === 'number') ? d.pages : 1;
-    S.page = (d.ok && typeof d.page === 'number') ? d.page : 1;   /* 服务端会把越界的页码夹回来 */
-    S.hit = d.ok ? { total:S.total, q:d.q || '' } : null;
-    renderHistory();
-    fitList();                 /* 估的条数装不下就少放一条，别让列表出现内部滚动条 */
-  });
-}
-
-/* 页码：页少就全列出，页多就 1 … 当前附近 … 末页（列表里的 0 = 省略号） */
-function pageList(cur, pages){
-  var out = [], i;
-  if(pages <= 7){
-    for(i = 1; i <= pages; i++){ out.push(i); }
-    return out;
-  }
-  var from = Math.max(2, Math.min(cur - 1, pages - 3));
-  var to = from + 2;
-  out.push(1);
-  if(from > 2){ out.push(0); }
-  for(i = from; i <= to; i++){ out.push(i); }
-  if(to < pages - 1){ out.push(0); }
-  out.push(pages);
-  return out;
-}
-
-/* 一页几条：按当前窗口高度估一个，让一页正好把卡片填满 */
-function fitSize(){
-  try{
-    var stick = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--stick')) || 66;
-    var room = window.innerHeight - stick - 28 - 210;   /* 210 ≈ 标题 + 搜索框 + 翻页条 */
-    return Math.max(4, Math.min(20, Math.floor(room / 68)));
-  }catch(e){ return 6; }
-}
-
-/* 估多了就往下降：宁可这一页少放一条，也不要列表自己带滚动条 */
-function fitList(){
-  var el = $('history');
-  if(!el || S.listBusy || S.listErr || S.size <= 4){ return; }
-  var over = el.scrollHeight - el.clientHeight;
-  if(over <= 1){ return; }
-  S.size = Math.max(4, S.size - Math.max(1, Math.ceil(over / 68)));
-  loadHistory();
-}
-
-/* 翻页：页码变了就重新拉这一页，服务端算总页数 */
-function goPage(n){
-  if(S.listBusy){ return; }
-  n = Number(n) || 1;
-  if(n < 1 || n > (S.pages || 1) || n === S.page){ return; }
-  S.page = n;
-  loadHistory();
-}
-
-function renderPager(){
-  var el = $('histPager');
-  if(!el){ return; }
-  var pages = S.pages || 1;
-  if(S.listErr || pages <= 1){ el.innerHTML = ''; return; }
-  var h = pageList(S.page || 1, pages).map(function(n){
-    if(!n){ return '<span class="pg-gap">…</span>'; }
-    var on = (n === S.page);
-    return '<button class="pg' + (on ? ' on' : '') + '" type="button" data-pg="' + n + '"' +
-      (on ? ' aria-current="page"' : '') + '>' + n + '</button>';
-  }).join('');
-  h += '<span class="pg-n">共 ' + (S.total || 0) + ' 条</span>';
-  el.innerHTML = h;
-  Array.prototype.forEach.call(el.querySelectorAll('[data-pg]'), function(b){
-    b.onclick = function(){ goPage(Number(b.getAttribute('data-pg'))); };
-  });
-}
-function renderHqInfo(){
-  var info = $('hqInfo'), clr = $('hqClear');
-  var q = (S.hq || '').trim();
-  if(clr){ clr.hidden = !q; }
-  if(!info){ return; }
-  if(!q || S.listErr){ info.textContent = ''; return; }
-  if(S.listBusy){ info.textContent = '搜着…'; return; }
-  if(!S.hit){ info.textContent = ''; return; }
-  info.textContent = S.hit.total ? ('命中 ' + S.hit.total + ' 条') : '没搜到';
-}
-/* 先 esc 再高亮，顺序不能反。 */
-function hl(text, q){
-  var out = esc(text);
-  var terms = String(q || '').trim().split(/\s+/).filter(Boolean).slice(0, 6)
-    .map(function(t){ return esc(t); }).filter(Boolean);
-  if(!terms.length){ return out; }
-  var re = terms.map(function(t){ return t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|');
-  if(!re){ return out; }
-  try{ return out.replace(new RegExp('(' + re + ')', 'ig'), '<mark>$1</mark>'); }
-  catch(e){ return out; }
-}
-function hasTerm(text, q){
-  var terms = String(q || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
-  var low = String(text || '').toLowerCase();
-  for(var i = 0; i < terms.length; i++){ if(low.indexOf(terms[i]) >= 0){ return true; } }
-  return false;
-}
-function snippet(it, q){
-  var terms = String(q || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
-  if(!terms.length){ return ''; }
-  var fields = [it.goal || '', it.title || ''];
-  for(var i = 0; i < fields.length; i++){
-    var f = String(fields[i] || '');
-    if(!f){ continue; }
-    var low = f.toLowerCase(), at = -1;
-    for(var k = 0; k < terms.length; k++){
-      var pos = low.indexOf(terms[k]);
-      if(pos >= 0 && (at < 0 || pos < at)){ at = pos; }
-    }
-    if(at < 0){ continue; }
-    var start = Math.max(0, at - 10);
-    var end = Math.min(f.length, at + 46);
-    return (start > 0 ? '…' : '') + f.slice(start, end) + (end < f.length ? '…' : '');
-  }
-  return '';
-}
-
-function renderHistory(){
-  var el = $('history');
-  if(!el){ return; }
-  renderHqInfo();
-  renderPager();
-  var q = (S.hq || '').trim();
-  if(S.listErr){
-    el.innerHTML = '<div class="mini" style="margin-top:6px">' + esc(S.listErr) + '</div>';
-    return;
-  }
-  if(!S.items.length){
-    el.innerHTML = '<div class="mini" style="margin-top:6px">' + (q
-      ? ('没有含「' + esc(q) + '」的记录。换个词试试 —— 搜索只看最近 400 条。')
-      : '还没有。上面拆一次，这里就会留下一条，换台设备也还在。') + '</div>';
-    return;
-  }
-  var h = S.items.map(function(it){
-    var cur = String(it.id) === String(S.sid);
-    var state = it.blocked ? '没有可拆空间'
-      : (it.step >= 5 ? '已收尾' : ('第 ' + (it.step || 1) + ' 步 · ' + stepName(it.step || 1)));
-    var meta = [state, (it.count || 0) + ' 条', shortTime(it.updated_at)].filter(Boolean).join(' · ');
-    var title = it.title || it.goal || '（没写目标）';
-    var snip = q ? snippet(it, q) : '';
-    var extra = (snip && !hasTerm(title, q)) ? ('<span class="hist-s">' + hl(snip, q) + '</span>') : '';
-    return '<div class="hist-i' + (cur ? ' on' : '') + '">' +
-      '<button class="hist-open" type="button" data-open="' + it.id + '">' +
-        '<span class="hist-t">' + hl(title, q) + '</span>' +
-        '<span class="hist-m">' + esc(meta) + '</span>' + extra +
-      '</button>' +
-      (EX ? '<button class="hist-exp" type="button" data-exp="' + it.id + '" title="导出这条 Markdown">⤓</button>' : '') +
-      '<button class="hist-del" type="button" data-del="' + it.id + '" title="删掉这条">×</button>' +
-    '</div>';
-  }).join('');
-  el.innerHTML = h;
-  Array.prototype.forEach.call(el.querySelectorAll('[data-open]'), function(b){
-    b.onclick = function(){ open(Number(b.getAttribute('data-open'))); };
-  });
-  Array.prototype.forEach.call(el.querySelectorAll('[data-del]'), function(b){
-    b.onclick = function(){ del(Number(b.getAttribute('data-del'))); };
-  });
-  Array.prototype.forEach.call(el.querySelectorAll('[data-exp]'), function(b){
-    b.onclick = function(){ exportById(b.getAttribute('data-exp'), b); };
-  });
 }
 /* ===================== 动作 ===================== */
 function patch(body){
@@ -1405,7 +1169,7 @@ function patch(body){
     if(!d.ok){ S.err = d.message || '没存上'; toast(S.err); }
     else { S.sess = d.session; }
     renderAll();
-    loadHistory();
+    TBHistory.reload();
   });
 }
 /* 换到另一条零件去拷问。当前那条问到第几问存回库里，换过去的那条从它自己的进度接着问。 */
@@ -1425,7 +1189,7 @@ function switchAsk(id){
     S.sess = d.session;
     S.focusSay = true;      /* 换完直接把光标放进输入框，接着答就行 */
     renderAll();
-    loadHistory();
+    TBHistory.reload();
   });
 }
 /* 四问问完之后的两个出口 —— 都是他自己点，代码不替他判「这条问完了」 */
@@ -1449,7 +1213,7 @@ function closeAsk(id){
     S.sess = d.session;
     S.focusSay = true;
     renderAll();
-    loadHistory();
+    TBHistory.reload();
   });
 }
 /* 「还没问透」：这一条四个问题再走一遍，他之前答的留着，不清空 */
@@ -1464,7 +1228,7 @@ function redoAsk(id){
     S.sess = d.session;
     S.focusSay = true;
     renderAll();
-    loadHistory();
+    TBHistory.reload();
   });
 }
 function saveKind(id, kind){
@@ -1527,7 +1291,7 @@ function startProbe(){
     if(!d.ok){ S.err = d.message || '没能往下走'; toast(S.err); renderAll(); return; }
     S.sess = d.session;
     S.focusSay = true;
-    renderAll(); loadHistory();
+    renderAll(); TBHistory.reload();
     if(VOICE && VOICE.autoOn()){ autoReadNext = true; }
   });
 }
@@ -1546,7 +1310,7 @@ function finish(){
     S.busy = false;
     if(!d.ok){ S.err = d.message || '没存上'; toast(S.err); renderAll(); return; }
     S.sess = d.session;
-    renderAll(); loadHistory();
+    renderAll(); TBHistory.reload();
   });
 }
 
@@ -1566,7 +1330,7 @@ function start(){
     S.sid = d.session.id;
     S.focusSay = true;
     renderAll();
-    loadHistory();
+    TBHistory.reload();
   });
 }
 
@@ -1620,7 +1384,7 @@ function send(){
       S.err = d.message || '这次没发出去，再试一次';
       S.focusSay = true;
       renderAll();
-      loadHistory();
+      TBHistory.reload();
       return;
     }
     if(d.cut){ toast(d.cut); }
@@ -1629,32 +1393,36 @@ function send(){
   });
 }
 
-function del(id){
-  if(!confirm('删掉这条拆解记录？删了就找不回来了。')){ return; }
-  req('DELETE', '/first-principles/api/sessions/' + id).then(function(d){
+function del(id){                       /* 确认框由历史面板统一弹，删完面板自己刷新 */
+  return req('DELETE', '/first-principles/api/sessions/' + id).then(function(d){
     if(!d.ok){ toast(d.message || '没删掉'); return; }
     if(String(id) === String(S.sid)){ S.sid = null; S.sess = null; S.err = ''; }
     renderAll();
-    loadHistory();
   });
 }
 
-var hqTimer = null;
-function bindSearch(){
-  var el = $('hq');
-  if(!el){ return; }
-  el.value = S.hq;
-  el.oninput = function(){
-    S.hq = el.value;
-    S.page = 1;                 /* 换了搜索词就回到第一页 */
-    renderHqInfo();
-    clearTimeout(hqTimer);
-    hqTimer = setTimeout(loadHistory, 260);
-  };
-  el.onkeydown = function(e){ if(e.key === 'Enter'){ clearTimeout(hqTimer); loadHistory(); } };
-  var clr = $('hqClear');
-  if(clr){ clr.onclick = function(){ S.hq = ''; S.page = 1; el.value = ''; renderHqInfo(); loadHistory(); }; }
-}
+/* ===================== 右侧历史（读的是 SQLite） =====================
+   列表 / 搜索 / 页码翻页 / 收起展开 都在共用组件 /static/history-panel.js 里，
+   这里只说第一性原理自己的部分。 */
+var HIST_OPTS = {
+  url: '/first-principles/api/sessions',
+  confirmDel: '删掉这条拆解记录？删了就找不回来了。',
+  exp: function(id, btn){ exportById(id, btn); },
+  isActive: function(id){ return String(id) === String(S.sid); },
+  title: function(it){ return it.title || it.goal || '（没写目标）'; },
+  meta: function(it){
+    var state = it.blocked ? '没有可拆空间'
+      : (it.step >= 5 ? '已收尾' : ('第 ' + (it.step || 1) + ' 步 · ' + stepName(it.step || 1)));
+    return [state, (it.count || 0) + ' 条', shortTime(it.updated_at)].filter(Boolean).join(' · ');
+  },
+  snippet: function(it, q){ return TBHistory.snippetFrom([it.goal || '', it.title || ''], q); },
+  empty: {
+    none: '还没有。上面拆一次，这里就会留下一条，换台设备也还在。',
+    noHit: '没有含「{q}」的记录。换个词试试 —— 搜索只看最近 400 条。'
+  },
+  open: function(id){ open(id); },
+  del: function(id){ return del(id); }
+};
 
 function renderAll(){
   renderStart();
@@ -1673,15 +1441,7 @@ function syncStick(){
 
 function init(){
   initVoice();
-  bindSearch();
-  syncStick();
-  window.addEventListener('resize', syncStick);
-  var fitT = null;
-  window.addEventListener('resize', function(){ clearTimeout(fitT); fitT = setTimeout(fitList, 320); });
-  if(PRE.prefill){ S.draft = PRE.prefill; }
-  renderAll();
-  S.size = fitSize();          /* 一页几条按窗口高度定 */
-  loadHistory();
+  TBHistory.init(HIST_OPTS);   /* 右侧历史面板：列表 / 搜索 / 翻页 / 收起（共用组件） */
   var deepId = wantRecId();
   if(deepId){ open(Number(deepId)); }
   req('GET', '/first-principles/api/status').then(function(d){

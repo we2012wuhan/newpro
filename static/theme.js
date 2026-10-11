@@ -109,3 +109,25 @@
     autoMount();
   }
 })();
+
+/* ==========================================================================
+   Service Worker：断网时别白屏
+   --------------------------------------------------------------------------
+   脚本在 /static/sw.js，但要挂在站点根路径 /sw.js 上（作用域才覆盖整站），
+   所以这里注册的是 /sw.js。策略说明见那个文件：
+   页面网络优先（断了给离线提示页）、静态资源网络优先 + 断网用缓存、接口不碰。
+
+   只在 https（或本机调试）下注册；注册失败静默跳过，不影响页面本身。
+   ========================================================================== */
+(function () {
+  'use strict';
+  if (!('serviceWorker' in navigator) || window.TB_NO_FX) { return; }
+  var secure = location.protocol === 'https:' ||
+    location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  if (!secure) { return; }
+  function register() {
+    try { navigator.serviceWorker.register('/sw.js'); } catch (e) { /* 不支持就算了 */ }
+  }
+  if (document.readyState === 'complete') { register(); }
+  else { window.addEventListener('load', register); }
+})();
