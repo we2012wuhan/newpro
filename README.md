@@ -1,4 +1,4 @@
-﻿﻿# Python + FastAPI 学习项目
+# Python + FastAPI 学习项目
 
 一个「边写接口边学 Python」的演示项目：用中文注释把 Python 核心知识点串起来，
 每个知识点都配有可运行的示例，方便对照学习。
