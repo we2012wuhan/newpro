@@ -21,33 +21,19 @@ body{background:radial-gradient(120% 90% at 50% 0%,#1a2140 0%,var(--call-bg) 55%
   color:var(--call-ink);font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
 .wrap{height:100%;max-width:620px;margin:0 auto;padding:calc(14px + env(safe-area-inset-top)) 20px
   calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column}
-.top{display:flex;align-items:center;gap:8px;flex:0 0 auto}
-.subtoggle,.backcall,.iconset{min-height:34px;padding:0 12px;border-radius:999px;
+.top{display:flex;align-items:center;flex-wrap:wrap;column-gap:6px;row-gap:6px;flex:0 0 auto}
+/* 场景 / 音色 / 人设 / 字幕 绑成一组：宽屏跟「返回」同一行，窄屏整组掉到第二行 */
+.top .group{display:flex;align-items:center;gap:6px;flex:0 0 auto;margin-left:auto}
+.subtoggle,.backcall{min-height:34px;padding:0 12px;border-radius:999px;
   border:1px solid var(--call-line);background:transparent;color:var(--call-dim);
   font-family:inherit;font-size:12.5px;cursor:pointer}
 .subtoggle.on{border-color:var(--acc1);color:#fff;background:rgba(109,124,255,.18)}
 /* 场景：跟「字幕」并排的小控件，透明底、宽度跟着字长 */
-select.scene{margin-left:auto;width:auto;max-width:42%;min-height:34px;border:1px solid var(--call-line);border-radius:999px;
+select.scene{width:auto;max-width:42%;min-height:34px;border:1px solid var(--call-line);border-radius:999px;
   background:transparent;color:var(--call-dim);font-family:inherit;font-size:12.5px;padding:0 6px;cursor:pointer}
 select.scene:disabled{opacity:.5;cursor:default}
-.iconset{width:34px;min-width:34px;padding:0;display:inline-flex;align-items:center;
-  justify-content:center;font-size:15px;line-height:1}
-/* 人设抽屉：从下面推上来的卡片 */
-.sheet{position:fixed;inset:0;z-index:50;background:rgba(6,9,20,.62);display:flex;
-  align-items:flex-end;justify-content:center;padding:0 12px calc(12px + env(safe-area-inset-bottom))}
-.sheet[hidden]{display:none}
-.sheetcard{width:100%;max-width:560px;background:var(--call-card);border:1px solid var(--call-line);
-  border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
-.sheettop{display:flex;align-items:center;gap:8px}
-.sheettitle{font-size:14.5px;font-weight:600;flex:1 1 auto}
-.sheetnote{font-size:12px;line-height:1.6;color:var(--call-dim)}
-.sheetta{width:100%;height:132px;resize:vertical;border:1px solid var(--call-line);border-radius:12px;
-  background:rgba(255,255,255,.04);color:var(--call-ink);font-family:inherit;font-size:13.5px;
-  line-height:1.6;padding:10px}
-.sheetta:focus{outline:none;border-color:var(--acc1)}
-.sheetbar{display:flex;align-items:center;gap:10px}
-.sheetmsg{flex:1 1 auto;font-size:12px;color:var(--call-dim);min-height:1em}
-.sheetbar .btn{flex:0 0 auto;min-width:104px;min-height:44px}
+/* 音色下拉：跟场景并排，名字再长也不许把顶栏撑破 */
+#voiceSel{max-width:112px;min-height:34px;font-size:12.5px;padding:0 6px}
 .stage{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:22px;min-height:0}
 .orb{position:relative;width:min(72vw,250px);height:min(72vw,250px);border-radius:50%;border:0;cursor:pointer;
@@ -88,15 +74,27 @@ body.show-subs .subs{display:flex}
 body.mic-loud .orb{animation:bob .9s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){.orb{animation:none!important}}
 @media (max-width:400px){.orb{width:min(78vw,210px);height:min(78vw,210px)}}
+@media (max-width:420px){
+  /* 手机屏：把顶栏那一组收紧，能一行就一行，一行放不下就整组掉到第二行 */
+  .top{column-gap:4px;row-gap:4px} .top .group{gap:4px}
+  .subtoggle,.backcall{padding:0 8px}
+}
+@media (max-width:342px){
+  /* 超窄屏：下拉和两个按钮都再收一点，顶栏才挤得进一行 */
+  #voiceSel{max-width:96px}
+  .subtoggle,.backcall{padding:0 7px}
+}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="top">
     <button class="backcall" id="btnBack" type="button">← 返回</button>
-    <select class="scene" id="scene" aria-label="场景"></select>
-    <button class="iconset" id="btnGear" type="button" aria-label="人设 / 长期记忆">⚙</button>
-    <button class="subtoggle" id="btnSubs" type="button" aria-pressed="false">字幕</button>
+    <div class="group">
+      <select class="scene" id="scene" aria-label="场景"></select>
+      <select class="scene" id="voiceSel" aria-label="音色"></select>
+      <button class="subtoggle" id="btnSubs" type="button" aria-pressed="false">字幕</button>
+    </div>
   </div>
   <div class="stage">
     <button class="orb" id="orb" data-s="idle" type="button" aria-label="开始通话"></button>
@@ -113,21 +111,6 @@ body.mic-loud .orb{animation:bob .9s ease-in-out infinite}
   </div>
 </div>
 
-<div class="sheet" id="sheet" hidden>
-  <div class="sheetcard">
-    <div class="sheettop">
-      <div class="sheettitle">人设 / 长期记忆</div>
-      <button class="backcall" id="btnSheetClose" type="button">关闭</button>
-    </div>
-    <div class="sheetnote">写在这里的东西，每次通话都会带给它，换场景、下次再聊也都记得。比如：我是 jxy，程序员，在练英语口语。</div>
-    <textarea class="sheetta" id="profileText" maxlength="1000" placeholder="比如：我是 jxy，程序员，在练英语口语。别用书面语，回答短一点。"></textarea>
-    <div class="sheetbar">
-      <span class="sheetmsg" id="profileMsg"></span>
-      <button class="btn call" id="btnProfileSave" type="button">保存</button>
-    </div>
-  </div>
-</div>
-
 <script>
 (function () {
   'use strict';
@@ -135,8 +118,7 @@ body.mic-loud .orb{animation:bob .9s ease-in-out infinite}
   var orb = $('orb'), stateEl = $('state');
   var subMe = $('subMe'), txtMe = $('txtMe'), subAi = $('subAi'), txtAi = $('txtAi');
   var btnHang = $('btnHang'), btnSubs = $('btnSubs'), btnCall = $('btnCall'), btnBack = $('btnBack'), sceneSel = $('scene');
-  var sheet = $('sheet'), profileText = $('profileText'), profileMsg = $('profileMsg');
-  var btnGear = $('btnGear'), btnSheetClose = $('btnSheetClose'), btnProfileSave = $('btnProfileSave');
+  var voiceSel = $('voiceSel');
 
   var ws = null, mic = null, capCtx = null, worklet = null, srcNode = null;
   var playCtx = null, playAt = 0, live = false, hungUp = false;
@@ -202,40 +184,32 @@ body.mic-loud .orb{animation:bob .9s ease-in-out infinite}
     };
   })();
 
-  /* 人设 / 长期记忆：内容存服务端（history 表），每次开会话由服务端拼进 instructions */
+  /* 音色下拉：列表问服务端要（服务端那份才是权威），选过的记在本地 */
+  (function () {
+    if (!voiceSel) { return; }
+    var vwant = '';
+    try { vwant = localStorage.getItem('tb_voice_voice') || ''; } catch (e) {}
+    fetch('/voice-chat/api/voices').then(function (r) { return r.json(); }).then(function (d) {
+      if (!d || !d.ok || !d.voices || !d.voices.length) { return; }
+      voiceSel.innerHTML = d.voices.map(function (v) {
+        var o = document.createElement('option');
+        o.value = v.key; o.textContent = v.name; return o.outerHTML;
+      }).join('');
+      voiceSel.value = vwant || d.default || '';
+      if (voiceSel.selectedIndex < 0) { voiceSel.selectedIndex = 0; }
+    }).catch(function () {});
+    voiceSel.onchange = function () {
+      try { localStorage.setItem('tb_voice_voice', voiceSel.value); } catch (e) {}
+    };
+  })();
+
+  /* 场景名：锁屏媒体卡片上显示用 */
   function sceneName() {
     if (sceneSel && sceneSel.options.length && sceneSel.selectedIndex >= 0) {
       return sceneSel.options[sceneSel.selectedIndex].textContent || '';
     }
     return '';
   }
-  function openSheet() {
-    sheet.hidden = false;
-    profileMsg.textContent = '';
-    fetch('/voice-chat/api/profile').then(function (r) { return r.json(); }).then(function (d) {
-      if (d && d.ok) { profileText.value = d.text || ''; }
-      else { profileMsg.textContent = (d && d.message) || '读不到人设'; }
-    }).catch(function () { profileMsg.textContent = '网络不通，稍后再试'; });
-  }
-  if (btnGear) { btnGear.onclick = openSheet; }
-  if (btnSheetClose) { btnSheetClose.onclick = function () { sheet.hidden = true; }; }
-  if (sheet) { sheet.onclick = function (e) { if (e.target === sheet) { sheet.hidden = true; } }; }
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && sheet && !sheet.hidden) { sheet.hidden = true; }
-  });
-  if (btnProfileSave) {
-    btnProfileSave.onclick = function () {
-      profileMsg.textContent = '保存中…';
-      fetch('/voice-chat/api/profile', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: profileText.value })
-      }).then(function (r) { return r.json(); }).then(function (d) {
-        if (d && d.ok) { profileText.value = d.text || ''; profileMsg.textContent = '已保存，下一次通话生效'; }
-        else { profileMsg.textContent = (d && d.message) || '保存失败'; }
-      }).catch(function () { profileMsg.textContent = '网络不通，稍后再试'; });
-    };
-  }
-
   async function startMic() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       throw new Error('这个浏览器不给麦克风（必须 https 打开）');
@@ -312,6 +286,7 @@ body.mic-loud .orb{animation:bob .9s ease-in-out infinite}
   /* ---------- 连接 / 打断 / 挂断 ---------- */
   async function start() {
     if (sceneSel) { sceneSel.disabled = true; }
+    if (voiceSel) { voiceSel.disabled = true; }
     hungUp = false;
     setState('idle', '正在连…');
     try { await startMic(); }
@@ -320,7 +295,8 @@ body.mic-loud .orb{animation:bob .9s ease-in-out infinite}
     ws = new WebSocket(proto + location.host + '/ws/voice');
     ws.binaryType = 'arraybuffer';
     ws.onopen = function () {
-      ws.send(JSON.stringify({ cmd: 'start', scenario: sceneSel ? sceneSel.value : '' }));
+      ws.send(JSON.stringify({ cmd: 'start', scenario: sceneSel ? sceneSel.value : '',
+        voice: voiceSel ? voiceSel.value : '' }));
       live = true; mediaOn(true);
     };
     ws.onmessage = function (ev) {
@@ -349,6 +325,7 @@ body.mic-loud .orb{animation:bob .9s ease-in-out infinite}
     stopPlayback();
     btnHang.disabled = true; btnCall.disabled = false;
     if (sceneSel) { sceneSel.disabled = false; }
+    if (voiceSel) { voiceSel.disabled = false; }
     orb.textContent = '';
   }
   function hangup(remote) {

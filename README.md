@@ -587,4 +587,4 @@ pyinstaller --noconfirm --clean --onefile --console ^
 | 上下文管理器 with | `python_advanced.py` 第 5 节 |
 | 虚拟环境与 pip | `python_advanced.py` 第 8 节 |
 | json / os / pathlib / datetime | `python_advanced.py` 第 9 节 |
-| `realtime_voice.py` | 实时语音对话（页面在 `/voice-chat`）：浏览器麦克风 ↔ 服务端 ↔ 豆包端到端实时语音大模型（WebSocket 转发，Key 只在服务端），支持随时打断；**静默 30 秒自动挂断、单次最长 10 分钟**（按分钟计费，防止忘了挂断跑钱） |
+| `realtime_voice.py` | 实时语音对话（页面在 `/voice-chat`）：浏览器麦克风 ↔ 服务端 ↔ 豆包端到端实时语音大模型（WebSocket 转发，Key 只在服务端），支持随时打断；右上角可切场景（自由聊天 / 英语陪练 / 粤语能手），可填一段「人设·长期记忆」跟着每次通话走；**静默 30 秒自动挂断、单次最长 10 分钟**（按分钟计费，防止忘了挂断跑钱） |
