@@ -98,6 +98,15 @@ p{margin:0}
 .sbar input:focus{border-color:var(--acc-line);box-shadow:var(--focus-ring)}
 .sbar input::placeholder{color:var(--muted);opacity:.75}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chips.tight{gap:6px;margin-top:0}
+.chips.tight .chip{min-height:30px;padding:0 10px;font-size:12.5px}
+.modebar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.modebar .tab{min-height:32px;padding:0 14px;font-size:13px}
+.modebar .mini{margin-left:auto}
+.line{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.line .lab{font-size:12.5px;color:var(--muted);flex:0 0 auto}
+.repo-m .hot{color:var(--gold)}
+.repo-m .hot b{color:var(--gold)}
 .chip{min-height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--field);
   color:var(--text);font-size:13px;cursor:pointer;transition:all .15s}
 .chip:hover{border-color:var(--acc-line)}
@@ -166,22 +175,44 @@ p{margin:0}
 <main class="wrap">
   <section id="panelProj" role="tabpanel" aria-label="OPC 项目">
   <div class="card">
-    <div class="sbar">
-      <input id="kw" type="text" placeholder="关键词，例如 ai saas starter" autocomplete="off">
-      <button class="btn primary" id="goBtn" type="button">搜</button>
-    </div>
-    <div class="chips" id="topicChips"></div>
-    <div class="ctrl">
-      <span class="lab">最低 star</span>
-      <select id="minStars">
-        <option value="0">不限</option>
-        <option value="50" selected>50+</option>
-        <option value="200">200+</option>
-        <option value="1000">1000+</option>
-        <option value="3000">3000+</option>
-      </select>
-      <button class="chip" id="aliveChip" type="button">只看活跃</button>
+    <div class="modebar" id="modebar">
+      <button class="tab on" type="button" data-mode="trend">趋势榜</button>
+      <button class="tab" type="button" data-mode="kw">关键词搜索</button>
       <span class="mini" id="quota"></span>
+    </div>
+
+    <div id="trendBox">
+      <div class="line"><span class="lab">时间</span><div class="chips tight" id="winChips"></div></div>
+      <div class="line"><span class="lab">领域</span><div class="chips tight" id="fieldChips"></div></div>
+      <div class="ctrl">
+        <span class="lab">语言</span>
+        <select id="langSel"></select>
+        <span class="lab">排序</span>
+        <select id="sortSel">
+          <option value="hot">涨得最快</option>
+          <option value="stars">star 最多</option>
+        </select>
+      </div>
+      <div class="mini" id="trendNote"></div>
+    </div>
+
+    <div id="searchBox" hidden>
+      <div class="sbar">
+        <input id="kw" type="text" placeholder="关键词，例如 ai saas starter" autocomplete="off">
+        <button class="btn primary" id="goBtn" type="button">搜</button>
+      </div>
+      <div class="chips" id="topicChips"></div>
+      <div class="ctrl">
+        <span class="lab">最低 star</span>
+        <select id="minStars">
+          <option value="0">不限</option>
+          <option value="50" selected>50+</option>
+          <option value="200">200+</option>
+          <option value="1000">1000+</option>
+          <option value="3000">3000+</option>
+        </select>
+        <button class="chip" id="aliveChip" type="button">只看活跃</button>
+      </div>
     </div>
   </div>
   <div id="out"></div>
@@ -222,10 +253,26 @@ var TOPICS = [
 ];
 
 var S = {
+  mode: 'trend',                       // trend = 趋势榜，kw = 关键词搜索
+  win: 'd7', field: '', lang: '', sort: 'hot',   // 趋势榜的筛选条件
+  winUsed: '', widened: false,
   q: 'one person company', minStars: 50, alive: false,
   repos: [], total: 0, remaining: '', ghToken: false,
   ai: false, aiBusy: false, aiErr: '', insight: '', aiSource: '',
-  busy: false, err: '', ran: false
+  busy: false, err: '', ran: false,
+  store: {}          // 每个模式各存一份结果（trend / kw），切来切去不重复打 GitHub
+};
+
+// 趋势榜筛选项由服务端给（/opc/api/status 的 trend 字段），这里是没拿到时的兜底
+var TREND = {
+  windows: [{key:'d1',label:'今天'},{key:'d3',label:'三天内'},{key:'d7',label:'本周'},
+            {key:'d30',label:'本月'},{key:'d90',label:'近三个月'}],
+  fields: [{key:'',label:'全部领域'},{key:'ai',label:'AI / LLM'},{key:'agent',label:'Agent'},
+           {key:'saas',label:'SaaS'},{key:'devtool',label:'开发工具'},
+           {key:'auto',label:'自动化'},{key:'selfhost',label:'自部署'},
+           {key:'content',label:'内容 / 写作'}],
+  langs: ['', 'Python', 'TypeScript', 'JavaScript', 'Go', 'Rust', 'Java', 'C++', 'C#',
+          'PHP', 'Swift', 'Kotlin', 'Shell', 'Vue', 'Jupyter Notebook']
 };
 
 var aiCache = {};
@@ -263,6 +310,10 @@ function fmtStars(n){
   if(n >= 1000){ return (n/1000).toFixed(1).replace(/\.0$/,'') + 'k'; }
   return String(n);
 }
+function fmtNum(n){                       // 精确数：1537 -> 1,537
+  n = Math.round(Number(n) || 0);
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
 function agoText(days){
   days = Number(days);
   if(!(days >= 0)){ return '更新时间未知'; }
@@ -284,8 +335,17 @@ function repoSkeleton(){
     '<div class="sk" style="width:62%"></div><div class="sk" style="width:80%"></div></div>';
 }
 
+function createdText(age){
+  age = Number(age);
+  if(!(age >= 0)){ return ''; }
+  if(age === 0){ return '今天建的'; }
+  if(age < 30){ return age + ' 天前建的'; }
+  if(age < 365){ return Math.round(age/30) + ' 个月前建的'; }
+  return (age/365).toFixed(1).replace(/\.0$/,'') + ' 年前建的';
+}
 function repoHTML(r){
   var flags = actBadge(r);
+  if(r.age != null && r.age >= 0 && r.age <= 30){ flags = '<span class="badge gold">新</span>' + flags; }
   var desc = r.desc
     ? '<div class="repo-d">' + esc(r.desc) + '</div>'
     : '<div class="repo-d empty">作者没写描述，点进去自己看</div>';
@@ -306,9 +366,11 @@ function repoHTML(r){
       '<span class="repo-flags">' + flags + '</span>' +
     '</div>' +
     '<div class="repo-m">' +
-      '<span>★ <b>' + fmtStars(r.stars) + '</b></span>' +
-      '<span>分支 ' + fmtStars(r.forks) + '</span>' +
+      '<span>★ <b>' + fmtNum(r.stars) + '</b> star</span>' +
+      (r.per_day ? '<span class="hot">涨速 ≈ <b>' + fmtStars(r.per_day) + '</b> star/天</span>' : '') +
+      '<span>分支 ' + fmtNum(r.forks) + '</span>' +
       (r.lang ? '<span>' + esc(r.lang) + '</span>' : '') +
+      (r.created ? '<span>' + esc(createdText(r.age)) + '</span>' : '') +
       '<span>' + esc(agoText(r.days)) + '</span>' +
     '</div>' +
     desc + tags + ai +
@@ -319,7 +381,21 @@ function render(){
   var html = '';
 
   if(S.ran && !S.busy){
-    var meta = '命中 ' + S.total + ' 个 · 显示 ' + S.repos.length + ' 个';
+    var meta;
+    if(S.mode === 'trend'){
+      meta = labelOf(TREND.windows, S.winUsed || S.win) + ' · ' + labelOf(TREND.fields, S.field)
+        + (S.lang ? ' · ' + esc(S.lang) : '') + (S.sort === 'stars' ? ' · 按 star 排' : ' · 按涨速排')
+        + ' ｜ 命中 ' + S.total + ' · 显示 ' + S.repos.length;
+      if(S.widened){
+        var asked = labelOf(TREND.windows, S.win);
+        meta += '（' + asked + '里没有够格的，已自动放宽）';
+      }
+    } else {
+      meta = '命中 ' + S.total + ' 个 · 显示 ' + S.repos.length + ' 个';
+    }
+    var sumStars = 0;
+    S.repos.forEach(function(r){ sumStars += Number(r.stars) || 0; });
+    if(sumStars > 0){ meta += ' · 这批共 ' + fmtNum(sumStars) + ' star'; }
     if(S.remaining !== '' && S.remaining != null){ meta += ' · GitHub 剩余额度 ' + esc(S.remaining); }
     var btn;
     if(S.aiBusy){ btn = '<button class="btn sm" disabled><span class="spin"></span> 解读中</button>'; }
@@ -348,6 +424,98 @@ function render(){
   $('aliveChip').className = 'chip' + (S.alive ? ' on' : '');
   $('quota').textContent = S.ghToken ? 'GitHub Token 已配置' : '';
 }
+function labelOf(list, key){
+  for(var i = 0; i < list.length; i++){ if(list[i].key === key){ return list[i].label; } }
+  return key || '';
+}
+
+function saveSnap(kind, repos, extra){
+  var snap = { repos: repos || [], insight: '', aiErr: '' };
+  for(var k in extra){ snap[k] = extra[k]; }
+  S.store[kind] = snap;
+  applySnap(snap);
+  return snap;
+}
+function applySnap(snap){
+  S.repos = (snap.repos || []).slice();
+  S.repos.forEach(function(r){ if(aiCache[r.name]){ r.ai = aiCache[r.name]; } });
+  S.total = snap.total || 0;
+  S.remaining = snap.remaining;
+  S.ghToken = !!snap.ghToken;
+  S.winUsed = snap.winUsed || S.win;
+  S.widened = !!snap.widened;
+  S.insight = snap.insight || '';
+  S.aiErr = snap.aiErr || '';
+  S.ran = true;
+}
+
+/* ---- 趋势榜：时间窗 + 领域 + 语言，按 star 涨速排 ---- */
+function paintTrend(){
+  $('winChips').innerHTML = TREND.windows.map(function(w){
+    return '<button class="chip' + (w.key === S.win ? ' on' : '') + '" type="button" data-win="'
+      + esc(w.key) + '">' + esc(w.label) + '</button>';
+  }).join('');
+  $('fieldChips').innerHTML = TREND.fields.map(function(f){
+    return '<button class="chip' + (f.key === S.field ? ' on' : '') + '" type="button" data-field="'
+      + esc(f.key) + '">' + esc(f.label) + '</button>';
+  }).join('');
+  $('langSel').innerHTML = TREND.langs.map(function(l){
+    return '<option value="' + esc(l) + '">' + esc(l || '全部语言') + '</option>';
+  }).join('');
+  $('langSel').value = S.lang;
+  $('sortSel').value = S.sort;
+  $('trendNote').textContent = 'GitHub 没有 trending 接口，这里按「这段时间里新建、平均每天涨多少 star」近似，'
+    + '跟 trending 榜的口味基本一致。';
+  Array.prototype.forEach.call($('winChips').querySelectorAll('[data-win]'), function(b){
+    b.onclick = function(){ S.win = b.getAttribute('data-win'); paintTrend(); runTrending(); };
+  });
+  Array.prototype.forEach.call($('fieldChips').querySelectorAll('[data-field]'), function(b){
+    b.onclick = function(){ S.field = b.getAttribute('data-field'); paintTrend(); runTrending(); };
+  });
+}
+
+function runTrending(){
+  if(S.busy){ return; }
+  S.busy = true; S.err = ''; S.aiErr = ''; S.ran = true; S.insight = '';
+  render();
+  api('/opc/api/trending', { win:S.win, field:S.field, lang:S.lang, sort:S.sort, per:12 })
+    .then(function(d){
+      S.busy = false;
+      if(!d || !d.ok){
+        S.repos = []; S.total = 0;
+        S.err = (d && d.msg) || '趋势榜拉不到数据，稍后再试';
+        render(); return;
+      }
+      saveSnap('trend', d.repos || [], { total: d.total || 0, remaining: d.remaining,
+        ghToken: !!d.token, winUsed: d.win || S.win, widened: !!d.widened });
+      saveCfg();
+      render();
+    });
+}
+
+function setMode(mode){
+  S.mode = (mode === 'kw') ? 'kw' : 'trend';
+  $('trendBox').hidden = (S.mode !== 'trend');
+  $('searchBox').hidden = (S.mode !== 'kw');
+  Array.prototype.forEach.call($('modebar').querySelectorAll('[data-mode]'), function(b){
+    b.classList.toggle('on', b.getAttribute('data-mode') === S.mode);
+  });
+  saveCfg();
+  if(S.store[S.mode]){
+    applySnap(S.store[S.mode]);   // 这个模式之前拉过，直接摆回来，不重复打 GitHub
+    render();
+  } else if(S.mode === 'trend'){
+    runTrending();
+  } else {
+    runSearch(S.q);
+  }
+}
+
+function saveCfg(){
+  save(K_CFG, { mode:S.mode, win:S.win, field:S.field, lang:S.lang, sort:S.sort,
+                q:S.q, minStars:S.minStars, alive:S.alive });
+}
+
 /* ---- 搜索 ---- */
 function runSearch(query){
   if(S.busy){ return; }
@@ -367,14 +535,9 @@ function runSearch(query){
         S.err = (d && d.msg) || '搜索失败，稍后再试';
         render(); return;
       }
-      S.repos = (d.repos || []).map(function(r){
-        if(aiCache[r.name]){ r.ai = aiCache[r.name]; }
-        return r;
-      });
-      S.total = d.total || 0;
-      S.remaining = d.remaining;
-      S.ghToken = !!d.token;
-      save(K_CFG, { q:q, minStars:S.minStars, alive:S.alive });
+      saveSnap('kw', d.repos || [], { total: d.total || 0, remaining: d.remaining,
+        ghToken: !!d.token });
+      saveCfg();
       render();
     });
 }
@@ -386,6 +549,7 @@ function runDigest(){
   render();
   var payload = S.repos.map(function(r){
     return { name:r.name, desc:r.desc, lang:r.lang, stars:r.stars, pushed:r.pushed,
+             created:r.created, per_day:r.per_day,
              activity:r.activity, topics:r.topics, archived:r.archived };
   });
   api('/opc/api/digest', { repos:payload })
@@ -401,6 +565,7 @@ function runDigest(){
       save(K_AI, aiCache);
       S.insight = d.insight || '';
       S.aiSource = d.source || '';
+      if(S.store[S.mode]){ S.store[S.mode].insight = S.insight; }
       render();
     });
 }
@@ -614,29 +779,46 @@ function setTab(name, remember){
 function init(){
   aiCache = load(K_AI, {}) || {};
   var cfg = load(K_CFG, null);
-  if(cfg && cfg.q){
-    S.q = cfg.q;
-    S.minStars = Number(cfg.minStars) || 0;
-    S.alive = !!cfg.alive;
+  if(cfg){
+    if(cfg.q){ S.q = cfg.q; }
+    if(cfg.minStars != null){ S.minStars = Number(cfg.minStars) || 0; }
+    if(cfg.alive != null){ S.alive = !!cfg.alive; }
+    if(cfg.mode){ S.mode = cfg.mode; }
+    if(cfg.win){ S.win = cfg.win; }
+    if(cfg.field != null){ S.field = cfg.field; }
+    if(cfg.lang != null){ S.lang = cfg.lang; }
+    if(cfg.sort){ S.sort = cfg.sort; }
   }
   $('kw').value = S.q;
   $('minStars').value = String(S.minStars);
   $('aliveChip').className = 'chip' + (S.alive ? ' on' : '');
 
   paintTopics();
+  paintTrend();
   render();
 
   $('goBtn').onclick = function(){ runSearch(); };
   $('kw').onkeydown = function(e){ if(e.key === 'Enter'){ runSearch(); } };
   $('minStars').onchange = function(){ runSearch(); };
   $('aliveChip').onclick = function(){ S.alive = !S.alive; runSearch(); };
+  $('langSel').onchange = function(){ S.lang = $('langSel').value; saveCfg(); runTrending(); };
+  $('sortSel').onchange = function(){ S.sort = $('sortSel').value; saveCfg(); runTrending(); };
+  Array.prototype.forEach.call($('modebar').querySelectorAll('[data-mode]'), function(b){
+    b.onclick = function(){ setMode(b.getAttribute('data-mode')); };
+  });
 
-  // 服务端有没有配模型 Key / GitHub Token，只影响按钮文案
+  // 服务端有没有配模型 Key / GitHub Token，只影响按钮文案；顺带把趋势榜的筛选项拿过来
   fetch('/opc/api/status').then(function(r){ return r.json(); }).then(function(d){
     S.ai = !!(d && d.ai);
     S.ghToken = !!(d && d.github_token);
-    render();
-  }).catch(function(){ render(); });
+    if(d && d.trend){
+      if(d.trend.windows && d.trend.windows.length){ TREND.windows = d.trend.windows; }
+      if(d.trend.fields && d.trend.fields.length){ TREND.fields = d.trend.fields; }
+      if(d.trend.langs && d.trend.langs.length){ TREND.langs = d.trend.langs; }
+    }
+    paintTrend();
+    setMode(S.mode);
+  }).catch(function(){ setMode(S.mode); });
 
   // 导航：两个 tab 互切，选中状态记在地址上
   Array.prototype.forEach.call($('tabs').querySelectorAll('[data-tab]'), function(b){
@@ -648,8 +830,6 @@ function init(){
   $('rkw').oninput = function(){ RS.kw = $('rkw').value; renderRef(); };
   $('refExp').onclick = exportRefs;
   renderRef();
-
-  runSearch(S.q);
 }
 init();
 

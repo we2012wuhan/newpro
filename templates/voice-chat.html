@@ -13,12 +13,19 @@
 <script src="/static/auth-guard.js"></script>
 <style>
 /* 通话页：固定视口不滚动。默认只有一个大圆按钮，字幕要点右上角「字幕」才展开。 */
-:root{--call-bg:#0d1020;--call-card:#171a2b;--call-line:#282d45;--call-ink:#eef1fa;
+:root{color-scheme:dark;
+  --call-bg:#0d1020;--call-card:#171a2b;--call-line:#282d45;--call-ink:#eef1fa;
   --call-dim:#8b93ab;--acc1:#6d7cff;--acc2:#2dd4bf;--danger:#e0575f}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;padding:0;height:100%;overflow:hidden}
-body{background:radial-gradient(120% 90% at 50% 0%,#1a2140 0%,var(--call-bg) 55%);
-  color:var(--call-ink);font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;overscroll-behavior:none}
+/* 底色必须挂在 html 上：theme.css 里有一句 body{background:transparent !important}，
+   写在 body 上的底色会被它整条干掉，页面底色就只剩 html 的 --tb-bg —— 浅色主题是近白色，
+   于是手机和电脑上都会看到白底。html 是画布底色，覆盖整个视口，谁也盖不掉它。
+   另外这里不用 background-attachment:fixed：窗口缩放 / 手机转屏时它容易残留旧画面。 */
+html{background-color:var(--call-bg);
+  background-image:radial-gradient(120% 90% at 50% 0%,#1a2140 0%,var(--call-bg) 55%);
+  background-repeat:no-repeat;background-size:100% 100%;background-attachment:scroll}
+body{color:var(--call-ink);font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
 .wrap{height:100%;max-width:620px;margin:0 auto;padding:calc(14px + env(safe-area-inset-top)) 20px
   calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column}
 .top{display:flex;align-items:center;flex-wrap:wrap;column-gap:6px;row-gap:6px;flex:0 0 auto}
