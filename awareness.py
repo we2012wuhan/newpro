@@ -204,6 +204,7 @@ def _build(user: str) -> dict:
     weekly_unread = bool(weekly.get('sufficient') and state.get('seen_weekly') != week and not muted)
     daily_unread = bool(fact and state.get('seen_daily') != day and not muted)
     badge = 'weekly' if weekly_unread else ('daily' if daily_unread else '')
+    unread_count = int(weekly_unread) + int(daily_unread)
 
     return {
         'ok': True, 'generated_at': now.strftime('%H:%M'), 'day': day, 'week': week,
@@ -211,7 +212,8 @@ def _build(user: str) -> dict:
         'days': days, 'tools': tools, 'themes': themes, 'recent': recent,
         'fact': fact, 'facts': facts, 'weekly': weekly,
         'mute_until': state.get('mute_until') or '',
-        'badge': badge, 'unread': {'weekly': weekly_unread, 'daily': daily_unread},
+        'badge': badge, 'unread_count': unread_count,
+        'unread': {'weekly': weekly_unread, 'daily': daily_unread},
     }
 
 

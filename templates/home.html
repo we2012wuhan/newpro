@@ -144,17 +144,29 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .vnav-msg{font-size:12px;color:var(--tb-muted);min-height:1em}
 .vnav-open{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid rgba(45,212,191,.55);
   background:rgba(45,212,191,.16);color:#b8f2e6;font:inherit;cursor:pointer;align-self:flex-start}
+.notice-btn{position:relative;flex:0 0 44px;width:44px;height:44px;padding:0;display:inline-flex;
+  align-items:center;justify-content:center;border-radius:12px;border:1px solid var(--line);
+  background:var(--tb-card);color:var(--tb-muted);font-family:inherit;cursor:pointer;
+  transition:border-color .2s,color .2s,background .2s}
+.notice-btn:hover{border-color:rgba(109,124,255,.6);color:#6d7cff;background:var(--tb-hover)}
+.notice-btn svg{display:block;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;
+  stroke-linecap:round;stroke-linejoin:round}
+.notice-badge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;
+  border-radius:9px;background:#e5484d;color:#fff;font-size:10.5px;line-height:18px;text-align:center;
+  font-weight:700;box-shadow:0 3px 10px rgba(180,25,38,.32);border:2px solid var(--tb-card)}
+.notice-badge[hidden]{display:none}
 .aw-btn{position:relative;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:6px;
   min-height:48px;padding:0 14px;border-radius:14px;border:1px solid var(--line);
   background:var(--tb-card);color:var(--tb-muted);font-family:inherit;font-size:13px;cursor:pointer;
   transition:border-color .2s,color .2s,background .2s}
-.aw-btn:hover{border-color:rgba(109,124,255,.6);color:#6d7cff}
+.aw-btn:hover{border-color:rgba(109,124,255,.6);color:#6d7cff;background:var(--tb-hover)}
 .aw-ico{font-size:15px;line-height:1}
 .aw-txt{line-height:1}
 .aw-badge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;
-  border-radius:9px;background:#e8797f;color:#fff;font-size:11px;line-height:18px;text-align:center;
-  font-weight:700;box-shadow:0 3px 10px rgba(0,0,0,.25)}
-.aw-badge.dot{min-width:9px;width:9px;height:9px;padding:0;border-radius:50%;right:-3px;top:-3px;line-height:0}
+  border-radius:9px;background:#e5484d;color:#fff;font-size:10.5px;line-height:18px;text-align:center;
+  font-weight:700;box-shadow:0 3px 10px rgba(180,25,38,.32);border:2px solid var(--tb-card)}
+.aw-badge[hidden]{display:none}
+@media(max-width:520px){.aw-btn{width:44px;padding:0}.aw-btn .aw-txt{display:none}}
 .aw{position:fixed;inset:0;z-index:2147482100;background:rgba(6,9,20,.55);display:flex;
   align-items:flex-start;justify-content:center;padding:10vh 16px 16px}
 .aw[hidden]{display:none}
@@ -242,7 +254,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
   border-radius:999px;background:var(--tb-card);border:1px solid var(--line)}
 .avatar{width:26px;height:26px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:12.5px;
   font-weight:700;color:#08101f;background:linear-gradient(135deg,#818cf8,#5eead4)}
-.acct-right{display:flex;gap:8px}
+.acct-right{display:flex;gap:8px;align-items:center}
 .abtn{font-family:inherit;font-size:13px;padding:8px 15px;border-radius:10px;cursor:pointer;color:var(--c-c3cde3);
   background:var(--tb-card);border:1px solid var(--line);transition:background .15s ease,color .15s ease,border-color .15s ease}
 .abtn:hover{background:var(--tb-hover);color:var(--tb-ink)}
@@ -335,17 +347,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
   .quotes{display:none}
   .qside{display:flex}
 }
-/* ===== 今天要处理的事：只在有到期内容时出现，其余时间完全隐藏 ===== */
-.today{margin:0 0 18px;padding:15px 17px;border-radius:18px;
-  background:linear-gradient(180deg,var(--tb-card),var(--tb-card-2));
-  border:1px solid var(--tb-line-2);backdrop-filter:blur(8px);
-  box-shadow:0 16px 38px -26px rgba(109,124,255,.75),inset 3px 0 0 #e8a13c;
-  animation:tdIn .34s ease-out both}
-@keyframes tdIn{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:none}}
-@media(prefers-reduced-motion:reduce){.today{animation:none}}
-.td-head{display:flex;align-items:baseline;gap:8px;margin-bottom:11px}
-.td-ttl{font-size:14px;font-weight:600;color:var(--tb-ink);letter-spacing:.02em}
-.td-n{font-size:12px;color:var(--tb-muted)}
+/* ===== 通知中心里的到期待办 ===== */
 .td-row{display:flex;align-items:center;gap:12px;padding:10px 12px;margin-bottom:8px;
   border-radius:12px;text-decoration:none;color:inherit;
   background:var(--tb-hover);border:1px solid transparent;
@@ -362,9 +364,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
   background:rgba(232,161,60,.14);border:1px solid rgba(232,161,60,.32);
   padding:3px 9px;border-radius:999px;white-space:nowrap}
 [data-theme="dark"] .td-late{color:#f0b25e;background:rgba(232,161,60,.16);border-color:rgba(232,161,60,.34)}
-.td-more{font-size:12px;color:var(--tb-muted);margin-top:9px;padding-left:2px}
 @media(max-width:640px){
-  .today{padding:13px 13px;border-radius:15px}
   .td-txt{white-space:normal}
   .td-ico{width:30px;height:30px;font-size:15px;border-radius:9px}
   .td-row{gap:10px;padding:10px}
@@ -375,7 +375,6 @@ body.is-dragging .tool:not(.dragging){transition:none}
 </head>
 <body>
 <div class="wrap">
-  <div class="today" id="today" hidden></div>
   <div class="quotes" id="quotes" aria-label="每日名言"></div>
   <aside class="qside q-l" aria-label="名言（左）"><div class="q-card" id="qSideL"></div></aside>
   <aside class="qside q-r" aria-label="名言（右）"><div class="q-card" id="qSideR"></div></aside>
@@ -394,6 +393,13 @@ body.is-dragging .tool:not(.dragging){transition:none}
     <!--USER_CHIP-->
     <div class="acct-right">
       <span class="tb-mount"></span>
+      <button class="notice-btn" id="toolNotice" type="button" aria-label="通知" title="通知">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/>
+          <path d="M10 21h4"/>
+        </svg>
+        <span class="notice-badge" id="noticeBadge" hidden aria-hidden="true"></span>
+      </button>
       <button class="abtn" id="pwBtn" type="button">修改密码</button>
       <button class="abtn danger" id="logoutBtn" type="button">退出登录</button>
     </div>
@@ -1296,6 +1302,13 @@ if(document.readyState === 'loading'){
     <div class="vnav-msg" id="vnMsg"></div>
   </div>
 </div>
+<div class="aw" id="noticeNav" hidden>
+  <div class="aw-card" role="dialog" aria-label="通知">
+    <div class="aw-top"><div class="aw-title">通知</div><div class="aw-time" id="noticeTime"></div><button class="aw-x" id="noticeClose" type="button">关闭</button></div>
+    <div class="aw-body" id="noticeBody"></div>
+    <div class="aw-foot"><a class="aw-link" href="/overview">看记录</a><span class="mini">处理完成后通知会自动消失</span></div>
+  </div>
+</div>
 <div class="aw" id="awNav" hidden>
   <div class="aw-card" role="dialog" aria-label="本周觉察">
     <div class="aw-top"><div class="aw-title">本周觉察</div><div class="aw-time" id="awTime"></div><button class="aw-x" id="awClose" type="button">关闭</button></div>
@@ -1388,6 +1401,71 @@ if(document.readyState === 'loading'){
 <script>
 (function () {
   'use strict';
+  var btn = document.getElementById('toolNotice');
+  var badge = document.getElementById('noticeBadge');
+  var nav = document.getElementById('noticeNav');
+  var bodyEl = document.getElementById('noticeBody');
+  var timeEl = document.getElementById('noticeTime');
+  var closeBtn = document.getElementById('noticeClose');
+  var items = [];
+
+  function paint() {
+    var n = items.length;
+    if (!n) {
+      badge.hidden = true;
+      badge.textContent = '';
+      btn.setAttribute('aria-label', '通知，没有待处理消息');
+      btn.title = '通知';
+      return;
+    }
+    badge.hidden = false;
+    badge.textContent = n > 99 ? '99+' : String(n);
+    btn.setAttribute('aria-label', '通知，' + n + ' 条待处理');
+    btn.title = '通知（' + n + ' 条待处理）';
+  }
+  function render() {
+    timeEl.textContent = new Date().toLocaleTimeString('zh-CN', {
+      hour: '2-digit', minute: '2-digit'
+    });
+    if (!items.length) {
+      bodyEl.innerHTML = '<div class="aw-empty">没有待处理通知。</div>';
+      return;
+    }
+    var api = window.TBToday || {};
+    var rows = items.slice(0, api.maxRows || 40).map(function (it) {
+      return typeof api.rowHTML === 'function' ? api.rowHTML(it) : '';
+    }).join('');
+    bodyEl.innerHTML = '<div class="aw-sec"><h4>待处理 · ' + items.length + '</h4>' +
+      rows + '</div>';
+  }
+  function open() {
+    nav.hidden = false;
+    render();
+  }
+  function close() { nav.hidden = true; }
+  function sync(detail) {
+    items = (detail && detail.items) ||
+      (window.TBToday && window.TBToday.items && window.TBToday.items()) || [];
+    paint();
+    if (!nav.hidden) { render(); }
+  }
+
+  btn.onclick = open;
+  closeBtn.onclick = close;
+  nav.onclick = function (e) { if (e.target === nav) { close(); } };
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !nav.hidden) { close(); }
+  });
+  window.addEventListener('tbtodaychange', function (e) { sync(e && e.detail); });
+  sync();
+  window.TBNotifications = { open: open, close: close, refresh: function () {
+    return window.TBToday ? window.TBToday.refresh() : [];
+  } };
+})();
+</script>
+<script>
+(function () {
+  'use strict';
   var btn = document.getElementById('toolAware');
   var badge = document.getElementById('awBadge');
   var nav = document.getElementById('awNav');
@@ -1402,18 +1480,31 @@ if(document.readyState === 'loading'){
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
   function paintBadge(d) {
-    if (!d || !d.badge) { badge.hidden = true; badge.className = 'aw-badge'; badge.textContent = ''; return; }
+    d = d || AW || {};
+    var n = Number(d.unread_count);
+    if (!Number.isFinite(n) || n < 0) { n = d.badge ? 1 : 0; }
+    if (!n) {
+      badge.hidden = true;
+      badge.className = 'aw-badge';
+      badge.textContent = '';
+      btn.setAttribute('aria-label', '觉察，没有未读内容');
+      btn.title = '觉察';
+      return;
+    }
     badge.hidden = false;
-    if (d.badge === 'weekly') { badge.className = 'aw-badge'; badge.textContent = '1'; }
-    else { badge.className = 'aw-badge dot'; badge.textContent = ''; }
+    badge.className = 'aw-badge';
+    badge.textContent = n > 99 ? '99+' : String(n);
+    btn.setAttribute('aria-label', '觉察，' + n + ' 条未读');
+    btn.title = '觉察（' + n + ' 条未读）';
   }
   function load() {
-    var pre = (window.TBUsage && window.TBUsage.ready) ? window.TBUsage.ready : Promise.resolve();
-    return Promise.resolve(pre).catch(function () {}).then(function () {
+    var waits = [];
+    if (window.TBUsage && window.TBUsage.ready) { waits.push(window.TBUsage.ready); }
+    return Promise.all(waits).catch(function () {}).then(function () {
       return fetch('/api/awareness');
     }).then(function (r) { return r.json(); }).then(function (d) {
       if (!d || !d.ok) { return; }
-      AW = d; paintBadge(d);
+      AW = d; paintBadge();
       if (!nav.hidden) { render(d); }
     }).catch(function () {});
   }
@@ -1460,19 +1551,22 @@ if(document.readyState === 'loading'){
   }
   function open() {
     nav.hidden = false;
-    if (AW) { render(AW); } else { bodyEl.innerHTML = '<div class="aw-empty">正在整理…</div>'; load(); }
+    if (AW) { render(AW); } else { bodyEl.innerHTML = '<div class="aw-empty">正在整理…</div>'; }
+    load();
     clearTimeout(seenTimer);
     seenTimer = setTimeout(function () {
       fetch('/api/awareness/seen', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ kind: 'all' }) }).catch(function () {});
-      badge.hidden = true;
+      if (AW) { AW.unread_count = 0; AW.badge = ''; }
+      paintBadge();
     }, 1000);
   }
   function close() { clearTimeout(seenTimer); nav.hidden = true; }
   function muteWeek() {
     fetch('/api/awareness/mute', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ days: 7 }) }).catch(function () {});
-    badge.hidden = true; close();
+    if (AW) { AW.unread_count = 0; AW.badge = ''; }
+    paintBadge(); close();
   }
   btn.onclick = open;
   closeBtn.onclick = close;

@@ -1,8 +1,8 @@
 /* ==========================================================================
-首页「今天要处理的事」
---------------------------------------------------------------------------
-把各工具里「已经到期、但还没处理」的记录回收上来，拼成一份待办。
-只在有内容的时候出现；没内容时整块隐藏，不占任何空间。
+首页通知中心的「待处理」来源
+---------------------------------------------------------------------------
+把各工具里「已经到期、但还没处理」的记录回收上来，交给右上角通知按钮。
+不再在首页顶部单独占一块卡片；有到期内容时只增加通知数字。
 
 数据来自各工具自己的 localStorage（字段改名时要同步这里）：
   判断力教练  jt_cases_v2   due      到期日      outcome 非空 = 已回看
@@ -12,7 +12,7 @@
 (function () {
   'use strict';
 
-  var MAX_ROWS = 3;    // 顶部最多列几条，多的收成一行提示
+  var MAX_ROWS = 40;   // 通知面板最多展开多少条，数量本身不受影响
   var MAX_SCAN = 100;  // 每个工具最多扫多少条，记录很多时不至于卡
 
   function pad(n) { return (n < 10 ? '0' : '') + n; }
@@ -45,7 +45,7 @@
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  // 标题压成一行，太长就截断——顶部这块是提醒，不是内容本身
+  // 标题压成一行，太长就截断——通知里先让人认出是哪件事
   function oneLine(s, n) {
     var t = String(s == null ? '' : s).replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
     if (!t) { return ''; }
@@ -139,46 +139,50 @@
     '</a>';
   }
 
-  function render() {
-    var host = document.getElementById('today');
-    if (!host) { return; }
+  var currentItems = [];
 
-    var items = collect().concat(remote);
+  function setItems(items) {
     items.sort(function (a, b) { return b.late - a.late; });
-    if (!items.length) {
-      // 没事就不出现——不显示"今天没有待办"这种客套话，免得天天占一块地方
-      host.hidden = true;
-      host.innerHTML = '';
-      return;
-    }
+    currentItems = items;
+    try {
+      window.dispatchEvent(new CustomEvent('tbtodaychange', {
+        detail: { items: currentItems.slice(), count: currentItems.length }
+      }));
+    } catch (e) { /* 老浏览器没有 CustomEvent：页面仍可在启动时主动读取 */ }
+  }
 
-    var head = '<div class="td-head">' +
-      '<span class="td-ttl">今天要处理的事</span>' +
-      '<span class="td-n">' + items.length + ' 件</span>' +
-    '</div>';
-
-    var more = items.length > MAX_ROWS
-      ? '<div class="td-more">还有 ' + (items.length - MAX_ROWS) + ' 件，进对应的工具里看</div>'
-      : '';
-
-    host.innerHTML = head +
-      items.slice(0, MAX_ROWS).map(rowHTML).join('') + more;
-    host.hidden = false;
+  function refresh() {
+    var local = collect();
+    setItems(local.concat(remote));
+    return loadRemote().then(function (rows) {
+      remote = rows || [];
+      setItems(collect().concat(remote));
+      return currentItems.slice();
+    }).catch(function () {
+      return currentItems.slice();
+    });
   }
 
   function boot() {
-    render();
-    loadRemote().then(function (rows) {
-      if (!rows.length) { return; }
-      remote = rows;
-      render();
-    });
-    // 去工具里处理完、按浏览器返回时，重新算一遍
-    window.addEventListener('pageshow', function (e) { if (e.persisted) { render(); } });
+    // 去工具里处理完、按浏览器返回时，重新通知入口
+    window.addEventListener('pageshow', function (e) { if (e.persisted) { refresh(); } });
     document.addEventListener('visibilitychange', function () {
-      if (!document.hidden) { render(); }
+      if (!document.hidden) { refresh(); }
     });
   }
+
+  window.TBToday = {
+    ready: Promise.resolve(),
+    refresh: refresh,
+    items: function () { return currentItems.slice(); },
+    rowHTML: rowHTML,
+    maxRows: MAX_ROWS
+  };
+  window.TBToday.ready = refresh().then(function () {
+    return currentItems.slice();
+  }).catch(function () {
+    return currentItems.slice();
+  });
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);
