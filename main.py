@@ -72,6 +72,13 @@ app.include_router(auth_router)
 app.add_middleware(LoginGate)
 
 # =========================================================
+# 全站公共件：划词问 AI（所有工具页共用，SSE 流式）
+# 页面只引 /static/quick-ai.js，接口统一走 /api/quick-ask
+# =========================================================
+from quick_ai import router as quick_ai_router  # noqa: E402
+app.include_router(quick_ai_router)
+
+# =========================================================
 # 附加功能：抖音视频下载器
 # ---------------------------------------------------------
 # 把独立的 douyin_downloader.py 里的 router 挂载到本应用上，

@@ -245,6 +245,15 @@ cp .env.example .env     # Windows: copy .env.example .env
   命令行也可以 `python volc_asr.py --test 录音.wav`。
 - **没引到就不出现**：`asr.js` 没加载时页面上根本没有这个按钮，其他功能照常用。
 
+## 划词问 AI（全站公共组件）
+
+任何工具页选中一段文字，就会浮出「✦ 问 AI」：点开后有 **解释 / 翻译 / 查一下 / 总结** 四个动作，也可以自己追问；回答是**流式**出来的，能一键复制。桌面是贴右侧的浮卡，手机是底部抽屉。
+
+- 代码：前端 `static/quick-ai.js`（样式全封在 Shadow DOM 里，不和各页 CSS 打架）；后端 `quick_ai.py`，接口 `POST /api/quick-ask`（SSE：`data: {"t":"..."}` / `{"done":true}` / `{"err":"..."}`）；27 个模板里各加了一行 `<script src="/static/quick-ai.js" defer></script>`（登录页除外）。
+- 模型走 `DEEPSEEK_API_KEY`（和其它工具共用）；只发送**选中的那段文字 + 可选追问 + 页面标题**，不发整页。
+- 限制：选中文字最多 4000 字、追问 500 字、每账号 20 次/分钟；同一段文字 10 分钟内重复问走内存缓存，不重复花钱。
+- 某个页面想关掉：`<body data-quick-ai="off">`，或在页面脚本里设 `window.TB_NO_QUICK_AI = true`；页面也可以主动调 `TBQuickAI.open('一段文字')`。
+
 ## 抖音视频下载工具
 
 浏览器打开 `http://127.0.0.1:8000/douyin-download`：

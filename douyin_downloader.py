@@ -141,6 +141,7 @@ _PAGE_HTML = r"""<!DOCTYPE html>
   .result-box { background:var(--tb-ok-bg); border:1px solid var(--tb-ok-line); border-radius:10px; padding:12px 14px; }
   [hidden] { display:none !important; }
 </style>
+<script src="/static/quick-ai.js" defer></script>
 </head>
 <body>
 <div class="wrap">
