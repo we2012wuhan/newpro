@@ -82,6 +82,15 @@ app.include_router(quick_ai_router)
 from voice_nav import router as voice_nav_router  # noqa: E402
 app.include_router(voice_nav_router)
 
+# 首页「觉察」：使用足迹 + 已读/免打扰状态（纯统计）
+from awareness import router as awareness_router  # noqa: E402
+app.include_router(awareness_router)
+
+# 页面设计助手：一句话需求 -> 可点击 HTML 原型 + 结构化设计规格
+# 结果存 SQLite（tool='design-assistant'），页面在 /design-assistant。
+from design_assistant import router as design_assistant_router  # noqa: E402
+app.include_router(design_assistant_router)
+
 # =========================================================
 # 附加功能：抖音视频下载器
 # ---------------------------------------------------------

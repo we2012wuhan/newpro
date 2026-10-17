@@ -97,6 +97,8 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .t-sl .go{background:linear-gradient(135deg,#64748b,#334155);box-shadow:0 8px 20px rgba(100,116,139,.35)}
 .tool.t-sc:hover{border-color:rgba(45,212,191,.55);box-shadow:0 24px 52px rgba(15,118,110,.28)}
 .t-sc .go{background:linear-gradient(135deg,#2dd4bf,#0f766e);box-shadow:0 8px 20px rgba(15,118,110,.34)}
+.tool.t-da:hover{border-color:rgba(124,135,255,.62);box-shadow:0 24px 52px rgba(91,108,255,.28)}
+.t-da .go{background:linear-gradient(135deg,#7c87ff,#5b6cff);box-shadow:0 8px 20px rgba(91,108,255,.34)}
 .search-col{display:flex;flex-direction:column;align-items:stretch;gap:7px;flex:1;max-width:480px;min-width:260px;margin-left:auto}
 .search-box{position:relative;width:100%}
 .search-box .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none;font-size:15px}
@@ -142,6 +144,58 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .vnav-msg{font-size:12px;color:var(--tb-muted);min-height:1em}
 .vnav-open{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid rgba(45,212,191,.55);
   background:rgba(45,212,191,.16);color:#b8f2e6;font:inherit;cursor:pointer;align-self:flex-start}
+.aw-btn{position:relative;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  min-height:48px;padding:0 14px;border-radius:14px;border:1px solid var(--line);
+  background:var(--tb-card);color:var(--tb-muted);font-family:inherit;font-size:13px;cursor:pointer;
+  transition:border-color .2s,color .2s,background .2s}
+.aw-btn:hover{border-color:rgba(109,124,255,.6);color:#6d7cff}
+.aw-ico{font-size:15px;line-height:1}
+.aw-txt{line-height:1}
+.aw-badge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;
+  border-radius:9px;background:#e8797f;color:#fff;font-size:11px;line-height:18px;text-align:center;
+  font-weight:700;box-shadow:0 3px 10px rgba(0,0,0,.25)}
+.aw-badge.dot{min-width:9px;width:9px;height:9px;padding:0;border-radius:50%;right:-3px;top:-3px;line-height:0}
+.aw{position:fixed;inset:0;z-index:2147482100;background:rgba(6,9,20,.55);display:flex;
+  align-items:flex-start;justify-content:center;padding:10vh 16px 16px}
+.aw[hidden]{display:none}
+.aw-card{width:min(560px,100%);max-height:78vh;display:flex;flex-direction:column;overflow:hidden;
+  border-radius:16px;border:1px solid var(--tb-line);background:var(--tb-card);
+  box-shadow:0 24px 60px -20px rgba(0,0,0,.6)}
+.aw-top{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--tb-line)}
+.aw-title{font-size:15px;font-weight:600;color:var(--tb-ink)}
+.aw-time{flex:1 1 auto;font-size:12px;color:var(--tb-muted)}
+.aw-x{min-height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--tb-line);
+  background:transparent;color:var(--tb-muted);font:inherit;cursor:pointer}
+.aw-body{padding:14px 16px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+.aw-sec{display:flex;flex-direction:column;gap:8px}
+.aw-sec h4{margin:0;font-size:12px;color:var(--tb-muted);font-weight:600;letter-spacing:.04em}
+.aw-bars{display:flex;align-items:flex-end;gap:8px;height:64px;padding-top:4px}
+.aw-bar{flex:1 1 0;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--tb-muted)}
+.aw-bar i{display:block;width:100%;border-radius:6px 6px 3px 3px;background:rgba(109,124,255,.5);min-height:4px}
+.aw-fact{font-size:14px;color:var(--tb-ink);line-height:1.55}
+.aw-facts{font-size:12.5px;color:var(--tb-text);display:flex;flex-direction:column;gap:4px;line-height:1.6}
+.aw-chip{display:inline-block;padding:3px 10px;border-radius:999px;border:1px solid var(--tb-line);
+  font-size:12px;color:var(--tb-text);margin:0 6px 6px 0}
+.aw-recent{display:flex;flex-direction:column;gap:6px}
+.aw-rec{font-size:12.5px;color:var(--tb-text);display:flex;gap:8px;flex-wrap:wrap}
+.aw-rec b{color:var(--tb-ink);font-weight:600}
+.aw-rec .d{color:var(--tb-muted)}
+.aw-empty{font-size:13px;color:var(--tb-muted);line-height:1.8}
+.aw-q{font-size:15px;font-weight:600;color:var(--tb-ink);line-height:1.65;padding:10px 12px;
+  border-radius:12px;background:rgba(109,124,255,.08);border:1px solid rgba(109,124,255,.18)}
+.aw-obs{font-size:12.5px;color:var(--tb-text);display:flex;flex-direction:column;gap:4px;line-height:1.6}
+.aw-ev{margin-top:2px;font-size:12px;color:var(--tb-muted)}
+.aw-ev summary{cursor:pointer}
+.aw-ev .aw-rec{padding:4px 0}
+.aw-foot{display:flex;gap:10px;align-items:center;padding:12px 16px;border-top:1px solid var(--tb-line)}
+.aw-link{color:#6d7cff;font-size:13px;text-decoration:none;margin-right:auto}
+.aw-mute{min-height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--tb-line);
+  background:transparent;color:var(--tb-text);font:inherit;font-size:12.5px;cursor:pointer}
+@media (pointer:coarse){
+  .aw{align-items:flex-end;padding:0}
+  .aw-card{max-height:82vh;border-radius:18px 18px 0 0;border-bottom:0}
+  .aw-body{padding-bottom:calc(14px + env(safe-area-inset-bottom))}
+}
 .no-result{display:block;text-align:center;color:#71809f;font-size:14px;border:1px dashed var(--line);
   border-radius:16px;padding:42px 16px;margin-top:8px;line-height:1.9}
 .hide{display:none!important}
@@ -317,6 +371,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
 }</style>
 <script src="/static/auth-guard.js"></script>
 <script src="/static/quick-ai.js" defer></script>
+<script src="/static/usage.js" defer></script>
 </head>
 <body>
 <div class="wrap">
@@ -368,6 +423,10 @@ body.is-dragging .tool:not(.dragging){transition:none}
           <span class="ico">🔍</span>
           <input id="toolSearch" type="search" autocomplete="off">
         </div>
+        <button class="aw-btn" id="toolAware" type="button" aria-label="觉察">
+          <span class="aw-ico">◔</span><span class="aw-txt">觉察</span>
+          <span class="aw-badge" id="awBadge" hidden aria-hidden="true"></span>
+        </button>
         <button class="voice-btn" id="toolVoice" type="button" aria-label="语音打开工具"
                 title="点一下说话，例如：打开翻译">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -398,6 +457,14 @@ body.is-dragging .tool:not(.dragging){transition:none}
       <div class="t-info">
         <h3>AI 生成图表</h3>
         <p class="desc">输入主题调用大模型，自动整理数据并生成柱状、饼图、折线、雷达、散点、排名等图表，可一键导出 Excel。</p>
+        <span class="go">立即打开</span>
+      </div>
+    </a>
+    <a class="tool t-da" data-cat="ai" href="/design-assistant">
+      <div class="t-icon">✏️</div>
+      <div class="t-info">
+        <h3>页面设计助手</h3>
+        <p class="desc">一句话需求变成可点击原型、交互说明和结构化设计规格，边看边提意见继续改。</p>
         <span class="go">立即打开</span>
       </div>
     </a>
@@ -1229,6 +1296,13 @@ if(document.readyState === 'loading'){
     <div class="vnav-msg" id="vnMsg"></div>
   </div>
 </div>
+<div class="aw" id="awNav" hidden>
+  <div class="aw-card" role="dialog" aria-label="本周觉察">
+    <div class="aw-top"><div class="aw-title">本周觉察</div><div class="aw-time" id="awTime"></div><button class="aw-x" id="awClose" type="button">关闭</button></div>
+    <div class="aw-body" id="awBody"></div>
+    <div class="aw-foot"><a class="aw-link" href="/overview">看记录</a><button class="aw-mute" id="awMute" type="button">这周不提醒</button></div>
+  </div>
+</div>
 <script src="/static/today.js"></script>
 <script src="/static/asr.js"></script>
 <script>
@@ -1309,6 +1383,108 @@ if(document.readyState === 'loading'){
     });
   } else if (btn) { btn.hidden = true; }
   window.TBVoiceNav = { handle: handle, close: closeNav };
+})();
+</script>
+<script>
+(function () {
+  'use strict';
+  var btn = document.getElementById('toolAware');
+  var badge = document.getElementById('awBadge');
+  var nav = document.getElementById('awNav');
+  var bodyEl = document.getElementById('awBody');
+  var timeEl = document.getElementById('awTime');
+  var closeBtn = document.getElementById('awClose');
+  var muteBtn = document.getElementById('awMute');
+  var AW = null, seenTimer = 0;
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function paintBadge(d) {
+    if (!d || !d.badge) { badge.hidden = true; badge.className = 'aw-badge'; badge.textContent = ''; return; }
+    badge.hidden = false;
+    if (d.badge === 'weekly') { badge.className = 'aw-badge'; badge.textContent = '1'; }
+    else { badge.className = 'aw-badge dot'; badge.textContent = ''; }
+  }
+  function load() {
+    var pre = (window.TBUsage && window.TBUsage.ready) ? window.TBUsage.ready : Promise.resolve();
+    return Promise.resolve(pre).catch(function () {}).then(function () {
+      return fetch('/api/awareness');
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d || !d.ok) { return; }
+      AW = d; paintBadge(d);
+      if (!nav.hidden) { render(d); }
+    }).catch(function () {});
+  }
+  function render(d) {
+    timeEl.textContent = d.generated_at ? ('更新于 ' + d.generated_at) : '';
+    if (!d.enough) {
+      bodyEl.innerHTML = '<div class="aw-empty">再攒几天，才看得出规律。<br>这周打开了 ' +
+        (d.visits || 0) + ' 次，分布在 ' + (d.active_days || 0) + ' 天。</div>';
+      return;
+    }
+    var max = 1;
+    (d.days || []).forEach(function (x) { if (x.n > max) { max = x.n; } });
+    var bars = (d.days || []).map(function (x) {
+      var wd = '日一二三四五六'[new Date(x.date + 'T00:00:00').getDay()];
+      var h = Math.round(8 + (x.n / max) * 44);
+      return '<div class="aw-bar"><i style="height:' + h + 'px"></i><span>' + wd + '</span></div>';
+    }).join('');
+    var facts = (d.facts || []).map(function (f) { return '<div>· ' + esc(f) + '</div>'; }).join('');
+    var themes = (d.themes || []).map(function (t) { return '<span class="aw-chip">' + esc(t) + '</span>'; }).join('');
+    var weeklyHTML = '';
+    if (d.weekly && d.weekly.sufficient) {
+      var obs = (d.weekly.observations || []).map(function (o) { return '<div>· ' + esc(o) + '</div>'; }).join('');
+      var ev = (d.weekly.evidence || []).map(function (r) {
+        return '<div class="aw-rec"><b>' + esc(r.name) + '</b><span>' + esc(r.title) +
+          '</span><span class="d">' + esc(r.at || '') + '</span></div>';
+      }).join('');
+      weeklyHTML = '<div class="aw-sec"><h4>这周想问自己</h4>' +
+        '<div class="aw-q">「' + esc(d.weekly.question || '') + '」</div>' +
+        '<div class="aw-obs">' + obs + '</div>' +
+        (ev ? '<details class="aw-ev"><summary>依据</summary>' + ev + '</details>' : '') +
+        '</div>';
+    }
+    var recent = (d.recent || []).map(function (r) {
+      return '<div class="aw-rec"><b>' + esc(r.name || r.tool) + '</b><span>' + esc(r.title) +
+        '</span><span class="d">' + esc(String(r.at || '').slice(5, 10)) + '</span></div>';
+    }).join('');
+    bodyEl.innerHTML =
+      (d.fact ? '<div class="aw-fact">' + esc(d.fact) + '</div>' : '') +
+      '<div class="aw-sec"><h4>足迹</h4><div class="aw-bars">' + bars + '</div>' +
+      '<div class="aw-facts">' + facts + '</div></div>' +
+      (themes ? '<div class="aw-sec"><h4>反复出现</h4><div>' + themes + '</div></div>' : '') +
+      weeklyHTML +
+      (recent ? '<div class="aw-sec"><h4>最近在做</h4><div class="aw-recent">' + recent + '</div></div>' : '');
+  }
+  function open() {
+    nav.hidden = false;
+    if (AW) { render(AW); } else { bodyEl.innerHTML = '<div class="aw-empty">正在整理…</div>'; load(); }
+    clearTimeout(seenTimer);
+    seenTimer = setTimeout(function () {
+      fetch('/api/awareness/seen', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'all' }) }).catch(function () {});
+      badge.hidden = true;
+    }, 1000);
+  }
+  function close() { clearTimeout(seenTimer); nav.hidden = true; }
+  function muteWeek() {
+    fetch('/api/awareness/mute', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ days: 7 }) }).catch(function () {});
+    badge.hidden = true; close();
+  }
+  btn.onclick = open;
+  closeBtn.onclick = close;
+  muteBtn.onclick = muteWeek;
+  nav.onclick = function (e) { if (e.target === nav) { close(); } };
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !nav.hidden) { close(); } });
+  window.TBAwareness = { open: open, refresh: load };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', load);
+  } else {
+    load();
+  }
 })();
 </script>
 </body>

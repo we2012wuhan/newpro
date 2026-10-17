@@ -22,6 +22,7 @@
 | `judgement_trainer.py` | 判断力教练（页面在 `/judgement-trainer`：写下正在犹豫的真事，先写上打算和几成把握，大模型把事实 / 猜测 / 你其实在赌什么 / 漏掉的变量摊开，到期回访对答案；没配 Key 走本地规则粗拆，记录存浏览器） |
 | `sdd_decomposer.py` | SDD 需求拆解器（页面在 `/sdd-decomposer`：把模糊想法按七段式逼成结构化规格，实时编译成可丢给 agent 的提示词，纯浏览器计算） |
 | `socratic.py` | 苏格拉底提问（页面在 `/socratic`：一个只会提问、不给答案的引导者 —— 写下你想理清的事，它按「澄清问题 → 已有信息 → 换个视角 → 推导结论」四步走，一次只问一个问题；回复**逐字流出来**（SSE），走完最后用你自己说过的话帮你收个尾。进度由服务端定，会话存 SQLite，右侧历史能回看、换台设备接着聊） |
+| `design_assistant.py` | 页面设计助手（页面在 `/design-assistant`：一句需求生成可点击 HTML 原型 + 结构化设计规格，支持手机 / 桌面切换、浅色 / 深色预览、页面跳转、组件 / 状态 / 交互 / 边界 / 数据说明；结果可导出 HTML 和 JSON，保存后在历史里继续提意见改版） |
 | `writing_ideas.py` | 写作选题（页面在 `/writing-ideas`：给一点线索或什么都不给，大模型一次出一批选题，挑中一个拆成启动包（标题 / 结构 / 证据 / 反驳），没配 Key 走内置配方，数据存浏览器） |
 | `predict_diary.py` | 贝叶斯日记（页面在 `/predict-diary`：写下你拿不准的一件事和现在几成把握，以后来一条新消息就更新一次；数字全在 Python 里用贝叶斯算，大模型只负责听懂人话；记录存浏览器） |
 | `langchain_test.py` | LangChain 测试台（页面在 `/langchain-test`：四个最小可跑的例子 —— 大模型调用 / 提示词模板 + 链 / 工具调用 / 上下文，每行都写了注释。页面上显示的源码是服务端用 `inspect.getsource` 现读的，所以永远和真正在跑的那份一致；每次运行落一条 SQLite 记录，右侧历史能回看、能删，页面还认 `?r=<记录 id>` 深链。顺带把 5 个接口和 curl 调用方式直接印在页面上） |
@@ -86,6 +87,7 @@ python video_downloader.py
 - `http://127.0.0.1:8000/docs` **重点**：FastAPI 自动生成的接口文档
 - `http://127.0.0.1:8000/douyin-download` **抖音下载**：粘贴抖音分享链接即可下载视频
 - `http://127.0.0.1:8000/ai-chart` **AI 数据图表**：输入主题，大模型自动整理数据并生成图表，支持导出 Excel
+- `http://127.0.0.1:8000/design-assistant` **页面设计助手**：一句话生成可点击页面原型和设计规格；手机 / 桌面、浅色 / 深色可切，规格能导出 JSON，历史记录里可以继续说哪里不对并继续改版
 - `http://127.0.0.1:8000/buy-helper` **购物比价助手**：输入商品与需求，对比淘宝 / 京东销量价格并给出建议与购买入口
 - `http://127.0.0.1:8000/translator` **翻译助手**：中文翻译成英文，一键复制小写 / 大写 / camelCase / PascalCase 命名
 - `http://127.0.0.1:8000/ocr` **OCR图片识别**：粘贴截图或上传图片，免费云端接口识别成文字，可复制 / 下载 txt
@@ -180,7 +182,7 @@ python video_downloader.py
 
 ## 模型配置（本地 .env / 线上环境变量）
 
-所有需要大模型或第三方 Key 的页面（`/ai-chart`、`/buy-helper`、`/bill-analysis`、`/study-assistant`、`/ocr`、`/writing-ideas`、`/opc`、`/judgement-trainer`、`/reading-practice`）
+所有需要大模型或第三方 Key 的页面（`/ai-chart`、`/design-assistant`、`/buy-helper`、`/bill-analysis`、`/study-assistant`、`/ocr`、`/writing-ideas`、`/opc`、`/judgement-trainer`、`/reading-practice`）
 都不再让用户手填 Key，统一由服务端读取。读取顺序：**真实环境变量 > 项目根目录 `.env` > 代码默认值**。
 
 本地开发：
@@ -244,6 +246,18 @@ cp .env.example .env     # Windows: copy .env.example .env
 - **自己验一下**：`/api/asr/health`（要登录）会发 1 秒测试音自检，返回 `{ok, resource, elapsed, message}`，不回显 Key；
   命令行也可以 `python volc_asr.py --test 录音.wav`。
 - **没引到就不出现**：`asr.js` 没加载时页面上根本没有这个按钮，其他功能照常用。
+
+## 觉察（首页）
+
+首页搜索框右边的「◔ 觉察」：点开是一张「本周觉察」，只基于**你自己留下的使用足迹**做统计，不推荐、不评分、不打卡。
+
+- 数据：`usage_events` 表（只记工具路径 + 时间 + 动作，保留 90 天；同一页面 5 分钟内去重），主题词从 `history` 的标题里提取；全部在 SQLite，服务端不上传全文。
+- 内容：7 天足迹柱状图、常用工具、最常来的时段、反复出现的主题、最近在做的记录；少于 8 次或不足 3 天时只显示「再攒几天」，不下结论。
+- 徽标：新的一周复盘没看过 = 柔和珊瑚色数字「1」；当天有新观察 = 小圆点；纯统计变化不亮。打开弹窗 1 秒后自动标记已读；「这周不提醒」会把免打扰写到 SQLite（手机/电脑共用）。
+- 接口：`GET /api/awareness`、`POST /api/awareness/seen`、`POST /api/awareness/mute`、`POST /api/usage/hit`；页面通过 `static/usage.js` 上报打开事件。
+- P2a（已做）：弹窗里新增「这周想问自己」——3 条规则观察 + 1 个按最常用工具挑选的问题 + 可展开的「依据」；
+  同一周只生成一次，缓存在 `awareness_weekly` 表，不会每次刷新变化；仍然不调大模型。
+- P2b（待做）：把这段文案换成 DeepSeek 生成（只发统计 + 最近标题，可关闭），失败自动回退规则版。
 
 ## 语音打开工具（首页）
 

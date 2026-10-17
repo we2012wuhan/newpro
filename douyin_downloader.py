@@ -142,6 +142,7 @@ _PAGE_HTML = r"""<!DOCTYPE html>
   [hidden] { display:none !important; }
 </style>
 <script src="/static/quick-ai.js" defer></script>
+<script src="/static/usage.js" defer></script>
 </head>
 <body>
 <div class="wrap">

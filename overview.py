@@ -45,6 +45,7 @@ TOOL_META = {
     'site-collect': {'name': '网站收集', 'ico': '🔖', 'href': '/site-collect', 'deep': True},
     'langchain-test': {'name': 'LangChain 测试', 'ico': '🧪', 'href': '/langchain-test', 'deep': True},
     'first_principles': {'name': '第一性原理', 'ico': '🧩', 'href': '/ask-hub?tab=fp', 'deep': True},
+    'design-assistant': {'name': '页面设计助手', 'ico': '✏️', 'href': '/design-assistant', 'deep': True},
 }
 
 _FALLBACK = (
@@ -97,6 +98,9 @@ def _excerpt(tool: str, payload: dict) -> str:
         return _text(payload.get('goal'))
     if tool == 'langchain-test':
         return _text(payload.get('input')) or _text(payload.get('case_name'))
+    if tool == 'design-assistant':
+        spec = payload.get('spec') if isinstance(payload.get('spec'), dict) else {}
+        return _text(spec.get('summary')) or _text(payload.get('brief'))
     return ''
 
 
@@ -156,6 +160,9 @@ def _status(tool: str, payload: dict) -> dict:
         # 收藏没有「收尾」这一说，不参与「没收尾」筛选，但状态标签照样显示
         label = {'new': '待看', 'using': '常用', 'archived': '归档'}.get(payload.get('state'), '')
         return {'tracked': False, 'open': False, 'label': label}
+    if tool == 'design-assistant':
+        return {'tracked': False, 'open': False,
+                'label': '第 %s 版' % (payload.get('revision') or 1)}
     return {'tracked': False, 'open': False, 'label': ''}
 
 
@@ -261,6 +268,16 @@ def _detail(tool: str, payload: dict) -> list:
             add('图表标题', data.get('title'), 60)
             rows = data.get('rows')
             add('数据行数', _count(rows) or None, 8)
+    elif tool == 'design-assistant':
+        spec = payload.get('spec') if isinstance(payload.get('spec'), dict) else {}
+        add('原始需求', payload.get('brief'))
+        add('方案', spec.get('title'), 60)
+        screens = spec.get('screens') if isinstance(spec.get('screens'), list) else []
+        if screens:
+            add('页面数', len(screens), 8)
+            add('页面', ' / '.join(_text(x.get('name'), 20) for x in screens
+                                   if isinstance(x, dict) and _text(x.get('name'), 20)), 160)
+        add('最近修改', payload.get('instruction'))
     return out
 
 

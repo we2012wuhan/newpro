@@ -87,6 +87,36 @@ SCHEMA = (
     )
     """,
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_tool_cat_assign ON tool_cat_assign(user, href)",
+    """
+    CREATE TABLE IF NOT EXISTS usage_events(
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        user       TEXT NOT NULL,
+        tool       TEXT NOT NULL,
+        action     TEXT NOT NULL DEFAULT 'open',
+        created_at TEXT NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_usage_events_user ON usage_events(user, id DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_usage_events_time ON usage_events(created_at)",
+    """
+    CREATE TABLE IF NOT EXISTS awareness_state(
+        user       TEXT PRIMARY KEY,
+        seen_daily TEXT NOT NULL DEFAULT '',
+        seen_weekly TEXT NOT NULL DEFAULT '',
+        mute_until TEXT NOT NULL DEFAULT '',
+        updated_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS awareness_weekly(
+        user       TEXT NOT NULL,
+        week       TEXT NOT NULL,
+        payload    TEXT NOT NULL DEFAULT '{}',
+        source     TEXT NOT NULL DEFAULT 'rules',
+        created_at TEXT NOT NULL,
+        PRIMARY KEY(user, week)
+    )
+    """,
 )
 
 
@@ -604,3 +634,123 @@ def checkpoint() -> None:
         conn.execute('PRAGMA wal_checkpoint(TRUNCATE)')
     finally:
         conn.close()
+
+
+# ---------------------------------------------------------------
+# 使用足迹 + 觉察状态（/awareness 用）
+# ---------------------------------------------------------------
+def log_usage(user: str, tool: str, action: str = 'open', dedupe_seconds: int = 300) -> bool:
+    """记一次使用。同一用户+工具+动作在 dedupe_seconds 内只算一次。"""
+    tool = (tool or '').strip()[:40] or 'unknown'
+    action = (action or 'open').strip()[:20]
+    conn = connect()
+    try:
+        if dedupe_seconds > 0:
+            row = conn.execute(
+                "SELECT id FROM usage_events WHERE user=? AND tool=? AND action=? "
+                "AND created_at >= datetime('now','localtime','-%d seconds') "
+                "ORDER BY id DESC LIMIT 1" % int(dedupe_seconds),
+                (user, tool, action)).fetchone()
+            if row:
+                return False
+        conn.execute('INSERT INTO usage_events(user, tool, action, created_at) VALUES (?,?,?,?)',
+                     (user, tool, action, now_str()))
+        # 顺手清掉 90 天前的足迹（表很小，每次删一下没关系）
+        conn.execute("DELETE FROM usage_events WHERE created_at < datetime('now','localtime','-90 days')")
+        conn.commit()
+        return True
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def usage_since(user: str, since: str = '') -> list:
+    """取某时间之后的使用事件（默认最近 7 天）。"""
+    if not since:
+        since = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time() - 7 * 86400))
+    conn = connect()
+    try:
+        return _rows(conn, 'SELECT tool, action, created_at FROM usage_events '
+                           'WHERE user=? AND created_at >= ? ORDER BY created_at', (user, since))
+    finally:
+        conn.close()
+
+
+def awareness_state(user: str) -> dict:
+    """觉察的已读/免打扰状态；没有就建一条。"""
+    conn = connect()
+    try:
+        conn.execute('INSERT OR IGNORE INTO awareness_state(user, updated_at) VALUES (?,?)',
+                     (user, now_str()))
+        conn.commit()
+        row = conn.execute('SELECT * FROM awareness_state WHERE user=?', (user,)).fetchone()
+        return dict(row) if row else {'user': user, 'seen_daily': '', 'seen_weekly': '', 'mute_until': ''}
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def awareness_mark(user: str, seen_daily=None, seen_weekly=None, mute_until=None) -> dict:
+    """更新已读 / 免打扰状态；只改传进来的字段。"""
+    conn = connect()
+    try:
+        conn.execute('INSERT OR IGNORE INTO awareness_state(user, updated_at) VALUES (?,?)',
+                     (user, now_str()))
+        sets, args = [], []
+        for key, val in (('seen_daily', seen_daily), ('seen_weekly', seen_weekly), ('mute_until', mute_until)):
+            if val is not None:
+                sets.append('%s=?' % key)
+                args.append(str(val)[:20])
+        if sets:
+            sets.append('updated_at=?')
+            args.append(now_str())
+            args.append(user)
+            conn.execute('UPDATE awareness_state SET ' + ', '.join(sets) + ' WHERE user=?', args)
+        conn.commit()
+        row = conn.execute('SELECT * FROM awareness_state WHERE user=?', (user,)).fetchone()
+        return dict(row) if row else {}
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def weekly_get(user: str, week: str) -> dict | None:
+    """取某一周的觉察复盘缓存；没有返回 None。"""
+    conn = connect()
+    try:
+        row = conn.execute('SELECT * FROM awareness_weekly WHERE user=? AND week=?',
+                           (user, week)).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return None
+    data = dict(row)
+    try:
+        import json as _json
+        data['payload'] = _json.loads(data.get('payload') or '{}')
+    except ValueError:
+        data['payload'] = {}
+    return data
+
+
+def weekly_set(user: str, week: str, payload: dict, source: str = 'rules') -> dict:
+    """写某一周的复盘缓存（同周覆盖，正常只会写一次）。"""
+    import json as _json
+    blob = _json.dumps(payload or {}, ensure_ascii=False)
+    now = now_str()
+    conn = connect()
+    try:
+        conn.execute(
+            'INSERT INTO awareness_weekly(user, week, payload, source, created_at) VALUES (?,?,?,?,?) '
+            'ON CONFLICT(user, week) DO UPDATE SET payload=excluded.payload, '
+            'source=excluded.source, created_at=excluded.created_at',
+            (user, week, blob, (source or 'rules')[:20], now))
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+    return {'user': user, 'week': week, 'payload': payload, 'source': source, 'created_at': now}

@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.jiangxinyu.toolbox",
+      "sha256_cert_fingerprints": [
+        "99:9E:BF:2A:09:09:21:F4:70:E4:F5:D7:F9:76:08:1E:1B:DB:84:53:CA:A0:96:0F:DE:D6:AB:4D:FF:91:2D:B8"
+      ]
+    }
+  }
+]
