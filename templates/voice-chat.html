@@ -131,6 +131,9 @@ body.mic-loud .orb{animation:bob .9s ease-in-out infinite}
   var ws = null, mic = null, capCtx = null, worklet = null, srcNode = null;
   var playCtx = null, playAt = 0, live = false, hungUp = false;
   var lastMe = '', lastAi = '', lastCut = 0, lastLoud = 0;
+  /* 模型说话时是否允许「开口就打断」。默认关掉：手机扬声器的声音会被麦克风收回来，
+     单帧过阈值就 response.cancel，会把回话切一半。要恢复打断改成 true（会要求连续 3 帧）。 */
+  var BARGE_IN = false, loudHits = 0, speakSince = 0;
 
   function setState(s, text) { orb.dataset.s = s; stateEl.textContent = text || ''; }
   function show(el, span, text) {
@@ -237,9 +240,15 @@ body.mic-loud .orb{animation:bob .9s ease-in-out infinite}
       for (var i = 0; i < b.length; i += 4) { var v = b[i] < 0 ? -b[i] : b[i]; if (v > peak) { peak = v; } }
       if (peak > 1400) { lastLoud = Date.now(); }
       document.body.classList.toggle('mic-loud', Date.now() - lastLoud < 320);
-      if (peak > 2200 && talking()) {
-        var now = Date.now();
-        if (now - lastCut > 900) { lastCut = now; interrupt(); }
+      if (BARGE_IN && peak > 2400 && talking() && Date.now() - speakSince > 300) {
+        loudHits += 1;
+        if (loudHits >= 3) {
+          loudHits = 0;
+          var now = Date.now();
+          if (now - lastCut > 900) { lastCut = now; interrupt(); }
+        }
+      } else if (Date.now() - lastLoud > 200) {
+        loudHits = 0;
       }
       if (live && ws && ws.readyState === 1) { ws.send(ev.data); }
     };
@@ -286,7 +295,7 @@ body.mic-loud .orb{animation:bob .9s ease-in-out infinite}
     if (name === 'asr_text' && text) { lastMe = text; show(subMe, txtMe, text); }
     else if (name === 'asr_ended' && lastMe) { show(subMe, txtMe, lastMe); }
     else if (name === 'chat_text' && text) { lastAi = text; show(subAi, txtAi, text); }
-    else if (name === 'tts_started') { setState('speaking', '它正在说…'); }
+    else if (name === 'tts_started') { speakSince = Date.now(); setState('speaking', '它正在说…'); }
     else if (name === 'tts_ended' || name === 'response_done') { setState('live', '在听你说…'); }
     else if (name === 'session_started') { setState('live', '在听你说…'); }
   }

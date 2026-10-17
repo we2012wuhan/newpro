@@ -105,6 +105,43 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
   transition:border-color .2s,box-shadow .2s}
 #toolSearch:focus{border-color:rgba(109,124,255,.65);box-shadow:0 0 0 3px rgba(109,124,255,.18)}
 #toolSearch::placeholder{color:#71809f}
+.search-row{display:flex;gap:8px;align-items:stretch}
+.search-row .search-box{flex:1 1 auto}
+.voice-btn{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;
+  width:48px;min-height:48px;padding:0;border-radius:14px;border:1px solid var(--line);
+  background:var(--tb-card);color:var(--tb-muted);cursor:pointer;
+  transition:border-color .2s,background .2s,color .2s}
+.voice-btn svg{width:22px;height:22px;display:block;stroke:currentColor;stroke-width:1.7;
+  fill:none;stroke-linecap:round;stroke-linejoin:round;transition:transform .15s}
+.voice-btn:hover{border-color:rgba(109,124,255,.6);color:#6d7cff}
+.voice-btn:hover svg{transform:scale(1.06)}
+.voice-btn:active svg{transform:scale(.94)}
+.voice-btn.rec{border-color:#e0575f;background:rgba(224,87,95,.14);color:#e0575f;
+  animation:voicePulse 1.2s ease-in-out infinite}
+.voice-btn.rec svg{stroke-width:2}
+.voice-btn.busy{opacity:.55;cursor:default}
+@keyframes voicePulse{0%,100%{box-shadow:0 0 0 0 rgba(224,87,95,.35)}50%{box-shadow:0 0 0 8px rgba(224,87,95,0)}}
+.voice-hint{min-height:16px;font-size:12px;color:var(--tb-muted);text-align:right}
+.vnav{position:fixed;inset:0;z-index:2147482000;background:rgba(6,9,20,.55);display:flex;
+  align-items:flex-start;justify-content:center;padding:14vh 16px 16px}
+.vnav[hidden]{display:none}
+.vnav-card{width:min(520px,100%);border-radius:16px;border:1px solid var(--tb-line);background:var(--tb-card);
+  padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:0 24px 60px -20px rgba(0,0,0,.6)}
+.vnav-top{display:flex;align-items:center;gap:8px}
+.vnav-kicker{flex:1 1 auto;font-size:12px;color:var(--tb-muted);letter-spacing:.04em}
+.vnav-x{min-height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--tb-line);
+  background:transparent;color:var(--tb-muted);font:inherit;cursor:pointer}
+.vnav-text{font-size:13px;color:var(--tb-muted);word-break:break-word}
+.vnav-main{font-size:15px;font-weight:600;color:var(--tb-ink)}
+.vnav-cands{display:flex;flex-direction:column;gap:8px}
+.vnav-cand{min-height:44px;padding:0 12px;border-radius:10px;border:1px solid var(--tb-line);
+  background:transparent;color:var(--tb-ink);font:inherit;text-align:left;cursor:pointer;
+  display:flex;align-items:center;justify-content:space-between;gap:10px}
+.vnav-cand:hover{border-color:rgba(109,124,255,.6)}
+.vnav-cand .p{color:var(--tb-muted);font-size:12px}
+.vnav-msg{font-size:12px;color:var(--tb-muted);min-height:1em}
+.vnav-open{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid rgba(45,212,191,.55);
+  background:rgba(45,212,191,.16);color:#b8f2e6;font:inherit;cursor:pointer;align-self:flex-start}
 .no-result{display:block;text-align:center;color:#71809f;font-size:14px;border:1px dashed var(--line);
   border-radius:16px;padding:42px 16px;margin-top:8px;line-height:1.9}
 .hide{display:none!important}
@@ -326,10 +363,22 @@ body.is-dragging .tool:not(.dragging){transition:none}
       </div>
     </div>
     <div class="search-col">
-      <div class="search-box">
-        <span class="ico">🔍</span>
-        <input id="toolSearch" type="search" autocomplete="off">
+      <div class="search-row">
+        <div class="search-box">
+          <span class="ico">🔍</span>
+          <input id="toolSearch" type="search" autocomplete="off">
+        </div>
+        <button class="voice-btn" id="toolVoice" type="button" aria-label="语音打开工具"
+                title="点一下说话，例如：打开翻译">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 2.5a2.7 2.7 0 0 0-2.7 2.7v6.6a2.7 2.7 0 1 0 5.4 0V5.2A2.7 2.7 0 0 0 12 2.5z"/>
+            <path d="M18.2 10.6v1.2a6.2 6.2 0 0 1-12.4 0v-1.2"/>
+            <path d="M12 18v3"/>
+            <path d="M9 21h6"/>
+          </svg>
+        </button>
       </div>
+      <div class="voice-hint" id="voiceHint"></div>
     </div>
   </div>
 
@@ -1171,6 +1220,96 @@ if(document.readyState === 'loading'){
 }
 })();
 </script>
+<div class="vnav" id="voiceNav" hidden>
+  <div class="vnav-card" role="dialog" aria-label="语音打开工具">
+    <div class="vnav-top"><span class="vnav-kicker">语音打开</span><button class="vnav-x" id="vnCancel" type="button">取消</button></div>
+    <div class="vnav-text" id="vnText"></div>
+    <div class="vnav-main" id="vnMain"></div>
+    <div class="vnav-cands" id="vnCands"></div>
+    <div class="vnav-msg" id="vnMsg"></div>
+  </div>
+</div>
 <script src="/static/today.js"></script>
+<script src="/static/asr.js"></script>
+<script>
+(function () {
+  'use strict';
+  var btn = document.getElementById('toolVoice');
+  var hint = document.getElementById('voiceHint');
+  var nav = document.getElementById('voiceNav');
+  var vnText = document.getElementById('vnText');
+  var vnMain = document.getElementById('vnMain');
+  var vnCands = document.getElementById('vnCands');
+  var vnMsg = document.getElementById('vnMsg');
+  var vnCancel = document.getElementById('vnCancel');
+  var goTimer = 0;
+
+  function showHint(t) { if (hint) { hint.textContent = t || ''; } }
+  function closeNav() { nav.hidden = true; clearTimeout(goTimer); vnCands.innerHTML = ''; }
+  function openNav() { nav.hidden = false; }
+  function go(path, external) {
+    closeNav();
+    if (external) { window.open(path, '_blank', 'noopener'); }
+    else { location.href = path; }
+  }
+  function showOpen(text, name, path, external) {
+    openNav(); vnText.textContent = '听到：' + text;
+    vnMain.textContent = '打开「' + name + '」'; vnCands.innerHTML = '';
+    if (external) {
+      vnMsg.textContent = '外部工具，会在浏览器新标签打开';
+      var b = document.createElement('button');
+      b.className = 'vnav-open'; b.type = 'button'; b.textContent = '在浏览器打开';
+      b.onclick = function () { go(path, true); }; vnCands.appendChild(b);
+    } else {
+      vnMsg.textContent = '1.2 秒后自动打开…（点取消可停下）';
+      goTimer = setTimeout(function () { go(path, false); }, 1200);
+    }
+  }
+  function showCandidates(text, cands) {
+    openNav(); vnText.textContent = '听到：' + text;
+    vnMain.textContent = '你是指哪个？'; vnCands.innerHTML = ''; vnMsg.textContent = '点一个打开';
+    (cands || []).forEach(function (c) {
+      var b = document.createElement('button');
+      b.className = 'vnav-cand'; b.type = 'button';
+      b.innerHTML = '<span>' + c.name + '</span><span class="p">' + (c.external ? '外部' : c.path) + '</span>';
+      b.onclick = function () { go(c.path, c.external); }; vnCands.appendChild(b);
+    });
+  }
+  function handle(text) {
+    var t = String(text || '').trim();
+    if (!t) { return; }
+    showHint('识别到：' + t);
+    fetch('/api/voice-nav', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: t }) }).then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !d.ok) { showHint((d && d.msg) || '没听清，再说一次'); return; }
+        if (d.action === 'open') { showOpen(d.text || t, d.name, d.path, !!d.external); }
+        else if (d.action === 'choose') { showCandidates(d.text || t, d.candidates); }
+        else {
+          var s = document.getElementById('toolSearch');
+          if (s) { s.value = d.normalized || d.text || t; s.dispatchEvent(new Event('input', { bubbles: true })); }
+          showHint('没找到对应工具，已把「' + (d.normalized || d.text || t) + '」填进搜索框');
+        }
+      }).catch(function () { showHint('网络不通，稍后再试'); });
+  }
+  vnCancel.onclick = closeNav;
+  nav.onclick = function (e) { if (e.target === nav) { closeNav(); } };
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !nav.hidden) { closeNav(); } });
+  if (btn && window.TBASR) {
+    TBASR.bind(btn, {
+      onText: handle,
+      onError: function (msg) { showHint(msg); },
+      onState: function (st) {
+        btn.classList.toggle('rec', st === 'rec');
+        btn.classList.toggle('busy', st === 'busy');
+        if (st === 'rec') { showHint('在听… 说「打开翻译」试试'); }
+        else if (st === 'busy') { showHint('识别中…'); }
+      },
+      maxSeconds: 8
+    });
+  } else if (btn) { btn.hidden = true; }
+  window.TBVoiceNav = { handle: handle, close: closeNav };
+})();
+</script>
 </body>
 </html>

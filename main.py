@@ -78,6 +78,10 @@ app.add_middleware(LoginGate)
 from quick_ai import router as quick_ai_router  # noqa: E402
 app.include_router(quick_ai_router)
 
+# 首页「说一句打开工具」：/api/voice-nav（纯规则匹配，不用模型）
+from voice_nav import router as voice_nav_router  # noqa: E402
+app.include_router(voice_nav_router)
+
 # =========================================================
 # 附加功能：抖音视频下载器
 # ---------------------------------------------------------

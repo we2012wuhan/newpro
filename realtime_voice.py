@@ -282,6 +282,7 @@ async def voice_ws(ws: WebSocket) -> None:
     started = last_active
     closed = asyncio.Event()
     sid = str(uuid.uuid4())
+    speaking = False          # 豆包正在回话（从 output_audio.started 到 done/canceled）
     n = {'v': 1}
 
     # WS 不走 LoginGate（中间件只管 http），所以自己从登录 Cookie 认人
@@ -303,6 +304,7 @@ async def voice_ws(ws: WebSocket) -> None:
         while True:
             msg = await ws.receive()
             if msg.get('type') == 'websocket.disconnect':
+                print('[voice] client disconnected session=%s speaking=%s' % (sid[:8], speaking), flush=True)
                 return
             if msg.get('bytes') is not None:
                 last_active = loop.time()
@@ -325,6 +327,8 @@ async def voice_ws(ws: WebSocket) -> None:
                     prompt += PROFILE_HEAD + profile
                 voice = voice_id_of(str(cmd.get('voice') or '')) or (
                     _env(scene['voice_env']) if scene.get('voice_env') else '')
+                print('[voice] start session=%s user=%s scene=%s voice=%s' %
+                      (sid[:8], (user or '-')[:20], scene['name'], voice or 'default'), flush=True)
                 await send(_session_event(sid, prompt, voice))
             elif what == 'commit':
                 await send({'type': 'input_audio_buffer.commit', 'event_id': nid()})
@@ -340,7 +344,7 @@ async def voice_ws(ws: WebSocket) -> None:
                 return
 
     async def from_upstream():
-        nonlocal last_active
+        nonlocal last_active, speaking
         async for data in up:
             try:
                 ev = json.loads(data)
@@ -348,6 +352,7 @@ async def voice_ws(ws: WebSocket) -> None:
                 continue
             kind = ev.get('type', '')
             if kind == 'response.output_audio.delta':
+                speaking = True
                 b64 = ev.get('delta') or ev.get('audio') or ''
                 try:
                     await ws.send_bytes(base64.b64decode(b64))
@@ -358,13 +363,22 @@ async def voice_ws(ws: WebSocket) -> None:
             name = _KIND.get(kind)
             if not name:
                 continue
+            if name == 'tts_started':
+                speaking = True
+            elif name in ('tts_ended', 'response_done', 'response_canceled'):
+                speaking = False
             if name in _ACTIVE:
                 last_active = loop.time()
             if name == 'error':
+                speaking = False
+                print('[voice] upstream error session=%s: %s' %
+                      (sid[:8], str(ev.get('error') or ev)[:160]), flush=True)
                 await ws.send_json({'type': 'error', 'message': str(ev.get('error') or ev)[:200]})
                 closed.set()
                 return
             if name == 'session_closed':
+                speaking = False
+                print('[voice] upstream closed session=%s' % sid[:8], flush=True)
                 await ws.send_json({'type': 'event', 'name': name, 'data': ''})
                 closed.set()
                 return
@@ -374,12 +388,16 @@ async def voice_ws(ws: WebSocket) -> None:
         while not closed.is_set():
             await asyncio.sleep(2)
             now = loop.time()
-            if now - last_active > IDLE_SECONDS:
+            # 正在回话时，哪怕上游音频包断了也不按静默挂断；等它说完再重新计时
+            if (not speaking) and now - last_active > IDLE_SECONDS:
+                print('[voice] idle close session=%s gap=%.1fs speaking=%s' %
+                      (sid[:8], now - last_active, speaking), flush=True)
                 await ws.send_json({'type': 'closed', 'reason': 'idle',
                                     'message': '%d 秒没听到声音，已自动挂断（防跑钱）' % IDLE_SECONDS})
                 closed.set()
                 return
             if now - started > MAX_SECONDS:
+                print('[voice] max duration close session=%s speaking=%s' % (sid[:8], speaking), flush=True)
                 await ws.send_json({'type': 'closed', 'reason': 'timeout',
                                     'message': '到 %d 分钟上限，自动挂断' % (MAX_SECONDS // 60)})
                 closed.set()
