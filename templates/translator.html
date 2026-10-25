@@ -49,9 +49,14 @@ h1{margin:0;font-size:23px;letter-spacing:.4px}
 .card + .card{margin-top:16px}
 .card h2{margin:0 0 6px;font-size:17px}
 .card .desc{color:var(--muted);font-size:13px;line-height:1.9;margin:0 0 14px}
-textarea#zhText{width:100%;min-height:96px;resize:vertical;padding:13px 14px;font-size:15px;line-height:1.9;color:var(--text);
+textarea#srcText{width:100%;min-height:96px;resize:vertical;padding:13px 14px;font-size:15px;line-height:1.9;color:var(--text);
   background:var(--tb-field);border:1px solid var(--tb-line);border-radius:12px;outline:none;font-family:inherit}
-textarea#zhText:focus{border-color:rgba(45,212,191,.7);box-shadow:0 0 0 3px rgba(45,212,191,.14)}
+textarea#srcText:focus{border-color:rgba(45,212,191,.7);box-shadow:0 0 0 3px rgba(45,212,191,.14)}
+.dir-tabs{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--tb-line);border-radius:12px;
+  background:var(--tb-field);margin-bottom:14px}
+.dir-tabs button{min-height:38px;padding:0 16px;border:0;border-radius:9px;background:transparent;
+  color:var(--muted);font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer}
+.dir-tabs button.on{background:rgba(45,212,191,.16);color:var(--tb-ink);box-shadow:inset 0 0 0 1px rgba(45,212,191,.35)}
 .actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
 .btn{border:0;border-radius:11px;padding:11px 22px;font-size:15px;cursor:pointer;font-weight:700;display:inline-flex;
   align-items:center;gap:8px;transition:transform .12s ease,box-shadow .15s ease,background .15s ease}
@@ -72,9 +77,9 @@ textarea#zhText:focus{border-color:rgba(45,212,191,.7);box-shadow:0 0 0 3px rgba
 #result{display:none}
 #result.show{display:block}
 .row-in{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
-textarea#enText{flex:1;min-width:260px;min-height:84px;resize:vertical;padding:12px 14px;font-size:16px;line-height:1.8;color:var(--c-d1fae5);
+textarea#outText{flex:1;min-width:260px;min-height:84px;resize:vertical;padding:12px 14px;font-size:16px;line-height:1.8;color:var(--c-d1fae5);
   background:var(--tb-field);border:1px solid var(--tb-line);border-radius:12px;outline:none;font-family:Consolas,Menlo,monospace}
-textarea#enText:focus{border-color:rgba(45,212,191,.7)}
+textarea#outText:focus{border-color:rgba(45,212,191,.7)}
 .variants{margin-top:6px}
 .var{display:flex;align-items:center;gap:14px;border:1px solid var(--tb-line);background:var(--tb-field);
   border-radius:12px;padding:12px 16px;cursor:pointer;transition:border-color .15s,background .15s}
@@ -104,8 +109,12 @@ textarea#enText:focus{border-color:rgba(45,212,191,.7)}
   </header>
 
   <div class="card">
-    <h2>输入中文</h2>
-    <textarea id="zhText"></textarea>
+    <div class="dir-tabs" role="group" aria-label="翻译方向">
+      <button class="on" type="button" data-dir="zh-en">中 → 英</button>
+      <button type="button" data-dir="en-zh">英 → 中</button>
+    </div>
+    <h2 id="inputTitle">输入中文</h2>
+    <textarea id="srcText" placeholder="例如：把这个功能做得更简单"></textarea>
     <div class="actions">
       <button id="btnTrans" class="btn btn-main" type="button"><span class="spinner" id="spinner"></span>开始翻译</button>
     </div>
@@ -113,14 +122,14 @@ textarea#enText:focus{border-color:rgba(45,212,191,.7)}
   </div>
 
   <div class="card" id="result">
-    <h2>翻译结果与命名格式</h2>
-    <p class="desc">下方英文可以直接编辑，格式结果会随输入实时更新。</p>
+    <h2 id="resultTitle">翻译结果与命名格式</h2>
+    <p class="desc" id="resultDesc">下方英文可以直接编辑，格式结果会随输入实时更新。</p>
     <div class="row-in">
-      <textarea id="enText" spellcheck="false" placeholder="翻译结果会出现在这里"></textarea>
-      <button id="btnCopyEn" class="btn btn-ghost" type="button">复制原文</button>
+      <textarea id="outText" spellcheck="false" placeholder="翻译结果会出现在这里"></textarea>
+      <button id="btnCopyOut" class="btn btn-ghost" type="button">复制译文</button>
     </div>
     <div class="variants" id="vars"></div>
-    <p class="desc" style="margin:14px 0 0">💡 点击任意一行即可复制；把鼠标停留在标签上可查看说明。</p>
+    <p class="desc" id="variantHint" style="margin:14px 0 0">💡 点击任意一行即可复制；把鼠标停留在标签上可查看说明。</p>
   </div>
 </div>
 
@@ -129,6 +138,25 @@ textarea#enText:focus{border-color:rgba(45,212,191,.7)}
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
   var msg = $('msg'), spinner = $('spinner');
+  var direction = 'zh-en';
+  var DIRECTION = {
+    'zh-en': {
+      source: '中文',
+      target: '英文',
+      inputTitle: '输入中文',
+      placeholder: '例如：把这个功能做得更简单',
+      resultTitle: '翻译结果与命名格式',
+      resultDesc: '下方英文可以直接编辑，格式结果会随输入实时更新。'
+    },
+    'en-zh': {
+      source: '英文',
+      target: '中文',
+      inputTitle: '输入英文',
+      placeholder: '例如：Make this feature easier to use',
+      resultTitle: '中文翻译结果',
+      resultDesc: '下方中文可以直接编辑。'
+    }
+  };
 
   function showMsg(text, kind) {
     msg.textContent = text || '';
@@ -166,8 +194,9 @@ textarea#enText:focus{border-color:rgba(45,212,191,.7)}
   function renderVariants() {
     var box = $('vars');
     box.innerHTML = '';
+    if (direction !== 'zh-en') { return; }
     VARIANTS.forEach(function (v) {
-      var value = v.fn($('enText').value);
+      var value = v.fn($('outText').value);
       var row = document.createElement('div');
       row.className = 'var';
       row.title = v.tip;
@@ -206,25 +235,47 @@ textarea#enText:focus{border-color:rgba(45,212,191,.7)}
   }
 
   // —— 翻译（免费直连，无需密钥）——
+  function setDirection(next) {
+    if (!DIRECTION[next]) { return; }
+    direction = next;
+    var cfg = DIRECTION[next];
+    Array.prototype.forEach.call(document.querySelectorAll('[data-dir]'), function (btn) {
+      btn.classList.toggle('on', btn.getAttribute('data-dir') === next);
+    });
+    $('inputTitle').textContent = cfg.inputTitle;
+    $('srcText').placeholder = cfg.placeholder;
+    $('resultTitle').textContent = cfg.resultTitle;
+    $('resultDesc').textContent = cfg.resultDesc;
+    $('vars').style.display = next === 'zh-en' ? '' : 'none';
+    $('variantHint').style.display = next === 'zh-en' ? '' : 'none';
+    $('result').classList.remove('show');
+    $('outText').value = '';
+    clearMsg();
+    renderVariants();
+  }
+
   function translate() {
-    var text = $('zhText').value.trim();
-    if (!text) { showMsg('请先输入要翻译的中文', 'err'); return; }
+    var cfg = DIRECTION[direction];
+    var text = $('srcText').value.trim();
+    if (!text) { showMsg('请先输入要翻译的' + cfg.source, 'err'); return; }
     clearMsg();
     spinner.classList.add('on');
     $('btnTrans').disabled = true;
+    var dirBtns = document.querySelectorAll('[data-dir]');
+    Array.prototype.forEach.call(dirBtns, function (btn) { btn.disabled = true; });
     fetch('/translator/api/translate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: text })
+      body: JSON.stringify({ text: text, direction: direction })
     }).then(function (r) { return r.json(); }).then(function (data) {
       if (!data.ok) {
         showMsg(data.message || '翻译失败，请稍后重试', 'err');
         return;
       }
-      $('enText').value = data.dst || '';
+      $('outText').value = data.dst || '';
       $('result').classList.add('show');
-      renderVariants();
-      showMsg('翻译成功（' + (data.provider || '免费接口') + '），点击下方格式行可复制', 'info');
+      if (direction === 'zh-en') { renderVariants(); }
+      showMsg('已翻译为' + cfg.target + '（' + (data.provider || '免费接口') + '）', 'info');
       setTimeout(clearMsg, 3200);
       $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }).catch(function () {
@@ -232,24 +283,28 @@ textarea#enText:focus{border-color:rgba(45,212,191,.7)}
     }).finally(function () {
       spinner.classList.remove('on');
       $('btnTrans').disabled = false;
+      Array.prototype.forEach.call(dirBtns, function (btn) { btn.disabled = false; });
     });
   }
 
   // 点击示例词条填入输入框
 
   $('btnTrans').addEventListener('click', translate);
-  $('enText').addEventListener('input', renderVariants);
-  $('btnCopyEn').addEventListener('click', function () {
-    var v = $('enText').value;
+  $('outText').addEventListener('input', renderVariants);
+  $('btnCopyOut').addEventListener('click', function () {
+    var v = $('outText').value;
     if (!v) { return; }
-    var btn = $('btnCopyEn');
+    var btn = $('btnCopyOut');
     copyText(v, null);
     var old = btn.textContent;
     btn.textContent = '✓ 已复制';
     setTimeout(function () { btn.textContent = old; }, 1500);
   });
 
-  renderVariants();
+  Array.prototype.forEach.call(document.querySelectorAll('[data-dir]'), function (btn) {
+    btn.addEventListener('click', function () { setDirection(btn.getAttribute('data-dir')); });
+  });
+  setDirection('zh-en');
 })();
 </script>
 </body>

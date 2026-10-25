@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# 翻译助手：输入中文 -> 调用免费的公共翻译接口（MyMemory，无需密钥）-> 返回英文，
-# 大小写 / 驼峰等格式转换在前端即时完成，方便复制成变量名、函数名。
+# 翻译助手：中英双向翻译，调用免费的公共翻译接口（MyMemory，无需密钥）。
+# 中译英结果可在前端转换成大小写 / 驼峰等命名格式，方便复制成变量名、函数名。
 import re
 import time
 from pathlib import Path
@@ -16,11 +16,16 @@ _BASE_DIR = Path(__file__).resolve().parent
 _TEMPLATE_FILE = _BASE_DIR / 'templates' / 'translator.html'
 _MYMEMORY_API = 'https://api.mymemory.translated.net/get'
 _MAX_TEXT = 200  # 该免费接口单次请求限制 500 字节，词汇/短语场景足够
+_DIRECTIONS = {
+    'zh-en': ('zh-CN', 'en'),
+    'en-zh': ('en', 'zh-CN'),
+}
 
 
-def _translate_one(text: str):
-    """调用 MyMemory 免费翻译接口（无需密钥），返回英文译文。"""
-    params = {'q': text, 'langpair': 'zh-CN|en'}
+def _translate_one(text: str, direction: str):
+    """调用 MyMemory 免费翻译接口（无需密钥），返回指定方向译文。"""
+    source_lang, target_lang = _DIRECTIONS[direction]
+    params = {'q': text, 'langpair': source_lang + '|' + target_lang}
     resp = requests.get(_MYMEMORY_API, params=params, timeout=(10, 30),
                         headers={'User-Agent': 'Mozilla/5.0'})
     if resp.status_code in (429, 403):
@@ -38,20 +43,33 @@ def _translate_one(text: str):
         raise ValueError('免费翻译接口的今日额度已用完，请明天再试，或换用其它翻译引擎')
     translated = re.sub(r'\{#-#\}|#\d+\b', '', translated)
     translated = re.sub(r'\s+', ' ', translated).strip().strip('。.,，')
-    if not translated or not re.search(r'[A-Za-z]', translated):
-        raise ValueError('未能识别翻译结果，请换一种输入试试')
+    if not translated:
+        raise ValueError('接口没有返回译文，请换一种输入试试')
+    if target_lang == 'en' and not re.search(r'[A-Za-z]', translated):
+        raise ValueError('接口没有返回有效英文，请换一种输入试试')
+    if target_lang == 'zh-CN' and not re.search(r'[\u3400-\u9fff]', translated):
+        raise ValueError('接口没有返回有效中文，请换一种输入试试')
     return translated
 
 
-def _do_translate(text):
+def _do_translate(text, direction='zh-en'):
     text = str(text or '').strip()
+    direction = direction if direction in _DIRECTIONS else 'zh-en'
+    source_lang, target_lang = _DIRECTIONS[direction]
+    source_name = '中文' if source_lang == 'zh-CN' else '英文'
     if not text:
-        return JSONResponse({'ok': False, 'message': '请先输入要翻译的中文'})
+        return JSONResponse({'ok': False, 'message': '请先输入要翻译的' + source_name})
     if len(text) > _MAX_TEXT:
         return JSONResponse({'ok': False, 'message': '输入太长了，请控制在 %d 字以内' % _MAX_TEXT})
+    has_cjk = bool(re.search(r'[\u3400-\u9fff]', text))
+    has_latin = bool(re.search(r'[A-Za-z]', text))
+    if direction == 'zh-en' and not has_cjk and has_latin:
+        return JSONResponse({'ok': False, 'message': '这段看起来是英文，请切换到「英 → 中」'})
+    if direction == 'en-zh' and not has_latin and has_cjk:
+        return JSONResponse({'ok': False, 'message': '这段看起来是中文，请切换到「中 → 英」'})
     started = time.time()
     try:
-        dst = _translate_one(text)
+        dst = _translate_one(text, direction)
     except requests.exceptions.Timeout:
         return JSONResponse({'ok': False, 'message': '请求免费翻译接口超时，请稍后重试或检查网络'})
     except requests.exceptions.RequestException as exc:
@@ -63,6 +81,9 @@ def _do_translate(text):
         'text': text,
         'src': text,
         'dst': dst,
+        'direction': direction,
+        'src_lang': source_lang,
+        'dst_lang': target_lang,
         'provider': 'MyMemory（免费 · 无需密钥）',
         'elapsed': round(time.time() - started, 1),
     })
@@ -86,4 +107,5 @@ async def translator_translate(request: Request):
     except Exception:
         payload = {}
     text = payload.get('text') or ''
-    return await run_in_threadpool(_do_translate, text)
+    direction = str(payload.get('direction') or 'zh-en')
+    return await run_in_threadpool(_do_translate, text, direction)

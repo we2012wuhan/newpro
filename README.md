@@ -17,7 +17,7 @@
 | `ai_chart.py` | AI 数据图表分析（页面在 `/ai-chart`，模型 Key 见下方「模型配置」） |
 | `buy_helper.py` | 购物比价助手（页面在 `/buy-helper`；没配 Key 也能直接跳平台搜索） |
 | `bill_analysis.py` | 账单分析（上传月度账单 Excel/CSV 到 `/bill-analysis`，DeepSeek 分类汇总消费并给省钱建议） |
-| `translator.py` | 翻译助手（页面在 `/translator`：输入中文 -> 免费接口返回英文，并转换小写/大写/驼峰命名格式） |
+| `translator.py` | 翻译助手（页面在 `/translator`：中英双向翻译；中译英后可转换小写/大写/驼峰命名格式） |
 | `ocr.py` | OCR图片识别（页面在 `/ocr`：粘贴截图或上传图片 -> 免费云端接口 OCR.space 识别成文字，无需本地模型，部署体积小） |
 | `judgement_trainer.py` | 判断力教练（页面在 `/judgement-trainer`：写下正在犹豫的真事，先写上打算和几成把握，大模型把事实 / 猜测 / 你其实在赌什么 / 漏掉的变量摊开，到期回访对答案；没配 Key 走本地规则粗拆，记录存浏览器） |
 | `sdd_decomposer.py` | SDD 需求拆解器（页面在 `/sdd-decomposer`：把模糊想法按七段式逼成结构化规格，实时编译成可丢给 agent 的提示词，纯浏览器计算） |
@@ -88,8 +88,8 @@ python video_downloader.py
 - `http://127.0.0.1:8000/douyin-download` **抖音下载**：粘贴抖音分享链接即可下载视频
 - `http://127.0.0.1:8000/ai-chart` **AI 数据图表**：输入主题，大模型自动整理数据并生成图表，支持导出 Excel
 - `http://127.0.0.1:8000/design-assistant` **页面设计助手**：一句话生成可点击页面原型和设计规格；手机 / 桌面、浅色 / 深色可切，规格能导出 JSON，历史记录里可以继续说哪里不对并继续改版
-- `http://127.0.0.1:8000/buy-helper` **购物比价助手**：输入商品与需求，对比淘宝 / 京东销量价格并给出建议与购买入口
-- `http://127.0.0.1:8000/translator` **翻译助手**：中文翻译成英文，一键复制小写 / 大写 / camelCase / PascalCase 命名
+- `http://127.0.0.1:8000/buy-helper` **购物比价助手**：输入商品与需求，对比淘宝 / 京东销量价格并给出建议与购买入口；Android 上京东优先唤起 App、失败回退网页，淘宝使用网页搜索避免无响应
+- `http://127.0.0.1:8000/translator` **翻译助手**：中英双向翻译；中译英后一键复制小写 / 大写 / camelCase / PascalCase 命名
 - `http://127.0.0.1:8000/ocr` **OCR图片识别**：粘贴截图或上传图片，免费云端接口识别成文字，可复制 / 下载 txt
 - `http://127.0.0.1:8000/reading-practice` **读书落地**：读完就忘、观点停在纸上的那个问题，用动作补——输入书名和作者，出来的是 2-4 张实践卡（具体场合 + 三步 + 算做到的标准 + 容易变形的地方），挑一张就能开工
 - `http://127.0.0.1:8000/judgement-trainer` **判断力教练**：记下一件正犹豫的真事 + 你的打算和几成把握，AI 把事实 / 猜测 /「你其实在赌什么」摊开，默认 3 天后回来对答案；攒几条就能看出你是不是习惯性高估自己（记录存 SQLite，换设备也在；右侧历史记录点一条就能回看当时的拆解）
@@ -350,9 +350,9 @@ cp .env.example .env     # Windows: copy .env.example .env
 
 打开 `http://127.0.0.1:8000/translator`：
 
-1. 输入中文（单词或短语），点击「开始翻译」，后端调用免费的公共翻译接口（MyMemory，无需密钥）返回英文；
-2. 翻译结果可编辑，页面实时给出：全部小写、全部大写、单词首字母大写、camelCase（小驼峰）、PascalCase（大驼峰）；
-3. 点击任意格式行即可复制，方便直接用作变量名 / 函数名 / 类名。
+1. 选择「中 → 英」或「英 → 中」，输入单词、短语或短句后点击「开始翻译」；后端调用免费的公共翻译接口（MyMemory，无需密钥）；
+2. 中译英结果可编辑，页面实时给出：全部小写、全部大写、单词首字母大写、camelCase（小驼峰）、PascalCase（大驼峰）；
+3. 英译中只展示中文译文，不显示无意义的命名格式；两种方向都可以直接复制译文。
 
 说明：
 
@@ -605,6 +605,21 @@ pyinstaller --noconfirm --clean --onefile --console ^
 - 游客 Cookie 文件 douyin_cookies.txt 会生成在 exe 同目录，方便下次复用；
 - 「浏览器自动解析」通道依赖本机已安装的 Microsoft Edge，无需额外下载浏览器；
 - 若杀毒软件误报，属 PyInstaller 打包程序的常见情况，将 exe 加入白名单即可。
+
+## 生成软件设计文档
+
+文档源文件在 `docs/`，安装文档工具并重新生成 HTML、Word 和 API 文档：
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-docs.txt
+.\.venv\Scripts\python.exe docs\build_docs.py
+```
+
+输出：
+
+- `docs\_build\docx\我的工具箱软件设计说明书.docx`
+- `docs\_build\html\index.html`
+- `docs\_build\pdoc\index.html`
 
 ## 学习路线建议
 

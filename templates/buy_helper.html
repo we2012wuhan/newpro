@@ -180,12 +180,33 @@ function clearStatus(){ $('status').className=''; $('status').innerHTML=''; }
 function setBusy(b){ $('btnRun').disabled=b; $('runSpin').className='spinner'+(b?' on':''); $('btnRunText').textContent=b?'分析中，约 10~60 秒…':'AI 比价分析'; }
 function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
 function fmtPrice(p){ return Number(p).toLocaleString('zh-CN',{maximumFractionDigits:2}); }
-function searchUrl(platform, kw){
+function isAndroid(){ return /Android/i.test(navigator.userAgent || ''); }
+function webSearchUrl(platform, kw){
   var q = encodeURIComponent((kw||'').trim());
   if(!q) return '';
   return /京东/.test(platform)
     ? 'https://search.jd.com/Search?keyword=' + q + '&enc=utf-8'
     : 'https://s.taobao.com/search?q=' + q;
+}
+function appSearchUrl(platform, kw){
+  var word = String(kw||'').trim();
+  if(!word || !isAndroid()) return '';
+  if(!/京东/.test(platform)) return '';
+  var web = webSearchUrl(platform, word);
+  var fallback = encodeURIComponent(web);
+  var params = encodeURIComponent(JSON.stringify({
+    category:'jump', des:'search', keyWord:word
+  }));
+  return 'intent://virtual?params=' + params +
+    '#Intent;scheme=openapp.jdmobile;package=com.jingdong.app.mall;' +
+    'S.browser_fallback_url=' + fallback + ';end';
+}
+function shopUrl(platform, kw){
+  return appSearchUrl(platform, kw) || webSearchUrl(platform, kw);
+}
+function openShop(platform, kw){
+  var url = shopUrl(platform, kw);
+  if(url){ window.open(url, '_blank', 'noopener'); }
 }
 
 function addCard(item, listEl){
@@ -196,9 +217,19 @@ function addCard(item, listEl){
   var scoreHtml = item.score ? '<span class="score">⭐ '+Number(item.score).toFixed(1)+'</span>' : '';
   var meta='<div class="pmeta"><span class="price">¥'+fmtPrice(item.price)+'</span>'+(item.sales_note?'<span class="sales">'+esc(item.sales_note)+'</span>':'')+scoreHtml+'</div>';
   var prosHtml = item.pros ? '<div class="pros">'+esc(item.pros)+'</div>' : '';
-  var liveUrl = searchUrl(item.platform, item.name);
+  var liveUrl = webSearchUrl(item.platform, item.name);
+  var appUrl = appSearchUrl(item.platform, item.name);
+  var appCls = cls === 'jd' ? 'btn-jd' : 'btn-tb';
   var btns = '<div class="btns">';
-  if(liveUrl){ btns += '<a class="btn btn-ghost mini" href="'+liveUrl+'" target="_blank" rel="noopener noreferrer">在'+esc(item.platform)+'搜此款 · 看实时销量价格</a>'; }
+  if(appUrl && isAndroid()){
+    btns += '<a class="btn '+appCls+' mini" href="'+esc(appUrl)+
+      '" target="_blank" rel="noopener noreferrer">用'+esc(item.platform)+' App 搜此款</a>';
+  }
+  if(liveUrl){
+    btns += '<a class="btn btn-ghost mini" href="'+liveUrl+'" target="_blank" rel="noopener noreferrer">'+
+      (isAndroid() ? (appUrl ? '网页搜索' : '在'+esc(item.platform)+'搜此款 · 网页版') :
+        '在'+esc(item.platform)+'搜此款 · 看实时销量价格')+'</a>';
+  }
   if(item.link){ btns += '<a class="btn warn mini" href="'+esc(item.link)+'" target="_blank" rel="noopener noreferrer">直达链接(模型提供·未核实)</a>'; }
   btns += '</div>';
   div.innerHTML = pTop + '<p class="pname">'+esc(item.name)+'</p>' + meta + prosHtml + btns;
@@ -225,14 +256,13 @@ function render(data){
   $('groupTb').style.display = tb.length?'':'none';
   $('groupJd').style.display = jd.length?'':'none';
   var dl = data.estimated ? '以上为估算参考数据，请以平台实时为准。' : '';
-  $('footNote').textContent = dl + '链接规则：每个商品都配有平台实时搜索入口（保证可点开核对）；只有模型能确定时才提供商品直达链接并明确标注“未核实”。';
+  $('footNote').textContent = dl + '链接规则：Android 上京东优先唤起 App，未安装或系统不允许时回到网页；淘宝当前使用网页搜索，避免出现点击无反应。';
 }
 
 function openPlatform(platform){
   var kw = $('product').value.trim();
   if(!kw){ setStatus('请先在上方输入想买的商品，再点平台搜索。','err'); return; }
-  var url = searchUrl(platform, kw);
-  if(url){ window.open(url, '_blank', 'noopener'); }
+  openShop(platform, kw);
 }
 
 async function runAnalyze(){
@@ -260,6 +290,10 @@ function init(){
   $('btnTb').addEventListener('click', function(){ openPlatform('淘宝'); });
   $('btnJd').addEventListener('click', function(){ openPlatform('京东'); });
   $('product').addEventListener('keydown', function(e){ if(e.key==='Enter'){ runAnalyze(); } });
+  if(isAndroid()){
+    $('btnTb').textContent='打开淘宝网页搜索';
+    $('btnJd').textContent='用京东 App 搜索';
+  }
 }
 if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', init); } else { init(); }
 })();
