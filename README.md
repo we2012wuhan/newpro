@@ -24,7 +24,6 @@
 | `socratic.py` | 苏格拉底提问（页面在 `/socratic`：一个只会提问、不给答案的引导者 —— 写下你想理清的事，它按「澄清问题 → 已有信息 → 换个视角 → 推导结论」四步走，一次只问一个问题；回复**逐字流出来**（SSE），走完最后用你自己说过的话帮你收个尾。进度由服务端定，会话存 SQLite，右侧历史能回看、换台设备接着聊） |
 | `design_assistant.py` | 页面设计助手（页面在 `/design-assistant`：一句需求生成可点击 HTML 原型 + 结构化设计规格，支持手机 / 桌面切换、浅色 / 深色预览、页面跳转、组件 / 状态 / 交互 / 边界 / 数据说明；结果可导出 HTML 和 JSON，保存后在历史里继续提意见改版） |
 | `document_generator.py` | 文件生成（页面在 `/document-generator`：粘贴 Markdown，使用 Pandoc 生成 DOCX；转换结果即时下载，临时文件自动清理） |
-| `streamlit_runner.py` | Streamlit 运行台（页面在 `/streamlit`：粘贴 Python 代码，一键启动独立 Streamlit 进程，并在当前页面下方直接操作交互应用；新运行替换旧会话，闲置 30 分钟自动释放） |
 | `writing_ideas.py` | 写作选题（页面在 `/writing-ideas`：给一点线索或什么都不给，大模型一次出一批选题，挑中一个拆成启动包（标题 / 结构 / 证据 / 反驳），没配 Key 走内置配方，数据存浏览器） |
 | `predict_diary.py` | 贝叶斯日记（页面在 `/predict-diary`：写下你拿不准的一件事和现在几成把握，以后来一条新消息就更新一次；数字全在 Python 里用贝叶斯算，大模型只负责听懂人话；记录存浏览器） |
 | `langchain_test.py` | LangChain 测试台（页面在 `/langchain-test`：四个最小可跑的例子 —— 大模型调用 / 提示词模板 + 链 / 工具调用 / 上下文，每行都写了注释。页面上显示的源码是服务端用 `inspect.getsource` 现读的，所以永远和真正在跑的那份一致；每次运行落一条 SQLite 记录，右侧历史能回看、能删，页面还认 `?r=<记录 id>` 深链。顺带把 5 个接口和 curl 调用方式直接印在页面上） |
@@ -91,7 +90,6 @@ python video_downloader.py
 - `http://127.0.0.1:8000/ai-chart` **AI 数据图表**：输入主题，大模型自动整理数据并生成图表，支持导出 Excel
 - `http://127.0.0.1:8000/design-assistant` **页面设计助手**：一句话生成可点击页面原型和设计规格；手机 / 桌面、浅色 / 深色可切，规格能导出 JSON，历史记录里可以继续说哪里不对并继续改版
 - `http://127.0.0.1:8000/document-generator` **文件生成**：粘贴 Markdown，一键转换成可继续编辑的 DOCX
-- `http://127.0.0.1:8000/streamlit` **Streamlit 运行台**：粘贴 Python 代码，在当前页面下方运行并直接查看可交互应用
 - `http://127.0.0.1:8000/buy-helper` **购物比价助手**：输入商品与需求，对比淘宝 / 京东销量价格并给出建议与购买入口；Android 上京东优先唤起 App、失败回退网页，淘宝使用网页搜索避免无响应
 - `http://127.0.0.1:8000/translator` **翻译助手**：中英双向翻译；中译英后一键复制小写 / 大写 / camelCase / PascalCase 命名
 - `http://127.0.0.1:8000/ocr` **OCR图片识别**：粘贴截图或上传图片，免费云端接口识别成文字，可复制 / 下载 txt

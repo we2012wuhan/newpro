@@ -96,11 +96,6 @@ app.include_router(design_assistant_router)
 from document_generator import router as document_generator_router  # noqa: E402
 app.include_router(document_generator_router)
 
-# Streamlit 运行台：粘贴 Python 代码，在当前页面的 iframe 中启动并交互。
-# 运行器为每个账号启动独立子进程，通过同源 HTTP/WebSocket 代理展示。
-from streamlit_runner import router as streamlit_runner_router  # noqa: E402
-app.include_router(streamlit_runner_router)
-
 # =========================================================
 # 附加功能：抖音视频下载器
 # ---------------------------------------------------------

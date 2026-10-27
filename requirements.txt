@@ -9,4 +9,3 @@ paramiko
 langchain
 langchain-openai
 pypandoc-binary
-streamlit==1.65.0
