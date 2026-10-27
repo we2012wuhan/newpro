@@ -101,6 +101,8 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .t-da .go{background:linear-gradient(135deg,#7c87ff,#5b6cff);box-shadow:0 8px 20px rgba(91,108,255,.34)}
 .tool.t-doc:hover{border-color:rgba(79,107,237,.6);box-shadow:0 24px 52px rgba(79,107,237,.26)}
 .t-doc .go{background:linear-gradient(135deg,#4f6bed,#36b6a5);box-shadow:0 8px 20px rgba(79,107,237,.32)}
+.tool.t-st:hover{border-color:rgba(255,75,75,.6);box-shadow:0 24px 52px rgba(255,75,75,.24)}
+.t-st .go{background:linear-gradient(135deg,#ff4b4b,#7d5cff);box-shadow:0 8px 20px rgba(125,92,255,.34)}
 .search-col{display:flex;flex-direction:column;align-items:stretch;gap:7px;flex:1;max-width:480px;min-width:260px;margin-left:auto}
 .search-box{position:relative;width:100%}
 .search-box .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none;font-size:15px}
@@ -484,11 +486,19 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
+    <a class="tool t-st" data-cat="learn" href="/streamlit">
+      <div class="t-icon">🧪</div>
+      <div class="t-info">
+        <h3>Streamlit</h3>
+        <p class="desc">粘贴 Python 代码，一键运行并直接查看可交互的 Streamlit 页面。</p>
+        <span class="go">立即打开</span>
+      </div>
+    </a>
     <a class="tool t-dy" data-cat="content" href="/douyin-download">
       <div class="t-icon">🎬</div>
       <div class="t-info">
         <h3>抖音下载器</h3>
-        <p class="desc">粘贴抖音分享链接即可下载无水印视频，也能一键取视频文案导出 Markdown。</p>
+        <p class="desc">粘贴抖音链接即可下载视频，也能从音频中识别口播文字并导出 Markdown。</p>
         <span class="go">立即打开</span>
       </div>
     </a>

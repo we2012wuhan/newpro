@@ -29,6 +29,7 @@ HISTORY_NAMES = {
     'ocr': 'OCR 图片识别', 'study-assistant': '学习模型助手', 'ai-chart': 'AI 生成图表',
     'opc': 'OPC 资讯', 'douyin': '抖音下载器', 'ask-hub': '提问三件套',
     'design-assistant': '页面设计助手', 'document-generator': '文件生成',
+    'streamlit': 'Streamlit 运行台',
 }
 
 THEMES = {
@@ -57,6 +58,7 @@ QUESTIONS = {
     '/opc': '这周看到的开源项目，哪个值得真的跑起来？',
     '/voice-chat': '这周说出口的想法，有没有哪一句值得写下来？',
     '/design-assistant': '这周设计的页面，哪一个决定是来自真实需求，而不是先想好的样子？',
+    '/streamlit': '这周跑过的那个 Streamlit 小想法，哪一次交互最值得保留？',
 }
 DEFAULT_QUESTION = '这周你最想推进的，是哪一件？'
 
