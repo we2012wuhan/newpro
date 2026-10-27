@@ -99,6 +99,8 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .t-sc .go{background:linear-gradient(135deg,#2dd4bf,#0f766e);box-shadow:0 8px 20px rgba(15,118,110,.34)}
 .tool.t-da:hover{border-color:rgba(124,135,255,.62);box-shadow:0 24px 52px rgba(91,108,255,.28)}
 .t-da .go{background:linear-gradient(135deg,#7c87ff,#5b6cff);box-shadow:0 8px 20px rgba(91,108,255,.34)}
+.tool.t-doc:hover{border-color:rgba(79,107,237,.6);box-shadow:0 24px 52px rgba(79,107,237,.26)}
+.t-doc .go{background:linear-gradient(135deg,#4f6bed,#36b6a5);box-shadow:0 8px 20px rgba(79,107,237,.32)}
 .search-col{display:flex;flex-direction:column;align-items:stretch;gap:7px;flex:1;max-width:480px;min-width:260px;margin-left:auto}
 .search-box{position:relative;width:100%}
 .search-box .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none;font-size:15px}
@@ -471,6 +473,14 @@ body.is-dragging .tool:not(.dragging){transition:none}
       <div class="t-info">
         <h3>页面设计助手</h3>
         <p class="desc">一句话需求变成可点击原型、交互说明和结构化设计规格，边看边提意见继续改。</p>
+        <span class="go">立即打开</span>
+      </div>
+    </a>
+    <a class="tool t-doc" data-cat="learn" href="/document-generator">
+      <div class="t-icon">📄</div>
+      <div class="t-info">
+        <h3>文件生成</h3>
+        <p class="desc">粘贴 Markdown，一键生成可继续编辑的 Word 文档或适合分享打印的 A4 PDF。</p>
         <span class="go">立即打开</span>
       </div>
     </a>

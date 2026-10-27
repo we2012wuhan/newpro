@@ -7,3 +7,6 @@ python-multipart
 paramiko
 langchain
 langchain-openai
+playwright
+pypandoc-binary
+markdown-it-py

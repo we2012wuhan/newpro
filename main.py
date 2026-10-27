@@ -91,6 +91,11 @@ app.include_router(awareness_router)
 from design_assistant import router as design_assistant_router  # noqa: E402
 app.include_router(design_assistant_router)
 
+# 文件生成：Markdown -> DOCX / PDF
+# 页面在 /document-generator，转换结果即时下载，不保存正文。
+from document_generator import router as document_generator_router  # noqa: E402
+app.include_router(document_generator_router)
+
 # =========================================================
 # 附加功能：抖音视频下载器
 # ---------------------------------------------------------
