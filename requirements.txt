@@ -2,10 +2,8 @@ fastapi
 uvicorn
 requests
 yt-dlp
-imageio-ffmpeg
 openpyxl
 python-multipart
 paramiko
 langchain
 langchain-openai
-pypandoc-binary

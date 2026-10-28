@@ -28,7 +28,7 @@ HISTORY_NAMES = {
     'goal-split': '目标拆解器', 'rumination': '内耗拆解', 'writing-ideas': '写作选题',
     'ocr': 'OCR 图片识别', 'study-assistant': '学习模型助手', 'ai-chart': 'AI 生成图表',
     'opc': 'OPC 资讯', 'douyin': '抖音下载器', 'ask-hub': '提问三件套',
-    'design-assistant': '页面设计助手', 'document-generator': '文件生成',
+    'design-assistant': '页面设计助手',
 }
 
 THEMES = {

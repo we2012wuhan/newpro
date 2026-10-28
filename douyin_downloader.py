@@ -4,7 +4,6 @@
 ==============================
 本项目是 FastAPI 学习项目里的一个实用小工具：
 粘贴一条抖音分享链接 -> 自动解析 -> 浏览器直接保存 mp4 视频；
-也可以下载视频、提取音频并通过火山语音识别，把口播文字导出成 Markdown。
 
 两种启动方式：
     1. 独立启动：python douyin_downloader.py
@@ -28,11 +27,8 @@ import os
 import re
 import secrets
 import shutil
-import subprocess
 import sys
-import tempfile
 import time
-import wave
 from http.cookiejar import Cookie, CookieJar
 from pathlib import Path
 from urllib.parse import quote, urlparse
@@ -53,17 +49,6 @@ try:
     from playwright.sync_api import sync_playwright
 except Exception:
     sync_playwright = None  # 未安装 playwright 时自动跳过"浏览器自动解析"通道
-
-try:
-    import imageio_ffmpeg
-except Exception:
-    imageio_ffmpeg = None
-
-try:
-    import volc_asr
-except Exception:
-    volc_asr = None
-
 
 # =========================================================
 # 常量
@@ -105,8 +90,6 @@ COOKIE_FILE = _cookie_file()
 
 _JOBS = {}  # 解析成功后的"下载任务"暂存区：token -> 直链信息
 _JOB_TTL = 2 * 60 * 60  # 直链一般 1-2 小时有效，2 小时后自动清理
-_VIDEO_MAX_BYTES = 500 * 1024 * 1024
-_ASR_CHUNK_BYTES = 7 * 1024 * 1024   # 火山 ASR 单次上限 8 MB，留出 WAV 头余量
 
 _PAGE_HTML = r"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -118,7 +101,6 @@ _PAGE_HTML = r"""<!DOCTYPE html>
 <link rel="stylesheet" href="/static/theme.css">
 <script src="/static/theme.js"></script>
 <script src="/static/particles.js"></script>
-<script src="/static/export-md.js"></script>
 <script src="/static/auth-guard.js"></script>
 <style>
   * { box-sizing: border-box; }
@@ -151,11 +133,7 @@ _PAGE_HTML = r"""<!DOCTYPE html>
   details { margin-top:22px; background:var(--tb-card); border-radius:14px; box-shadow:0 2px 12px var(--tb-sh); padding:4px 20px 18px; }
   summary { cursor:pointer; font-weight:600; padding:14px 0; }
   .step { margin:8px 0; font-size:14px; color:var(--tb-text); }
-  textarea { width:100%; min-height:90px; padding:10px; font-size:13px; font-family:Consolas,monospace;
-    border:1px solid var(--tb-line-2); border-radius:10px; resize:vertical; background:var(--tb-field); color:inherit; }
-  .save-note { font-size:13px; color:var(--tb-muted); margin-top:8px; }
   .result-box { background:var(--tb-ok-bg); border:1px solid var(--tb-ok-line); border-radius:10px; padding:12px 14px; }
-  [hidden] { display:none !important; }
 </style>
 <script src="/static/quick-ai.js" defer></script>
 <script src="/static/usage.js" defer></script>
@@ -172,7 +150,6 @@ _PAGE_HTML = r"""<!DOCTYPE html>
       <input id="url" type="text" autocomplete="off"
         placeholder="例如：https://v.douyin.com/xxxxxxx/ （也可直接粘贴 App 里的整段分享文字）">
       <button id="btn" class="btn btn-primary">解析并下载</button>
-      <button id="capBtn" class="btn btn-ghost">🎙️ 提取口播文案</button>
     </div>
     <div class="opts">
       <input type="checkbox" id="useBrowser" checked>
@@ -181,22 +158,8 @@ _PAGE_HTML = r"""<!DOCTYPE html>
     <div id="status"></div>
   </div>
 
-  <div class="card" id="capCard" hidden>
-    <div class="row" style="align-items:center;justify-content:space-between;">
-      <label style="margin:0;">🎙️ 视频口播文字（Markdown）</label>
-      <div class="row">
-        <button class="btn btn-ghost" id="capCopy" style="padding:8px 14px;font-size:13px;">复制</button>
-        <button class="btn btn-ghost" id="capDl" style="padding:8px 14px;font-size:13px;">下载 .md</button>
-      </div>
-    </div>
-    <p class="save-note">先下载视频并提取音频，再通过火山语音识别把视频里<b>实际说出来的话</b>转成文字。
-      视频越长，识别需要的时间越久；结果仅作文字整理，专有名词可能有少量同音字误差。</p>
-    <textarea id="capOut" readonly style="min-height:280px;margin-top:8px;"></textarea>
-    <p class="save-note" id="capMeta"></p>
-  </div>
-
   <details>
-    <summary>❓ 下载 / 提取口播失败？先看这里（重要）</summary>
+    <summary>❓ 下载失败？先看这里（重要）</summary>
     <div class="step">1. 先用 Chrome / Edge 打开 <a href="https://www.douyin.com/" target="_blank" rel="noopener">www.douyin.com</a>，随便刷一刷（<b>不用登录</b>）。</div>
     <div class="step">2. 回到本页面重新点"解析并下载"（上面的"自动读取浏览器 Cookie"勾选框保持打开）。</div>
     <div class="step">3. 如果还是失败：把 Chrome / Edge <b>完全关掉</b>再试一次 —— 浏览器开着时 Cookie 数据库被占用，读不出来。</div>
@@ -204,7 +167,7 @@ _PAGE_HTML = r"""<!DOCTYPE html>
         切到 <b>Network（网络）</b> → 刷新页面 → 点第一个 <code>douyin.com</code> 请求 →
         在 <b>Request Headers</b> 里找到 <code>Cookie</code> 一行，右键 → <b>Copy value</b>，
         把整条值存成本机文件 <code>douyin_cookies.txt</code>（放在工具所在目录；容器里用环境变量
-        <code>TB_DOUYIN_COOKIE</code> 指到挂载卷），之后解析和口播转写都会自动使用。</div>
+        <code>TB_DOUYIN_COOKIE</code> 指到挂载卷），之后解析视频时会自动使用。</div>
     <div class="step">5. 依旧失败：多半是抖音更新了风控，请在终端执行 <code>pip install -U yt-dlp</code> 升级后再试。</div>
   </details>
 </div>
@@ -212,8 +175,6 @@ _PAGE_HTML = r"""<!DOCTYPE html>
 <script>
 var BASE = '';
 var dlUrl = null;
-var capMd = '';       // 最近一次取到的文案 Markdown
-var capName = '';     // 后端建议的文件名
 
 function show(html) {
   var box = document.getElementById('status');
@@ -258,65 +219,7 @@ async function start() {
   }
 }
 
-function setCapMeta(text) {
-  document.getElementById('capMeta').textContent = text || '';
-}
-
-/* 提取视频口播：后端下载视频、抽取音频并调用 ASR，这里负责展示和复制 / 下载 */
-async function getCaption() {
-  var raw = document.getElementById('url').value.trim();
-  var useBrowser = document.getElementById('useBrowser').checked;
-  var btn = document.getElementById('capBtn');
-  if (!raw) { show('<span class="err">请先粘贴抖音链接。</span>'); return; }
-  btn.disabled = true;
-  show('<span class="spinner"></span> 正在下载视频、提取音频并识别口播…（可能需要几十秒）');
-  try {
-    var resp = await fetch(BASE + '/douyin/api/caption', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: raw, use_browser: useBrowser })
-    });
-    var data = await resp.json();
-    if (data.ok && data.markdown) {
-      capMd = data.markdown;
-      capName = data.filename || '';
-      document.getElementById('capOut').value = capMd;
-      setCapMeta('✅ 口播识别完成（' + (data.channel || '视频音频 + 火山语音识别') + '）。复制或下载都可以。');
-      document.getElementById('capCard').hidden = false;
-      show('<span class="info">✅ 口播文字已整理好，就在下面的卡片里。</span>');
-      try {
-        document.getElementById('capCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      } catch (e) { /* 老浏览器不吃带参数的 scrollIntoView，忽略 */ }
-    } else {
-      var hint = data.hint ? '<div class="info">💡 ' + data.hint + '</div>' : '';
-      show('<span class="err">❌ ' + (data.message || '口播识别失败') + '</span>' + hint);
-    }
-  } catch (e) {
-    show('<span class="err">网络或服务器异常：' + e + '</span>');
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-function copyCaption() {
-  if (!capMd) return;
-  if (!window.TBExport) { setCapMeta('导出模块没加载上，请手动全选下面的内容复制。'); return; }
-  TBExport.copy(capMd).then(function (ok) {
-    setCapMeta(ok ? '✅ 已复制到剪贴板。' : '这浏览器不让复制，请手动全选下面的内容。');
-  });
-}
-
-function downloadCaption() {
-  if (!capMd) return;
-  if (!window.TBExport) { setCapMeta('导出模块没加载上，请手动全选下面的内容复制。'); return; }
-  var name = capName || TBExport.filename('抖音文案', { ext: 'md' });
-  setCapMeta(TBExport.download(capMd, name) ? '✅ 已开始下载。' : '这浏览器不支持直接下载，请手动复制。');
-}
-
 document.getElementById('btn').addEventListener('click', start);
-document.getElementById('capBtn').addEventListener('click', getCaption);
-document.getElementById('capCopy').addEventListener('click', copyCaption);
-document.getElementById('capDl').addEventListener('click', downloadCaption);
 document.getElementById('url').addEventListener('keydown', function (e) {
   if (e.key === 'Enter') start();
 });
@@ -620,7 +523,7 @@ def _pick_detail_url(video_info):
 
 def _detail_api_fetch(video_id, cookie_text):
     """请求抖音 Web 详情接口（页面同款参数），返回原始 aweme_detail 字典。
-    下载和口播转写共用这一份，省得两处各写一遍请求头。"""
+    下载解析统一使用这一份请求参数。"""
     api_url = ("https://www.douyin.com/aweme/v1/web/aweme/detail/?"
                "device_platform=webapp&aid=6383&channel=channel_pc_web"
                "&aweme_id=" + video_id + "&request_source=600&origin_type=video_page"
@@ -917,300 +820,6 @@ def _register_job(result):
 
 
 # =========================================================
-# 视频口播文字：下载视频 -> FFmpeg 提取音频 -> 火山 ASR -> Markdown
-#   发布文案只作为标题 / 元信息参考，核心输出是视频里实际说出来的文字。
-# =========================================================
-def _fmt_publish(ts):
-    """秒级时间戳 -> 'YYYY-MM-DD HH:MM'；拿不到就返回空串。"""
-    try:
-        ts = int(ts)
-    except (TypeError, ValueError):
-        return ""
-    if ts <= 0:
-        return ""
-    try:
-        return time.strftime("%Y-%m-%d %H:%M", time.localtime(ts))
-    except (ValueError, OSError):
-        return ""
-
-
-def _fmt_count(n):
-    """12345 -> '1.2万'；拿不到 -> 空串（调用方直接跳过这一项）。"""
-    try:
-        n = int(n)
-    except (TypeError, ValueError):
-        return ""
-    if n < 0:
-        return ""
-    if n >= 100000000:
-        return ("%.1f" % (n / 100000000.0)).rstrip("0").rstrip(".") + "亿"
-    if n >= 10000:
-        return ("%.1f" % (n / 10000.0)).rstrip("0").rstrip(".") + "万"
-    return str(n)
-
-
-def _caption_meta(**kw):
-    """文案字段统一在这张表里补齐，后面拼 Markdown 时不用到处 get。"""
-    meta = {"video_id": "", "share_url": "", "desc": "", "author": "",
-            "publish": "", "duration": "", "tags": [], "stats": "", "channel": "",
-            "transcript": "", "asr_engine": "", "asr_resource": ""}
-    meta.update(kw)
-    return meta
-
-
-def _tags_from_desc(desc):
-    """接口没给话题列表时，从正文里的 #xxx 兜底捞一遍。"""
-    tags = []
-    for tag in re.findall(r"#([^\s#]{1,30})", desc or ""):
-        tag = tag.strip()
-        if tag and tag not in tags:
-            tags.append(tag)
-    return tags
-
-
-def _caption_from_detail(detail, video_id, share_url, channel):
-    """详情接口这条路信息最全：正文、话题、发布时间、互动数据都有。"""
-    author_info = detail.get("author") or {}
-    desc = (detail.get("desc") or "").strip()
-    tags = []
-    for item in detail.get("text_extra") or []:
-        tag = (item.get("hashtag_name") or "").strip()
-        if tag and tag not in tags:
-            tags.append(tag)
-    if not tags:
-        tags = _tags_from_desc(desc)
-    duration = (detail.get("video") or {}).get("duration") or 0
-    stats = detail.get("statistics") or {}
-    parts = []
-    for label, key in (("点赞", "digg_count"), ("评论", "comment_count"),
-                       ("收藏", "collect_count"), ("分享", "share_count")):
-        value = _fmt_count(stats.get(key))
-        if value:
-            parts.append(label + " " + value)
-    return _caption_meta(
-        video_id=video_id, share_url=share_url, desc=desc,
-        author=author_info.get("nickname") or author_info.get("unique_id") or "",
-        publish=_fmt_publish(detail.get("create_time")),
-        duration=("%g" % (int(duration) / 1000.0)) if duration else "",
-        tags=tags, stats=" · ".join(parts), channel=channel,
-    )
-
-
-def _caption_from_ytdl(info, video_id, share_url, channel):
-    """yt-dlp 兜底：抖音 extractor 会把文案塞在 description / title 里。"""
-    desc = (info.get("description") or "").strip() or (info.get("title") or "").strip()
-    tags = []
-    for tag in info.get("tags") or []:
-        tag = str(tag).strip().lstrip("#")
-        if tag and tag not in tags:
-            tags.append(tag)
-    if not tags:
-        tags = _tags_from_desc(desc)
-    publish = str(info.get("upload_date") or "")
-    if len(publish) == 8:
-        publish = publish[:4] + "-" + publish[4:6] + "-" + publish[6:]
-    parts = []
-    for label, key in (("点赞", "like_count"), ("评论", "comment_count"),
-                       ("收藏", "favorite_count"), ("分享", "repost_count")):
-        value = _fmt_count(info.get(key))
-        if value:
-            parts.append(label + " " + value)
-    duration = info.get("duration")
-    return _caption_meta(
-        video_id=video_id, share_url=share_url, desc=desc,
-        author=info.get("channel") or info.get("uploader") or info.get("creator") or "",
-        publish=publish,
-        duration=("%g" % float(duration)) if duration else "",
-        tags=tags, stats=" · ".join(parts), channel=channel,
-    )
-
-
-def _caption_title(meta):
-    """拿正文第一行当标题，没有就退回 douyin_<id>；文件名也用它。"""
-    desc = (meta.get("desc") or "").strip()
-    for line in desc.splitlines():
-        line = re.sub(r"\s+", " ", line).strip()
-        if line:
-            return line[:60]
-    return ("douyin_" + (meta.get("video_id") or "")) if meta.get("video_id") else "抖音文案"
-
-
-def _caption_markdown(meta):
-    """视频元信息和口播转写 -> 一份可以直接贴出去的 Markdown。"""
-    desc = (meta.get("desc") or "").strip()
-    transcript = (meta.get("transcript") or "").strip()
-    out = ["# " + _caption_title(meta), ""]
-    pairs = [("视频链接", meta.get("share_url") or "")]
-    for key, label, suffix in (("author", "作者", ""), ("publish", "发布时间", ""),
-                               ("duration", "时长", " 秒"), ("stats", "互动", ""),
-                               ("channel", "获取通道", "")):
-        value = meta.get(key)
-        value = value.strip() if isinstance(value, str) else value
-        if value:
-            pairs.append((label, str(value) + suffix))
-    out.append("\n".join("- **" + k + "**：" + v for k, v in pairs))
-    out.append("")
-    out.append("## 发布文案")
-    out.append("")
-    out.append(desc if desc else "（这条视频没有文字文案）")
-    if transcript:
-        out.append("")
-        out.append("## 视频口播文字")
-        out.append("")
-        out.append("> 由视频音频自动识别并分段，个别专有名词可能存在同音字误差。")
-        out.append("")
-        out.append(transcript)
-    if meta.get("tags"):
-        out.append("")
-        out.append("## 话题标签")
-        out.append("")
-        out.append(" ".join("#" + str(t) for t in meta["tags"]))
-    return "\n".join(out).strip() + "\n"
-
-
-def _asr_paragraphs(text):
-    text = re.sub(r"\s+", " ", str(text or "")).strip()
-    if not text:
-        return ""
-    parts = [x.strip() for x in re.split(r"(?<=[。！？!?；;])", text) if x.strip()]
-    paragraphs, buf, size = [], [], 0
-    for part in parts:
-        buf.append(part)
-        size += len(part)
-        if size >= 220 or len(buf) >= 4:
-            paragraphs.append("".join(buf))
-            buf, size = [], 0
-    if buf:
-        paragraphs.append("".join(buf))
-    return "\n\n".join(paragraphs)
-
-
-def _transcribe_wav(wav_path, temp_dir):
-    """按火山 ASR 的 8 MB 限制切分 WAV，逐段识别后合并。"""
-    if volc_asr is None:
-        raise DouyinError("语音识别模块不可用，请检查 volc_asr.py", "asr")
-    if wav_path.stat().st_size <= 8 * 1024 * 1024:
-        return volc_asr.transcribe(wav_path.read_bytes(), "wav")
-
-    texts, engine, resource = [], "", ""
-    with wave.open(str(wav_path), "rb") as src:
-        params = src.getparams()
-        bytes_per_frame = max(1, params.nchannels * params.sampwidth)
-        frames_per_chunk = max(1, int((_ASR_CHUNK_BYTES - 2048) / bytes_per_frame))
-        index = 0
-        while True:
-            frames = src.readframes(frames_per_chunk)
-            if not frames:
-                break
-            part = temp_dir / ("speech-part-%03d.wav" % index)
-            with wave.open(str(part), "wb") as out:
-                out.setnchannels(params.nchannels)
-                out.setsampwidth(params.sampwidth)
-                out.setframerate(params.framerate)
-                out.writeframes(frames)
-            got = volc_asr.transcribe(part.read_bytes(), "wav")
-            texts.append(str(got.get("text") or "").strip())
-            engine = engine or str(got.get("engine") or "")
-            resource = resource or str(got.get("resource") or "")
-            part.unlink(missing_ok=True)
-            index += 1
-    return {
-        "ok": True,
-        "text": "\n".join(x for x in texts if x),
-        "engine": engine,
-        "resource": resource,
-    }
-
-
-def _do_caption(raw_text, manual_cookie, use_browser):
-    """解析视频、提取音频并通过火山 ASR 得到视频口播文字。"""
-    if imageio_ffmpeg is None:
-        raise DouyinError(
-            "缺少 imageio-ffmpeg，无法从视频中提取音频",
-            "ffmpeg",
-            hint="请安装 requirements.txt 后再试。",
-        )
-
-    link = _extract_link_from_text(raw_text)
-    host = _host_of(link)
-    if not _is_douyin_host(host):
-        raise DouyinError("目前只支持抖音链接（douyin.com / v.douyin.com）", "bad_url")
-    final_url = _resolve_url(link)
-    video_id = _extract_video_id(final_url)
-    share_url = "https://www.douyin.com/video/" + video_id
-    result = _do_parse(raw_text, manual_cookie, use_browser)
-    headers = result.get("download_headers") or {
-        **COMMON_HEADERS,
-        "User-Agent": UA_DESKTOP,
-        "Referer": "https://www.douyin.com/",
-    }
-
-    with tempfile.TemporaryDirectory(prefix="tb-douyin-asr-") as td:
-        temp_dir = Path(td)
-        video_path = temp_dir / ("source." + str(result.get("ext") or "mp4").lower())
-        wav_path = temp_dir / "speech.wav"
-        total = 0
-        try:
-            with requests.get(result["url"], headers=headers, stream=True,
-                              timeout=(15, 180), allow_redirects=True) as resp:
-                if resp.status_code >= 400:
-                    raise DouyinError("下载视频音频源失败（HTTP %d）" % resp.status_code, "download")
-                content_type = str(resp.headers.get("content-type") or "").lower()
-                if "text/html" in content_type:
-                    raise DouyinError("视频地址返回了网页而不是视频，可能被风控拦截", "blocked")
-                with video_path.open("wb") as fh:
-                    for chunk in resp.iter_content(chunk_size=256 * 1024):
-                        if not chunk:
-                            continue
-                        total += len(chunk)
-                        if total > _VIDEO_MAX_BYTES:
-                            raise DouyinError("视频超过 500 MB，已停止转写", "too_large")
-                        fh.write(chunk)
-        except requests.RequestException as exc:
-            raise DouyinError("下载视频失败：" + str(exc)[:160], "download") from exc
-
-        ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
-        proc = subprocess.run(
-            [ffmpeg, "-hide_banner", "-loglevel", "error", "-y",
-             "-i", str(video_path), "-vn", "-ac", "1", "-ar", "16000",
-             "-c:a", "pcm_s16le", str(wav_path)],
-            capture_output=True, text=True, timeout=300,
-        )
-        if proc.returncode != 0 or not wav_path.exists():
-            raise DouyinError(
-                "视频音频提取失败：" + (proc.stderr or "没有生成音频")[:180],
-                "ffmpeg",
-            )
-        try:
-            asr = _transcribe_wav(wav_path, temp_dir)
-        except ValueError as exc:
-            raise DouyinError(
-                "语音识别失败：" + str(exc),
-                "asr",
-                hint="请确认火山大模型语音识别已开通，并检查 VOLC_ASR_API_KEY / VOLC_ASR_RESOURCE_ID。",
-            ) from exc
-
-    transcript = _asr_paragraphs(asr.get("text") or "")
-    if not transcript:
-        raise DouyinError(
-            "视频里没有识别出可用的人声",
-            "empty",
-            hint="可能只有背景音乐、说话声音太小，或者音频格式没有正常转换。",
-        )
-    return _caption_meta(
-        video_id=video_id,
-        share_url=share_url,
-        desc=(result.get("title") or "").strip(),
-        author=result.get("author") or "",
-        duration=result.get("duration") or "",
-        channel="视频音频 + 火山语音识别",
-        transcript=transcript,
-        asr_engine=asr.get("engine") or "",
-        asr_resource=asr.get("resource") or "",
-    )
-
-
-# =========================================================
 # FastAPI 路由
 # =========================================================
 router = APIRouter()
@@ -1254,56 +863,6 @@ def _douyin_parse_json(url, cookie, use_browser):
             "duration": result["duration"],
             "channel": result["channel"],
             "dl_url": f"/douyin/dl/{token}",
-        })
-    except DouyinError as exc:
-        return JSONResponse({
-            "ok": False,
-            "message": str(exc),
-            "kind": exc.kind,
-            "hint": exc.hint,
-        })
-    except Exception as exc:  # 兜底：任何意外错误都转成可读消息
-        return JSONResponse({
-            "ok": False,
-            "message": f"服务器内部错误：{exc.__class__.__name__}: {exc}",
-            "hint": "如果问题持续，请查看运行终端的日志。",
-        })
-
-
-@router.get("/douyin/api/caption")
-def douyin_caption_get(url: str = "", cookie: str = "", use_browser: bool = True):
-    """GET 版本，方便用浏览器地址栏或命令行直接调试。"""
-    return _douyin_caption_json(url, cookie, use_browser)
-
-
-@router.post("/douyin/api/caption")
-async def douyin_caption_post(request: Request):
-    try:
-        payload = await request.json()
-    except Exception:
-        payload = {}
-    # 里面会发同步网络请求，放线程池里跑，别卡住事件循环
-    return await run_in_threadpool(
-        _douyin_caption_json,
-        payload.get("url", ""),
-        payload.get("cookie", ""),
-        bool(payload.get("use_browser", True)),
-    )
-
-
-def _douyin_caption_json(url, cookie, use_browser):
-    try:
-        meta = _do_caption(url, cookie, use_browser)
-        return JSONResponse({
-            "ok": True,
-            "markdown": _caption_markdown(meta),
-            "title": _caption_title(meta),
-            "author": meta.get("author") or "",
-            "channel": meta.get("channel") or "",
-            "transcript": meta.get("transcript") or "",
-            "asr_engine": meta.get("asr_engine") or "",
-            "asr_resource": meta.get("asr_resource") or "",
-            "filename": _safe_filename(_caption_title(meta), "douyin_caption") + "-口播文案.md",
         })
     except DouyinError as exc:
         return JSONResponse({
