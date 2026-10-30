@@ -99,6 +99,10 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .t-sc .go{background:linear-gradient(135deg,#2dd4bf,#0f766e);box-shadow:0 8px 20px rgba(15,118,110,.34)}
 .tool.t-da:hover{border-color:rgba(124,135,255,.62);box-shadow:0 24px 52px rgba(91,108,255,.28)}
 .t-da .go{background:linear-gradient(135deg,#7c87ff,#5b6cff);box-shadow:0 8px 20px rgba(91,108,255,.34)}
+.tool.t-3d:hover{border-color:rgba(15,159,143,.62);box-shadow:0 24px 52px rgba(15,159,143,.26)}
+.t-3d .go{background:linear-gradient(135deg,#0f9f8f,#5865f2);box-shadow:0 8px 20px rgba(15,159,143,.34)}
+.tool.t-sleep:hover{border-color:rgba(140,201,232,.62);box-shadow:0 24px 52px rgba(82,128,168,.25)}
+.t-sleep .go{background:linear-gradient(135deg,#8cc9e8,#a9b6f4);box-shadow:0 8px 20px rgba(140,201,232,.3)}
 .search-col{display:flex;flex-direction:column;align-items:stretch;gap:7px;flex:1;max-width:480px;min-width:260px;margin-left:auto}
 .search-box{position:relative;width:100%}
 .search-box .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none;font-size:15px}
@@ -471,6 +475,22 @@ body.is-dragging .tool:not(.dragging){transition:none}
       <div class="t-info">
         <h3>页面设计助手</h3>
         <p class="desc">一句话需求变成可点击原型、交互说明和结构化设计规格，边看边提意见继续改。</p>
+        <span class="go">立即打开</span>
+      </div>
+    </a>
+    <a class="tool t-3d" data-cat="learn" href="/3d-lab">
+      <div class="t-icon">🧩</div>
+      <div class="t-info">
+        <h3>3D 小作品实验室</h3>
+        <p class="desc">模板可调，也能在毫米网格上自己画轮廓、加圆孔并导出可打印模型。</p>
+        <span class="go">立即打开</span>
+      </div>
+    </a>
+    <a class="tool t-sleep" data-cat="think" href="/sleep">
+      <div class="t-icon">🌙</div>
+      <div class="t-info">
+        <h3>睡前打烊</h3>
+        <p class="desc">以柔和溪流为主，可混入轻轻的风扇或海浪，定时淡出并进入黑屏。</p>
         <span class="go">立即打开</span>
       </div>
     </a>

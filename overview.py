@@ -46,6 +46,8 @@ TOOL_META = {
     'langchain-test': {'name': 'LangChain 测试', 'ico': '🧪', 'href': '/langchain-test', 'deep': True},
     'first_principles': {'name': '第一性原理', 'ico': '🧩', 'href': '/ask-hub?tab=fp', 'deep': True},
     'design-assistant': {'name': '页面设计助手', 'ico': '✏️', 'href': '/design-assistant', 'deep': True},
+    '3d-lab': {'name': '3D 小作品实验室', 'ico': '🧊', 'href': '/3d-lab', 'deep': False},
+    'sleep': {'name': '睡前打烊', 'ico': '🌙', 'href': '/sleep', 'deep': False},
 }
 
 _FALLBACK = (
@@ -101,6 +103,23 @@ def _excerpt(tool: str, payload: dict) -> str:
     if tool == 'design-assistant':
         spec = payload.get('spec') if isinstance(payload.get('spec'), dict) else {}
         return _text(spec.get('summary')) or _text(payload.get('brief'))
+    if tool == '3d-lab':
+        model = {'tray': '桌面收纳盒', 'stand': '手机支架', 'hook': '洞洞板挂钩',
+                 'custom': '自由绘制'}.get(
+            payload.get('model'), '3D 参数方案')
+        params = payload.get('params') if isinstance(payload.get('params'), dict) else {}
+        if payload.get('model') == 'custom':
+            return model + '：%s 个轮廓点，%s 个圆孔' % (
+                len(params.get('outline') or []), len(params.get('holes') or []))
+        size = ' × '.join(str(params.get(k)) for k in ('width', 'depth', 'height') if params.get(k))
+        return model + (('：' + size + ' mm') if size else '')
+    if tool == 'sleep':
+        base = {'white': '白噪音', 'pink': '粉红噪音', 'brown': '棕噪音'}.get(
+            payload.get('base_type'), '底噪')
+        ambience = {'none': '', 'stream': '溪流', 'rain': '细雨', 'fan': '风扇', 'waves': '海浪'}.get(
+            payload.get('ambience_type'), '')
+        return base + ((' + ' + ambience) if ambience else '') + \
+            ' · %s 分钟' % (payload.get('duration') or 30)
     return ''
 
 
@@ -278,6 +297,28 @@ def _detail(tool: str, payload: dict) -> list:
             add('页面', ' / '.join(_text(x.get('name'), 20) for x in screens
                                    if isinstance(x, dict) and _text(x.get('name'), 20)), 160)
         add('最近修改', payload.get('instruction'))
+    elif tool == '3d-lab':
+        names = {'tray': '桌面收纳盒', 'stand': '手机支架', 'hook': '洞洞板挂钩', 'custom': '自由绘制'}
+        add('模板', names.get(payload.get('model'), payload.get('model')), 30)
+        params = payload.get('params') if isinstance(payload.get('params'), dict) else {}
+        for key, label in (
+            ('width', '宽度'), ('depth', '深度'), ('height', '高度'),
+            ('wall', '壁厚'), ('cols', '列数'), ('rows', '行数'),
+            ('angle', '后仰角'), ('reach', '伸出'), ('plateHeight', '底板高度'),
+        ):
+            if params.get(key) is not None:
+                add(label, params.get(key), 20)
+    elif tool == 'sleep':
+        names = {
+            'base': {'white': '白噪音', 'pink': '粉红噪音', 'brown': '棕噪音'},
+            'ambience': {'none': '无', 'stream': '溪流', 'rain': '细雨', 'fan': '风扇', 'waves': '海浪'},
+        }
+        add('底噪', names['base'].get(payload.get('base_type')), 20)
+        add('底噪强度', payload.get('base_level'), 8)
+        add('环境声', names['ambience'].get(payload.get('ambience_type')), 20)
+        add('环境音量', payload.get('ambience_level'), 8)
+        add('播放时长', payload.get('duration'), 8)
+        add('淡出', payload.get('fade'), 8)
     return out
 
 

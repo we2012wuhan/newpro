@@ -91,6 +91,15 @@ app.include_router(awareness_router)
 from design_assistant import router as design_assistant_router  # noqa: E402
 app.include_router(design_assistant_router)
 
+# 3D 小作品实验室：浏览器内参数化生成、预览并导出 STL / 3MF。
+# 页面在 /3d-lab，模型只在浏览器计算，不上传服务器。
+from parametric_3d import router as parametric_3d_router  # noqa: E402
+app.include_router(parametric_3d_router)
+
+# 睡前打烊：浏览器实时合成白噪音与场景声，声音预设存 SQLite。
+from sleep_tool import router as sleep_tool_router  # noqa: E402
+app.include_router(sleep_tool_router)
+
 # =========================================================
 # 附加功能：抖音视频下载器
 # ---------------------------------------------------------

@@ -659,10 +659,11 @@ def _pw_page_parse(video_id):
             except Exception:
                 pass
 
-    if not detail:
+    if not detail and not media_urls:
         raise DouyinError("浏览器自动解析未拿到视频数据（可能被抖音风控，已改用其它方式）",
                           "blocked", hint="如果反复失败，请稍后再试，或在浏览器里打开一次 douyin.com。")
-    video_info = (detail.get('obj') or {}).get('video') or {}
+    detail_obj = (detail.get('obj') or {}) if detail else {}
+    video_info = detail_obj.get('video') or {}
     play_url = _pick_detail_url(video_info)
     if not play_url and media_urls:
         play_url = media_urls[0]
@@ -677,8 +678,8 @@ def _pw_page_parse(video_id):
             pass
 
     duration = video_info.get('duration') or 0
-    title = (detail.get('obj').get('desc') or '').strip() or ('douyin_' + video_id)
-    author_info = (detail.get('obj') or {}).get('author') or {}
+    title = (detail_obj.get('desc') or '').strip() or ('douyin_' + video_id)
+    author_info = detail_obj.get('author') or {}
     author = author_info.get('nickname') or author_info.get('unique_id') or ''
     return {
         "url": play_url,
