@@ -58,10 +58,10 @@ def run_ocr(filename: str, data: bytes):
         'apikey': ocr_key(_DEMO_KEY),
         'language': 'chs',          # 简体中文（同时也能识别英文与数字）
         'OCREngine': '2',           # 引擎 2：对中文与混排文字更准
-        'scale': 'true',
+        'scale': 'false',           # 保留原始坐标，前端 Canvas 才能准确叠框
         'isTable': 'false',
         'detectOrientation': 'true',
-        'isOverlayRequired': 'false',
+        'isOverlayRequired': 'true',
         'filetype': ext.lstrip('.').upper(),
     }
     started = time.time()
@@ -93,6 +93,7 @@ def run_ocr(filename: str, data: bytes):
         raise ValueError(_friendly_error(resp.status_code, str(msg)))
 
     texts = []
+    boxes = []
     for item in (body.get('ParsedResults') or []):
         if not isinstance(item, dict):
             continue
@@ -101,6 +102,28 @@ def run_ocr(filename: str, data: bytes):
         seg = (item.get('ParsedText') or '').replace('\r\n', '\n').replace('\r', '\n').strip()
         if seg:
             texts.append(seg)
+        overlay = item.get('TextOverlay') or {}
+        for line in (overlay.get('Lines') or []):
+            if not isinstance(line, dict):
+                continue
+            words = [w for w in (line.get('Words') or []) if isinstance(w, dict)]
+            left = min([float(w.get('Left') or 0) for w in words] or [0])
+            top = min([float(w.get('Top') or 0) for w in words] or [0])
+            right = max([
+                float(w.get('Left') or 0) + float(w.get('Width') or 0) for w in words
+            ] or [0])
+            bottom = max([
+                float(w.get('Top') or 0) + float(w.get('Height') or 0) for w in words
+            ] or [0])
+            text = str(line.get('LineText') or '').strip()
+            if text and right > left and bottom > top:
+                boxes.append({
+                    'text': text,
+                    'left': round(left, 2),
+                    'top': round(top, 2),
+                    'width': round(right - left, 2),
+                    'height': round(bottom - top, 2),
+                })
     text = '\n'.join(texts).strip()
     lines = [ln for ln in text.split('\n') if ln.strip()] if text else []
     return {
@@ -108,6 +131,7 @@ def run_ocr(filename: str, data: bytes):
         'text': text,
         'lines': lines,
         'count': len(lines),
+        'boxes': boxes,
         'elapsed': round(time.time() - started, 1),
         'provider': 'OCR.space',
     }

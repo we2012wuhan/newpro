@@ -53,9 +53,23 @@ h1{margin:0;font-size:23px;letter-spacing:.4px}
 .drop-ico{font-size:34px;line-height:1}
 .drop-main{font-size:16px;font-weight:600}
 .drop-sub{font-size:13px;color:var(--muted)}
-.stage{display:flex;align-items:center;justify-content:center;background:var(--tb-field);
-  border:1px solid var(--tb-line);border-radius:14px;padding:12px;max-height:420px;overflow:auto}
-.stage img{max-width:100%;max-height:396px;border-radius:8px;display:block}
+.editor-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.tool-btn{min-height:38px;padding:0 13px;border-radius:9px;border:1px solid var(--tb-line);
+  background:var(--tb-card);color:var(--muted);font-size:12px;cursor:pointer}
+.tool-btn:hover{color:var(--tb-ink);border-color:rgba(34,211,238,.5)}
+.tool-btn.on{color:var(--tb-ink);background:rgba(34,211,238,.12);border-color:rgba(34,211,238,.55)}
+.zoom-chip{margin-left:auto;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.stage{position:relative;height:min(64vh,620px);min-height:360px;background:#080d15;
+  border:1px solid var(--tb-line);border-radius:14px;overflow:hidden}
+#imageCanvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab;outline:none}
+#imageCanvas.mode-crop,#imageCanvas.mode-redact{cursor:crosshair}
+.canvas-tip{position:absolute;left:10px;bottom:10px;z-index:2;padding:6px 9px;border-radius:8px;
+  border:1px solid rgba(148,163,184,.2);background:rgba(6,12,21,.78);color:#94a3b8;
+  font-size:10px;pointer-events:none;backdrop-filter:blur(7px)}
+.selection-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;
+  padding:9px 11px;border-radius:10px;background:var(--tb-field);border:1px solid var(--tb-line)}
+.selection-bar span{font-size:11.5px;color:var(--muted);margin-right:auto}
+.selection-bar .btn{padding:7px 12px;font-size:12px}
 .actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
 .btn{border:0;border-radius:11px;padding:11px 22px;font-size:15px;cursor:pointer;font-weight:700;display:inline-flex;
   align-items:center;gap:8px;transition:transform .12s ease,box-shadow .15s ease,background .15s ease}
@@ -81,6 +95,14 @@ textarea#out{width:100%;min-height:230px;resize:vertical;padding:13px 14px;font-
   background:var(--tb-field);border:1px solid var(--tb-line);border-radius:12px;outline:none;
   font-family:"Segoe UI","Microsoft YaHei UI",system-ui,sans-serif}
 textarea#out:focus{border-color:rgba(34,211,238,.7);box-shadow:0 0 0 3px rgba(34,211,238,.14)}
+@media(max-width:640px){
+  .wrap{padding:18px 12px 54px}
+  .stage{height:54vh;min-height:300px}
+  .editor-bar{gap:6px}
+  .tool-btn{flex:1 1 auto;padding:0 10px}
+  .zoom-chip{width:100%;text-align:right;margin-left:0}
+  .actions .btn{flex:1 1 130px;justify-content:center}
+}
 [hidden]{display:none !important}
 </style>
 <script src="/static/auth-guard.js"></script>
@@ -107,7 +129,22 @@ textarea#out:focus{border-color:rgba(34,211,238,.7);box-shadow:0 0 0 3px rgba(34
   </div>
 
   <div class="card" id="stage" hidden>
-    <div class="stage"><img id="preview" alt=""></div>
+    <div class="editor-bar">
+      <button class="tool-btn on" id="toolPan" type="button" data-tool="pan">拖动画布</button>
+      <button class="tool-btn" id="toolCrop" type="button" data-tool="crop">框选识别</button>
+      <button class="tool-btn" id="toolRedact" type="button" data-tool="redact">局部打码</button>
+      <button class="tool-btn" id="toolFit" type="button">适应窗口</button>
+      <span class="zoom-chip" id="zoomChip">100%</span>
+    </div>
+    <div class="stage" id="canvasStage">
+      <canvas id="imageCanvas" tabindex="0" aria-label="OCR 图片画布，可缩放、拖动、框选和打码"></canvas>
+      <div class="canvas-tip" id="canvasTip">滚轮缩放 · 拖动平移 · 框选后只识别选区</div>
+    </div>
+    <div class="selection-bar">
+      <span id="selectionInfo">当前识别范围：整张图片</span>
+      <button class="btn btn-ghost" id="btnClearMarks" type="button">清除标记</button>
+      <button class="btn btn-ghost" id="btnDownloadImage" type="button">下载处理图</button>
+    </div>
     <div class="actions">
       <button class="btn btn-main" id="btnRun"><span class="spinner" id="spinner"></span>识别文字</button>
       <button class="btn btn-ghost" id="btnReset">重新选择</button>
@@ -132,6 +169,8 @@ textarea#out:focus{border-color:rgba(34,211,238,.7);box-shadow:0 0 0 3px rgba(34
 <script>
 (function () {
   'use strict';
+  // 旧版基于 <img> 的流程已由下方 ocr-canvas.js 替代。
+  if (!document.getElementById('preview')) { return; }
   var $ = function (id) { return document.getElementById(id); };
   var fileInput = $('file'), drop = $('drop'), stage = $('stage'), preview = $('preview');
   var msg = $('msg'), spinner = $('spinner'), out = $('out');
@@ -331,5 +370,6 @@ textarea#out:focus{border-color:rgba(34,211,238,.7);box-shadow:0 0 0 3px rgba(34
   });
 })();
 </script>
+<script src="/static/ocr-canvas.js"></script>
 </body>
 </html>

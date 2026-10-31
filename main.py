@@ -100,6 +100,10 @@ app.include_router(parametric_3d_router)
 from sleep_tool import router as sleep_tool_router  # noqa: E402
 app.include_router(sleep_tool_router)
 
+# 原创横版清版格斗小游戏《夜巷清场》。
+from beat_em_up import router as beat_em_up_router  # noqa: E402
+app.include_router(beat_em_up_router)
+
 # =========================================================
 # 附加功能：抖音视频下载器
 # ---------------------------------------------------------

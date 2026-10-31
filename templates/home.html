@@ -103,6 +103,8 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .t-3d .go{background:linear-gradient(135deg,#0f9f8f,#5865f2);box-shadow:0 8px 20px rgba(15,159,143,.34)}
 .tool.t-sleep:hover{border-color:rgba(140,201,232,.62);box-shadow:0 24px 52px rgba(82,128,168,.25)}
 .t-sleep .go{background:linear-gradient(135deg,#8cc9e8,#a9b6f4);box-shadow:0 8px 20px rgba(140,201,232,.3)}
+.tool.t-game:hover{border-color:rgba(255,82,107,.62);box-shadow:0 24px 52px rgba(255,82,107,.24)}
+.t-game .go{background:linear-gradient(135deg,#ff526b,#ff9b54);box-shadow:0 8px 20px rgba(255,82,107,.34)}
 .search-col{display:flex;flex-direction:column;align-items:stretch;gap:7px;flex:1;max-width:480px;min-width:260px;margin-left:auto}
 .search-box{position:relative;width:100%}
 .search-box .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none;font-size:15px}
@@ -457,6 +459,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
     <button class="cat" type="button" data-cat="think" aria-pressed="false"><span class="cat-ico">🧠</span><span class="cat-txt">思考训练</span><span class="cat-n"></span></button>
     <button class="cat" type="button" data-cat="learn" aria-pressed="false"><span class="cat-ico">📚</span><span class="cat-txt">学习·开发</span><span class="cat-n"></span></button>
     <button class="cat" type="button" data-cat="content" aria-pressed="false"><span class="cat-ico">✨</span><span class="cat-txt">内容·资讯</span><span class="cat-n"></span></button>
+    <button class="cat" type="button" data-cat="play" aria-pressed="false"><span class="cat-ico">🎮</span><span class="cat-txt">小游戏</span><span class="cat-n"></span></button>
     <button class="cat" type="button" data-cat="ext" aria-pressed="false"><span class="cat-ico">🔗</span><span class="cat-txt">外部工具</span><span class="cat-n"></span></button>
     <button class="cat-add" id="catAdd" type="button" title="新建分类" aria-label="新建分类">＋</button>
     <button class="ord-reset hide" id="ordReset" type="button">↺ 恢复默认</button>
@@ -492,6 +495,14 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <h3>睡前打烊</h3>
         <p class="desc">默认柔和溪流，也能永久上传自己的流水录音，定时淡出并进入黑屏。</p>
         <span class="go">立即打开</span>
+      </div>
+    </a>
+    <a class="tool t-game" data-cat="play" href="/beat-em-up">
+      <div class="t-icon">🥊</div>
+      <div class="t-info">
+        <h3>夜巷清场</h3>
+        <p class="desc">原创横版清版格斗：穿过三个街口，击退打手和壮汉，挑战铁塔。</p>
+        <span class="go">进入游戏</span>
       </div>
     </a>
     <a class="tool t-dy" data-cat="content" href="/douyin-download">
@@ -563,7 +574,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
       <div class="t-icon">🔍</div>
       <div class="t-info">
         <h3>OCR图片识别</h3>
-        <p class="desc">粘贴截图或上传图片，免费云端接口识别成文字，可复制或下载 .txt，无需密钥。</p>
+        <p class="desc">在 Canvas 中缩放、框选、打码后识别文字，可复制文本或导出处理图。</p>
         <span class="go">立即打开</span>
       </div>
     </a>
