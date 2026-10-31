@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0B1020">
+<title>夜巷清场</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<script src="/static/auth-guard.js"></script>
+<style>
+:root{
+  --game-bg:#070a12; --game-panel:#101625; --game-line:#283149;
+  --game-ink:#f4f7ff; --game-text:#bfc9dc; --game-muted:#74819a;
+  --game-cyan:#52e0d0; --game-red:#ff5a6d; --game-gold:#ffd166;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;min-height:100%;background:var(--game-bg)}
+body{
+  color:var(--game-text);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei UI",system-ui,sans-serif;
+  background:
+    radial-gradient(900px 550px at 10% -10%,rgba(255,79,104,.14),transparent 60%),
+    radial-gradient(900px 600px at 100% 10%,rgba(51,196,224,.14),transparent 62%),
+    linear-gradient(155deg,#070a12,#0b1120 58%,#070a12);
+}
+button{font:inherit}
+.topbar{position:sticky;top:0;z-index:20;background:rgba(7,10,18,.86);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--game-line)}
+.topbar-in{max-width:1280px;margin:0 auto;padding:11px 18px;display:flex;align-items:center;gap:12px}
+.mark{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex:none;
+  background:linear-gradient(135deg,#ff4f68,#f7b955);color:#15090c;font-weight:900;font-size:17px;
+  box-shadow:0 10px 28px -12px rgba(255,79,104,.8);transform:skew(-5deg)}
+.brand{min-width:0}
+.ttl{font-size:16px;font-weight:750;color:var(--game-ink);letter-spacing:.08em}
+.sub{font-size:10.5px;color:var(--game-muted);letter-spacing:.04em}
+.top-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.tb-mount{display:inline-flex;align-items:center}
+.back,.pause-btn{min-height:38px;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--game-line);background:var(--game-panel);color:var(--game-muted);
+  border-radius:999px;padding:7px 13px;font-size:11.5px;text-decoration:none;cursor:pointer}
+.back:hover,.pause-btn:hover{color:var(--game-ink);border-color:#3c4a68}
+.pause-btn[hidden]{display:none}
+.wrap{max-width:1240px;margin:0 auto;padding:18px 14px calc(40px + env(safe-area-inset-bottom))}
+.game-shell{position:relative;border:1px solid var(--game-line);border-radius:18px;overflow:hidden;
+  background:#050810;box-shadow:0 32px 80px -42px rgba(0,0,0,.95)}
+.play-area{position:relative;width:100%;aspect-ratio:16/9;min-height:220px;background:#050810}
+#gameCanvas{display:block;width:100%;height:100%;image-rendering:pixelated;outline:none;touch-action:none}
+.scanlines{position:absolute;inset:0;pointer-events:none;opacity:.12;
+  background:repeating-linear-gradient(180deg,transparent 0,transparent 3px,rgba(0,0,0,.45) 4px)}
+.game-overlay{position:absolute;inset:0;z-index:4;display:flex;align-items:center;justify-content:center;
+  padding:24px;background:linear-gradient(180deg,rgba(4,7,14,.55),rgba(4,7,14,.91));text-align:center}
+.game-overlay[hidden]{display:none}
+.overlay-card{width:min(620px,100%)}
+.eyebrow{font-size:11px;letter-spacing:.22em;color:var(--game-cyan);font-weight:700;margin-bottom:10px}
+.game-title{margin:0;color:var(--game-ink);font-size:clamp(36px,7vw,72px);font-weight:900;line-height:1;
+  letter-spacing:.12em;text-shadow:4px 4px 0 #6f1428,8px 8px 0 rgba(0,0,0,.28)}
+.game-sub{margin:16px auto 0;max-width:530px;color:#adbbd1;font-size:13px;line-height:1.8}
+.start-btn,.restart-btn{min-width:220px;min-height:52px;margin-top:20px;padding:0 24px;border:0;
+  border-radius:12px;background:linear-gradient(135deg,#ff526b,#ff9b54);color:#190a0c;
+  font-size:15px;font-weight:850;letter-spacing:.08em;cursor:pointer;
+  box-shadow:0 16px 38px -18px rgba(255,82,107,.9)}
+.start-btn:hover,.restart-btn:hover{filter:brightness(1.08)}
+.controls-help{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:17px;
+  color:var(--game-muted);font-size:10.5px}
+.keycap{padding:2px 6px;border:1px solid #3a455f;border-bottom-width:2px;border-radius:5px;
+  color:#d7dfef;background:#151c2c;font-size:10px}
+.wave-toast{position:absolute;left:50%;top:16%;z-index:2;transform:translate(-50%,-8px);
+  padding:8px 14px;border:1px solid rgba(82,224,208,.35);border-radius:999px;
+  background:rgba(6,14,21,.75);color:#a9fff5;font-size:11px;font-weight:700;letter-spacing:.12em;
+  opacity:0;pointer-events:none;transition:.22s}
+.wave-toast.show{opacity:1;transform:translate(-50%,0)}
+.touch-dock{display:none;padding:12px 14px 14px;background:linear-gradient(180deg,#0b101c,#080c15);
+  border-top:1px solid var(--game-line);user-select:none;touch-action:none}
+.touch-row{display:flex;align-items:center;justify-content:space-between;gap:20px}
+.joystick{position:relative;width:112px;height:112px;border-radius:50%;border:1px solid #36425d;
+  background:radial-gradient(circle,#141c2c,#0b111c);box-shadow:inset 0 8px 20px rgba(0,0,0,.4)}
+.joystick-knob{position:absolute;left:50%;top:50%;width:48px;height:48px;border-radius:50%;
+  transform:translate(-50%,-50%);border:1px solid #50617f;
+  background:radial-gradient(circle at 35% 30%,#3a4a66,#172135)}
+.actions-touch{display:flex;align-items:flex-end;gap:10px}
+.touch-action{width:62px;height:62px;border-radius:50%;border:1px solid #3a455e;color:#e4ebf7;
+  background:#151d2d;font-size:11px;font-weight:750;cursor:pointer;touch-action:none}
+.touch-action.punch{border-color:rgba(82,224,208,.55);background:rgba(82,224,208,.12);color:#8ff8e9}
+.touch-action.kick{border-color:rgba(255,209,102,.5);background:rgba(255,209,102,.1);color:#ffe19d}
+.touch-action.jump{width:54px;height:54px;border-color:rgba(166,132,255,.5);
+  background:rgba(166,132,255,.1);color:#d3c2ff}
+.touch-action:active,.touch-action.on{transform:scale(.93);filter:brightness(1.25)}
+.below{display:grid;grid-template-columns:1.4fr 1fr;gap:12px;margin-top:13px}
+.info-card{padding:13px 15px;border:1px solid var(--game-line);border-radius:13px;background:var(--game-panel)}
+.info-card b{display:block;color:var(--game-ink);font-size:12px;margin-bottom:4px}
+.info-card span{display:block;color:var(--game-muted);font-size:10.5px;line-height:1.7}
+@media(pointer:coarse){.touch-dock{display:block}}
+@media(max-width:720px){
+  .wrap{padding:10px 8px 28px}
+  .topbar-in{padding:9px 10px}
+  .game-shell{border-radius:13px}
+  .play-area{aspect-ratio:16/9}
+  .game-overlay{padding:14px}
+  .game-sub{font-size:11px;line-height:1.6}
+  .controls-help{display:none}
+  .below{grid-template-columns:1fr}
+  .back span{display:none}
+  .tb-mount{display:none}
+  .joystick{width:104px;height:104px}
+  .touch-action{width:58px;height:58px}
+  .touch-action.jump{width:50px;height:50px}
+}
+@media(prefers-reduced-motion:reduce){.wave-toast{transition:none}}
+</style>
+<script src="/static/quick-ai.js" defer></script>
+<script src="/static/usage.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="mark" aria-hidden="true">夜</div>
+    <div class="brand">
+      <div class="ttl">夜巷清场</div>
+      <div class="sub">原创横版清版格斗 · 第一关</div>
+    </div>
+    <div class="top-actions">
+      <span class="tb-mount"></span>
+      <button class="pause-btn" id="pauseBtn" type="button" hidden>暂停</button>
+      <a class="back" href="/">← <span>返回工具箱</span></a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="game-shell" id="gameShell">
+    <div class="play-area">
+      <canvas id="gameCanvas" width="960" height="540" tabindex="0" aria-label="夜巷清场游戏画面"></canvas>
+      <div class="scanlines" aria-hidden="true"></div>
+      <div class="wave-toast" id="waveToast"></div>
+
+      <div class="game-overlay" id="startOverlay">
+        <div class="overlay-card">
+          <div class="eyebrow">ORIGINAL BEAT 'EM UP</div>
+          <h1 class="game-title">夜巷清场</h1>
+          <p class="game-sub">凌晨的旧街被人堵住。穿过三段街口，击退打手和壮汉，最后放倒守在尽头的“铁塔”。</p>
+          <button class="start-btn" id="startBtn" type="button">进入夜巷</button>
+          <div class="controls-help">
+            <span><span class="keycap">WASD / 方向键</span> 移动</span>
+            <span><span class="keycap">J</span> 拳</span>
+            <span><span class="keycap">K</span> 踢</span>
+            <span><span class="keycap">L / 空格</span> 跳</span>
+            <span><span class="keycap">P</span> 暂停</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="game-overlay" id="pauseOverlay" hidden>
+        <div class="overlay-card">
+          <div class="eyebrow">PAUSED</div>
+          <h1 class="game-title" style="font-size:clamp(32px,6vw,58px)">喘口气</h1>
+          <p class="game-sub">按 P 或点击按钮继续。</p>
+          <button class="restart-btn" id="resumeBtn" type="button">继续战斗</button>
+        </div>
+      </div>
+
+      <div class="game-overlay" id="endOverlay" hidden>
+        <div class="overlay-card">
+          <div class="eyebrow" id="endEyebrow">CLEAR</div>
+          <h1 class="game-title" id="endTitle" style="font-size:clamp(34px,6vw,62px)">街区已清空</h1>
+          <p class="game-sub" id="endText"></p>
+          <button class="restart-btn" id="restartBtn" type="button">再打一遍</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="touch-dock" id="touchDock">
+      <div class="touch-row">
+        <div class="joystick" id="joystick" aria-label="移动摇杆">
+          <div class="joystick-knob" id="joystickKnob"></div>
+        </div>
+        <div class="actions-touch">
+          <button class="touch-action kick" type="button" data-action="kick">踢</button>
+          <button class="touch-action punch" type="button" data-action="punch">拳</button>
+          <button class="touch-action jump" type="button" data-action="jump">跳</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="below">
+    <div class="info-card"><b>打法</b><span>先对齐横向和纵深，再出拳。踢击更慢，但伤害和击退更强；敌人倒地后不要停在原地。</span></div>
+    <div class="info-card"><b>原创说明</b><span>玩法致敬经典清版格斗，角色、场景、名称和美术均为本工具原创。</span></div>
+  </div>
+</main>
+
+<script src="/static/beat-em-up.js"></script>
+</body>
+</html>

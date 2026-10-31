@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0F9F8F">
+<title>3D 小作品实验室</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<script src="/static/auth-guard.js"></script>
+<style>
+:root{
+  --acc:#0f9f8f; --acc-d:#0b7f73; --acc-l:#e9f8f5; --acc-line:#bde9e2;
+  --ink:#182337; --text:#46536b; --muted:#7d899e;
+  --bg:#f4f7f8; --card:#fff; --line:#dfe7ea; --soft:#eef4f4; --field:#fbfdfd;
+  --ok:#237a57; --ok-l:#eaf7f0; --ok-line:#c7e9d8;
+  --err:#b8404a; --err-l:#fcedef; --err-line:#edced2;
+  --sh:0 20px 50px -34px rgba(22,30,54,.34);
+  --top:rgba(244,247,248,.92); --canvas:#e8f0f1;
+}
+[data-theme="dark"]{
+  --acc:#63d9cb; --acc-d:#8ae9de; --acc-l:#142e2c; --acc-line:#2c5954;
+  --ink:#eff3fa; --text:#c8d0df; --muted:#8b97ad;
+  --bg:#101522; --card:#171d2b; --line:#2a3345; --soft:#1f2838; --field:#111725;
+  --ok:#7ed7aa; --ok-l:#12271d; --ok-line:#28513a;
+  --err:#ffa1a8; --err-l:#2b171a; --err-line:#572b31;
+  --sh:0 22px 56px -30px rgba(0,0,0,.86);
+  --top:rgba(16,21,34,.93); --canvas:#121b24;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg)}
+body{color:var(--text);font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit}
+.topbar{position:sticky;top:0;z-index:30;background:var(--top);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line)}
+.topbar-in{max-width:1280px;margin:0 auto;padding:11px 18px;display:flex;align-items:center;gap:12px}
+.mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none;
+  color:#fff;font-weight:800;font-size:14px;background:linear-gradient(135deg,#0f9f8f,#5865f2);
+  box-shadow:0 9px 24px -12px rgba(15,159,143,.9)}
+.brand-text{min-width:0}
+.ttl{font-size:16px;font-weight:720;color:var(--ink);line-height:1.35}
+.sub{font-size:11.5px;color:var(--muted)}
+.top-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.tb-mount{display:inline-flex;align-items:center}
+.back{min-height:38px;display:inline-flex;align-items:center;color:var(--muted);text-decoration:none;
+  border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 14px;
+  font-size:12.5px;white-space:nowrap}
+.back:hover{color:var(--ink);border-color:var(--acc-line)}
+.wrap{max-width:1280px;margin:0 auto;padding:20px 18px calc(46px + env(safe-area-inset-bottom))}
+.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:14px}
+h1{margin:0;font-size:25px;line-height:1.35;color:var(--ink)}
+.hero p{margin:6px 0 0;color:var(--muted);font-size:12.5px;line-height:1.7}
+.hero-badge{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;
+  border:1px solid var(--acc-line);background:var(--acc-l);color:var(--acc);font-size:11.5px}
+.hero-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
+.studio{display:grid;grid-template-columns:330px minmax(0,1fr);gap:14px;align-items:start}
+.panel,.viewer{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--sh)}
+.panel{padding:15px;position:sticky;top:72px;max-height:calc(100vh - 90px);overflow:auto}
+.panel-title{font-size:13px;font-weight:720;color:var(--ink);margin-bottom:9px}
+.templates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:15px}
+.tpl{min-height:54px;padding:7px 5px;border-radius:10px;border:1px solid var(--line);
+  background:var(--field);color:var(--muted);cursor:pointer;font-size:11.5px;line-height:1.35}
+.tpl b{display:block;font-size:12px;color:var(--text);font-weight:650}
+.tpl:hover{border-color:var(--acc-line);color:var(--acc)}
+.tpl.on{border-color:var(--acc-line);background:var(--acc-l);color:var(--acc)}
+.tpl.on b{color:var(--acc)}
+.model-copy{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:10px 11px;margin-bottom:14px}
+.model-copy b{display:block;color:var(--ink);font-size:13px;margin-bottom:2px}
+.model-copy span{display:block;color:var(--muted);font-size:11.5px;line-height:1.55}
+.fields{display:flex;flex-direction:column;gap:11px}
+.field{display:grid;grid-template-columns:1fr 77px;gap:7px 9px;align-items:center}
+.field label{font-size:12px;color:var(--text);font-weight:600}
+.field output{font-size:11.5px;color:var(--muted);text-align:right}
+.field input[type=number]{width:100%;min-height:34px;padding:4px 7px;border-radius:8px;
+  border:1px solid var(--line);background:var(--field);color:var(--ink);text-align:right;outline:none}
+.field input[type=number]:focus{border-color:var(--acc-line);box-shadow:0 0 0 2px rgba(15,159,143,.12)}
+.field input[type=range]{grid-column:1 / -1;width:100%;accent-color:var(--acc);cursor:pointer}
+.color-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:15px;
+  padding-top:13px;border-top:1px solid var(--line);font-size:12px;color:var(--text)}
+.color-row input[type=color]{width:48px;height:32px;padding:2px;border:1px solid var(--line);
+  border-radius:8px;background:var(--field);cursor:pointer}
+.save-box{margin-top:13px;padding-top:12px;border-top:1px solid var(--line)}
+.save-box label{display:block;font-size:11.5px;color:var(--muted);margin-bottom:6px}
+.save-row{display:flex;gap:7px}
+.save-row input{min-width:0;flex:1 1 auto;min-height:40px;padding:7px 9px;border:1px solid var(--line);
+  border-radius:9px;background:var(--field);color:var(--ink);outline:none;font-size:12px}
+.save-row input:focus{border-color:var(--acc-line);box-shadow:0 0 0 2px rgba(15,159,143,.12)}
+.save-row button{flex:0 0 auto;min-height:40px;padding:0 12px;border-radius:9px;border:1px solid var(--acc-line);
+  background:var(--acc-l);color:var(--acc);font-size:11.5px;font-weight:650;cursor:pointer}
+.save-row button:disabled{opacity:.5;cursor:wait}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 13px;
+  border-radius:10px;border:1px solid var(--line);background:var(--field);color:var(--text);
+  font-size:12.5px;font-weight:650;cursor:pointer;text-decoration:none}
+.btn:hover{border-color:var(--acc-line);color:var(--ink)}
+.btn.primary{grid-column:1 / -1;border-color:transparent;color:#fff;
+  background:linear-gradient(135deg,#0f9f8f,#5865f2);box-shadow:0 11px 24px -16px rgba(15,159,143,.9)}
+.btn.primary:hover{filter:brightness(1.06);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.status{display:none;margin-top:11px;padding:9px 10px;border-radius:9px;font-size:11.5px;line-height:1.6}
+.status.show{display:block}
+.status.info{background:var(--acc-l);border:1px solid var(--acc-line);color:var(--acc)}
+.status.err{background:var(--err-l);border:1px solid var(--err-line);color:var(--err)}
+.saved-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:15px;
+  padding-top:12px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted)}
+.saved-list{display:flex;flex-direction:column;gap:6px;margin-top:7px}
+.saved-empty{padding:8px 9px;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font-size:10.5px}
+.saved-item{display:grid;grid-template-columns:minmax(0,1fr) 28px;gap:5px}
+.saved-restore{min-width:0;padding:7px 8px;border:1px solid var(--line);border-radius:8px;
+  background:var(--field);color:var(--text);text-align:left;cursor:pointer;font-size:10.5px}
+.saved-restore:hover{border-color:var(--acc-line);color:var(--ink)}
+.saved-restore b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);
+  font-size:11px}
+.saved-restore span{display:block;color:var(--muted);margin-top:1px}
+.saved-del{width:28px;height:32px;border:1px solid var(--line);border-radius:8px;background:transparent;
+  color:var(--muted);cursor:pointer;font-size:14px}
+.saved-del:hover{color:var(--err);border-color:var(--err-line);background:var(--err-l)}
+.viewer{overflow:hidden;min-width:0}
+.viewer-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid var(--line)}
+.viewer-title{font-size:13px;font-weight:700;color:var(--ink)}
+.stats{font-size:11.5px;color:var(--muted)}
+.pane-tools{display:flex;gap:5px;margin-left:auto}
+.pane-btn{min-height:32px;padding:0 10px;border-radius:8px;border:1px solid var(--line);
+  background:var(--field);color:var(--muted);font-size:11px;cursor:pointer}
+.pane-btn:hover:not(:disabled),.pane-btn.on{color:var(--acc);border-color:var(--acc-line);background:var(--acc-l)}
+.pane-btn:disabled{opacity:.38;cursor:not-allowed}
+.view-tools{margin-left:auto;display:flex;gap:6px}
+.vbtn{min-height:32px;padding:0 10px;border-radius:8px;border:1px solid var(--line);
+  background:var(--field);color:var(--muted);font-size:11px;cursor:pointer}
+.vbtn:hover,.vbtn.on{color:var(--acc);border-color:var(--acc-line);background:var(--acc-l)}
+.canvas-wrap{position:relative;min-height:610px;height:calc(100vh - 190px);max-height:880px;
+  background:
+    radial-gradient(circle at 50% 35%,rgba(255,255,255,.78),transparent 52%),
+    linear-gradient(150deg,var(--canvas),var(--bg));
+  overflow:hidden}
+[data-theme="dark"] .canvas-wrap{
+  background:
+    radial-gradient(circle at 50% 35%,rgba(70,110,120,.2),transparent 52%),
+    linear-gradient(150deg,var(--canvas),var(--bg));
+}
+#canvasHost{position:absolute;inset:0;outline:none;touch-action:none}
+#canvasHost canvas{display:block;width:100%;height:100%}
+#canvasHost[hidden],.canvas-badge[hidden],.sketch-layer[hidden]{display:none}
+.sketch-layer{position:absolute;inset:0;background:
+  radial-gradient(circle at 50% 42%,rgba(255,255,255,.76),transparent 55%),
+  linear-gradient(150deg,var(--canvas),var(--bg))}
+[data-theme="dark"] .sketch-layer{background:
+  radial-gradient(circle at 50% 42%,rgba(70,110,120,.18),transparent 55%),
+  linear-gradient(150deg,var(--canvas),var(--bg))}
+#sketchCanvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.sketch-toolbar{position:absolute;left:12px;top:12px;z-index:2;display:flex;gap:5px;flex-wrap:wrap;
+  max-width:calc(100% - 24px);padding:6px;border:1px solid var(--line);border-radius:10px;
+  background:var(--top);backdrop-filter:blur(9px)}
+.sketch-btn{min-height:32px;padding:0 9px;border-radius:7px;border:1px solid var(--line);
+  background:var(--field);color:var(--muted);font-size:10.5px;cursor:pointer}
+.sketch-btn:hover,.sketch-btn.on{color:var(--acc);border-color:var(--acc-line);background:var(--acc-l)}
+.sketch-btn:disabled{opacity:.38;cursor:not-allowed}
+.sketch-help{position:absolute;left:12px;right:12px;bottom:12px;z-index:2;display:flex;gap:10px;
+  align-items:center;justify-content:space-between;padding:7px 10px;border-radius:9px;
+  background:var(--top);border:1px solid var(--line);color:var(--muted);font-size:10.5px;
+  backdrop-filter:blur(8px);pointer-events:none}
+#sketchPosition{font-family:Consolas,"SFMono-Regular",monospace;white-space:nowrap}
+.canvas-badge{position:absolute;left:14px;bottom:13px;z-index:2;padding:6px 9px;border-radius:8px;
+  background:var(--top);border:1px solid var(--line);color:var(--muted);font-size:10.5px;
+  pointer-events:none;backdrop-filter:blur(8px)}
+.loading{position:absolute;inset:0;z-index:3;display:grid;place-items:center;text-align:center;
+  background:var(--top);color:var(--muted);font-size:13px;backdrop-filter:blur(6px)}
+.loading[hidden]{display:none}
+.loading .spinner{width:24px;height:24px;border:2px solid var(--line);border-top-color:var(--acc);
+  border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 9px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.note-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:14px}
+.note{padding:11px 12px;border-radius:11px;border:1px solid var(--line);background:var(--card)}
+.note b{display:block;color:var(--ink);font-size:11.5px;margin-bottom:2px}
+.note span{display:block;color:var(--muted);font-size:10.5px;line-height:1.6}
+@media(max-width:900px){
+  .studio{grid-template-columns:1fr}
+  .panel{position:static;max-height:none}
+  .canvas-wrap{height:68vh;min-height:470px;max-height:720px}
+}
+@media(max-width:600px){
+  .topbar-in,.wrap{padding-left:12px;padding-right:12px}
+  .sub{display:none}
+  h1{font-size:21px}
+  .hero{display:block}
+  .hero-badge{margin-top:8px}
+  .panel{padding:12px;border-radius:15px}
+  .tpl{min-height:50px}
+  .viewer{border-radius:15px}
+  .viewer-head{padding:10px 11px}
+  .pane-tools{width:100%;margin-left:0}
+  .pane-btn{flex:1}
+  .view-tools{width:100%;margin-left:0}
+  .vbtn{flex:1}
+  .canvas-wrap{height:62vh;min-height:410px}
+  .note-grid{grid-template-columns:1fr}
+  .back span{display:none}
+  .tb-mount{display:none}
+}
+@media(prefers-reduced-motion:reduce){.loading .spinner{animation:none}}
+</style>
+<script src="/static/quick-ai.js" defer></script>
+<script src="/static/usage.js" defer></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "/static/3d/vendor/three.module.js",
+    "three/addons/": "/static/3d/vendor/addons/"
+  }
+}
+</script>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="mark" aria-hidden="true">3D</div>
+    <div class="brand-text">
+      <div class="ttl">3D 小作品实验室</div>
+      <div class="sub">改尺寸，立即生成能打印的小物件</div>
+    </div>
+    <div class="top-actions">
+      <span class="tb-mount"></span>
+      <a class="back" href="/">← <span>返回工具箱</span></a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <h1>用模板起步，也可以自己画。</h1>
+      <p>调整现成尺寸，或在毫米网格上绘制闭合轮廓、添加圆孔并拉伸成 3D 小作品。</p>
+    </div>
+    <span class="hero-badge">毫米单位 · 离线生成</span>
+  </section>
+
+  <div class="studio">
+    <aside class="panel">
+      <div class="panel-title">作品模板</div>
+      <div class="templates" id="templates">
+        <button class="tpl on" type="button" data-template="tray"><b>收纳盒</b><span>桌面分类</span></button>
+        <button class="tpl" type="button" data-template="stand"><b>手机支架</b><span>充电留孔</span></button>
+        <button class="tpl" type="button" data-template="hook"><b>洞洞挂钩</b><span>螺丝固定</span></button>
+        <button class="tpl" type="button" data-template="custom"><b>自由绘制</b><span>轮廓 + 圆孔</span></button>
+      </div>
+
+      <div class="model-copy">
+        <b id="modelName">桌面收纳盒</b>
+        <span id="modelDesc">带分格的桌面收纳盒，可调整格子数量和壁厚。</span>
+      </div>
+
+      <div class="fields" id="fields"></div>
+
+      <div class="color-row">
+        <span>预览颜色</span>
+        <input id="modelColor" type="color" value="#55b8aa" aria-label="模型预览颜色">
+      </div>
+
+      <div class="save-box">
+        <label for="designName">给这组参数起个名字，保存后可继续修改</label>
+        <div class="save-row">
+          <input id="designName" type="text" maxlength="80" placeholder="例如：床头手机支架">
+          <button id="saveDesign" type="button">保存</button>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" id="downloadStl" type="button">下载 STL</button>
+        <button class="btn" id="download3mf" type="button">下载 3MF</button>
+        <button class="btn" id="resetParams" type="button">恢复默认</button>
+      </div>
+      <div class="status" id="status" role="status" aria-live="polite"></div>
+      <div class="saved-head"><span>我的参数</span><span id="savedCount"></span></div>
+      <div class="saved-list" id="savedList"></div>
+    </aside>
+
+    <section class="viewer">
+      <div class="viewer-head">
+        <div class="viewer-title">实时预览</div>
+        <div class="stats" id="stats">等待建模</div>
+        <div class="pane-tools">
+          <button class="pane-btn" id="paneSketch" type="button" data-pane="sketch" disabled>2D 草图</button>
+          <button class="pane-btn on" id="paneModel" type="button" data-pane="model">3D 预览</button>
+        </div>
+        <div class="view-tools">
+          <button class="vbtn on" type="button" data-view="iso">等轴视图</button>
+          <button class="vbtn" type="button" data-view="front">正面</button>
+          <button class="vbtn" type="button" data-view="top">俯视</button>
+        </div>
+      </div>
+      <div class="canvas-wrap">
+        <div id="canvasHost" tabindex="0" aria-label="3D 模型预览，可拖动旋转和滚轮缩放"></div>
+        <div class="canvas-badge" id="canvasBadge">拖动旋转 · 滚轮缩放 · 右键平移</div>
+        <div class="sketch-layer" id="sketchLayer" hidden>
+          <canvas id="sketchCanvas" aria-label="2D 轮廓草图"></canvas>
+          <div class="sketch-toolbar">
+            <button class="sketch-btn on" id="sketchOutline" type="button">画轮廓</button>
+            <button class="sketch-btn" id="sketchHole" type="button">加圆孔</button>
+            <button class="sketch-btn" id="closeOutline" type="button">闭合轮廓</button>
+            <button class="sketch-btn" id="undoSketch" type="button">撤回</button>
+            <button class="sketch-btn" id="clearSketch" type="button">清空重画</button>
+          </div>
+          <div class="sketch-help">
+            <span id="sketchHint">依次点击网格画外轮廓，点回第一个点即可闭合。</span>
+            <span id="sketchPosition">X 0 · Y 0 mm</span>
+          </div>
+        </div>
+        <div class="loading" id="loading"><div><div class="spinner"></div>正在准备 3D 场景…</div></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="note-grid">
+    <div class="note"><b>先打小样</b><span>首次打印建议把尺寸缩小或只打关键连接处，确认后再打完整作品。</span></div>
+    <div class="note"><b>打印方向</b><span>收纳盒和大平面建议平放在打印平台；挂钩建议侧放以减少支撑。</span></div>
+    <div class="note"><b>材料建议</b><span>室内原型用 PLA；厨房、浴室或需要韧性的承力件优先 PETG。</span></div>
+  </section>
+</main>
+
+<script type="module" src="/static/3d/studio.js"></script>
+</body>
+</html>

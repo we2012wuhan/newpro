@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#167C7A">
+<title>联网搜索</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<script src="/static/auth-guard.js"></script>
+<script src="/static/history-panel.js?v=1"></script>
+<script src="/static/voice.js?v=2"></script>
+<style>
+:root{
+  --acc:#167C7A; --acc-d:#0F6563; --acc-l:#E9F6F4; --acc-line:#BFE3DD;
+  --ink:#17262B; --text:#3B4A52; --muted:#819099;
+  --bg:#F5F7F7; --card:#FFFFFF; --line:#E2E9E9;
+  --field:#FFFFFF; --soft:#F1F5F4; --bg-blur:rgba(245,247,247,.92);
+  --ok:#24795A; --ok-l:#EAF6EF; --ok-line:#C8E7D5;
+  --warn:#8A6516; --warn-l:#FBF4E6; --warn-line:#E7D6B0;
+  --err:#B23A52; --err-l:#FBEEF1; --err-line:#EED0D7;
+  --r:16px; --sh:0 1px 2px rgba(16,24,40,.04),0 12px 28px -18px rgba(16,24,40,.2);
+  --focus-ring:0 0 0 3px rgba(22,124,122,.14);
+}
+[data-theme="dark"]{
+  --acc:#70D4CA; --acc-d:#A0E8E0; --acc-l:#102927; --acc-line:#28504C;
+  --ink:#EDF4F3; --text:#C5D0CE; --muted:#8E9D9B;
+  --bg:#0F1517; --card:#171F21; --line:#293537;
+  --field:#1B2527; --soft:#202B2D; --bg-blur:rgba(15,21,23,.93);
+  --ok:#86D6AB; --ok-l:#13271D; --ok-line:#2A4A38;
+  --warn:#E0AE63; --warn-l:#251C10; --warn-line:#4A3A22;
+  --err:#FF9FAE; --err-l:#2B151A; --err-line:#552B35;
+  --sh:0 1px 2px rgba(0,0,0,.3),0 12px 28px -18px rgba(0,0,0,.6);
+  --focus-ring:0 0 0 3px rgba(112,212,202,.16);
+  color-scheme:dark;
+}
+html[data-theme="dark"] .btn.primary,html[data-theme="dark"] .btn.primary:hover{color:#10211F}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:15px;line-height:1.68;-webkit-font-smoothing:antialiased}
+button,input,textarea,select{font:inherit;color:inherit}
+.topbar{position:sticky;top:0;z-index:20;background:var(--bg-blur);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:1180px;margin:0 auto;padding:12px 18px;display:flex;align-items:center;gap:12px}
+.ttl{font-size:17px;font-weight:650;color:var(--ink)}
+.sub{font-size:12px;color:var(--muted);margin-top:1px}
+.back{margin-left:auto;text-decoration:none;color:var(--muted);background:var(--field);border:1px solid var(--line);
+  border-radius:999px;padding:8px 14px;font-size:13px;white-space:nowrap}
+.back:hover{color:var(--ink);border-color:var(--acc-line)}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(270px,305px);gap:16px;
+  max-width:1180px;margin:0 auto;padding:16px 18px calc(48px + env(safe-area-inset-bottom));align-items:start}
+.col-main{min-width:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--sh)}
+.card+.card{margin-top:14px}
+.card-h{font-size:16px;font-weight:650;color:var(--ink);line-height:1.4}
+.card-sub{font-size:12.5px;color:var(--muted);margin-top:4px}
+.mini{font-size:11.5px;color:var(--muted);line-height:1.65}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 17px;
+  border-radius:12px;border:1px solid var(--line);background:var(--field);color:var(--text);cursor:pointer;
+  transition:background .15s,border-color .15s,opacity .15s,transform .15s}
+.btn:hover{border-color:var(--acc-line)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.primary:hover{background:var(--acc-d);border-color:var(--acc-d)}
+.btn.primary:disabled{background:var(--soft);border-color:var(--line);color:var(--muted);opacity:1}
+.btn.sm{min-height:38px;padding:0 12px;font-size:13px;border-radius:10px}
+label.f{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin:0 0 7px}
+.query{width:100%;min-height:104px;resize:vertical;border:1px solid var(--line);border-radius:14px;
+  background:var(--field);color:var(--ink);padding:12px 13px;outline:none;line-height:1.75}
+.query:focus{border-color:var(--acc-line);box-shadow:var(--focus-ring)}
+.query::placeholder{color:var(--muted);opacity:.7}
+.research-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.seg{display:inline-flex;padding:3px;gap:2px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}
+.seg button{min-height:36px;padding:0 13px;border:0;border-radius:9px;background:transparent;color:var(--muted);cursor:pointer}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 4px rgba(16,24,40,.12);font-weight:600}
+.time{min-height:44px;border:1px solid var(--line);border-radius:11px;background:var(--field);padding:0 10px;outline:none}
+.research-bar .grow{flex:1 1 auto}
+.notice{margin-top:12px;padding:10px 12px;border-radius:11px;border:1px solid var(--warn-line);
+  background:var(--warn-l);color:var(--warn);font-size:13px;line-height:1.7}
+.notice.err{border-color:var(--err-line);background:var(--err-l);color:var(--err)}
+.notice[hidden]{display:none}
+.empty{padding:5px 2px 0}
+.empty-h{font-size:21px;font-weight:680;color:var(--ink);letter-spacing:-.02em}
+.empty-p{font-size:13.5px;color:var(--muted);max-width:620px;margin:6px 0 14px}
+.ideas{display:flex;gap:8px;flex-wrap:wrap}
+.idea{border:1px solid var(--line);background:var(--soft);color:var(--text);border-radius:999px;
+  min-height:38px;padding:0 13px;cursor:pointer;font-size:13px}
+.idea:hover{border-color:var(--acc-line);color:var(--acc)}
+.result-head{display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.result-head .card-h{flex:1 1 auto}
+.status{font-size:12px;color:var(--muted);min-height:18px;margin:2px 0 8px}
+.answer{font-size:15px;line-height:1.82;color:var(--ink);white-space:pre-wrap;word-break:break-word;min-height:2em}
+.answer:empty::before{content:"答案会显示在这里";color:var(--muted)}
+.result-tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.sources{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+.source{position:relative;border:1px solid var(--line);background:var(--field);border-radius:13px;padding:12px;
+  transition:border-color .15s,background .15s}
+.source:hover{border-color:var(--acc-line)}
+.source.on{border-color:var(--acc-line);background:var(--acc-l)}
+.source-top{display:flex;align-items:flex-start;gap:8px}
+.source-check{width:18px;height:18px;flex:0 0 auto;margin:3px 0 0;accent-color:var(--acc)}
+.source-rank{flex:0 0 auto;font-size:11px;color:var(--acc);font-weight:700}
+.source-title{font-size:13.5px;font-weight:650;color:var(--ink);line-height:1.5;word-break:break-word}
+.source-meta{font-size:11px;color:var(--muted);margin-top:4px;display:flex;gap:7px;flex-wrap:wrap}
+.source-text{font-size:12.5px;color:var(--text);line-height:1.65;margin-top:7px;display:-webkit-box;
+  -webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.source-link{display:inline-flex;margin-top:8px;color:var(--acc);text-decoration:none;font-size:12.5px;font-weight:600}
+.source-link:hover{text-decoration:underline}
+.thread{margin-top:14px}
+.turn{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+.turn-q{font-size:13px;font-weight:650;color:var(--ink)}
+.turn-a{font-size:13.5px;line-height:1.75;color:var(--text);margin-top:5px;white-space:pre-wrap;word-break:break-word}
+.ask-row{display:flex;gap:8px;margin-top:10px}
+.ask-row input{flex:1 1 auto;min-width:0;min-height:44px;border:1px solid var(--line);border-radius:12px;
+  background:var(--field);padding:0 12px;outline:none}
+.ask-row input:focus{border-color:var(--acc-line);box-shadow:var(--focus-ring)}
+.hist-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.hist-head .card-h{margin-right:auto}
+.hsearch{position:relative;margin-top:6px}
+.hsearch input{width:100%;min-height:42px;border:1px solid var(--line);border-radius:11px;
+  background:var(--field);padding:0 34px 0 11px;outline:none}
+.hsearch input:focus{border-color:var(--acc-line);box-shadow:var(--focus-ring)}
+.hq-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:27px;height:27px;
+  border:0;border-radius:50%;background:var(--soft);color:var(--muted);cursor:pointer}
+.hq-info{margin-top:6px}
+@media (min-width:1100px){
+  .col-side>.card{position:sticky;top:calc(var(--stick,67px) + 14px);max-height:calc(100vh - var(--stick,67px) - 28px);
+    display:flex;flex-direction:column}
+  .col-side #history{min-height:0;overflow:auto;overscroll-behavior:contain}
+}
+@media (max-width:1099px){
+  .wrap{grid-template-columns:minmax(0,1fr)}
+  .col-side{min-width:0}
+}
+@media (max-width:700px){
+  .sources{grid-template-columns:1fr}
+  .topbar-in,.wrap{padding-left:14px;padding-right:14px}
+  .research-bar{align-items:stretch}
+  .seg{width:100%}
+  .seg button{flex:1}
+  .time{flex:1 1 130px}
+  .research-bar .grow{display:none}
+  .research-bar .btn.primary{flex:1 1 150px}
+}
+@media (max-width:420px){
+  .card{padding:14px}
+  .empty-h{font-size:19px}
+  .result-tools .btn{flex:1 1 calc(50% - 8px)}
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div>
+      <div class="ttl">联网搜索</div>
+      <div class="sub">找资料、带来源、基于资料继续追问</div>
+    </div>
+    <a class="back" href="/">返回工具箱</a>
+  </div>
+</header>
+
+<div class="wrap">
+  <main class="col-main">
+    <section class="card">
+      <label class="f" for="query">想弄懂什么？</label>
+      <textarea class="query" id="query" maxlength="500" placeholder="例如：为什么睡眠不足会影响记忆力？"></textarea>
+      <div class="research-bar">
+        <div class="seg" id="modeSeg" role="group" aria-label="搜索模式">
+          <button type="button" data-mode="quick" class="on">快速</button>
+          <button type="button" data-mode="deep">深度</button>
+        </div>
+        <select class="time" id="timeRange" aria-label="发布时间">
+          <option value="NoLimit">不限时间</option>
+          <option value="OneWeek">一周内</option>
+          <option value="OneMonth">一月内</option>
+          <option value="OneYear">一年内</option>
+        </select>
+        <span class="grow"></span>
+        <button class="btn primary" id="startBtn" type="button">开始研究</button>
+      </div>
+      <div class="notice" id="configTip" hidden></div>
+    </section>
+
+    <section class="card" id="emptyCard">
+      <div class="empty">
+        <div class="empty-h">先搜资料，再形成答案</div>
+        <div class="empty-p">结果会保留来源和发布时间。你可以只选几篇资料继续追问，答案不会脱离这些来源乱编。</div>
+        <div class="ideas" id="ideas">
+          <button class="idea" type="button">如何建立稳定的阅读习惯？</button>
+          <button class="idea" type="button">睡眠质量差可以从哪些方面改善？</button>
+          <button class="idea" type="button">第一次做产品应该先验证什么？</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="resultCard" hidden>
+      <div class="result-head">
+        <div class="card-h" id="resultTitle">研究结果</div>
+        <button class="btn sm" id="stopBtn" type="button" hidden>停止</button>
+      </div>
+      <div class="status" id="status"></div>
+      <div class="answer" id="answer"></div>
+      <div class="result-tools">
+        <button class="btn sm" id="copyBtn" type="button" disabled>复制回答</button>
+        <button class="btn sm" id="speakBtn" type="button" disabled>朗读</button>
+        <button class="btn sm" id="exportBtn" type="button" disabled>导出 Markdown</button>
+      </div>
+    </section>
+
+    <section class="card" id="sourcesCard" hidden>
+      <div class="card-h">来源</div>
+      <div class="card-sub">勾选要继续使用的来源；不选时默认使用全部来源。</div>
+      <div class="sources" id="sources"></div>
+    </section>
+
+    <section class="card" id="followCard" hidden>
+      <div class="card-h">继续追问</div>
+      <div class="card-sub">会基于当前研究和选中的来源回答。</div>
+      <div class="thread" id="thread"></div>
+      <div class="ask-row">
+        <input id="followInput" type="text" maxlength="500" placeholder="例如：再举一个日常生活的例子">
+        <button class="btn primary" id="followBtn" type="button">追问</button>
+      </div>
+    </section>
+  </main>
+
+  <aside class="col-side">
+    <div class="card">
+      <div class="hist-head"><div class="card-h">历史研究</div></div>
+      <div class="hsearch">
+        <input id="hq" type="search" autocomplete="off" placeholder="搜历史研究">
+        <button class="hq-clear" id="hqClear" type="button" aria-label="清空搜索">×</button>
+      </div>
+      <div class="hq-info mini" id="hqInfo"></div>
+      <div id="history"></div>
+      <div class="hist-pager" id="histPager"></div>
+    </div>
+  </aside>
+</div>
+
+<script src="/static/web-search.js?v=1"></script>
+<script src="/static/quick-ai.js" defer></script>
+</body>
+</html>

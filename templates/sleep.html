@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07111A">
+<title>睡前打烊</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<script src="/static/auth-guard.js"></script>
+<style>
+:root{
+  --bg:#07111a; --bg2:#0d1d2b; --card:#111f2d; --card2:#162838;
+  --line:#26394a; --line2:#354c60; --field:#0b1925; --soft:#0e2030;
+  --ink:#edf5fa; --text:#c7d7e2; --muted:#7f96a6;
+  --moon:#d6e8f6; --acc:#8cc9e8; --acc2:#a9b6f4;
+  --acc-l:rgba(140,201,232,.12); --acc-line:rgba(140,201,232,.35);
+  --ok:#8bd9b4; --err:#f3a0a6;
+  --sh:0 30px 70px -38px rgba(0,0,0,.9);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  min-height:100vh;
+  color:var(--text);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei UI",system-ui,sans-serif;
+  background:
+    radial-gradient(900px 500px at 80% -10%,rgba(93,126,178,.2),transparent 62%),
+    radial-gradient(700px 520px at 8% 35%,rgba(70,130,140,.12),transparent 55%),
+    linear-gradient(155deg,var(--bg),#0b1925 60%,#07121c);
+  background-attachment:fixed;
+}
+button,input{font:inherit}
+.topbar{position:sticky;top:0;z-index:20;background:rgba(7,17,26,.82);backdrop-filter:blur(15px);
+  border-bottom:1px solid rgba(38,57,74,.75)}
+.topbar-in{max-width:980px;margin:0 auto;padding:12px 18px;display:flex;align-items:center;gap:12px}
+.mark{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;flex:none;
+  color:#0b1925;background:radial-gradient(circle at 35% 32%,#f2f8ff,#bcd7e8 60%,#8aabc4);
+  box-shadow:0 0 30px rgba(179,216,238,.25)}
+.brand{min-width:0}
+.ttl{font-size:16px;font-weight:700;color:var(--ink)}
+.sub{font-size:11.5px;color:var(--muted)}
+.top-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.tb-mount{display:inline-flex;align-items:center}
+.back{min-height:38px;display:inline-flex;align-items:center;color:var(--muted);text-decoration:none;
+  border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 14px;font-size:12px}
+.back:hover{color:var(--ink);border-color:var(--line2)}
+.wrap{max-width:980px;margin:0 auto;padding:30px 18px calc(64px + env(safe-area-inset-bottom))}
+.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:22px;margin-bottom:20px}
+.hero-main{max-width:670px}
+.kicker{display:inline-flex;align-items:center;gap:7px;color:var(--acc);font-size:11.5px;letter-spacing:.08em;
+  text-transform:uppercase;margin-bottom:9px}
+.kicker::before{content:'';width:20px;height:1px;background:currentColor;opacity:.65}
+h1{margin:0;color:var(--ink);font-size:30px;line-height:1.3;letter-spacing:.02em;font-weight:650}
+.hero p{margin:9px 0 0;color:var(--muted);font-size:13px;line-height:1.85}
+.night-orb{position:relative;width:78px;height:78px;border-radius:50%;flex:none;
+  background:radial-gradient(circle at 35% 30%,#f4faff,#bad2e2 58%,#758ea4);
+  box-shadow:0 0 44px rgba(185,218,239,.28);opacity:.82}
+.night-orb::after{content:'';position:absolute;width:72px;height:72px;border-radius:50%;
+  background:var(--bg);right:-10px;top:-7px}
+.card{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--line);
+  border-radius:20px;padding:18px;box-shadow:var(--sh)}
+.card + .card{margin-top:14px}
+.card-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:15px}
+.card-title{font-size:14px;font-weight:680;color:var(--ink)}
+.card-note{margin-left:auto;font-size:11px;color:var(--muted)}
+.sound-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.sound-block{min-width:0;padding:13px;border-radius:14px;background:rgba(9,25,37,.52);border:1px solid var(--line)}
+.block-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.block-title b{font-size:12px;color:var(--ink)}
+.block-title span{font-size:10.5px;color:var(--muted)}
+.choices{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px}
+.choice{min-height:40px;padding:0 12px;border-radius:9px;border:1px solid var(--line);
+  background:var(--field);color:var(--muted);font-size:12px;cursor:pointer}
+.choice:hover{color:var(--text);border-color:var(--line2)}
+.choice.on{color:var(--ink);border-color:var(--acc-line);background:var(--acc-l)}
+.slider-row{display:grid;grid-template-columns:1fr 46px;gap:8px;align-items:center}
+.slider-row label{font-size:10.5px;color:var(--muted)}
+.slider-row output{font-size:10.5px;color:var(--text);text-align:right;font-variant-numeric:tabular-nums}
+.slider-row input[type=range]{grid-column:1 / -1;width:100%;accent-color:var(--acc);cursor:pointer}
+.setting-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
+.segment{display:flex;gap:6px;flex-wrap:wrap}
+.seg{min-height:40px;min-width:58px;padding:0 12px;border-radius:9px;border:1px solid var(--line);
+  background:var(--field);color:var(--muted);font-size:11.5px;cursor:pointer}
+.seg:hover{color:var(--text);border-color:var(--line2)}
+.seg.on{color:var(--ink);background:var(--acc-l);border-color:var(--acc-line)}
+.volume{margin-top:15px;padding-top:13px;border-top:1px solid var(--line)}
+.start-row{display:flex;align-items:center;gap:13px;margin-top:18px;flex-wrap:wrap}
+.start-btn{flex:1 1 260px;min-height:56px;border:0;border-radius:14px;color:#07111a;font-size:15px;
+  font-weight:760;cursor:pointer;background:linear-gradient(135deg,#d5e8f4,#9ec8e0);
+  box-shadow:0 16px 35px -18px rgba(167,211,236,.85)}
+.start-btn:hover{filter:brightness(1.04)}
+.start-btn:disabled{opacity:.55;cursor:wait}
+.start-aside{font-size:11px;color:var(--muted);line-height:1.65}
+.status{display:none;margin-top:12px;padding:9px 11px;border-radius:9px;font-size:11.5px;line-height:1.6}
+.status.show{display:block}
+.status.info{color:var(--acc);background:var(--acc-l);border:1px solid var(--acc-line)}
+.status.err{color:var(--err);background:rgba(243,160,166,.08);border:1px solid rgba(243,160,166,.25)}
+.save-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:13px}
+.save-head .card-note{margin-left:auto}
+.save-row{display:flex;gap:8px}
+.save-row input{min-width:0;flex:1 1 auto;min-height:44px;padding:8px 11px;border-radius:10px;
+  border:1px solid var(--line);background:var(--field);color:var(--ink);outline:none;font-size:12px}
+.save-row input:focus{border-color:var(--acc-line);box-shadow:0 0 0 3px rgba(140,201,232,.1)}
+.save-row button{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--acc-line);
+  background:var(--acc-l);color:var(--acc);font-size:12px;font-weight:650;cursor:pointer}
+.save-row button:disabled{opacity:.5;cursor:wait}
+.preset-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:11px}
+.preset{position:relative;padding:11px 40px 11px 12px;border-radius:11px;border:1px solid var(--line);
+  background:var(--field);cursor:pointer;text-align:left;color:var(--text)}
+.preset:hover{border-color:var(--acc-line);background:var(--acc-l)}
+.preset b{display:block;color:var(--ink);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.preset span{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+.preset-del{position:absolute;right:7px;top:50%;transform:translateY(-50%);width:28px;height:28px;
+  border:0;border-radius:7px;background:transparent;color:var(--muted);cursor:pointer;font-size:15px}
+.preset-del:hover{color:var(--err);background:rgba(243,160,166,.09)}
+.empty{grid-column:1 / -1;padding:18px;border:1px dashed var(--line);border-radius:11px;
+  text-align:center;color:var(--muted);font-size:11.5px;line-height:1.7}
+.audio-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:13px}
+.audio-head .card-note{margin-left:auto}
+.upload-btn{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--acc-line);
+  background:var(--acc-l);color:var(--acc);font-size:12px;font-weight:650;cursor:pointer}
+.upload-btn:disabled{opacity:.5;cursor:wait}
+.audio-help{font-size:10.5px;color:var(--muted);line-height:1.7}
+.audio-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.audio-item{display:grid;grid-template-columns:minmax(0,1fr) 30px;gap:6px;padding:8px;
+  border:1px solid var(--line);border-radius:11px;background:var(--field)}
+.audio-item.on{border-color:var(--acc-line);background:var(--acc-l)}
+.audio-select{min-width:0;padding:5px 6px;border:0;background:transparent;color:var(--text);
+  text-align:left;cursor:pointer}
+.audio-select b{display:block;color:var(--ink);font-size:11.5px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.audio-select span{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+.audio-del{width:30px;height:32px;border:1px solid var(--line);border-radius:8px;background:transparent;
+  color:var(--muted);cursor:pointer;font-size:15px}
+.audio-del:hover{color:var(--err);border-color:rgba(243,160,166,.3);background:rgba(243,160,166,.08)}
+.fineprint{margin-top:15px;text-align:center;color:var(--muted);font-size:10.5px;line-height:1.7}
+.sleep-screen{position:fixed;inset:0;z-index:2147483000;background:#000;color:#fff;
+  display:flex;align-items:center;justify-content:center;overflow:hidden}
+.sleep-screen[hidden]{display:none}
+.sleep-inner{text-align:center;user-select:none}
+.sleep-clock{font-size:clamp(52px,12vw,92px);font-weight:250;line-height:1;letter-spacing:.03em;
+  color:rgba(255,255,255,.78);font-variant-numeric:tabular-nums}
+.sleep-remaining{margin-top:16px;font-size:12px;color:rgba(255,255,255,.34);letter-spacing:.08em}
+.sleep-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.22);margin:26px auto 0;
+  box-shadow:0 0 18px 5px rgba(154,200,225,.09);animation:breathe 6s ease-in-out infinite}
+.sleep-controls{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .35s ease;
+  background:linear-gradient(180deg,rgba(0,0,0,.32),transparent 24%,transparent 76%,rgba(0,0,0,.32))}
+.sleep-controls.show{opacity:1;pointer-events:auto}
+.sleep-exit{position:absolute;right:calc(16px + env(safe-area-inset-right));
+  top:calc(16px + env(safe-area-inset-top));min-height:42px;padding:0 14px;border-radius:999px;
+  border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:rgba(255,255,255,.62);
+  font-size:11px;cursor:pointer}
+.sleep-bottom{position:absolute;left:50%;bottom:calc(30px + env(safe-area-inset-bottom));transform:translateX(-50%);
+  display:flex;gap:9px}
+.sleep-action{min-width:96px;min-height:46px;padding:0 15px;border-radius:999px;
+  border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);
+  color:rgba(255,255,255,.72);font-size:12px;cursor:pointer}
+.sleep-hint{position:absolute;left:50%;bottom:calc(88px + env(safe-area-inset-bottom));transform:translateX(-50%);
+  color:rgba(255,255,255,.2);font-size:10px;letter-spacing:.06em;white-space:nowrap;
+  transition:opacity .3s ease}
+.sleep-screen.controls-visible .sleep-hint{opacity:0}
+@keyframes breathe{0%,100%{transform:scale(.8);opacity:.45}50%{transform:scale(1.5);opacity:.9}}
+@media(max-width:720px){
+  .wrap{padding:22px 12px 48px}
+  .topbar-in{padding:10px 12px}
+  .night-orb{display:none}
+  h1{font-size:25px}
+  .card{padding:14px;border-radius:16px}
+  .sound-grid,.setting-grid{grid-template-columns:1fr}
+  .preset-grid{grid-template-columns:1fr}
+  .audio-list{grid-template-columns:1fr}
+  .back span{display:none}
+  .tb-mount{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+  .sleep-dot{animation:none}
+  .sleep-controls{transition:none}
+}
+</style>
+<script src="/static/quick-ai.js" defer></script>
+<script src="/static/usage.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="mark" aria-hidden="true">☾</div>
+    <div class="brand">
+      <div class="ttl">睡前打烊</div>
+      <div class="sub">把声音调低，把今天放下</div>
+    </div>
+    <div class="top-actions">
+      <span class="tb-mount"></span>
+      <a class="back" href="/">← <span>返回工具箱</span></a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <div class="hero-main">
+      <div class="kicker">Sleep shutdown</div>
+      <h1>今天到这里，剩下的明天再说。</h1>
+      <p>默认只播放更自然的溪流层，不叠加粗糙底噪。需要时再自行加入粉红或棕噪音。</p>
+    </div>
+    <div class="night-orb" aria-hidden="true"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <div class="card-title">今晚听什么</div>
+      <div class="card-note">声音在手机本地实时生成</div>
+    </div>
+    <div class="sound-grid">
+      <div class="sound-block">
+        <div class="block-title"><b>基础底噪</b><span>默认关闭，避免电子沙沙声</span></div>
+        <div class="choices" id="baseChoices">
+          <button class="choice" type="button" data-base="white">白噪音</button>
+          <button class="choice" type="button" data-base="pink">粉红噪音</button>
+          <button class="choice on" type="button" data-base="brown">棕噪音</button>
+        </div>
+        <div class="slider-row">
+          <label for="baseLevel">底噪强度</label>
+          <output id="baseValue">0%</output>
+          <input id="baseLevel" type="range" min="0" max="100" step="1" value="0">
+        </div>
+      </div>
+
+      <div class="sound-block">
+        <div class="block-title"><b>环境场景</b><span>给房间加一点空间感</span></div>
+        <div class="choices" id="ambienceChoices">
+          <button class="choice" type="button" data-ambience="none">无</button>
+          <button class="choice on" type="button" data-ambience="stream">溪流</button>
+          <button class="choice" type="button" data-ambience="rain">细雨</button>
+          <button class="choice" type="button" data-ambience="fan">风扇</button>
+          <button class="choice" type="button" data-ambience="waves">海浪</button>
+          <button class="choice" type="button" data-ambience="library">我的音频</button>
+        </div>
+        <div class="slider-row">
+          <label for="ambienceLevel">场景音量</label>
+          <output id="ambienceValue">58%</output>
+          <input id="ambienceLevel" type="range" min="0" max="100" step="1" value="58">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="audio-head">
+      <div>
+        <div class="card-title">我的永久音频</div>
+        <div class="card-note">上传一次，手机和电脑登录都能使用</div>
+      </div>
+      <button class="upload-btn" id="uploadAudioBtn" type="button">上传音频</button>
+      <input id="audioFile" type="file" accept="audio/*,.mp3,.m4a,.aac,.ogg,.opus,.wav,.flac,.webm" hidden>
+    </div>
+    <div class="audio-help">支持 MP3、M4A、AAC、OGG、WAV、FLAC、WEBM，单文件最大 100MB。文件保存到服务器数据卷，不会公开给其他账号。</div>
+    <div class="audio-list" id="audioList"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <div class="card-title">什么时候打烊</div>
+      <div class="card-note">结束时平滑淡出，不会突然静音</div>
+    </div>
+    <div class="setting-grid">
+      <div>
+        <div class="block-title"><b>播放时长</b><span id="durationText">30 分钟</span></div>
+        <div class="segment" id="durationChoices">
+          <button class="seg" type="button" data-duration="20">20 分钟</button>
+          <button class="seg on" type="button" data-duration="30">30 分钟</button>
+          <button class="seg" type="button" data-duration="45">45 分钟</button>
+          <button class="seg" type="button" data-duration="60">60 分钟</button>
+        </div>
+      </div>
+      <div>
+        <div class="block-title"><b>淡出时间</b><span id="fadeText">最后 10 分钟</span></div>
+        <div class="segment" id="fadeChoices">
+          <button class="seg" type="button" data-fade="0">不淡出</button>
+          <button class="seg" type="button" data-fade="5">5 分钟</button>
+          <button class="seg on" type="button" data-fade="10">10 分钟</button>
+          <button class="seg" type="button" data-fade="15">15 分钟</button>
+        </div>
+      </div>
+    </div>
+    <div class="volume slider-row">
+      <label for="volumeLevel">手机总音量</label>
+      <output id="volumeValue">65%</output>
+      <input id="volumeLevel" type="range" min="0" max="100" step="1" value="65">
+    </div>
+    <div class="start-row">
+      <button class="start-btn" id="startBtn" type="button">开始睡前打烊</button>
+      <div class="start-aside">默认只响溪流。也可以在“我的永久音频”里上传喜欢的流水录音。</div>
+    </div>
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+  </section>
+
+  <section class="card">
+    <div class="save-head">
+      <div>
+        <div class="card-title">常用声音</div>
+        <div class="card-note">保存后，下次一键恢复这套设置</div>
+      </div>
+    </div>
+    <div class="save-row">
+      <input id="presetName" type="text" maxlength="50" placeholder="例如：雨夜 30 分钟">
+      <button id="savePreset" type="button">保存预设</button>
+    </div>
+    <div class="preset-grid" id="presetList"></div>
+  </section>
+
+  <p class="fineprint">白噪音可以帮助遮蔽环境声音，并形成固定的睡前提示，但它不能代替失眠治疗。<br>
+    网页音频在锁屏后是否持续播放取决于手机系统，建议你先用自己的小米手机实际测试一次。</p>
+</main>
+
+<div class="sleep-screen" id="sleepScreen" hidden>
+  <div class="sleep-inner">
+    <div class="sleep-clock" id="sleepClock">23:00</div>
+    <div class="sleep-remaining" id="sleepRemaining">30 分钟后结束</div>
+    <div class="sleep-dot" aria-hidden="true"></div>
+  </div>
+  <div class="sleep-controls" id="sleepControls">
+    <button class="sleep-exit" id="exitSleep" type="button">退出睡眠屏</button>
+    <div class="sleep-hint">轻点屏幕显示控制</div>
+    <div class="sleep-bottom">
+      <button class="sleep-action" id="toggleAudio" type="button">暂停</button>
+      <button class="sleep-action" id="stopAudio" type="button">结束</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/sleep.js"></script>
+</body>
+</html>
