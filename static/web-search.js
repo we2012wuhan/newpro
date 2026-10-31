@@ -48,7 +48,9 @@
   var resultCard = $('resultCard');
   var sourcesCard = $('sourcesCard');
   var followCard = $('followCard');
-  var emptyCard = $('emptyCard');
+  var queryCard = $('queryCard');
+  var serviceSignal = $('serviceSignal');
+  var serviceSignalText = $('serviceSignalText');
   var configTip = $('configTip');
   var copyBtn = $('copyBtn');
   var speakBtn = $('speakBtn');
@@ -69,6 +71,16 @@
     configTip.textContent = text || '';
     configTip.classList.toggle('err', !!isError);
     configTip.hidden = !text;
+  }
+
+  function setSearching(on) {
+    queryCard.classList.toggle('searching', !!on);
+  }
+
+  function setServiceState(state, text, title) {
+    serviceSignal.setAttribute('data-state', state);
+    serviceSignalText.textContent = text;
+    serviceSignal.title = title || text;
   }
 
   function setBusy(on) {
@@ -110,7 +122,6 @@
     resultCard.hidden = false;
     sourcesCard.hidden = true;
     followCard.hidden = true;
-    emptyCard.hidden = true;
     syncActions();
   }
 
@@ -245,10 +256,12 @@
     if (event.err) {
       setStatus('');
       notice(event.err, true);
+      setSearching(false);
       setBusy(false);
     }
     if (event.done) {
       if (event.record_id) { S.recordId = event.record_id; }
+      setSearching(false);
       setBusy(false);
       if (S.answer) {
         setStatus('完成 · ' + S.sources.length + ' 个来源');
@@ -274,12 +287,14 @@
     resetResult(query);
     notice('', false);
     setStatus('正在联网检索资料…');
+    setSearching(true);
     setBusy(true);
     streamPost('/web-search/api/search', {
       query: query,
       mode: S.mode,
       time_range: $('timeRange').value
     }, handleSearchEvent).catch(function (err) {
+      setSearching(false);
       if (err && err.name === 'AbortError') { setStatus('已停止'); return; }
       notice(err.message || '联网搜索失败', true);
       setStatus('');
@@ -441,15 +456,10 @@
     Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'), function (button) {
       button.onclick = function () { setMode(button.getAttribute('data-mode')); };
     });
-    Array.prototype.forEach.call(document.querySelectorAll('#ideas .idea'), function (button) {
-      button.onclick = function () {
-        queryEl.value = button.textContent || '';
-        queryEl.focus();
-      };
-    });
     startBtn.onclick = runSearch;
     stopBtn.onclick = function () {
       if (S.ctrl) { try { S.ctrl.abort(); } catch (e) {} }
+      setSearching(false);
       setBusy(false);
       setStatus('已停止');
     };
@@ -524,11 +534,16 @@
       S.iqs = !!data.iqs;
       S.ai = !!data.ai;
       if (!S.iqs) {
+        setServiceState('missing', 'IQS SETUP', '联网搜索 Key 未配置');
         notice('联网搜索还没有配置 ALIYUN_IQS_API_KEY。填好配置并重启服务后即可使用。', true);
       } else if (!S.ai) {
+        setServiceState('ready', 'IQS READY', '联网搜索已连接；总结模型未配置');
         notice('可以搜索来源，但还没有配置 DEEPSEEK_API_KEY，暂时不会生成总结。', false);
+      } else {
+        setServiceState('ready', 'IQS READY', '联网搜索与总结模型均已配置');
       }
     }).catch(function (err) {
+      setServiceState('missing', 'IQS OFFLINE', '无法读取联网搜索服务状态');
       notice(err.message || '读取服务状态失败', true);
     });
   }
