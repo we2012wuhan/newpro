@@ -78,6 +78,10 @@ app.add_middleware(LoginGate)
 from quick_ai import router as quick_ai_router  # noqa: E402
 app.include_router(quick_ai_router)
 
+# 联网搜索：IQS 检索来源 -> DeepSeek 基于来源总结 -> SQLite 保存研究记录
+from web_search import router as web_search_router  # noqa: E402
+app.include_router(web_search_router)
+
 # 首页「说一句打开工具」：/api/voice-nav（纯规则匹配，不用模型）
 from voice_nav import router as voice_nav_router  # noqa: E402
 app.include_router(voice_nav_router)
@@ -90,6 +94,10 @@ app.include_router(awareness_router)
 # 结果存 SQLite（tool='design-assistant'），页面在 /design-assistant。
 from design_assistant import router as design_assistant_router  # noqa: E402
 app.include_router(design_assistant_router)
+
+# 懂点设计：面向非设计师的学习诊断、可检索关键词与工具功能建议。
+from design_sense import router as design_sense_router  # noqa: E402
+app.include_router(design_sense_router)
 
 # 3D 小作品实验室：浏览器内参数化生成、预览并导出 STL / 3MF。
 # 页面在 /3d-lab，模型只在浏览器计算，不上传服务器。

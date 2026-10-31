@@ -101,11 +101,13 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .t-da .go{background:linear-gradient(135deg,#7c87ff,#5b6cff);box-shadow:0 8px 20px rgba(91,108,255,.34)}
 .tool.t-3d:hover{border-color:rgba(15,159,143,.62);box-shadow:0 24px 52px rgba(15,159,143,.26)}
 .t-3d .go{background:linear-gradient(135deg,#0f9f8f,#5865f2);box-shadow:0 8px 20px rgba(15,159,143,.34)}
+.tool.t-ds:hover{border-color:rgba(226,109,90,.62);box-shadow:0 24px 52px rgba(226,109,90,.23)}
+.t-ds .go{background:linear-gradient(135deg,#e26d5a,#e8a16a);box-shadow:0 8px 20px rgba(226,109,90,.32)}
 .tool.t-sleep:hover{border-color:rgba(140,201,232,.62);box-shadow:0 24px 52px rgba(82,128,168,.25)}
 .t-sleep .go{background:linear-gradient(135deg,#8cc9e8,#a9b6f4);box-shadow:0 8px 20px rgba(140,201,232,.3)}
 .tool.t-game:hover{border-color:rgba(255,82,107,.62);box-shadow:0 24px 52px rgba(255,82,107,.24)}
 .t-game .go{background:linear-gradient(135deg,#ff526b,#ff9b54);box-shadow:0 8px 20px rgba(255,82,107,.34)}
-.search-col{display:flex;flex-direction:column;align-items:stretch;gap:7px;flex:1;max-width:480px;min-width:260px;margin-left:auto}
+.search-col{display:flex;flex-direction:column;align-items:stretch;gap:7px;flex:1;max-width:610px;min-width:260px;margin-left:auto}
 .search-box{position:relative;width:100%}
 .search-box .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none;font-size:15px}
 #toolSearch{width:100%;background:var(--tb-card);border:1px solid var(--line);color:var(--text);
@@ -129,6 +131,14 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .voice-btn.rec svg{stroke-width:2}
 .voice-btn.busy{opacity:.55;cursor:default}
 @keyframes voicePulse{0%,100%{box-shadow:0 0 0 0 rgba(224,87,95,.35)}50%{box-shadow:0 0 0 8px rgba(224,87,95,0)}}
+.web-btn{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  min-height:48px;padding:0 13px;border-radius:14px;border:1px solid var(--line);
+  background:var(--tb-card);color:var(--tb-muted);cursor:pointer;white-space:nowrap;
+  transition:border-color .2s,background .2s,color .2s}
+.web-btn svg{width:20px;height:20px;display:block;stroke:currentColor;stroke-width:1.7;
+  fill:none;stroke-linecap:round;stroke-linejoin:round}
+.web-btn:hover{border-color:rgba(45,212,191,.62);color:#14b8a6;background:var(--tb-hover)}
+.web-btn .web-txt{font-size:13px}
 .voice-hint{min-height:16px;font-size:12px;color:var(--tb-muted);text-align:right}
 .vnav{position:fixed;inset:0;z-index:2147482000;background:rgba(6,9,20,.55);display:flex;
   align-items:flex-start;justify-content:center;padding:14vh 16px 16px}
@@ -172,7 +182,8 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
   border-radius:9px;background:#e5484d;color:#fff;font-size:10.5px;line-height:18px;text-align:center;
   font-weight:700;box-shadow:0 3px 10px rgba(180,25,38,.32);border:2px solid var(--tb-card)}
 .aw-badge[hidden]{display:none}
-@media(max-width:520px){.aw-btn{width:44px;padding:0}.aw-btn .aw-txt{display:none}}
+@media(max-width:520px){.aw-btn{width:44px;padding:0}.aw-btn .aw-txt{display:none}
+  .web-btn{width:44px;padding:0}.web-btn .web-txt{display:none}}
 .aw{position:fixed;inset:0;z-index:2147482100;background:rgba(6,9,20,.55);display:flex;
   align-items:flex-start;justify-content:center;padding:10vh 16px 16px}
 .aw[hidden]{display:none}
@@ -435,6 +446,15 @@ body.is-dragging .tool:not(.dragging){transition:none}
           <span class="ico">🔍</span>
           <input id="toolSearch" type="search" autocomplete="off">
         </div>
+        <button class="web-btn" id="toolWeb" type="button" aria-label="联网搜索" title="带着问题进入联网搜索">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M3 12h18"></path>
+            <path d="M12 3a14.5 14.5 0 0 1 0 18"></path>
+            <path d="M12 3a14.5 14.5 0 0 0 0 18"></path>
+          </svg>
+          <span class="web-txt">联网搜索</span>
+        </button>
         <button class="aw-btn" id="toolAware" type="button" aria-label="觉察">
           <span class="aw-ico">◔</span><span class="aw-txt">觉察</span>
           <span class="aw-badge" id="awBadge" hidden aria-hidden="true"></span>
@@ -478,6 +498,14 @@ body.is-dragging .tool:not(.dragging){transition:none}
       <div class="t-info">
         <h3>页面设计助手</h3>
         <p class="desc">一句话需求变成可点击原型、交互说明和结构化设计规格，边看边提意见继续改。</p>
+        <span class="go">立即打开</span>
+      </div>
+    </a>
+    <a class="tool t-ds" data-cat="learn" href="/design-sense">
+      <div class="t-icon">🎨</div>
+      <div class="t-info">
+        <h3>懂点设计</h3>
+        <p class="desc">诊断设计短板，生成学习方向、可检索关键词和小工具建议。</p>
         <span class="go">立即打开</span>
       </div>
     </a>
@@ -723,9 +751,17 @@ var grid     = document.querySelector('.grid');
 if(!grid){ return; }
 
 var search   = document.getElementById('toolSearch');
+var webBtn   = document.getElementById('toolWeb');
 var catBar   = document.getElementById('toolCats');
 var addBtn   = document.getElementById('catAdd');
 var resetBtn = document.getElementById('ordReset');
+
+if(webBtn){
+  webBtn.addEventListener('click', function(){
+    var q = search ? String(search.value || '').trim() : '';
+    location.href = '/web-search' + (q ? ('?q=' + encodeURIComponent(q)) : '');
+  });
+}
 
 var API  = '/api/home/cats';
 var OKEY = 'tb_tool_order';   // 卡片顺序，纯本机界面状态，留在 localStorage

@@ -46,6 +46,7 @@ TOOL_META = {
     'langchain-test': {'name': 'LangChain 测试', 'ico': '🧪', 'href': '/langchain-test', 'deep': True},
     'first_principles': {'name': '第一性原理', 'ico': '🧩', 'href': '/ask-hub?tab=fp', 'deep': True},
     'design-assistant': {'name': '页面设计助手', 'ico': '✏️', 'href': '/design-assistant', 'deep': True},
+    'web-search': {'name': '联网搜索', 'ico': '🌐', 'href': '/web-search', 'deep': True},
     '3d-lab': {'name': '3D 小作品实验室', 'ico': '🧊', 'href': '/3d-lab', 'deep': False},
     'sleep': {'name': '睡前打烊', 'ico': '🌙', 'href': '/sleep', 'deep': False},
 }
@@ -103,6 +104,8 @@ def _excerpt(tool: str, payload: dict) -> str:
     if tool == 'design-assistant':
         spec = payload.get('spec') if isinstance(payload.get('spec'), dict) else {}
         return _text(spec.get('summary')) or _text(payload.get('brief'))
+    if tool == 'web-search':
+        return _text(payload.get('query')) or _text(payload.get('answer'))
     if tool == '3d-lab':
         model = {'tray': '桌面收纳盒', 'stand': '手机支架', 'hook': '洞洞板挂钩',
                  'custom': '自由绘制'}.get(
@@ -182,6 +185,9 @@ def _status(tool: str, payload: dict) -> dict:
     if tool == 'design-assistant':
         return {'tracked': False, 'open': False,
                 'label': '第 %s 版' % (payload.get('revision') or 1)}
+    if tool == 'web-search':
+        return {'tracked': False, 'open': False,
+                'label': '%s 个来源' % _count(payload.get('sources'))}
     return {'tracked': False, 'open': False, 'label': ''}
 
 
@@ -319,6 +325,12 @@ def _detail(tool: str, payload: dict) -> list:
         add('环境音量', payload.get('ambience_level'), 8)
         add('播放时长', payload.get('duration'), 8)
         add('淡出', payload.get('fade'), 8)
+    elif tool == 'web-search':
+        add('问题', payload.get('query'))
+        add('模式', '深度' if payload.get('mode') == 'deep' else '快速', 8)
+        add('来源', _count(payload.get('sources')), 8)
+        add('继续追问', _count(payload.get('followups')), 8)
+        add('回答', payload.get('answer'))
     return out
 
 

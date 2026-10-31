@@ -46,8 +46,17 @@ ENV_TTS_SPEED = 'VOLC_TTS_SPEED'
 ENV_ASR_KEY = 'VOLC_ASR_API_KEY'
 ENV_ASR_RESOURCE = 'VOLC_ASR_RESOURCE_ID'
 
+# 联网搜索（阿里云 CleverSee / IQS，API Key 方式）
+ENV_IQS_KEY = 'ALIYUN_IQS_API_KEY'
+ENV_IQS_ENDPOINT = 'ALIYUN_IQS_ENDPOINT'
+ENV_IQS_ENGINE_FAST = 'ALIYUN_IQS_ENGINE_FAST'
+ENV_IQS_ENGINE_DEEP = 'ALIYUN_IQS_ENGINE_DEEP'
+
 _DEFAULT_BASE = 'https://api.deepseek.com'
 _DEFAULT_MODEL = 'deepseek-chat'
+_DEFAULT_IQS_ENDPOINT = 'https://cloud-iqs.aliyuncs.com/search/unified'
+_DEFAULT_IQS_ENGINE_FAST = 'CNLiteBasic'
+_DEFAULT_IQS_ENGINE_DEEP = 'CNAuto'
 
 _DEFAULT_TTS_VOICE = 'zh_female_vv_uranus_bigtts'   # 豆包「Vv」女声（大模型音色）
 _DEFAULT_TTS_RESOURCE = 'seed-tts-2.0'              # 资源 ID：要和音色配套，错配会 403
@@ -161,3 +170,24 @@ def volc_asr_resource() -> str:
 
 def asr_ready() -> bool:
     return bool(volc_asr_key())
+
+
+# ---------------- 联网搜索（CleverSee / IQS） ----------------
+def iqs_api_key() -> str:
+    return os.environ.get(ENV_IQS_KEY, '').strip()
+
+
+def iqs_endpoint() -> str:
+    return os.environ.get(ENV_IQS_ENDPOINT, '').strip() or _DEFAULT_IQS_ENDPOINT
+
+
+def iqs_engine_fast() -> str:
+    return os.environ.get(ENV_IQS_ENGINE_FAST, '').strip() or _DEFAULT_IQS_ENGINE_FAST
+
+
+def iqs_engine_deep() -> str:
+    return os.environ.get(ENV_IQS_ENGINE_DEEP, '').strip() or _DEFAULT_IQS_ENGINE_DEEP
+
+
+def iqs_ready() -> bool:
+    return bool(iqs_api_key())
