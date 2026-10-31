@@ -328,7 +328,9 @@ def _detail(tool: str, payload: dict) -> list:
     elif tool == 'web-search':
         add('问题', payload.get('query'))
         add('模式', '深度' if payload.get('mode') == 'deep' else '快速', 8)
+        add('资料范围', payload.get('knowledge_label') or '综合网络', 20)
         add('来源', _count(payload.get('sources')), 8)
+        add('附件', _count(payload.get('attachments')), 8)
         add('继续追问', _count(payload.get('followups')), 8)
         add('回答', payload.get('answer'))
     return out

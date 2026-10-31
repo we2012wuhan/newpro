@@ -35,9 +35,10 @@
   }
 
   var S = {
-    mode: 'quick', timeRange: 'NoLimit', busy: false, ctrl: null,
+    mode: 'quick', knowledge: 'general', busy: false, ctrl: null,
     iqs: false, ai: false, recordId: null, answer: '',
-    sources: [], selected: {}, followups: [], pendingQuestion: ''
+    sources: [], selected: {}, followups: [], pendingQuestion: '',
+    attachments: [], uploading: false, hasRun: false, knowledgeLabel: '综合网络'
   };
 
   var queryEl = $('query');
@@ -57,6 +58,14 @@
   var exportBtn = $('exportBtn');
   var followInput = $('followInput');
   var followBtn = $('followBtn');
+  var queryShell = document.querySelector('.query-shell');
+  var voiceBtn = $('voiceBtn');
+  var fileBtn = $('fileBtn');
+  var fileInput = $('fileInput');
+  var attachmentTray = $('attachmentTray');
+  var uploadStatus = $('uploadStatus');
+  var knowledgeScope = $('knowledgeScope');
+  var startLabel = startBtn.querySelector('span');
 
   function syncStick() {
     var bar = document.querySelector('.topbar');
@@ -85,14 +94,28 @@
 
   function setBusy(on) {
     S.busy = !!on;
-    startBtn.disabled = !!on;
+    startBtn.disabled = !!on || S.uploading;
     stopBtn.hidden = !on;
     followBtn.disabled = !!on;
+    fileBtn.disabled = !!on || S.uploading;
+    voiceBtn.disabled = !!on || S.uploading;
+    knowledgeScope.disabled = !!on;
     Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'), function (b) {
       b.disabled = !!on;
     });
-    document.getElementById('timeRange').disabled = !!on;
     syncActions();
+  }
+
+  function setUploading(on) {
+    S.uploading = !!on;
+    fileBtn.disabled = !!on || S.busy;
+    voiceBtn.disabled = !!on || S.busy;
+    startBtn.disabled = !!on || S.busy;
+  }
+
+  function uploadMessage(text, isError) {
+    uploadStatus.textContent = text || '';
+    uploadStatus.classList.toggle('err', !!isError);
   }
 
   function syncActions() {
@@ -106,6 +129,16 @@
     Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'), function (b) {
       b.classList.toggle('on', b.getAttribute('data-mode') === S.mode);
     });
+  }
+
+  function setKnowledge(value) {
+    S.knowledge = value || 'general';
+    knowledgeScope.value = S.knowledge;
+    S.knowledgeLabel = knowledgeScope.options[knowledgeScope.selectedIndex].textContent || '综合网络';
+  }
+
+  function paintStartLabel() {
+    startLabel.textContent = S.hasRun ? '重新匹配' : '开始研究';
   }
 
   function resetResult(query) {
@@ -125,6 +158,78 @@
     syncActions();
   }
 
+  function fileSizeLabel(chars) {
+    var n = Number(chars || 0);
+    if (n >= 10000) { return (n / 10000).toFixed(1) + ' 万字'; }
+    if (n >= 1000) { return (n / 1000).toFixed(1) + ' 千字'; }
+    return n + ' 字';
+  }
+
+  function renderAttachments() {
+    attachmentTray.hidden = !S.attachments.length;
+    attachmentTray.innerHTML = S.attachments.map(function (item, i) {
+      return '<span class="file-chip">' +
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></svg>' +
+        '<span class="file-name" title="' + esc(item.name || '') + '">' + esc(item.name || '附件') + '</span>' +
+        '<span class="file-chars">' + esc(fileSizeLabel(item.chars)) + '</span>' +
+        '<button class="file-x" type="button" data-file="' + i + '" aria-label="移除附件">×</button>' +
+      '</span>';
+    }).join('');
+    Array.prototype.forEach.call(attachmentTray.querySelectorAll('[data-file]'), function (button) {
+      button.onclick = function () {
+        S.attachments.splice(Number(button.getAttribute('data-file')), 1);
+        renderAttachments();
+      };
+    });
+  }
+
+  function uploadFiles(fileList) {
+    var files = Array.prototype.slice.call(fileList || []);
+    if (!files.length) { return; }
+    if (S.busy) {
+      uploadMessage('先等当前研究结束，再添加附件。', true);
+      return;
+    }
+    var room = 3 - S.attachments.length;
+    if (room <= 0) {
+      uploadMessage('最多同时附加 3 个文件。', true);
+      return;
+    }
+    files = files.slice(0, room);
+    setUploading(true);
+    uploadMessage('正在解析 ' + files.length + ' 个文件…', false);
+    var chain = Promise.resolve();
+    var okCount = 0;
+    files.forEach(function (file) {
+      chain = chain.then(function () {
+        if (file.size > 10 * 1024 * 1024) {
+          uploadMessage(file.name + ' 超过 10 MB，已跳过。', true);
+          return;
+        }
+        var body = new FormData();
+        body.append('file', file, file.name);
+        return fetch('/web-search/api/upload', { method: 'POST', body: body })
+          .then(function (resp) {
+            return resp.json().catch(function () { return {}; }).then(function (data) {
+              if (!resp.ok || !data.ok) { throw new Error(apiError(data, '上传失败')); }
+              S.attachments.push(data.item);
+              okCount++;
+              renderAttachments();
+            });
+          })
+          .catch(function (err) {
+            uploadMessage(file.name + '：' + (err.message || '上传失败'), true);
+          });
+      });
+    });
+    chain.then(function () {
+      setUploading(false);
+      if (okCount) {
+        uploadMessage('已附加 ' + S.attachments.length + ' 个文件，会参与本次研究。', false);
+      }
+    });
+  }
+
   function renderSources() {
     var box = $('sources');
     if (!S.sources.length) {
@@ -138,18 +243,25 @@
     box.innerHTML = S.sources.map(function (item, i) {
       var rank = Number(item.rank || (i + 1));
       var checked = S.selected[rank] !== false;
-      var meta = [item.host, item.published_time].filter(Boolean).map(esc).join(' · ');
+      var meta = [item.host, item.domain && item.domain !== item.host ? item.domain : '',
+        item.published_time].filter(Boolean).map(esc).join(' · ');
+      var quality = item.quality
+        ? '<span class="quality-tag">' + esc(item.quality) + '</span>'
+        : '';
       var text = item.summary || item.snippet || item.main_text || '';
+      var action = item.url
+        ? '<a class="source-link" href="' + esc(item.url) + '" target="_blank" rel="noopener noreferrer">打开原文</a>'
+        : '<span class="source-link source-local">已作为本次研究资料</span>';
       return '<article class="source' + (checked ? ' on' : '') + '">' +
         '<div class="source-top">' +
           '<input class="source-check" type="checkbox" data-rank="' + rank + '"' +
             (checked ? ' checked' : '') + ' aria-label="使用来源 ' + rank + '">' +
           '<div><div class="source-rank">[' + rank + ']</div>' +
             '<div class="source-title">' + esc(item.title || '未命名来源') + '</div>' +
-            '<div class="source-meta">' + (meta || '来源') + '</div></div>' +
+            '<div class="source-meta">' + quality + (meta ? '<span>' + meta + '</span>' : '') + '</div></div>' +
         '</div>' +
         '<div class="source-text">' + esc(text) + '</div>' +
-        '<a class="source-link" href="' + esc(item.url || '#') + '" target="_blank" rel="noopener noreferrer">打开原文</a>' +
+        action +
       '</article>';
     }).join('');
     Array.prototype.forEach.call(box.querySelectorAll('.source-check'), function (boxEl) {
@@ -243,7 +355,9 @@
         S.selected[Number(item.rank || (i + 1))] = true;
       });
       renderSources();
-      setStatus('找到 ' + S.sources.length + ' 个来源，正在整理答案…');
+      var scopeLabel = (event.meta && event.meta.knowledge_label) || S.knowledgeLabel;
+      S.knowledgeLabel = scopeLabel;
+      setStatus('“' + scopeLabel + '”范围内找到 ' + S.sources.length + ' 个来源，正在整理答案…');
     }
     if (event.t) {
       S.answer += event.t;
@@ -264,7 +378,7 @@
       setSearching(false);
       setBusy(false);
       if (S.answer) {
-        setStatus('完成 · ' + S.sources.length + ' 个来源');
+        setStatus('完成 · ' + S.knowledgeLabel + ' · ' + S.sources.length + ' 个来源');
         notice('', false);
       } else if (S.sources.length) {
         setStatus('已找到来源，但还没有生成总结。');
@@ -280,11 +394,13 @@
       queryEl.focus();
       return;
     }
-    if (!S.iqs) {
+    if (!S.iqs && !S.attachments.length) {
       notice('服务器还没有配置 ALIYUN_IQS_API_KEY。', true);
       return;
     }
     resetResult(query);
+    S.hasRun = true;
+    paintStartLabel();
     notice('', false);
     setStatus('正在联网检索资料…');
     setSearching(true);
@@ -292,7 +408,9 @@
     streamPost('/web-search/api/search', {
       query: query,
       mode: S.mode,
-      time_range: $('timeRange').value
+      time_range: 'NoLimit',
+      knowledge: S.knowledge,
+      attachments: S.attachments.map(function (item) { return item.id; })
     }, handleSearchEvent).catch(function (err) {
       setSearching(false);
       if (err && err.name === 'AbortError') { setStatus('已停止'); return; }
@@ -367,7 +485,9 @@
       lines.push('## 来源', '');
       S.sources.forEach(function (item, i) {
         var rank = Number(item.rank || (i + 1));
-        lines.push(rank + '. [' + (item.title || '来源') + '](' + (item.url || '') + ')');
+        lines.push(rank + '. ' + (item.url
+          ? '[' + (item.title || '来源') + '](' + item.url + ')'
+          : (item.title || '本地上传文件')));
         if (item.host) { lines.push('   - 站点：' + item.host); }
         if (item.published_time) { lines.push('   - 发布时间：' + item.published_time); }
       });
@@ -418,7 +538,7 @@
       var item = data.item || {};
       queryEl.value = item.query || item.title || '';
       setMode(item.mode);
-      $('timeRange').value = item.time_range || 'NoLimit';
+      setKnowledge(item.knowledge || 'general');
       resetResult(item.query || item.title || '研究结果');
       S.recordId = item.id;
       S.answer = item.answer || '';
@@ -429,6 +549,11 @@
         S.selected[Number(source.rank || (i + 1))] = true;
       });
       S.followups = item.followups || [];
+      S.hasRun = true;
+      paintStartLabel();
+      S.attachments = [];
+      renderAttachments();
+      uploadMessage('', false);
       renderSources();
       renderThread();
       syncActions();
@@ -456,6 +581,49 @@
     Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'), function (button) {
       button.onclick = function () { setMode(button.getAttribute('data-mode')); };
     });
+    knowledgeScope.onchange = function () {
+      setKnowledge(knowledgeScope.value);
+      if (S.hasRun && queryEl.value.trim()) {
+        setStatus('资料范围已切换为“' + S.knowledgeLabel + '”，点击重新匹配生效。');
+      }
+    };
+    fileBtn.onclick = function () { fileInput.click(); };
+    fileInput.onchange = function () {
+      uploadFiles(fileInput.files);
+      fileInput.value = '';
+    };
+    if (queryShell) {
+      ['dragenter', 'dragover'].forEach(function (name) {
+        queryShell.addEventListener(name, function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          if (!S.busy) { queryShell.classList.add('dragging'); }
+        });
+      });
+      ['dragleave', 'drop'].forEach(function (name) {
+        queryShell.addEventListener(name, function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          queryShell.classList.remove('dragging');
+        });
+      });
+      queryShell.addEventListener('drop', function (event) {
+        uploadFiles(event.dataTransfer && event.dataTransfer.files);
+      });
+    }
+    if (window.TBASR) {
+      window.TBASR.bind(voiceBtn, {
+        onText: function (text) {
+          var current = queryEl.value.trim();
+          queryEl.value = (current ? current + '\n' : '') + String(text || '').trim();
+          queryEl.focus();
+        },
+        onError: function (msg) { notice(msg, true); },
+        maxSeconds: 60
+      });
+    } else {
+      voiceBtn.hidden = true;
+    }
     startBtn.onclick = runSearch;
     stopBtn.onclick = function () {
       if (S.ctrl) { try { S.ctrl.abort(); } catch (e) {} }
@@ -494,8 +662,10 @@
       title: function (item) { return item.title || item.query || '未命名研究'; },
       meta: function (item) {
         return [
+          item.knowledge_label || '综合网络',
           modeLabel(item.mode),
           item.source_count ? item.source_count + ' 个来源' : '',
+          item.attachment_count ? item.attachment_count + ' 个附件' : '',
           item.followup_count ? item.followup_count + ' 次追问' : '',
           shortTime(item.created_at)
         ].filter(Boolean).join(' · ');

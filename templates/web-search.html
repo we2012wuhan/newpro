@@ -13,6 +13,7 @@
 <script src="/static/auth-guard.js"></script>
 <script src="/static/history-panel.js?v=1"></script>
 <script src="/static/voice.js?v=2"></script>
+<script src="/static/asr.js?v=1"></script>
 <style>
 :root{
   --acc:#167C7A; --acc-d:#0F6563; --acc-l:#E9F6F4; --acc-line:#BFE3DD;
@@ -127,7 +128,34 @@ label.f{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin
 .query:focus{box-shadow:none}
 .query::placeholder{color:var(--muted);opacity:.67}
 .query-foot{position:relative;z-index:1;display:flex;justify-content:space-between;gap:8px;padding:7px 14px 9px;
-  color:var(--muted);font:600 9px/1.2 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em}
+  align-items:center;color:var(--muted);font:600 9px/1.2 ui-monospace,SFMono-Regular,Consolas,monospace;
+  letter-spacing:.08em}
+.query-meta{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.query-tools{display:flex;align-items:center;gap:5px;flex:0 0 auto}
+.query-tool{width:44px;height:44px;display:grid;place-items:center;padding:0;border:1px solid transparent;
+  border-radius:11px;background:transparent;color:var(--muted);cursor:pointer;transition:.15s}
+.query-tool:hover{border-color:var(--tech-line);background:var(--tech-glow);color:var(--tech-a)}
+.query-tool:disabled{opacity:.4;cursor:not-allowed}
+.query-tool svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.75;
+  stroke-linecap:round;stroke-linejoin:round}
+.query-tool.rec{border-color:var(--err-line);background:var(--err-l);color:var(--err);
+  animation:techToolPulse 1.1s ease-in-out infinite}
+.query-tool.busy{opacity:.55;cursor:wait}
+.query-shell.dragging{border-color:var(--tech-a);box-shadow:0 0 0 1px var(--tech-a),0 0 34px -10px var(--tech-a)}
+.attach-tray{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.attach-tray[hidden]{display:none}
+.file-chip{display:inline-flex;align-items:center;gap:7px;max-width:100%;min-height:34px;padding:0 5px 0 10px;
+  border:1px solid var(--tech-line);border-radius:10px;background:var(--tech-panel);color:var(--text);
+  font-size:11.5px;line-height:1}
+.file-chip svg{width:15px;height:15px;flex:0 0 auto;stroke:var(--tech-a);fill:none;stroke-width:1.7}
+.file-chip .file-name{max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-chip .file-chars{color:var(--muted);font-size:10px;white-space:nowrap}
+.file-chip .file-x{width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:var(--muted);
+  cursor:pointer;font-size:16px;line-height:1}
+.file-chip .file-x:hover{background:var(--err-l);color:var(--err)}
+.upload-status{margin-top:7px;color:var(--tech-a);font-size:11.5px}
+.upload-status.err{color:var(--err)}
+.upload-status:empty{display:none}
 .research-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
 .seg{display:inline-flex;padding:3px;gap:3px;border:1px solid var(--line);border-radius:12px;
   background:var(--soft);box-shadow:inset 0 1px 5px rgba(0,0,0,.05)}
@@ -136,9 +164,10 @@ label.f{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin
 .seg button.on{background:linear-gradient(135deg,var(--tech-a),var(--tech-b));color:#fff;
   box-shadow:0 5px 14px -8px var(--tech-a);text-shadow:0 1px 3px rgba(0,0,0,.2)}
 html[data-theme="dark"] .seg button.on{color:#0D1D20;text-shadow:none}
-.time{min-height:44px;border:1px solid var(--line);border-radius:11px;background:var(--field);
+.knowledge{min-height:44px;border:1px solid var(--line);border-radius:11px;background:var(--field);
   padding:0 11px;outline:none;box-shadow:inset 0 1px 5px rgba(0,0,0,.04)}
-.time:focus{border-color:var(--tech-line);box-shadow:var(--focus-ring)}
+.knowledge:focus{border-color:var(--tech-line);box-shadow:var(--focus-ring)}
+.knowledge{font-weight:600;color:var(--ink)}
 .research-bar .grow{flex:1 1 auto}
 .research-btn{position:relative;overflow:hidden;min-width:128px;border-color:transparent;color:#fff;
   background:linear-gradient(115deg,var(--tech-a),var(--tech-b));box-shadow:0 10px 24px -12px var(--tech-a)}
@@ -151,8 +180,10 @@ html[data-theme="dark"] .seg button.on{color:#0D1D20;text-shadow:none}
 .research-btn span,.research-btn svg{position:relative;z-index:1}
 html[data-theme="dark"] .research-btn{color:#0D1D20}
 @keyframes techPulse{0%,100%{opacity:.55;transform:scale(.82)}50%{opacity:1;transform:scale(1.14)}}
+@keyframes techToolPulse{0%,100%{box-shadow:0 0 0 0 var(--err-line)}50%{box-shadow:0 0 0 6px transparent}}
 @keyframes techScan{from{transform:translateY(0)}to{transform:translateY(520%)}}
-@media (prefers-reduced-motion:reduce){.query-kicker::before,.query-card.searching .query-shell::after{animation:none}}
+@media (prefers-reduced-motion:reduce){.query-kicker::before,.query-card.searching .query-shell::after,
+  .query-tool.rec{animation:none}}
 .notice{margin-top:12px;padding:10px 12px;border-radius:11px;border:1px solid var(--warn-line);
   background:var(--warn-l);color:var(--warn);font-size:13px;line-height:1.7}
 .notice.err{border-color:var(--err-line);background:var(--err-l);color:var(--err)}
@@ -173,10 +204,14 @@ html[data-theme="dark"] .research-btn{color:#0D1D20}
 .source-rank{flex:0 0 auto;font-size:11px;color:var(--acc);font-weight:700}
 .source-title{font-size:13.5px;font-weight:650;color:var(--ink);line-height:1.5;word-break:break-word}
 .source-meta{font-size:11px;color:var(--muted);margin-top:4px;display:flex;gap:7px;flex-wrap:wrap}
+.quality-tag{display:inline-flex;align-items:center;min-height:20px;padding:0 6px;border-radius:999px;
+  border:1px solid var(--tech-line);background:var(--tech-glow);color:var(--tech-a);font-weight:700}
 .source-text{font-size:12.5px;color:var(--text);line-height:1.65;margin-top:7px;display:-webkit-box;
   -webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .source-link{display:inline-flex;margin-top:8px;color:var(--acc);text-decoration:none;font-size:12.5px;font-weight:600}
 .source-link:hover{text-decoration:underline}
+.source-local{color:var(--muted);cursor:default}
+.source-local:hover{text-decoration:none}
 .thread{margin-top:14px}
 .turn{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
 .turn-q{font-size:13px;font-weight:650;color:var(--ink)}
@@ -213,7 +248,7 @@ html[data-theme="dark"] .research-btn{color:#0D1D20}
   .research-bar{align-items:stretch}
   .seg{width:100%}
   .seg button{flex:1}
-  .time{flex:1 1 130px}
+  .knowledge{flex:1 1 150px}
   .research-bar .grow{display:none}
   .research-bar .btn.primary{flex:1 1 150px}
 }
@@ -261,18 +296,39 @@ html[data-theme="dark"] .research-btn{color:#0D1D20}
       </div>
       <div class="query-shell">
         <textarea class="query" id="query" maxlength="500" placeholder="例如：为什么睡眠不足会影响记忆力？"></textarea>
-        <div class="query-foot"><span>CTRL + ENTER TO RESEARCH</span><span>500 MAX</span></div>
+        <div class="query-foot">
+          <span class="query-meta">CTRL + ENTER · DROP FILES</span>
+          <div class="query-tools">
+            <button class="query-tool" id="voiceBtn" type="button" aria-label="语音输入" title="语音输入">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="8" y="3" width="8" height="12" rx="4"></rect>
+                <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M9 21h6"></path>
+              </svg>
+            </button>
+            <button class="query-tool" id="fileBtn" type="button" aria-label="上传文件" title="上传文件">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20 11.5 12.6 19a5 5 0 0 1-7.1-7.1l8-8a3.4 3.4 0 0 1 4.8 4.8l-8 8a1.8 1.8 0 0 1-2.6-2.6l7.2-7.2"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
       </div>
+      <div class="attach-tray" id="attachmentTray" hidden></div>
+      <div class="upload-status" id="uploadStatus"></div>
+      <input id="fileInput" type="file" hidden multiple
+             accept=".txt,.md,.markdown,.csv,.json,.log,.html,.htm,.pdf,.docx,.xlsx">
       <div class="research-bar">
         <div class="seg" id="modeSeg" role="group" aria-label="搜索模式">
           <button type="button" data-mode="quick" class="on">快速</button>
           <button type="button" data-mode="deep">深度</button>
         </div>
-        <select class="time" id="timeRange" aria-label="发布时间">
-          <option value="NoLimit">不限时间</option>
-          <option value="OneWeek">一周内</option>
-          <option value="OneMonth">一月内</option>
-          <option value="OneYear">一年内</option>
+        <select class="knowledge" id="knowledgeScope" aria-label="知识库范围">
+          <option value="general">综合网络</option>
+          <option value="authority">权威机构</option>
+          <option value="academic">学术研究</option>
+          <option value="tech">技术文档</option>
+          <option value="medical">医疗健康</option>
+          <option value="legal">法律政策</option>
         </select>
         <span class="grow"></span>
         <button class="btn primary research-btn" id="startBtn" type="button">
