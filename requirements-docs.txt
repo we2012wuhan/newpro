@@ -1,0 +1,6 @@
+# 仅用于本地生成设计文档，不加入生产镜像依赖。
+sphinx==8.1.3
+myst-parser==4.0.1
+pypandoc-binary==1.17
+python-docx==1.2.0
+pdoc==16.0.0
