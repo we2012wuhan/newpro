@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#e2564a">
+<title>专注台</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<script src="/static/auth-guard.js"></script>
+<style>
+:root{
+  --acc:#e2564a; --acc-d:#c9473c; --acc-l:#fdeeea; --acc-line:#f3c8bf;
+  --ink:#20222b; --text:#545861; --muted:#858a96;
+  --bg:#f7f4f0; --card:#fff; --line:#e9e2db; --soft:#f5efe9; --field:#fffdfb;
+  --ok:#2f7d5b; --ok-l:#eaf6ef; --ok-line:#c8e6d6;
+  --warn:#a86a1f; --warn-l:#fdf3e3;
+  --err:#b8404a; --err-l:#fcedef; --err-line:#edced2;
+  --ring:#eee5dd; --sh:0 20px 46px -32px rgba(68,46,32,.32);
+  --top:rgba(247,244,240,.92);
+}
+[data-theme="dark"]{
+  --acc:#ff9b8d; --acc-d:#ffb3a7; --acc-l:#331e1c; --acc-line:#5e3430;
+  --ink:#eff3fa; --text:#c8d0df; --muted:#8b97ad;
+  --bg:#11131a; --card:#181c26; --line:#2b3140; --soft:#202634; --field:#141922;
+  --ok:#7ed7aa; --ok-l:#12271d; --ok-line:#28513a;
+  --warn:#f1c27d; --warn-l:#2a2113;
+  --err:#ffa1a8; --err-l:#2b171a; --err-line:#572b31;
+  --ring:#2c3140; --sh:0 22px 52px -30px rgba(0,0,0,.88);
+  --top:rgba(17,19,26,.94);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg)}
+body{color:var(--text);font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased;
+  background:radial-gradient(circle at 10% -4%,rgba(226,86,74,.11),transparent 34%),var(--bg);
+  min-height:100vh}
+button,input,textarea,select{font:inherit}
+[hidden]{display:none!important}
+a{color:var(--acc)}
+.topbar{position:sticky;top:0;z-index:30;background:var(--top);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line)}
+.topbar-in{max-width:1120px;margin:0 auto;padding:11px 18px;display:flex;align-items:center;gap:12px}
+.mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none;
+  color:#fff;font-weight:800;font-size:17px;background:linear-gradient(135deg,#f0705f,#d8423c);
+  box-shadow:0 9px 24px -12px rgba(216,66,60,.9)}
+.brand-text{min-width:0}
+.ttl{font-size:16px;font-weight:720;color:var(--ink);line-height:1.35}
+.sub{font-size:11.5px;color:var(--muted)}
+.top-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.tb-mount{display:inline-flex;align-items:center}
+.back{min-height:38px;display:inline-flex;align-items:center;color:var(--muted);text-decoration:none;
+  border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 14px;
+  font-size:12.5px;white-space:nowrap}
+.back:hover{color:var(--ink);border-color:var(--acc-line)}
+.wrap{max-width:1120px;margin:0 auto;padding:20px 18px calc(46px + env(safe-area-inset-bottom))}
+.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:14px}
+h1{margin:0;font-size:25px;line-height:1.35;color:var(--ink);letter-spacing:-.01em}
+.hero p{margin:6px 0 0;color:var(--muted);font-size:12.5px;line-height:1.7;max-width:720px}
+.hero-badge{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;
+  border:1px solid var(--acc-line);background:var(--acc-l);color:var(--acc);font-size:11.5px;white-space:nowrap}
+.hero-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:14px;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--sh)}
+.stage{padding:18px 20px 20px;min-height:560px}
+.stage-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+  padding-bottom:13px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.eyebrow{font-size:13px;font-weight:720;color:var(--ink)}
+.stage-sub{font-size:11.5px;color:var(--muted);margin-top:2px}
+.src-chip{display:inline-flex;align-items:center;gap:7px;max-width:52%;padding:5px 6px 5px 11px;
+  border:1px solid var(--acc-line);background:var(--acc-l);color:var(--acc);border-radius:999px;
+  font-size:11.5px;line-height:1.4}
+.src-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.src-chip button{border:0;background:rgba(226,86,74,.13);color:inherit;border-radius:999px;
+  width:22px;height:22px;cursor:pointer;line-height:1;flex:none}
+.lbl{display:block;font-size:11.5px;font-weight:650;color:var(--muted);margin-bottom:5px}
+.lbl em{font-style:normal;font-weight:400;opacity:.8}
+.field{display:block;margin-bottom:13px}
+.field input,.field textarea,input[type=text],input[type=number],textarea{width:100%;
+  border:1px solid var(--line);border-radius:11px;background:var(--field);color:var(--ink);
+  padding:9px 11px;outline:none;line-height:1.6}
+input[type=text]{min-height:42px}
+textarea{resize:vertical;min-height:86px}
+.field input:focus,input[type=text]:focus,input[type=number]:focus,textarea:focus{
+  border-color:var(--acc-line);box-shadow:0 0 0 3px rgba(226,86,74,.13)}
+.setup-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.pick-row{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:4px 0 15px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{min-height:34px;padding:0 13px;border-radius:999px;border:1px solid var(--line);
+  background:var(--field);color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap}
+.chip:hover{border-color:var(--acc-line);color:var(--acc)}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:650}
+[data-theme="dark"] .chip.on{color:#231313}
+.num-wrap{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px}
+.num-wrap input{width:82px;min-height:36px;padding:4px 8px;text-align:center;font-weight:650}
+.notify-toggle{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);cursor:pointer;
+  padding-bottom:4px}
+.notify-toggle input{width:15px;height:15px;accent-color:var(--acc)}
+.source-block{border:1px solid var(--line);background:var(--soft);border-radius:13px;padding:11px 12px;margin-top:4px}
+.source-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.source-head .lbl{margin:0}
+.lnk{border:0;background:none;color:var(--acc);font-size:12.5px;cursor:pointer;padding:0}
+.lnk:hover{text-decoration:underline}
+.source-list{display:flex;flex-direction:column;gap:6px;max-height:238px;overflow:auto;padding-right:2px}
+.source-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;text-align:left;
+  border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 10px;
+  color:var(--text);cursor:pointer}
+.source-item:hover{border-color:var(--acc-line)}
+.source-item.on{border-color:var(--acc);background:var(--acc-l);color:var(--ink)}
+.source-item b{grid-column:1;grid-row:1;font-size:12.5px;font-weight:650;line-height:1.5;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.source-item span{grid-column:1;grid-row:2;font-size:10.5px;color:var(--muted);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.source-item i{grid-column:2;grid-row:1 / span 2;font-style:normal;font-size:10.5px;color:var(--acc);
+  white-space:nowrap;align-self:center}
+.source-empty{font-size:11.5px;color:var(--muted);line-height:1.7;padding:4px 2px}
+.start-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:38px;
+  padding:0 15px;border-radius:10px;border:1px solid var(--line);background:var(--card);
+  color:var(--text);font-size:12.5px;cursor:pointer;white-space:nowrap;text-decoration:none}
+.btn:hover{border-color:var(--acc-line);color:var(--acc)}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:650}
+.btn.primary:hover{background:var(--acc-d);border-color:var(--acc-d);color:#fff}
+[data-theme="dark"] .btn.primary{color:#231313}
+.btn.ghost{background:transparent}
+.btn.big{min-height:46px;padding:0 24px;font-size:14px;border-radius:12px}
+.btn.sm{min-height:32px;padding:0 11px;font-size:11.5px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.mini{font-size:11.5px;color:var(--muted);line-height:1.6}
+.hint{font-size:11px;color:var(--muted);line-height:1.7;margin:14px 0 0;padding-top:12px;
+  border-top:1px dashed var(--line)}
+/* ---------- 计时中 ---------- */
+.timer-wrap{position:relative;width:min(292px,76vw);margin:4px auto 6px;aspect-ratio:1}
+.ring{width:100%;height:100%;transform:rotate(-90deg);overflow:visible}
+.ring-bg,.ring-fg{fill:none;stroke-width:10}
+.ring-bg{stroke:var(--ring)}
+.ring-fg{stroke:url(#focusGrad);stroke-linecap:round;stroke-dasharray:603.19;
+  stroke-dashoffset:0;transition:stroke-dashoffset .25s linear}
+.timer-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:2px;text-align:center}
+.timer{font-size:clamp(46px,11vw,72px);line-height:1.05;font-weight:760;color:var(--ink);
+  font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+.timer-state{font-size:12px;color:var(--muted);letter-spacing:.08em}
+.timer-state.paused{color:var(--warn);font-weight:650}
+.run-task{text-align:center;font-size:18px;font-weight:700;color:var(--ink);line-height:1.5;
+  margin:8px auto 3px;max-width:640px;overflow-wrap:anywhere}
+.run-intent{text-align:center;font-size:12.5px;color:var(--muted);line-height:1.65;
+  max-width:620px;margin:0 auto;overflow-wrap:anywhere}
+.run-meta{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:10px 0 4px;
+  font-size:11px;color:var(--muted)}
+.run-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:16px 0 6px}
+.intr-box{margin:18px auto 0;max-width:600px;padding-top:14px;border-top:1px dashed var(--line);text-align:center}
+.intr-form{display:flex;gap:7px;margin:10px 0 4px}
+.intr-form input{flex:1;min-width:0}
+.intr-list{display:flex;flex-direction:column;gap:5px;margin-top:10px;text-align:left}
+.intr-item{display:flex;gap:8px;align-items:flex-start;font-size:11.5px;color:var(--muted);
+  border:1px solid var(--line);background:var(--soft);border-radius:8px;padding:6px 9px;line-height:1.55}
+.intr-item b{flex:none;font-weight:600;color:var(--warn)}
+/* ---------- 完成 ---------- */
+.done-head{display:flex;align-items:center;gap:13px;margin-bottom:16px}
+.done-ico{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;flex:none;
+  font-size:22px;background:var(--ok-l);border:1px solid var(--ok-line);color:var(--ok)}
+.done-ico.bad{background:var(--warn-l);border-color:var(--acc-line);color:var(--warn)}
+.done-head b{display:block;font-size:16px;color:var(--ink);line-height:1.4}
+.done-head p{margin:2px 0 0;font-size:11.5px;color:var(--muted)}
+.done-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:15px}
+.done-stats div{border:1px solid var(--line);background:var(--soft);border-radius:11px;padding:9px 11px}
+.done-stats span{display:block;font-size:10.5px;color:var(--muted)}
+.done-stats b{display:block;font-size:17px;color:var(--ink);font-weight:720;line-height:1.4}
+.wb{border:1px solid var(--acc-line);background:var(--acc-l);border-radius:12px;padding:11px 12px;
+  margin-bottom:14px;color:var(--acc)}
+.wb label{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:650;cursor:pointer}
+.wb input{width:16px;height:16px;accent-color:var(--acc)}
+.wb p{margin:5px 0 0;font-size:11px;line-height:1.7;color:var(--muted)}
+/* ---------- 休息 / 已保存 ---------- */
+.break-box{text-align:center;padding:16px 0 6px}
+.break-ico{font-size:38px;line-height:1}
+.break-box .timer{font-size:clamp(42px,9vw,60px);margin-top:4px}
+.break-box b{display:block;font-size:17px;color:var(--ink);margin-top:4px}
+.break-box p{margin:5px auto 0;max-width:440px;font-size:12px;color:var(--muted);line-height:1.7}
+.break-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:18px}
+/* ---------- 侧栏 ---------- */
+.side{display:flex;flex-direction:column;gap:12px}
+.side-card{padding:14px}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  font-size:12.5px;font-weight:720;color:var(--ink);margin-bottom:9px}
+.card-h .mini{font-weight:400}
+.big-stat{display:flex;align-items:baseline;gap:5px;line-height:1.15}
+.big-stat b{font-size:34px;color:var(--ink);font-weight:760;font-variant-numeric:tabular-nums}
+.big-stat span{font-size:11.5px;color:var(--muted)}
+.sub-stat{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:3px}
+.week-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:12px;padding-top:11px;
+  border-top:1px dashed var(--line)}
+.week-grid div{text-align:center}
+.week-grid b{display:block;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+.week-grid span{display:block;font-size:10px;color:var(--muted)}
+.bars{display:flex;align-items:flex-end;justify-content:space-between;gap:5px;height:66px;margin-top:12px}
+.bar-day{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+  gap:4px;height:100%;min-width:0}
+.bar-day i{display:block;width:100%;max-width:22px;border-radius:5px 5px 2px 2px;
+  background:linear-gradient(180deg,var(--acc),var(--acc-d));min-height:3px;opacity:.42}
+.bar-day.today i{opacity:1}
+.bar-day.empty i{background:var(--line);opacity:1}
+.bar-day span{font-size:9px;color:var(--muted);white-space:nowrap}
+.bar-day.today span{color:var(--acc);font-weight:650}
+.next-card{border-color:var(--acc-line)}
+.next-card p{margin:0 0 10px;font-size:13px;color:var(--ink);line-height:1.7;overflow-wrap:anywhere}
+.recent-list{display:flex;flex-direction:column;gap:6px}
+.rec{display:flex;align-items:flex-start;gap:8px;border:1px solid var(--line);background:var(--field);
+  border-radius:9px;padding:7px 9px;text-decoration:none;color:inherit;min-width:0}
+.rec:hover{border-color:var(--acc-line)}
+.rec-dot{width:6px;height:6px;border-radius:50%;background:var(--ok);flex:none;margin-top:8px}
+.rec-dot.bad{background:var(--warn)}
+.rec-main{min-width:0;flex:1}
+.rec-main b{display:block;font-size:11.5px;font-weight:650;color:var(--ink);line-height:1.5;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rec-main span{display:block;font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;margin-top:1px}
+.rec-min{flex:none;font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:2px}
+.empty-mini{font-size:11px;color:var(--muted);line-height:1.7;padding:6px 2px}
+.guide-card p{margin:0 0 9px;font-size:11.5px;color:var(--muted);line-height:1.75}
+.guide-card .links{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:11.5px}
+.toast{position:fixed;left:50%;bottom:20px;z-index:60;max-width:calc(100% - 32px);
+  padding:8px 14px;border-radius:999px;background:#23262f;color:#fff;font-size:12px;
+  opacity:0;pointer-events:none;transform:translate(-50%,8px);transition:opacity .18s,transform .18s;
+  box-shadow:0 10px 26px -12px rgba(0,0,0,.7);text-align:center}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.toast.err{background:#b8404a}
+@media(max-width:900px){
+  /* minmax(0,…)：否则 1fr 的自动最小宽度会被最长的一行撑破，窄屏横向溢出 */
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .stage{min-height:0;min-width:0}
+  .side{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;min-width:0}
+  .guide-card{grid-column:1 / -1}
+}
+@media(max-width:640px){
+  .topbar-in{padding:9px 12px}
+  .wrap{padding:14px 12px calc(38px + env(safe-area-inset-bottom))}
+  h1{font-size:21px}
+  .hero p{font-size:12px}
+  .back span{display:none}
+  .tb-mount{display:none}
+  .stage{padding:14px 13px 16px}
+  .setup-grid{grid-template-columns:1fr}
+  .pick-row{align-items:flex-start;flex-direction:column;gap:10px}
+  .src-chip{max-width:100%}
+  .side{grid-template-columns:minmax(0,1fr)}
+  .done-stats{grid-template-columns:1fr 1fr 1fr;gap:6px}
+  .done-stats b{font-size:15px}
+  .run-task{font-size:16px}
+  .btn.big{width:100%}
+  .start-row{gap:9px}
+}
+@media(prefers-reduced-motion:reduce){
+  .toast,.ring-fg{transition:none}
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="mark" aria-hidden="true">🍅</div>
+    <div class="brand-text">
+      <div class="ttl">专注台</div>
+      <div class="sub">把拆出来的动作，真的坐完</div>
+    </div>
+    <div class="top-actions">
+      <span class="tb-mount"></span>
+      <a class="back" href="/">← <span>返回工具箱</span></a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <h1>先坐完这一段，别的事等响铃。</h1>
+      <p>从目标拆解器挑一条今天该做的动作，或者直接写一件要干的事。计时按时间戳走，
+        切标签页、刷新都不会少算；结束后实际分钟会写回那条动作，下一次计划就不再只靠估。</p>
+    </div>
+    <span class="hero-badge">专注 · 执行层</span>
+  </section>
+
+  <div class="layout">
+    <section class="card stage">
+      <div class="stage-head">
+        <div>
+          <div class="eyebrow" id="phaseLabel">准备开始</div>
+          <div class="stage-sub" id="phaseSub">选一段时间，坐下就是赢一半。</div>
+        </div>
+        <span class="src-chip" id="srcChip" hidden>
+          <span id="srcChipText"></span>
+          <button type="button" id="clearSourceBtn" title="取消关联目标">×</button>
+        </span>
+      </div>
+
+      <!-- 准备 -->
+      <div id="setupView" class="view">
+        <div class="setup-grid">
+          <label class="field">
+            <span class="lbl">这段时间做什么 <em>必填</em></span>
+            <input id="taskIn" type="text" maxlength="120" placeholder="例：录一段 3 分钟自我介绍">
+          </label>
+          <label class="field">
+            <span class="lbl">做完想拿到什么 <em>可选</em></span>
+            <input id="intentIn" type="text" maxlength="200" placeholder="例：一个能发出去的 mp3">
+          </label>
+        </div>
+
+        <div class="pick-row">
+          <div>
+            <div class="lbl" style="margin-bottom:6px">专注多久</div>
+            <div class="chips" id="minChips"></div>
+          </div>
+          <div class="custom-min">
+            <label class="lbl" for="customMin">自定义</label>
+            <div class="num-wrap">
+              <input id="customMin" type="number" min="5" max="180" step="5" value="25">
+              <span>分钟</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pick-row">
+          <div>
+            <div class="lbl" style="margin-bottom:6px">结束后休息</div>
+            <div class="chips" id="breakChips"></div>
+          </div>
+          <label class="notify-toggle">
+            <input id="notifyToggle" type="checkbox">
+            <span>响铃时也弹系统通知</span>
+          </label>
+        </div>
+
+        <div class="source-block">
+          <div class="source-head">
+            <span class="lbl">从今天的目标里挑一条</span>
+            <button type="button" class="lnk" id="srcRefresh">刷新</button>
+          </div>
+          <div id="sourceList" class="source-list">
+            <div class="source-empty">正在读取目标拆解器…</div>
+          </div>
+        </div>
+
+        <div class="start-row">
+          <button class="btn primary big" id="startBtn" type="button">开始专注</button>
+          <span class="mini" id="setupMsg"></span>
+        </div>
+        <p class="hint">计时按时间戳算，切到别的标签页、刷新页面都不会少走。中途离开也没关系，回来会接着走；
+          只有保存之后才会写进记录和目标。</p>
+      </div>
+
+      <!-- 计时中 / 暂停 -->
+      <div id="runView" class="view" hidden>
+        <div class="timer-wrap">
+          <svg class="ring" viewBox="0 0 220 220" aria-hidden="true">
+            <defs>
+              <linearGradient id="focusGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#f0705f"></stop>
+                <stop offset="1" stop-color="#d8423c"></stop>
+              </linearGradient>
+            </defs>
+            <circle class="ring-bg" cx="110" cy="110" r="96"></circle>
+            <circle class="ring-fg" id="ringFg" cx="110" cy="110" r="96"></circle>
+          </svg>
+          <div class="timer-center">
+            <div class="timer" id="timerText">25:00</div>
+            <div class="timer-state" id="timerState">专注中</div>
+          </div>
+        </div>
+        <div class="run-task" id="runTask"></div>
+        <div class="run-intent" id="runIntent"></div>
+        <div class="run-meta">
+          <span id="runMeta"></span>
+          <span id="intrCount"></span>
+        </div>
+        <div class="run-actions">
+          <button class="btn primary" id="pauseBtn" type="button">暂停</button>
+          <button class="btn" id="finishBtn" type="button">提前完成</button>
+          <button class="btn ghost" id="abandonBtn" type="button">放弃这段</button>
+        </div>
+        <div class="intr-box">
+          <button class="lnk" id="intrBtn" type="button">＋ 记一个打断</button>
+          <div id="intrForm" class="intr-form" hidden>
+            <input id="intrIn" type="text" maxlength="80" placeholder="刚刚是什么打断了你？">
+            <button class="btn sm" id="intrSave" type="button">记下</button>
+          </div>
+          <div id="intrList" class="intr-list"></div>
+          <p class="mini" style="margin:8px 0 0">记下来就行，不用立刻处理。响铃后再回头看它们值不值得打断。</p>
+        </div>
+      </div>
+
+      <!-- 完成 / 中断 -->
+      <div id="doneView" class="view" hidden>
+        <div class="done-head">
+          <div class="done-ico" id="doneIco">✓</div>
+          <div>
+            <b id="doneTitle">这一段结束了</b>
+            <p id="doneSub"></p>
+          </div>
+        </div>
+        <div class="done-stats">
+          <div><span>实际专注</span><b id="doneActual">25 分钟</b></div>
+          <div><span>计划</span><b id="donePlanned">25 分钟</b></div>
+          <div><span>打断</span><b id="doneIntr">0 次</b></div>
+        </div>
+        <div class="wb" id="writebackBox" hidden>
+          <label><input type="checkbox" id="markDone"> 把这条动作标成做完</label>
+          <p id="wbText"></p>
+        </div>
+        <label class="field">
+          <span class="lbl">刚才实际发生了什么 <em>可选</em></span>
+          <textarea id="noteIn" maxlength="600" rows="3" placeholder="例：前 10 分钟在找素材，后面才进入状态"></textarea>
+        </label>
+        <label class="field">
+          <span class="lbl">下一段第一件事 <em>可选</em></span>
+          <input id="nextIn" type="text" maxlength="200" placeholder="例：把录音剪到 3 分钟以内">
+        </label>
+        <div class="start-row">
+          <button class="btn primary big" id="saveSessionBtn" type="button">保存这段</button>
+          <button class="btn ghost" id="discardBtn" type="button">丢掉这段</button>
+          <span class="mini" id="saveMsg"></span>
+        </div>
+      </div>
+
+      <!-- 已保存 / 休息 -->
+      <div id="breakView" class="view" hidden>
+        <div class="break-box">
+          <div class="break-ico" id="breakIco">☕</div>
+          <div class="timer" id="breakTimer">05:00</div>
+          <b id="breakTitle">这一段已经保存</b>
+          <p id="breakSub">离开屏幕，站起来走两步。休息不算浪费，是下一段的本钱。</p>
+          <div class="break-actions">
+            <button class="btn primary" id="breakStartBtn" type="button">开始休息</button>
+            <button class="btn" id="breakSkipBtn" type="button">再来一段</button>
+            <a class="btn" id="afterGoalLink" href="/goal-split" hidden>回目标看进度</a>
+          </div>
+          <p class="mini" id="savedHint" style="margin-top:14px"></p>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="card side-card">
+        <div class="card-h">今天 <span class="mini" id="todayLabel"></span></div>
+        <div class="big-stat"><b id="todayMin">0</b><span>分钟专注</span></div>
+        <div class="sub-stat">
+          <span id="todayCount">0 段完成</span>
+          <span id="todayAbandon">0 段中断</span>
+        </div>
+        <div class="week-grid">
+          <div><b id="weekMin">0</b><span>近 7 天分钟</span></div>
+          <div><b id="weekCount">0</b><span>近 7 天完成</span></div>
+          <div><b id="streak">0</b><span>连续天数</span></div>
+        </div>
+        <div class="bars" id="weekBars"></div>
+      </section>
+
+      <section class="card side-card next-card" id="nextCard" hidden>
+        <div class="card-h">上一段留下的下一步</div>
+        <p id="nextStepText"></p>
+        <button class="btn sm" id="nextUseBtn" type="button">就拿它开始</button>
+      </section>
+
+      <section class="card side-card">
+        <div class="card-h">最近的专注 <span class="mini" id="recentCount"></span></div>
+        <div id="recentList" class="recent-list">
+          <div class="empty-mini">还没有记录。第一段保存之后，这里会长出东西。</div>
+        </div>
+      </section>
+
+      <section class="card side-card guide-card">
+        <div class="card-h">它和别的工具怎么接</div>
+        <p>在「目标拆解器」的监督页，今天该做的动作旁边有「专注」。点过来，任务、产出和预估分钟会带进来；
+          保存后实际分钟写回那条动作，下一次体检会拿真实投入算时间账。</p>
+        <div class="links">
+          <a href="/goal-split">目标拆解器</a>
+          <a href="/reading-practice">读书落地</a>
+          <a href="/overview">记录总览</a>
+        </div>
+      </section>
+    </aside>
+  </div>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="/static/usage.js" defer></script>
+<script src="/static/focus.js" defer></script>
+</body>
+</html>

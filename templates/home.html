@@ -111,6 +111,8 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .t-sleep .go{background:linear-gradient(135deg,#8cc9e8,#a9b6f4);box-shadow:0 8px 20px rgba(140,201,232,.3)}
 .tool.t-game:hover{border-color:rgba(255,82,107,.62);box-shadow:0 24px 52px rgba(255,82,107,.24)}
 .t-game .go{background:linear-gradient(135deg,#ff526b,#ff9b54);box-shadow:0 8px 20px rgba(255,82,107,.34)}
+.tool.t-fc:hover{border-color:rgba(226,86,74,.62);box-shadow:0 24px 52px rgba(216,66,60,.26)}
+.t-fc .go{background:linear-gradient(135deg,#f0705f,#d8423c);box-shadow:0 8px 20px rgba(216,66,60,.32)}
 .search-col{display:flex;flex-direction:column;align-items:stretch;gap:7px;flex:1;max-width:610px;min-width:260px;margin-left:auto}
 .search-box{position:relative;width:100%}
 .search-box .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none;font-size:15px}
@@ -662,7 +664,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
       <div class="t-icon">🧩</div>
       <div class="t-info">
         <h3>5Why 分析 + 苏格拉底提问 + 第一性原理</h3>
-        <p class="desc">三个只问不答的工具合在一页，顶上切 tab：一个追根因，一个理思路，一个拆假设 —— 把「只能这么做」拆成一条条零件，分出哪条是真事实、哪条只是惯例或你自己的假设，再拿剩下的硬约束从零算一遍。一条都没被推翻时，它会直接说「没有可拆解的空间」。</p>
+        <p class="desc">追根因、理思路、拆假设。三个只问不答的工具，一页切换。</p>
         <span class="go">立即打开</span>
       </div>
     </a>
@@ -727,6 +729,14 @@ body.is-dragging .tool:not(.dragging){transition:none}
       <div class="t-info">
         <h3>目标拆解器</h3>
         <p class="desc">先逼你把目标说成能验收的一句话，再倒推里程碑、拆到本周，最后按日期盯着你勾完。</p>
+        <span class="go">立即打开</span>
+      </div>
+    </a>
+    <a class="tool t-fc" data-cat="think" href="/focus">
+      <div class="t-icon">🍅</div>
+      <div class="t-info">
+        <h3>专注台</h3>
+        <p class="desc">从目标拆解器挑一条今天该做的，坐下计时。完成、中断、打断都记下来，实际分钟写回那条动作。</p>
         <span class="go">立即打开</span>
       </div>
     </a>
@@ -1668,5 +1678,6 @@ if(document.readyState === 'loading'){
   }
 })();
 </script>
+<script src="/static/focus-widget.js" defer></script>
 </body>
 </html>

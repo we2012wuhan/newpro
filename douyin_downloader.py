@@ -224,6 +224,7 @@ document.getElementById('url').addEventListener('keydown', function (e) {
   if (e.key === 'Enter') start();
 });
 </script>
+<script src="/static/focus-widget.js" defer></script>
 </body>
 </html>
 """

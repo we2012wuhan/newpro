@@ -42,6 +42,7 @@ TOOL_META = {
     'ai-chart': {'name': 'AI 生成图表', 'ico': '📊', 'href': '/ai-chart', 'deep': True},
     'script-library': {'name': '脚本库', 'ico': '📜', 'href': '/script-library', 'deep': True},
     'goal-split': {'name': '目标拆解器', 'ico': '🎯', 'href': '/goal-split', 'deep': True},
+    'focus': {'name': '专注台', 'ico': '🍅', 'href': '/focus', 'deep': False},
     'site-collect': {'name': '网站收集', 'ico': '🔖', 'href': '/site-collect', 'deep': True},
     'langchain-test': {'name': 'LangChain 测试', 'ico': '🧪', 'href': '/langchain-test', 'deep': True},
     'first_principles': {'name': '第一性原理', 'ico': '🧩', 'href': '/ask-hub?tab=fp', 'deep': True},
@@ -96,6 +97,8 @@ def _excerpt(tool: str, payload: dict) -> str:
         return _text(payload.get('desc')) or _text(payload.get('cmd'))
     if tool == 'goal-split':
         return _text(payload.get('statement')) or _text(payload.get('raw'))
+    if tool == 'focus':
+        return _text(payload.get('task')) or _text(payload.get('intent'))
     if tool == 'site-collect':
         return _text(payload.get('why')) or _text(payload.get('url'))
     if tool == 'first_principles':
@@ -197,6 +200,11 @@ def _status(tool: str, payload: dict) -> dict:
         if payload.get('error'):
             label += ' · 有失败'
         return {'tracked': False, 'open': False, 'label': label}
+    if tool == 'focus':
+        minutes = payload.get('actual_min') if payload.get('actual_min') not in (None, '') else 0
+        if payload.get('status') == 'abandoned':
+            return {'tracked': False, 'open': False, 'label': '中断 · %s 分钟' % minutes}
+        return {'tracked': False, 'open': False, 'label': '完成 · %s 分钟' % minutes}
     return {'tracked': False, 'open': False, 'label': ''}
 
 
@@ -342,6 +350,21 @@ def _detail(tool: str, payload: dict) -> list:
         add('附件', _count(payload.get('attachments')), 8)
         add('继续追问', _count(payload.get('followups')), 8)
         add('回答', payload.get('answer'))
+    elif tool == 'focus':
+        add('任务', payload.get('task'))
+        add('要拿到的产出', payload.get('intent'))
+        add('状态', '中断' if payload.get('status') == 'abandoned' else '完成', 8)
+        add('计划 / 实际', '%s / %s 分钟' % (
+            payload.get('planned_min') or 0, payload.get('actual_min') or 0), 20)
+        add('来源目标', payload.get('source_title'), 80)
+        interruptions = payload.get('interruptions') if isinstance(payload.get('interruptions'), list) else []
+        if interruptions:
+            add('打断', '%s 次：%s' % (len(interruptions), ' / '.join(
+                _text(x.get('text'), 30) for x in interruptions[:4] if isinstance(x, dict))), 160)
+        add('实际发生了什么', payload.get('note'))
+        add('下一段第一件事', payload.get('next_step'))
+        add('开始', payload.get('started_at'), 20)
+        add('结束', payload.get('ended_at'), 20)
     elif tool == 'image-gen':
         add('提示词', payload.get('prompt'))
         add('不想出现', payload.get('negativePrompt'), 120)

@@ -329,6 +329,17 @@ from goal_split import router as goal_split_router  # noqa: E402
 app.include_router(goal_split_router)
 
 
+# 专注台 / 番茄钟：页面在 /focus
+# 它不是单纯数 25 分钟，而是补上「想清楚 → 拆到动作 → 真坐下来做完」的最后一段：
+#   ① 目标拆解器里今天该做的动作旁边有「专注」，深链把任务、产出、预估分钟带进来；
+#   ② 计时按时间戳算，切标签页、刷新、暂停都不会少走，完成/中断/打断都有显式状态；
+#   ③ 保存后把实际分钟写回目标动作的 actual，可选标成完成，并留一条记录。
+# 完成的专注存 SQLite（tool='focus'），进行中的只存浏览器 localStorage。
+# 浏览器访问 http://127.0.0.1:8000/focus 即可使用。
+from focus import router as focus_router  # noqa: E402
+app.include_router(focus_router)
+
+
 # 网站收集：页面在 /site-collect
 # 平时刷到有用的网址，随手记下来的地方。它要解决的不是「存不下」，
 # 而是「存了却不知道当初为什么要存」—— 所以每条都必填「收集理由」，空着不让存。

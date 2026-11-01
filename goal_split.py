@@ -750,6 +750,26 @@ def _merge(data: dict, patch: dict) -> dict:
     return merged
 
 
+def _merge_focus_state(plan: dict, old: dict) -> None:
+    """保住「专注台」写回来的实际投入和记录。
+
+    前端保存的是整份 plan，如果它手里那份是打开页面时读的旧数据，
+    直接覆盖会把专注台刚加上的 actual 和日志冲掉。actual 只增不减，
+    日志按 id 合并且保留服务端已有条目；用户主动取消勾选 done 仍然生效。
+    """
+    prev = {a.get('id'): a for a in old.get('actions') or [] if isinstance(a, dict)}
+    for a in plan.get('actions') or []:
+        p = prev.get(a.get('id'))
+        if p and (p.get('actual') or 0) > (a.get('actual') or 0):
+            a['actual'] = p.get('actual')
+    logs = list(plan.get('log') or [])
+    seen = {g.get('id') for g in logs if isinstance(g, dict)}
+    for g in old.get('log') or []:
+        if isinstance(g, dict) and g.get('id') not in seen:
+            logs.append(g)
+    plan['log'] = logs[-LOG_MAX:]
+
+
 def _row_goal(row: dict) -> dict:
     '''库里的一行 -> 前端要的扁平结构。'''
     return _goal_out(row)
@@ -883,7 +903,9 @@ async def goals_update(rid: int, request: Request) -> JSONResponse:
         if not row or row.get('tool') != TOOL:
             return JSONResponse({'ok': False, 'message': '找不到这条目标。'}, status_code=404)
         data = row['payload'] if isinstance(row['payload'], dict) else {}
+        old = _norm_plan(data)
         plan = _norm_plan(_merge(data, patch))
+        _merge_focus_state(plan, old)
         plan['created_at'] = data.get('created_at') or plan['created_at']
         affected = storage.update_record(user, rid, payload=plan, title=_title_of(plan))
         if not affected:
@@ -891,6 +913,53 @@ async def goals_update(rid: int, request: Request) -> JSONResponse:
     except storage.StorageUnavailable as exc:
         return JSONResponse({'ok': False, 'message': str(exc)}, status_code=500)
     return JSONResponse({'ok': True, 'item': _flat_goal(rid, _title_of(plan), row.get('created_at', ''), plan)})
+
+
+def apply_focus(user: str, rid: int, aid: str, minutes: int, mark_done: bool = False,
+                note: str = '') -> dict:
+    """专注台把一段专注写回一条目标动作。
+
+    - actual 累加，不覆盖；上限一天；
+    - mark_done 只在用户明确勾选时置完成，不自动改；
+    - 顺手留一条记录，目标页能看到「这段专注是哪来的」。
+    返回给 /focus/api/sessions，写失败也不影响专注记录本身已经落库。
+    """
+    aid = _clean(aid, 24)
+    minutes = _int(minutes, 0, DAY_MIN, 0)
+    try:
+        row = storage.get_record(user, rid)
+        if not row or row.get('tool') != TOOL:
+            return {'ok': False, 'message': '这条目标已经不在了。'}
+        data = row['payload'] if isinstance(row['payload'], dict) else {}
+        plan = _norm_plan(data)
+        target = next((a for a in plan['actions'] if a.get('id') == aid), None)
+        if not target:
+            return {'ok': False, 'message': '这条动作已经不在了。'}
+
+        if minutes:
+            target['actual'] = min(DAY_MIN, (target.get('actual') or 0) + minutes)
+        if mark_done:
+            target['done'] = True
+            target['done_at'] = target.get('done_at') or _today()
+
+        text = '专注 %d 分钟：%s' % (minutes, target.get('text') or '')
+        note = _clean(note, 120)
+        if note:
+            text += '（%s）' % note
+        logs = (plan.get('log') or [])[-(LOG_MAX - 1):]
+        logs.append({'kind': 'note', 'text': text, 'at': _today()})
+        plan['log'] = logs
+        plan = _norm_plan(plan)
+        plan['created_at'] = data.get('created_at') or plan['created_at']
+        affected = storage.update_record(user, rid, payload=plan, title=_title_of(plan))
+        if not affected:
+            return {'ok': False, 'message': '这条目标不属于当前账号。'}
+    except storage.StorageUnavailable as exc:
+        return {'ok': False, 'message': str(exc)}
+
+    now = next((a for a in plan['actions'] if a.get('id') == aid), {})
+    return {'ok': True, 'added_min': minutes, 'actual': now.get('actual') or 0,
+            'done': bool(now.get('done'))}
 
 
 @router.delete('/goal-split/api/goals/{rid}')
