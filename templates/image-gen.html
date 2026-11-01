@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#7c3aed">
+<title>AI 文生图</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<script src="/static/auth-guard.js"></script>
+<style>
+:root{
+  --acc:#7c3aed; --acc-d:#6d28d9; --acc-l:#f3edff; --acc-line:#d8c8fb;
+  --ink:#1e2338; --text:#4b5568; --muted:#7b869c;
+  --bg:#f5f4fb; --card:#fff; --line:#e2e0ee; --soft:#f1effa; --field:#fbfaff;
+  --ok:#237a57; --ok-l:#eaf7f0; --ok-line:#c7e9d8;
+  --err:#b8404a; --err-l:#fcedef; --err-line:#edced2;
+  --sh:0 20px 50px -34px rgba(35,30,70,.34);
+  --top:rgba(245,244,251,.92);
+}
+[data-theme="dark"]{
+  --acc:#c4b5fd; --acc-d:#ddd6fe; --acc-l:#221b3d; --acc-line:#4c3a7a;
+  --ink:#eff3fa; --text:#c8d0df; --muted:#8b97ad;
+  --bg:#0f1422; --card:#171d2c; --line:#2a3345; --soft:#1e2638; --field:#111725;
+  --ok:#7ed7aa; --ok-l:#12271d; --ok-line:#28513a;
+  --err:#ffa1a8; --err-l:#2b171a; --err-line:#572b31;
+  --sh:0 22px 56px -30px rgba(0,0,0,.86);
+  --top:rgba(15,20,34,.93);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg)}
+body{color:var(--text);font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit}
+[hidden]{display:none!important}
+.topbar{position:sticky;top:0;z-index:30;background:var(--top);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line)}
+.topbar-in{max-width:1280px;margin:0 auto;padding:11px 18px;display:flex;align-items:center;gap:12px}
+.mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none;
+  color:#fff;font-weight:800;font-size:15px;background:linear-gradient(135deg,#7c3aed,#db2777);
+  box-shadow:0 9px 24px -12px rgba(124,58,237,.9)}
+.brand-text{min-width:0}
+.ttl{font-size:16px;font-weight:720;color:var(--ink);line-height:1.35}
+.sub{font-size:11.5px;color:var(--muted)}
+.top-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.tb-mount{display:inline-flex;align-items:center}
+.back{min-height:38px;display:inline-flex;align-items:center;color:var(--muted);text-decoration:none;
+  border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 14px;
+  font-size:12.5px;white-space:nowrap}
+.back:hover{color:var(--ink);border-color:var(--acc-line)}
+.wrap{max-width:1280px;margin:0 auto;padding:20px 18px calc(46px + env(safe-area-inset-bottom))}
+.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:14px}
+h1{margin:0;font-size:25px;line-height:1.35;color:var(--ink)}
+.hero p{margin:6px 0 0;color:var(--muted);font-size:12.5px;line-height:1.7;max-width:760px}
+.hero-badge{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;
+  border:1px solid var(--acc-line);background:var(--acc-l);color:var(--acc);font-size:11.5px}
+.hero-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
+.studio{display:grid;grid-template-columns:minmax(0,370px) minmax(0,1fr);gap:14px;align-items:start}
+.panel,.viewer,.history-card{background:var(--card);border:1px solid var(--line);border-radius:18px;
+  box-shadow:var(--sh)}
+.panel{padding:15px;position:sticky;top:72px;max-height:calc(100vh - 90px);overflow:auto}
+.panel-head,.viewer-head,.section-head{display:flex;align-items:center;justify-content:space-between;
+  gap:10px;flex-wrap:wrap}
+.panel-head b,.viewer-head b,.section-head b{font-size:13px;font-weight:720;color:var(--ink)}
+.panel-head span,.viewer-head span,.section-head span{font-size:11px;color:var(--muted)}
+.banner{padding:10px 12px;border:1px solid var(--err-line);background:var(--err-l);color:var(--err);
+  border-radius:10px;font-size:12px;line-height:1.6;margin-bottom:12px}
+.banner.info{border-color:var(--acc-line);background:var(--acc-l);color:var(--acc)}
+textarea,input[type=text],select{width:100%;border:1px solid var(--line);border-radius:11px;
+  background:var(--field);color:var(--ink);outline:none}
+textarea{padding:10px 11px;resize:vertical;min-height:132px;line-height:1.65}
+input[type=text]{min-height:38px;padding:6px 10px}
+textarea:focus,input[type=text]:focus,select:focus{border-color:var(--acc-line);
+  box-shadow:0 0 0 3px rgba(124,58,237,.12)}
+.field-label{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin:13px 0 6px;font-size:12px;font-weight:650;color:var(--text)}
+.field-label small{font-weight:400;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{min-height:32px;padding:0 11px;border-radius:999px;border:1px solid var(--line);
+  background:var(--field);color:var(--text);font-size:12px;cursor:pointer}
+.chip:hover{border-color:var(--acc-line);color:var(--acc)}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+.field-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px}
+.field-grid label{display:block;font-size:11.5px;color:var(--muted)}
+.field-grid select{min-height:36px;margin-top:4px;padding:4px 7px;font-size:12.5px}
+.actions{margin-top:14px}
+.btn{min-height:36px;padding:0 14px;border-radius:10px;border:1px solid var(--line);
+  background:var(--card);color:var(--text);font-size:12.5px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--acc-line);color:var(--acc)}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:650}
+.btn.primary:hover{background:var(--acc-d);border-color:var(--acc-d);color:#fff}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn.wide{width:100%;min-height:42px;font-size:13.5px}
+.btn.mini{min-height:28px;padding:0 9px;font-size:11.5px}
+.cost{margin:9px 0 0;font-size:11.5px;color:var(--muted);line-height:1.6}
+.privacy{margin:12px 0 0;padding-top:11px;border-top:1px dashed var(--line);
+  font-size:11px;color:var(--muted);line-height:1.65}
+.viewer{overflow:hidden;min-height:420px}
+.viewer-head{padding:11px 14px;border-bottom:1px solid var(--line)}
+.viewer-head .view-actions{display:flex;gap:6px;align-items:center}
+.viewer-body{padding:14px;min-height:340px}
+.empty{padding:44px 18px;display:flex;flex-direction:column;align-items:center;gap:7px;
+  text-align:center;color:var(--muted);font-size:12.5px}
+.empty b{font-size:15px;color:var(--ink)}
+.empty .ico{font-size:36px;line-height:1}
+.result-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.shot{margin:0;border:1px solid var(--line);border-radius:13px;overflow:hidden;background:var(--soft)}
+.shot img{display:block;width:100%;height:auto;background:var(--soft)}
+.shot-bar{display:flex;align-items:center;justify-content:space-between;gap:6px;
+  padding:7px 9px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+.shot-bar .links{display:flex;gap:5px}
+.shot-bar a,.shot-bar button{border:1px solid var(--line);background:var(--card);color:var(--text);
+  border-radius:8px;padding:4px 8px;font-size:11px;text-decoration:none;cursor:pointer}
+.shot-bar a:hover,.shot-bar button:hover{border-color:var(--acc-line);color:var(--acc)}
+.progress{display:flex;align-items:center;gap:9px;padding:9px 14px;border-top:1px solid var(--line);
+  background:var(--soft);font-size:11.5px;color:var(--muted)}
+.bar{height:6px;border-radius:99px;background:var(--line);overflow:hidden;flex:1}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7c3aed,#db2777);
+  transition:width .25s ease}
+.job-error{margin:0 14px 14px;padding:9px 11px;border:1px solid var(--err-line);
+  background:var(--err-l);color:var(--err);border-radius:9px;font-size:11.5px;line-height:1.6}
+.job-meta{padding:0 14px 12px;font-size:11px;color:var(--muted);line-height:1.6}
+.job-meta b{color:var(--text);font-weight:600}
+.history-card{margin-top:14px;padding:14px}
+.history-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:9px;margin-top:10px}
+.history-empty{padding:18px;text-align:center;font-size:11.5px;color:var(--muted);
+  border:1px dashed var(--line);border-radius:10px}
+.history-item{display:flex;gap:9px;align-items:center;border:1px solid var(--line);
+  background:var(--field);border-radius:11px;padding:7px;min-width:0}
+.history-thumb{width:64px;height:64px;border-radius:8px;object-fit:cover;flex:none;background:var(--soft)}
+.history-thumb.ph{display:grid;place-items:center;color:var(--muted);font-size:17px}
+.history-main{flex:1;min-width:0;cursor:pointer;text-align:left;border:0;background:transparent;
+  padding:2px;color:inherit}
+.history-main b{display:block;font-size:12px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;font-weight:650}
+.history-main span{display:block;font-size:10.5px;color:var(--muted);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+.history-del{flex:none;width:28px;height:28px;border:1px solid var(--line);border-radius:8px;
+  background:var(--card);color:var(--muted);cursor:pointer;line-height:1}
+.history-del:hover{color:var(--err);border-color:var(--err-line);background:var(--err-l)}
+.status{position:fixed;left:50%;bottom:20px;z-index:60;max-width:calc(100% - 32px);
+  padding:8px 14px;border-radius:999px;background:#1f2a44;color:#fff;font-size:12px;
+  opacity:0;pointer-events:none;transform:translate(-50%,8px);transition:opacity .18s,transform .18s;
+  box-shadow:0 10px 26px -12px rgba(15,23,42,.7)}
+.status.show{opacity:1;transform:translate(-50%,0)}
+.status.err{background:#b8404a}
+.status.info{background:#1f2a44}
+.spin{width:13px;height:13px;border:2px solid var(--line);border-top-color:var(--acc);
+  border-radius:50%;display:inline-block;animation:spin .8s linear infinite;flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:900px){
+  .studio{grid-template-columns:1fr}
+  .panel{position:static;max-height:none}
+  .viewer{min-height:360px}
+}
+@media(max-width:600px){
+  .topbar-in{padding:9px 12px}
+  .wrap{padding:14px 12px calc(38px + env(safe-area-inset-bottom))}
+  h1{font-size:21px}
+  .hero p{font-size:12px}
+  .back span{display:none}
+  .tb-mount{display:none}
+  .field-grid{grid-template-columns:1fr 1fr}
+  .history-list{grid-template-columns:1fr}
+  .job-error{margin:0 10px 10px}
+}
+@media(prefers-reduced-motion:reduce){
+  .status,.bar i{transition:none}
+  .spin{animation:none}
+}
+</style>
+<script src="/static/quick-ai.js" defer></script>
+<script src="/static/usage.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="mark" aria-hidden="true">绘</div>
+    <div class="brand-text">
+      <div class="ttl">AI 文生图</div>
+      <div class="sub">火山方舟 · 豆包 Seedream</div>
+    </div>
+    <div class="top-actions">
+      <span class="tb-mount"></span>
+      <a class="back" href="/">← <span>返回工具箱</span></a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <h1>写一句画面，剩下的交给 Seedream。</h1>
+      <p>生成结果可以下载，也可以送到图片工坊继续压缩、裁剪、切图或拼图。
+        提示词会发送到火山方舟，和图片工坊的「本地处理」不是一回事。</p>
+    </div>
+    <span class="hero-badge">云端生成 · 提示词会上传</span>
+  </section>
+
+  <div class="studio">
+    <aside class="panel">
+      <div id="keyBanner" class="banner" hidden></div>
+
+      <div class="panel-head">
+        <b>画面描述</b>
+        <span id="promptCount">0 / 2000</span>
+      </div>
+      <textarea id="prompt" maxlength="2000" rows="6"
+        placeholder="例如：清晨的江南小镇，石桥下有小船，薄雾，水彩画风格，画面干净"></textarea>
+
+      <div class="field-label">风格 <small>只是追加描述，不会改你的原话</small></div>
+      <div class="chips" id="styleChips">
+        <button class="chip on" type="button" data-style="none">不指定</button>
+        <button class="chip" type="button" data-style="photo">摄影</button>
+        <button class="chip" type="button" data-style="illustration">插画</button>
+        <button class="chip" type="button" data-style="3d">3D 渲染</button>
+        <button class="chip" type="button" data-style="watercolor">水彩</button>
+        <button class="chip" type="button" data-style="minimal">极简</button>
+        <button class="chip" type="button" data-style="poster">海报</button>
+      </div>
+
+      <div class="field-grid">
+        <label>比例
+          <select id="ratio">
+            <option value="1:1" selected>1:1 方形</option>
+            <option value="4:3">4:3 横图</option>
+            <option value="3:4">3:4 竖图</option>
+            <option value="16:9">16:9 宽屏</option>
+            <option value="9:16">9:16 竖屏</option>
+          </select>
+        </label>
+        <label>清晰度
+          <select id="resolution">
+            <option value="2K" selected>2K 高清</option>
+            <option value="1K">1K 草稿</option>
+          </select>
+        </label>
+        <label>数量
+          <select id="count">
+            <option value="1" selected>1 张</option>
+            <option value="2">2 张</option>
+            <option value="3">3 张</option>
+            <option value="4">4 张</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="field-label">不想出现 <small>可选</small></div>
+      <input type="text" id="negative" maxlength="300" placeholder="例如：文字、水印、人物变形">
+
+      <div class="actions">
+        <button class="btn primary wide" id="generate" type="button">生成图片</button>
+      </div>
+      <p class="cost" id="quota">正在读取额度…</p>
+      <p class="privacy">提示词和参数会发送到火山方舟。生成图保存在服务器，默认保留 7 天；
+        需要长期保存请及时下载。生成内容仍受服务商审核规则约束。</p>
+    </aside>
+
+    <section class="viewer">
+      <div class="viewer-head">
+        <div><b>生成结果</b> <span id="jobMeta">还没有任务</span></div>
+        <div class="view-actions">
+          <a class="btn mini" href="/image-studio">图片工坊</a>
+          <button class="btn mini" id="refreshBtn" type="button">刷新</button>
+        </div>
+      </div>
+      <div class="viewer-body" id="resultBody">
+        <div class="empty" id="resultEmpty">
+          <span class="ico" aria-hidden="true">🎨</span>
+          <b>从左边写一句描述开始</b>
+          <span>生成一张大约需要十几秒，四张会依次排队。</span>
+        </div>
+      </div>
+      <div class="progress" id="progress" hidden>
+        <span class="spin" aria-hidden="true"></span>
+        <span class="bar"><i id="progressBar"></i></span>
+        <span id="progressText">排队中…</span>
+      </div>
+      <div class="job-error" id="jobError" hidden></div>
+    </section>
+  </div>
+
+  <section class="history-card">
+    <div class="section-head">
+      <b>最近生成</b>
+      <span id="historyCount"></span>
+    </div>
+    <div class="history-list" id="historyList">
+      <div class="history-empty">还没有生成记录</div>
+    </div>
+  </section>
+</main>
+
+<div class="status" id="status" role="status" aria-live="polite"></div>
+<script type="module" src="/static/image-gen.js"></script>
+</body>
+</html>

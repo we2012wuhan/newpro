@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#4f46e5">
+<title>图片工坊</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<script src="/static/auth-guard.js"></script>
+<style>
+:root{
+  --acc:#4f46e5; --acc-d:#4338ca; --acc-l:#eef0ff; --acc-line:#c9cffc;
+  --ink:#182337; --text:#46536b; --muted:#7d899e;
+  --bg:#f4f6fb; --card:#fff; --line:#dfe4ee; --soft:#eef2f8; --field:#fbfcff;
+  --ok:#237a57; --ok-l:#eaf7f0; --ok-line:#c7e9d8;
+  --err:#b8404a; --err-l:#fcedef; --err-line:#edced2;
+  --sh:0 20px 50px -34px rgba(22,30,54,.34);
+  --top:rgba(244,246,251,.92); --canvas:#e9eef7;
+}
+[data-theme="dark"]{
+  --acc:#a5b4fc; --acc-d:#c7d2fe; --acc-l:#1b2340; --acc-line:#3b4780;
+  --ink:#eff3fa; --text:#c8d0df; --muted:#8b97ad;
+  --bg:#0f1422; --card:#171d2c; --line:#2a3345; --soft:#1e2638; --field:#111725;
+  --ok:#7ed7aa; --ok-l:#12271d; --ok-line:#28513a;
+  --err:#ffa1a8; --err-l:#2b171a; --err-line:#572b31;
+  --sh:0 22px 56px -30px rgba(0,0,0,.86);
+  --top:rgba(15,20,34,.93); --canvas:#0b1120;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg)}
+body{color:var(--text);font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit}
+.topbar{position:sticky;top:0;z-index:30;background:var(--top);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line)}
+.topbar-in{max-width:1280px;margin:0 auto;padding:11px 18px;display:flex;align-items:center;gap:12px}
+.mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none;
+  color:#fff;font-weight:800;font-size:15px;background:linear-gradient(135deg,#4f46e5,#8b5cf6);
+  box-shadow:0 9px 24px -12px rgba(79,70,229,.9)}
+.brand-text{min-width:0}
+.ttl{font-size:16px;font-weight:720;color:var(--ink);line-height:1.35}
+.sub{font-size:11.5px;color:var(--muted)}
+.top-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.tb-mount{display:inline-flex;align-items:center}
+.back{min-height:38px;display:inline-flex;align-items:center;color:var(--muted);text-decoration:none;
+  border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 14px;
+  font-size:12.5px;white-space:nowrap}
+.back:hover{color:var(--ink);border-color:var(--acc-line)}
+.wrap{max-width:1280px;margin:0 auto;padding:20px 18px calc(46px + env(safe-area-inset-bottom))}
+.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:14px}
+h1{margin:0;font-size:25px;line-height:1.35;color:var(--ink)}
+.hero p{margin:6px 0 0;color:var(--muted);font-size:12.5px;line-height:1.7}
+.hero-badge{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;
+  border:1px solid var(--acc-line);background:var(--acc-l);color:var(--acc);font-size:11.5px}
+.hero-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
+.studio{display:grid;grid-template-columns:330px minmax(0,1fr);gap:14px;align-items:start}
+.panel,.viewer{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--sh)}
+.panel{padding:15px;position:sticky;top:72px;max-height:calc(100vh - 90px);overflow:auto}
+.panel-title{font-size:13px;font-weight:720;color:var(--ink);margin-bottom:9px}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:4px;margin-bottom:14px;
+  background:var(--soft);border-radius:12px}
+.tab{min-height:34px;border:0;border-radius:9px;background:transparent;color:var(--muted);
+  font-size:12px;cursor:pointer}
+.tab:hover{color:var(--acc)}
+.tab.on{background:var(--card);color:var(--acc);font-weight:650;box-shadow:0 3px 10px -6px rgba(22,30,54,.5)}
+.tab-body[hidden]{display:none}
+.hint{margin:0 0 12px;font-size:11.5px;line-height:1.6;color:var(--muted)}
+.field{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+.field>span{font-size:12px;color:var(--text);font-weight:600}
+.field input[type=number],.field input[type=text],.field select{
+  width:122px;min-height:34px;padding:4px 8px;border-radius:8px;border:1px solid var(--line);
+  background:var(--field);color:var(--ink);outline:none}
+.field input[type=number]:focus,.field select:focus{border-color:var(--acc-line);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+.field input[type=color]{width:46px;height:32px;padding:2px;border:1px solid var(--line);border-radius:8px;background:var(--field);cursor:pointer}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:9px}
+.field-row .field{margin-bottom:0}
+.check{display:flex;align-items:center;gap:8px;margin:0 0 9px;font-size:12px;color:var(--text);cursor:pointer}
+.check input{width:16px;height:16px;accent-color:var(--acc)}
+.btn{min-height:36px;padding:0 14px;border-radius:10px;border:1px solid var(--line);
+  background:var(--card);color:var(--text);font-size:12.5px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--acc-line);color:var(--acc)}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:650}
+.btn.primary:hover{background:var(--acc-d);border-color:var(--acc-d);color:#fff}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn.wide{width:100%;margin-top:6px}
+.mini{min-height:30px;padding:0 10px;font-size:11.5px}
+.save-box{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.save-box label{display:block;font-size:12px;font-weight:650;color:var(--text);margin-bottom:6px}
+.save-box input{width:100%;min-height:36px;padding:6px 10px;border-radius:9px;
+  border:1px solid var(--line);background:var(--field);color:var(--ink);outline:none}
+.save-box input:focus{border-color:var(--acc-line);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+.save-note{margin:6px 0 0;font-size:11px;color:var(--muted)}
+.saved-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin:16px 0 8px;font-size:13px;font-weight:720;color:var(--ink)}
+.saved-head span{font-size:11px;font-weight:500;color:var(--muted)}
+.saved-list{display:flex;flex-direction:column;gap:7px}
+.saved-item{display:flex;gap:6px}
+.saved-restore{flex:1;min-width:0;text-align:left;border:1px solid var(--line);background:var(--field);
+  border-radius:10px;padding:8px 10px;cursor:pointer}
+.saved-restore:hover{border-color:var(--acc-line)}
+.saved-restore b{display:block;font-size:12.5px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.saved-restore span{display:block;margin-top:1px;font-size:11px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.saved-del{width:34px;border:1px solid var(--line);background:var(--field);border-radius:10px;
+  color:var(--muted);cursor:pointer;font-size:15px;line-height:1}
+.saved-del:hover{color:var(--err);border-color:var(--err-line);background:var(--err-l)}
+.saved-empty{padding:14px 10px;text-align:center;font-size:11.5px;color:var(--muted);
+  border:1px dashed var(--line);border-radius:10px}
+.slot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+.slot{position:relative;aspect-ratio:1/1;border:1px dashed var(--line);border-radius:10px;
+  background:var(--field);overflow:hidden;cursor:pointer;display:grid;place-items:center;outline:none}
+.slot:focus-visible{box-shadow:0 0 0 3px rgba(79,70,229,.2)}
+.slot.has{border-style:solid}
+.slot.drop{outline:2px dashed var(--acc);outline-offset:-3px}
+.slot-thumb{position:absolute;inset:0;width:100%;height:100%;display:none}
+.slot.has .slot-thumb{display:block}
+.slot-num{position:absolute;left:5px;top:3px;z-index:1;font-size:10px;color:#fff;
+  text-shadow:0 1px 2px rgba(0,0,0,.7);pointer-events:none}
+.slot-del{position:absolute;right:3px;top:3px;z-index:2;width:28px;height:28px;min-height:0;
+  padding:0;border:0;border-radius:50%;background:rgba(17,24,39,.72);color:#fff;
+  font-size:15px;line-height:1;cursor:pointer;display:none}
+.slot.has .slot-del{display:block}
+.slot-del:hover{background:rgba(184,64,74,.92)}
+.slot-plus{font-size:20px;color:var(--muted);pointer-events:none}
+.slot.has .slot-plus{display:none}
+.collage-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.viewer{overflow:hidden}
+.viewer-head{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.viewer-title{font-size:13px;font-weight:720;color:var(--ink);min-width:0}
+.viewer-title span{font-weight:500;font-size:11px;color:var(--muted);margin-left:6px}
+.view-actions{display:flex;align-items:center;gap:6px}
+.canvas-wrap{position:relative;height:min(64vh,600px);min-height:360px;background:var(--canvas);overflow:hidden}
+.canvas-wrap.drag{outline:2px dashed var(--acc);outline-offset:-7px}
+#stage{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+#stage.crop{cursor:crosshair}
+.drop-empty{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:8px;padding:20px;text-align:center;background:var(--canvas);color:var(--muted)}
+.drop-empty[hidden]{display:none}
+.drop-empty b{font-size:16px;color:var(--ink)}
+.drop-empty small{font-size:11px;color:var(--muted)}
+.drop-ico{font-size:40px;line-height:1}
+.status{position:absolute;left:50%;bottom:14px;z-index:3;max-width:calc(100% - 28px);
+  padding:8px 14px;border-radius:999px;background:#1f2a44;color:#fff;font-size:12px;
+  opacity:0;pointer-events:none;transform:translate(-50%,8px);transition:opacity .18s,transform .18s;
+  box-shadow:0 10px 26px -12px rgba(15,23,42,.7)}
+.status.show{opacity:1;transform:translate(-50%,0)}
+.status.err{background:#b8404a}
+.status.info{background:#1f2a44}
+.result-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 14px;border-top:1px solid var(--line);background:var(--soft);font-size:12.5px}
+.result-bar[hidden]{display:none}
+.result-bar span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.viewer-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:8px 14px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+@media(max-width:900px){
+  .studio{grid-template-columns:1fr}
+  .panel{position:static;max-height:none}
+  .canvas-wrap{height:56vh;min-height:340px}
+}
+@media(max-width:600px){
+  .topbar-in{padding:9px 12px}
+  .wrap{padding:14px 12px calc(38px + env(safe-area-inset-bottom))}
+  h1{font-size:21px}
+  .hero p{font-size:12px}
+  .back span{display:none}
+  .tb-mount{display:none}
+  .canvas-wrap{height:48vh;min-height:300px}
+  .field input[type=number],.field input[type=text],.field select{width:108px}
+  .saved-head{margin-top:12px}
+}
+@media(prefers-reduced-motion:reduce){
+  .status{transition:none}
+}
+</style>
+<script src="/static/quick-ai.js" defer></script>
+<script src="/static/usage.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="mark" aria-hidden="true">图</div>
+    <div class="brand-text">
+      <div class="ttl">图片工坊</div>
+      <div class="sub">压缩 · 裁剪 · 切图 · 拼图</div>
+    </div>
+    <div class="top-actions">
+      <span class="tb-mount"></span>
+      <a class="back" href="/">← <span>返回工具箱</span></a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <h1>压缩、裁剪、切九宫格、拼九张照片，都在本地完成。</h1>
+      <p>图片不会上传到服务器。调好的参数可以存成方案，换设备登录后接着用。</p>
+    </div>
+    <span class="hero-badge">浏览器本地处理 · 图片不上传</span>
+  </section>
+
+  <div class="studio">
+    <aside class="panel">
+      <div class="panel-title">想做什么</div>
+      <div class="tabs" role="tablist" aria-label="处理方式">
+        <button class="tab on" type="button" role="tab" data-tab="compress" aria-selected="true">压缩</button>
+        <button class="tab" type="button" role="tab" data-tab="crop" aria-selected="false">裁剪</button>
+        <button class="tab" type="button" role="tab" data-tab="grid" aria-selected="false">切图</button>
+        <button class="tab" type="button" role="tab" data-tab="collage" aria-selected="false">拼图</button>
+      </div>
+
+      <section class="tab-body" id="tab-compress" role="tabpanel">
+        <p class="hint">压到指定大小，适合报名系统、微信配图、邮件附件。</p>
+        <label class="field"><span>目标大小（KB）</span>
+          <input type="number" id="compressKB" min="5" max="10240" step="5" value="200">
+        </label>
+        <label class="field"><span>最长边（0=原尺寸）</span>
+          <input type="number" id="compressEdge" min="0" max="12000" step="10" value="0">
+        </label>
+        <label class="field"><span>输出格式</span>
+          <select id="compressFormat">
+            <option value="jpeg" selected>JPEG</option>
+            <option value="webp">WebP</option>
+            <option value="png">PNG</option>
+          </select>
+        </label>
+        <label class="field"><span>透明区域底色</span>
+          <input type="color" id="compressBg" value="#ffffff">
+        </label>
+        <p class="hint">PNG 没有质量参数，只能靠缩小尺寸来减小体积。</p>
+        <button class="btn primary wide" id="compressRun" type="button">压缩并下载</button>
+      </section>
+
+      <section class="tab-body" id="tab-crop" role="tabpanel" hidden>
+        <p class="hint">在预览里拖出裁剪框；拖动框内移动，拖动手柄缩放。</p>
+        <label class="field"><span>比例</span>
+          <select id="cropAspect">
+            <option value="free" selected>自由</option>
+            <option value="1:1">1:1 方图</option>
+            <option value="4:3">4:3</option>
+            <option value="3:4">3:4</option>
+            <option value="16:9">16:9</option>
+            <option value="9:16">9:16</option>
+          </select>
+        </label>
+        <label class="field"><span>旋转</span>
+          <select id="cropRotate">
+            <option value="0" selected>0°</option>
+            <option value="90">90°</option>
+            <option value="180">180°</option>
+            <option value="270">270°</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="cropFlipX"> 水平翻转</label>
+        <label class="check"><input type="checkbox" id="cropFlipY"> 垂直翻转</label>
+        <label class="field"><span>输出格式</span>
+          <select id="cropFormat">
+            <option value="jpeg" selected>JPEG</option>
+            <option value="webp">WebP</option>
+            <option value="png">PNG</option>
+          </select>
+        </label>
+        <label class="field"><span>质量</span>
+          <input type="number" id="cropQuality" min="0.5" max="1" step="0.01" value="0.92">
+        </label>
+        <label class="field"><span>最长边（0=原尺寸）</span>
+          <input type="number" id="cropEdge" min="0" max="12000" step="10" value="0">
+        </label>
+        <div class="field-row">
+          <button class="btn mini" id="cropReset" type="button">全选</button>
+          <button class="btn" id="cropRun" type="button" style="min-height:36px">裁剪并下载</button>
+        </div>
+      </section>
+
+      <section class="tab-body" id="tab-grid" role="tabpanel" hidden>
+        <p class="hint">把一张图切成多张，导出为 ZIP。朋友圈九宫格用 3×3。</p>
+        <div class="field-row">
+          <label class="field"><span>行</span>
+            <input type="number" id="gridRows" min="1" max="12" step="1" value="3">
+          </label>
+          <label class="field"><span>列</span>
+            <input type="number" id="gridCols" min="1" max="12" step="1" value="3">
+          </label>
+        </div>
+        <div class="field-row">
+          <label class="field"><span>间距 px</span>
+            <input type="number" id="gridGap" min="0" max="200" step="1" value="4">
+          </label>
+          <label class="field"><span>外边距 px</span>
+            <input type="number" id="gridMargin" min="0" max="200" step="1" value="0">
+          </label>
+        </div>
+        <label class="field"><span>圆角 px</span>
+          <input type="number" id="gridRadius" min="0" max="200" step="1" value="0">
+        </label>
+        <label class="check"><input type="checkbox" id="gridSquare" checked> 每格居中裁成正方形</label>
+        <label class="field"><span>底色</span>
+          <input type="color" id="gridBg" value="#ffffff">
+        </label>
+        <label class="field"><span>输出格式</span>
+          <select id="gridFormat">
+            <option value="jpeg" selected>JPEG</option>
+            <option value="webp">WebP</option>
+            <option value="png">PNG</option>
+          </select>
+        </label>
+        <label class="field"><span>质量</span>
+          <input type="number" id="gridQuality" min="0.5" max="1" step="0.01" value="0.92">
+        </label>
+        <button class="btn primary wide" id="gridRun" type="button">导出 ZIP</button>
+      </section>
+
+      <section class="tab-body" id="tab-collage" role="tabpanel" hidden>
+        <p class="hint">选最多 9 张照片，按 3×3 拼成一张方图。每张自动居中裁切。</p>
+        <div class="slot-grid" id="collageSlots" aria-label="拼图槽位"></div>
+        <div class="collage-actions">
+          <button class="btn mini" id="collageAdd" type="button">一次选 9 张</button>
+          <button class="btn mini" id="collageClear" type="button">清空</button>
+        </div>
+        <label class="field"><span>输出尺寸</span>
+          <select id="collageSize">
+            <option value="1080" selected>1080（朋友圈）</option>
+            <option value="1440">1440</option>
+            <option value="2048">2048</option>
+            <option value="3000">3000</option>
+          </select>
+        </label>
+        <div class="field-row">
+          <label class="field"><span>间距 px</span>
+            <input type="number" id="collageGap" min="0" max="200" step="1" value="8">
+          </label>
+          <label class="field"><span>外边距 px</span>
+            <input type="number" id="collageMargin" min="0" max="200" step="1" value="0">
+          </label>
+        </div>
+        <label class="field"><span>圆角 px</span>
+          <input type="number" id="collageRadius" min="0" max="200" step="1" value="0">
+        </label>
+        <label class="field"><span>底色</span>
+          <input type="color" id="collageBg" value="#ffffff">
+        </label>
+        <label class="field"><span>输出格式</span>
+          <select id="collageFormat">
+            <option value="jpeg" selected>JPEG</option>
+            <option value="webp">WebP</option>
+            <option value="png">PNG</option>
+          </select>
+        </label>
+        <label class="field"><span>质量</span>
+          <input type="number" id="collageQuality" min="0.5" max="1" step="0.01" value="0.92">
+        </label>
+        <button class="btn primary wide" id="collageRun" type="button">导出图片</button>
+      </section>
+
+      <div class="save-box">
+        <label for="presetName">把当前参数存成方案</label>
+        <input type="text" id="presetName" maxlength="60" placeholder="例如：报名照 200KB">
+        <button class="btn wide" id="savePreset" type="button">保存为方案</button>
+        <p class="save-note">只保存参数，不保存图片。</p>
+      </div>
+
+      <div class="saved-head">我的方案 <span id="savedCount"></span></div>
+      <div class="saved-list" id="savedList"></div>
+    </aside>
+
+    <section class="viewer">
+      <div class="viewer-head">
+        <div class="viewer-title">预览 <span id="imageInfo">还没有图片</span></div>
+        <div class="view-actions">
+          <button class="btn mini" id="fitBtn" type="button">适应</button>
+          <button class="btn mini" id="zoomOut" type="button" aria-label="缩小">−</button>
+          <button class="btn mini" id="zoomIn" type="button" aria-label="放大">＋</button>
+          <button class="btn mini" id="changeBtn" type="button">换一张</button>
+        </div>
+      </div>
+      <div class="canvas-wrap" id="stageWrap">
+        <canvas id="stage"></canvas>
+        <div class="drop-empty" id="emptyState">
+          <div class="drop-ico" aria-hidden="true">🖼️</div>
+          <b>把图片拖到这里</b>
+          <span>也可以直接 Ctrl+V 粘贴，或</span>
+          <button class="btn primary" id="pickBtn" type="button">选择图片</button>
+          <small>图片只在浏览器里处理，不会上传</small>
+        </div>
+        <div class="status" id="status" role="status" aria-live="polite"></div>
+      </div>
+      <div class="result-bar" id="resultBar" hidden>
+        <span id="resultText"></span>
+        <button class="btn mini" id="downloadBtn" type="button">再次下载</button>
+      </div>
+      <div class="viewer-foot">
+        <span>滚轮缩放 · 拖动平移 · 双击适应</span>
+        <span id="viewZoom">100%</span>
+      </div>
+    </section>
+  </div>
+</main>
+
+<input type="file" id="fileInput" accept="image/*" hidden>
+<input type="file" id="collageInput" accept="image/*" multiple hidden>
+<script type="module" src="/static/image-studio.js"></script>
+</body>
+</html>

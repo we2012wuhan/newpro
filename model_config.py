@@ -8,12 +8,15 @@
   2. 项目根目录 .env —— 本地开发就改这个文件（已在 .gitignore 里，不会进仓库）
   3. 代码里的默认值 —— 只有接口地址和模型名有默认值，Key 没有
 
-十个变量：
+常用变量：
 
   DEEPSEEK_API_KEY     DeepSeek 的 Key                                 必填
   DEEPSEEK_BASE_URL    接口地址，默认 https://api.deepseek.com           可选
   DEEPSEEK_MODEL       模型名，默认 deepseek-chat                        可选
   OCR_SPACE_API_KEY    OCR.space 的 Key，不填就用公共免费 Key（会被限流）    可选
+  ARK_API_KEY          火山方舟（文生图）的 Key，不填就只有图片工具不能用       可选
+  ARK_BASE_URL         方舟接口地址，默认北京区 v3                      可选
+  ARK_IMAGE_MODEL      图片模型，默认 doubao-seedream-5-0-pro-260628     可选
   VOLC_TTS_API_KEY     火山引擎（豆包）语音合成的 Key，不填就只剩浏览器本地朗读   可选
   VOLC_TTS_VOICE       音色 ID，默认 zh_female_vv_uranus_bigtts           可选
   VOLC_TTS_RESOURCE_ID 资源 ID，默认 seed-tts-2.0                        可选
@@ -36,6 +39,11 @@ ENV_BASE = 'DEEPSEEK_BASE_URL'
 ENV_MODEL = 'DEEPSEEK_MODEL'
 ENV_OCR_KEY = 'OCR_SPACE_API_KEY'
 
+# 文生图（火山方舟 / 豆包 Seedream）：Key 不填时页面会明确提示缺哪个变量
+ENV_ARK_KEY = 'ARK_API_KEY'
+ENV_ARK_BASE = 'ARK_BASE_URL'
+ENV_ARK_IMAGE_MODEL = 'ARK_IMAGE_MODEL'
+
 # 朗读（火山引擎 / 豆包语音合成）：只有 Key 是必填，不填就回落到浏览器自带语音
 ENV_TTS_KEY = 'VOLC_TTS_API_KEY'
 ENV_TTS_VOICE = 'VOLC_TTS_VOICE'
@@ -54,6 +62,10 @@ ENV_IQS_ENGINE_DEEP = 'ALIYUN_IQS_ENGINE_DEEP'
 
 _DEFAULT_BASE = 'https://api.deepseek.com'
 _DEFAULT_MODEL = 'deepseek-chat'
+_DEFAULT_ARK_BASE = 'https://ark.cn-beijing.volces.com/api/v3'
+# 2026 年可用的 Seedream 5.0 Pro；模型会迭代，线上直接改 ARK_IMAGE_MODEL 即可，
+# 不用动代码。控制台里模型 ID 一般带日期后缀，抄完整的那一串。
+_DEFAULT_ARK_IMAGE_MODEL = 'doubao-seedream-5-0-pro-260628'
 _DEFAULT_IQS_ENDPOINT = 'https://cloud-iqs.aliyuncs.com/search/unified'
 _DEFAULT_IQS_ENGINE_FAST = 'CNLiteBasic'
 _DEFAULT_IQS_ENGINE_DEEP = 'CNAuto'
@@ -128,6 +140,27 @@ def llm_ready() -> bool:
 
 def ocr_key(default: str = '') -> str:
     return os.environ.get(ENV_OCR_KEY, '').strip() or default
+
+
+# ---------------- 文生图（火山方舟 / Seedream） ----------------
+def ark_image_key() -> str:
+    return os.environ.get(ENV_ARK_KEY, '').strip()
+
+
+def ark_image_base() -> str:
+    return (os.environ.get(ENV_ARK_BASE, '').strip() or _DEFAULT_ARK_BASE).rstrip('/')
+
+
+def ark_image_model() -> str:
+    return os.environ.get(ENV_ARK_IMAGE_MODEL, '').strip() or _DEFAULT_ARK_IMAGE_MODEL
+
+
+def image_gen_ready() -> bool:
+    return bool(ark_image_key())
+
+
+def image_gen_missing_hint() -> str:
+    return '服务端没有配置火山方舟 Key（%s）' % ENV_ARK_KEY
 
 
 # ---------------- 朗读（火山引擎豆包 TTS） ----------------

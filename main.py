@@ -108,6 +108,16 @@ app.include_router(parametric_3d_router)
 from sleep_tool import router as sleep_tool_router  # noqa: E402
 app.include_router(sleep_tool_router)
 
+# 图片工坊：压缩到目标大小 / 裁剪 / 宫格切图。
+# 图片只在浏览器里处理，不会上传；SQLite 只存「怎么处理」的参数方案。
+from image_studio import router as image_studio_router  # noqa: E402
+app.include_router(image_studio_router)
+
+# AI 文生图：提示词 -> 火山方舟 Seedream -> 图片落盘 -> 页面轮询取回。
+# 页面在 /image-gen；Key 只在服务端，生成结果默认可保留 7 天。
+from image_gen import router as image_gen_router  # noqa: E402
+app.include_router(image_gen_router)
+
 # 原创横版清版格斗小游戏《夜巷清场》。
 from beat_em_up import router as beat_em_up_router  # noqa: E402
 app.include_router(beat_em_up_router)

@@ -55,6 +55,38 @@ SCHEMA = (
     """,
     "CREATE INDEX IF NOT EXISTS idx_history_tool ON history(tool, user, id DESC)",
     """
+    CREATE TABLE IF NOT EXISTS image_jobs(
+        id              TEXT PRIMARY KEY,
+        user            TEXT NOT NULL,
+        prompt          TEXT NOT NULL,
+        negative_prompt TEXT NOT NULL DEFAULT '',
+        style           TEXT NOT NULL DEFAULT '',
+        ratio           TEXT NOT NULL DEFAULT '1:1',
+        resolution      TEXT NOT NULL DEFAULT '2K',
+        count           INTEGER NOT NULL DEFAULT 1,
+        done            INTEGER NOT NULL DEFAULT 0,
+        status          TEXT NOT NULL DEFAULT 'queued',
+        model           TEXT NOT NULL DEFAULT '',
+        error           TEXT NOT NULL DEFAULT '',
+        files           TEXT NOT NULL DEFAULT '[]',
+        created_at      TEXT NOT NULL,
+        started_at      TEXT NOT NULL DEFAULT '',
+        finished_at     TEXT NOT NULL DEFAULT ''
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_image_jobs_user ON image_jobs(user, created_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_image_jobs_status ON image_jobs(status, created_at)",
+    """
+    CREATE TABLE IF NOT EXISTS image_usage(
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        job_id     TEXT NOT NULL UNIQUE,
+        user       TEXT NOT NULL,
+        count      INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_image_usage_user ON image_usage(user, created_at)",
+    """
     CREATE TABLE IF NOT EXISTS book_cache(
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         source     TEXT NOT NULL,
@@ -415,6 +447,207 @@ def update_record(user: str, rid: int, payload=None, title=None) -> int:
         raise StorageUnavailable('更新失败（文件系统只读？）：%s' % exc) from exc
     finally:
         conn.close()
+
+
+# ---------------------------------------------------------------
+# image_jobs：文生图任务（/image-gen）
+#   任务状态和图片文件名放这里，图片本体放 data/generated/ 下。
+#   「谁先抢到哪条 queued」用 BEGIN IMMEDIATE 做原子领取，
+#   这样即使将来开了多个进程，也不会同一张图被扣两次费。
+# ---------------------------------------------------------------
+_IMAGE_JOB_FIELDS = {'status', 'error', 'files', 'done', 'started_at', 'finished_at', 'model'}
+
+
+def _image_job_row(row) -> dict:
+    data = dict(row)
+    try:
+        files = json.loads(data.get('files') or '[]')
+    except ValueError:
+        files = []
+    data['files'] = files if isinstance(files, list) else []
+    return data
+
+
+def image_job_add(user: str, prompt: str, negative_prompt: str, style: str,
+                  ratio: str, resolution: str, count: int, model: str) -> dict:
+    job_id = uuid.uuid4().hex
+    created = now_str()
+    conn = connect()
+    try:
+        conn.execute(
+            'INSERT INTO image_jobs(id, user, prompt, negative_prompt, style, ratio, '
+            'resolution, count, done, status, model, error, files, created_at, '
+            'started_at, finished_at) '
+            'VALUES (?,?,?,?,?,?,?,?,0,\'queued\',?,\'\',\'[]\',?,\'\',\'\')',
+            (job_id, user, prompt, negative_prompt, style, ratio, resolution,
+             int(count), model, created))
+        # 额度单独记一笔：任务可以删，已经花掉的请求数不能跟着删，
+        # 否则删掉历史就能绕过每日上限，账单会失控。
+        conn.execute(
+            'INSERT INTO image_usage(job_id, user, count, created_at) VALUES(?,?,?,?)',
+            (job_id, user, int(count), created))
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+    return {
+        'id': job_id, 'user': user, 'prompt': prompt,
+        'negative_prompt': negative_prompt, 'style': style, 'ratio': ratio,
+        'resolution': resolution, 'count': int(count), 'done': 0,
+        'status': 'queued', 'model': model, 'error': '', 'files': [],
+        'created_at': created, 'started_at': '', 'finished_at': '',
+    }
+
+
+def image_job_get(user: str, job_id: str):
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT * FROM image_jobs WHERE id = ? AND user = ?',
+                     (str(job_id), user))
+    finally:
+        conn.close()
+    return _image_job_row(rows[0]) if rows else None
+
+
+def image_job_list(user: str, limit: int = 20) -> list:
+    limit = max(1, min(int(limit or 20), 100))
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT * FROM image_jobs WHERE user = ? '
+                           'ORDER BY rowid DESC LIMIT ?', (user, limit))
+    finally:
+        conn.close()
+    return [_image_job_row(row) for row in rows]
+
+
+def image_job_claim_next():
+    """原子领取最早的一条 queued 任务；没有就返回 None。
+
+    UPDATE 和 SELECT 放在同一个写事务里，两个进程同时抢只会有一个成功。
+    """
+    conn = connect()
+    try:
+        conn.execute('BEGIN IMMEDIATE')
+        row = conn.execute(
+            "SELECT * FROM image_jobs WHERE status = 'queued' "
+            'ORDER BY rowid ASC LIMIT 1').fetchone()
+        if not row:
+            conn.rollback()
+            return None
+        started = now_str()
+        conn.execute(
+            "UPDATE image_jobs SET status = 'running', started_at = ? WHERE id = ?",
+            (started, row['id']))
+        conn.commit()
+        data = _image_job_row(row)
+        data['status'] = 'running'
+        data['started_at'] = started
+        return data
+    except sqlite3.OperationalError as exc:
+        try:
+            conn.rollback()
+        except sqlite3.Error:
+            pass
+        raise StorageUnavailable('领取任务失败：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def image_job_update(job_id: str, fields: dict) -> int:
+    """后台线程更新任务状态。只允许改白名单里的列，避免拼出奇怪 SQL。"""
+    sets, args = [], []
+    for key, value in (fields or {}).items():
+        if key not in _IMAGE_JOB_FIELDS:
+            continue
+        if key == 'files':
+            value = json.dumps(value if isinstance(value, list) else [], ensure_ascii=False)
+        sets.append(key + ' = ?')
+        args.append(value)
+    if not sets:
+        return 0
+    args.append(str(job_id))
+    conn = connect()
+    try:
+        cur = conn.execute('UPDATE image_jobs SET ' + ', '.join(sets) + ' WHERE id = ?', args)
+        conn.commit()
+        return cur.rowcount
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('更新失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def image_job_delete(user: str, job_id: str) -> int:
+    conn = connect()
+    try:
+        cur = conn.execute('DELETE FROM image_jobs WHERE id = ? AND user = ?',
+                           (str(job_id), user))
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def image_job_delete_finished(user: str, job_id: str) -> int:
+    """用户主动删任务时只删已结束的。
+
+    queued / running 不能删：后台线程可能已经在向服务商请求，
+    删掉记录不会取消这次计费，还会留下没人认领的图片。
+    """
+    conn = connect()
+    try:
+        cur = conn.execute(
+            "DELETE FROM image_jobs WHERE id = ? AND user = ? "
+            "AND status NOT IN ('queued', 'running')",
+            (str(job_id), user))
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def image_job_images_since(user: str, since: str) -> int:
+    """某用户从 since 起一共请求了多少张图（按 count 累加，失败任务也算）。
+
+    读 image_usage 而不是 image_jobs：任务删除、过期清理都不会让额度回血。
+    """
+    conn = connect()
+    try:
+        row = conn.execute(
+            'SELECT COALESCE(SUM(count), 0) AS n FROM image_usage '
+            'WHERE user = ? AND created_at >= ?', (user, since)).fetchone()
+        return int(row['n'] or 0)
+    finally:
+        conn.close()
+
+
+def image_job_recover_running(message: str) -> int:
+    """进程重启后，把上一次没跑完的 running 任务标成失败。
+
+    这些任务可能已经向服务商付过费，所以不自动重试，只留下一句提示让用户核对。
+    """
+    conn = connect()
+    try:
+        cur = conn.execute(
+            "UPDATE image_jobs SET status = 'failed', error = ?, finished_at = ? "
+            "WHERE status = 'running'", (message, now_str()))
+        conn.commit()
+        return cur.rowcount
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('恢复任务失败：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def image_job_expired(user: str, before: str) -> list:
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT * FROM image_jobs WHERE user = ? AND created_at < ? '
+                           'ORDER BY rowid ASC', (user, before))
+    finally:
+        conn.close()
+    return [_image_job_row(row) for row in rows]
 
 
 # ---------------------------------------------------------------

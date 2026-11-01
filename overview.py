@@ -47,6 +47,7 @@ TOOL_META = {
     'first_principles': {'name': '第一性原理', 'ico': '🧩', 'href': '/ask-hub?tab=fp', 'deep': True},
     'design-assistant': {'name': '页面设计助手', 'ico': '✏️', 'href': '/design-assistant', 'deep': True},
     'web-search': {'name': '联网搜索', 'ico': '🌐', 'href': '/web-search', 'deep': True},
+    'image-gen': {'name': 'AI 文生图', 'ico': '🎨', 'href': '/image-gen', 'deep': False},
     '3d-lab': {'name': '3D 小作品实验室', 'ico': '🧊', 'href': '/3d-lab', 'deep': False},
     'sleep': {'name': '睡前打烊', 'ico': '🌙', 'href': '/sleep', 'deep': False},
 }
@@ -106,6 +107,8 @@ def _excerpt(tool: str, payload: dict) -> str:
         return _text(spec.get('summary')) or _text(payload.get('brief'))
     if tool == 'web-search':
         return _text(payload.get('query')) or _text(payload.get('answer'))
+    if tool == 'image-gen':
+        return _text(payload.get('prompt'))
     if tool == '3d-lab':
         model = {'tray': '桌面收纳盒', 'stand': '手机支架', 'hook': '洞洞板挂钩',
                  'custom': '自由绘制'}.get(
@@ -188,6 +191,12 @@ def _status(tool: str, payload: dict) -> dict:
     if tool == 'web-search':
         return {'tracked': False, 'open': False,
                 'label': '%s 个来源' % _count(payload.get('sources'))}
+    if tool == 'image-gen':
+        files = payload.get('files') if isinstance(payload.get('files'), list) else []
+        label = '%s 张图' % len(files)
+        if payload.get('error'):
+            label += ' · 有失败'
+        return {'tracked': False, 'open': False, 'label': label}
     return {'tracked': False, 'open': False, 'label': ''}
 
 
@@ -333,6 +342,16 @@ def _detail(tool: str, payload: dict) -> list:
         add('附件', _count(payload.get('attachments')), 8)
         add('继续追问', _count(payload.get('followups')), 8)
         add('回答', payload.get('answer'))
+    elif tool == 'image-gen':
+        add('提示词', payload.get('prompt'))
+        add('不想出现', payload.get('negativePrompt'), 120)
+        add('风格', payload.get('style'), 20)
+        add('比例 / 清晰度', '%s / %s' % (
+            payload.get('ratio') or '1:1',
+            payload.get('resolution') or '2K'), 30)
+        add('生成数量', _count(payload.get('files')), 8)
+        add('模型', payload.get('model'), 60)
+        add('部分失败', payload.get('error'), 120)
     return out
 
 
