@@ -44,10 +44,17 @@ UPLOAD_TEXT_MAX = 20000
 ATTACHMENT_TEXT_MAX = 5000
 ATTACHMENT_MAX = 3
 UPLOAD_TTL = 1800
-UPLOAD_ALLOWED = {
+UPLOAD_DOCUMENT_EXT = {
     '.txt', '.md', '.markdown', '.csv', '.json', '.log', '.html', '.htm',
     '.pdf', '.docx', '.xlsx',
 }
+UPLOAD_IMAGE_EXT = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tif', '.tiff'}
+UPLOAD_ALLOWED = UPLOAD_DOCUMENT_EXT | UPLOAD_IMAGE_EXT
+UPLOAD_IMAGE_MAX_BYTES = 1024 * 1024  # OCR.space 免费接口单张 1 MB
+UPLOAD_SUPPORTED_HINT = (
+    '支持 txt、md、markdown、csv、json、log、html、htm、pdf、docx、xlsx，'
+    '以及 png、jpg、jpeg、gif、bmp、tif、tiff 图片。'
+)
 
 KNOWLEDGE_SCOPES = {
     'general': {'label': '综合网络', 'domains': (), 'category': ''},
@@ -147,11 +154,28 @@ def _decode_text(data: bytes) -> str:
     return data.decode('utf-8', errors='replace')
 
 
+def _ocr_file_text(name: str, data: bytes) -> str:
+    """图片 / 扫描件走和 /ocr 相同的云端 OCR，返回识别出的纯文字。"""
+    from ocr import run_ocr
+
+    try:
+        result = run_ocr(name, data)
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise ValueError('OCR 识别失败：%s' % str(exc)[:120]) from exc
+    return str((result or {}).get('text') or '')
+
+
 def _extract_file_text(name: str, data: bytes) -> str:
     ext = Path(name).suffix.lower()
     if ext not in UPLOAD_ALLOWED:
         raise ValueError('暂不支持这种文件格式。')
-    if ext == '.pdf':
+    if ext in UPLOAD_IMAGE_EXT:
+        if len(data) > UPLOAD_IMAGE_MAX_BYTES:
+            raise ValueError('图片超过 OCR 免费接口的 1 MB 上限，请先压缩再上传。')
+        text = _ocr_file_text(name, data)
+    elif ext == '.pdf':
         try:
             from pypdf import PdfReader
         except ImportError as exc:
@@ -168,6 +192,18 @@ def _extract_file_text(name: str, data: bytes) -> str:
             text = '\n'.join(pages)
         except Exception as exc:
             raise ValueError('这个 PDF 解析失败：%s' % str(exc)[:120]) from exc
+        if len(text.strip()) < 2:
+            if len(data) > UPLOAD_IMAGE_MAX_BYTES:
+                raise ValueError(
+                    '这个 PDF 里没有提取到文字，可能是扫描件；扫描版 PDF 超过 1 MB，'
+                    '暂时无法走 OCR，请先压缩或截图上传。'
+                )
+            try:
+                text = _ocr_file_text(name, data)
+            except ValueError as exc:
+                raise ValueError(
+                    '这个 PDF 里没有提取到文字，可能是扫描件；OCR 也没能识别：%s' % exc
+                ) from exc
     elif ext == '.docx':
         try:
             from docx import Document
@@ -210,6 +246,13 @@ def _extract_file_text(name: str, data: bytes) -> str:
         text = _decode_text(data)
     text = re.sub(r'\n{3,}', '\n\n', _clean(text, UPLOAD_TEXT_MAX))
     if len(text) < 2:
+        if ext in UPLOAD_IMAGE_EXT:
+            raise ValueError(
+                '图片里没有识别到可用文字。请换一张更清晰的文字截图，'
+                '或先把文字复制成 txt 上传。'
+            )
+        if ext == '.pdf':
+            raise ValueError('这个 PDF 里没有提取到文字，可能是扫描件，OCR 也没能识别出文字。')
         raise ValueError('文件里没有提取到可用文字。')
     return text
 
@@ -714,7 +757,7 @@ async def web_search_upload(request: Request, file: UploadFile = File(...)):
     if ext not in UPLOAD_ALLOWED:
         return JSONResponse({
             'ok': False,
-            'message': '支持 txt、md、csv、json、html、pdf、docx、xlsx。',
+            'message': UPLOAD_SUPPORTED_HINT,
         }, status_code=400)
     data = await file.read(UPLOAD_MAX_BYTES + 1)
     if len(data) > UPLOAD_MAX_BYTES:

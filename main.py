@@ -118,6 +118,12 @@ app.include_router(image_studio_router)
 from image_gen import router as image_gen_router  # noqa: E402
 app.include_router(image_gen_router)
 
+# 影音库：只读浏览阿里云盘里的音乐 / 视频。
+# AList/OpenList 作为内网文件网关，浏览器只见 /media/stream 代理；收藏和续播写 SQLite。
+# 页面在 /media，未配置 ALIST_PASSWORD 时页面会给出配置提示。
+from media_library import router as media_library_router  # noqa: E402
+app.include_router(media_library_router)
+
 # 原创横版清版格斗小游戏《夜巷清场》。
 from beat_em_up import router as beat_em_up_router  # noqa: E402
 app.include_router(beat_em_up_router)

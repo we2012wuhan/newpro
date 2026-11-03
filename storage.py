@@ -149,6 +149,21 @@ SCHEMA = (
         PRIMARY KEY(user, week)
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS media_state(
+        user       TEXT NOT NULL,
+        path       TEXT NOT NULL,
+        title      TEXT NOT NULL DEFAULT '',
+        kind       TEXT NOT NULL DEFAULT '',
+        favorite   INTEGER NOT NULL DEFAULT 0,
+        position   REAL NOT NULL DEFAULT 0,
+        duration   REAL NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY(user, path)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_media_state_user ON media_state(user, updated_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_media_state_fav ON media_state(user, favorite, updated_at DESC)",
 )
 
 
@@ -967,6 +982,91 @@ def weekly_get(user: str, week: str) -> dict | None:
     except ValueError:
         data['payload'] = {}
     return data
+
+
+# ---------------------------------------------------------------
+# 影音库：收藏和断点续播
+# 文件本身在阿里云盘，这里只存「哪个用户对哪条虚拟路径做了什么」。
+# path 是 AList 里的绝对路径（如 /阿里云盘/音乐/xx.mp3），按账号隔离。
+# ---------------------------------------------------------------
+def _media_row(row) -> dict:
+    data = dict(row) if row is not None else {}
+    return {
+        'path': data.get('path') or '',
+        'title': data.get('title') or '',
+        'kind': data.get('kind') or '',
+        'favorite': bool(data.get('favorite')),
+        'position': float(data.get('position') or 0),
+        'duration': float(data.get('duration') or 0),
+        'updated_at': data.get('updated_at') or '',
+    }
+
+
+def media_state_get(user: str, path: str) -> dict:
+    conn = connect()
+    try:
+        row = conn.execute('SELECT * FROM media_state WHERE user=? AND path=?',
+                           (user, path)).fetchone()
+    finally:
+        conn.close()
+    return _media_row(row)
+
+
+def media_state_rows(user: str, limit: int = 500) -> list:
+    """按最近更新倒序，返回该用户的全部收藏 / 续播记录。"""
+    limit = max(1, min(int(limit or 500), 1000))
+    conn = connect()
+    try:
+        rows = conn.execute(
+            'SELECT * FROM media_state WHERE user=? ORDER BY updated_at DESC, path ASC LIMIT ?',
+            (user, limit)).fetchall()
+    finally:
+        conn.close()
+    return [_media_row(row) for row in rows]
+
+
+def media_state_set(user: str, path: str, title: str = '', kind: str = '',
+                    favorite=None, position=None, duration=None) -> dict:
+    """插入或更新一条影音状态；没传的字段保持原值。
+
+    favorite=False 是显式取消收藏，和 None（不改）区分开；
+    position=0 也是显式写 0（播完 / 从头开始），不能被 COALESCE 吞掉。
+    """
+    user = (user or '').strip()
+    path = (path or '').strip()
+    if not user or not path:
+        raise ValueError('用户和路径不能为空')
+    title = (title or '').strip()[:240]
+    kind = (kind or '').strip()[:16]
+    fav_new = 0 if favorite is None else (1 if favorite else 0)
+    pos_new = 0.0 if position is None else max(0.0, float(position))
+    dur_new = 0.0 if duration is None else max(0.0, float(duration))
+    fav_arg = None if favorite is None else fav_new
+    pos_arg = None if position is None else round(pos_new, 2)
+    dur_arg = None if duration is None else round(dur_new, 2)
+    now = now_str()
+    conn = connect()
+    try:
+        conn.execute(
+            'INSERT INTO media_state(user, path, title, kind, favorite, position, duration, updated_at) '
+            'VALUES (?,?,?,?,?,?,?,?) '
+            'ON CONFLICT(user, path) DO UPDATE SET '
+            " title=CASE WHEN excluded.title<>'' THEN excluded.title ELSE media_state.title END, "
+            " kind=CASE WHEN excluded.kind<>'' THEN excluded.kind ELSE media_state.kind END, "
+            ' favorite=COALESCE(?, media_state.favorite), '
+            ' position=COALESCE(?, media_state.position), '
+            ' duration=COALESCE(?, media_state.duration), '
+            ' updated_at=excluded.updated_at',
+            (user, path[:2048], title, kind, fav_new, round(pos_new, 2), round(dur_new, 2),
+             now, fav_arg, pos_arg, dur_arg))
+        conn.commit()
+        row = conn.execute('SELECT * FROM media_state WHERE user=? AND path=?',
+                           (user, path[:2048])).fetchone()
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+    return _media_row(row)
 
 
 def weekly_set(user: str, week: str, payload: dict, source: str = 'rules') -> dict:

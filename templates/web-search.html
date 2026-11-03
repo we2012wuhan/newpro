@@ -297,7 +297,7 @@ html[data-theme="dark"] .research-btn{color:#0D1D20}
       <div class="query-shell">
         <textarea class="query" id="query" maxlength="500" placeholder="例如：为什么睡眠不足会影响记忆力？"></textarea>
         <div class="query-foot">
-          <span class="query-meta">CTRL + ENTER · DROP FILES</span>
+          <span class="query-meta">CTRL + ENTER · 文档 / 图片自动 OCR</span>
           <div class="query-tools">
             <button class="query-tool" id="voiceBtn" type="button" aria-label="语音输入" title="语音输入">
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -305,7 +305,8 @@ html[data-theme="dark"] .research-btn{color:#0D1D20}
                 <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M9 21h6"></path>
               </svg>
             </button>
-            <button class="query-tool" id="fileBtn" type="button" aria-label="上传文件" title="上传文件">
+            <button class="query-tool" id="fileBtn" type="button" aria-label="上传文件或图片"
+                    title="上传文档或图片；图片会发送到 OCR.space 识别文字，最大 1 MB">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M20 11.5 12.6 19a5 5 0 0 1-7.1-7.1l8-8a3.4 3.4 0 0 1 4.8 4.8l-8 8a1.8 1.8 0 0 1-2.6-2.6l7.2-7.2"></path>
               </svg>
@@ -316,7 +317,7 @@ html[data-theme="dark"] .research-btn{color:#0D1D20}
       <div class="attach-tray" id="attachmentTray" hidden></div>
       <div class="upload-status" id="uploadStatus"></div>
       <input id="fileInput" type="file" hidden multiple
-             accept=".txt,.md,.markdown,.csv,.json,.log,.html,.htm,.pdf,.docx,.xlsx">
+             accept=".txt,.md,.markdown,.csv,.json,.log,.html,.htm,.pdf,.docx,.xlsx,.png,.jpg,.jpeg,.gif,.bmp,.tif,.tiff">
       <div class="research-bar">
         <div class="seg" id="modeSeg" role="group" aria-label="搜索模式">
           <button type="button" data-mode="quick" class="on">快速</button>

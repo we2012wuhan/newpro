@@ -53,12 +53,6 @@ button,input,select,textarea{font:inherit}
   font-size:12.5px;white-space:nowrap}
 .back:hover{color:var(--ink);border-color:var(--acc-line)}
 .wrap{max-width:1280px;margin:0 auto;padding:20px 18px calc(46px + env(safe-area-inset-bottom))}
-.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:14px}
-h1{margin:0;font-size:25px;line-height:1.35;color:var(--ink)}
-.hero p{margin:6px 0 0;color:var(--muted);font-size:12.5px;line-height:1.7;max-width:760px}
-.hero-badge{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;
-  border:1px solid var(--acc-line);background:var(--acc-l);color:var(--acc);font-size:11.5px}
-.hero-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
 .studio{display:grid;grid-template-columns:minmax(0,370px) minmax(0,1fr);gap:14px;align-items:start}
 .panel,.viewer,.history-card{background:var(--card);border:1px solid var(--line);border-radius:18px;
   box-shadow:var(--sh)}
@@ -87,6 +81,7 @@ textarea:focus,input[type=text]:focus,select:focus{border-color:var(--acc-line);
 .field-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px}
 .field-grid label{display:block;font-size:11.5px;color:var(--muted)}
 .field-grid select{min-height:36px;margin-top:4px;padding:4px 7px;font-size:12.5px}
+.panel>select{min-height:38px;padding:6px 9px;font-size:12.5px}
 .actions{margin-top:14px}
 .btn{min-height:36px;padding:0 14px;border-radius:10px;border:1px solid var(--line);
   background:var(--card);color:var(--text);font-size:12.5px;cursor:pointer;white-space:nowrap}
@@ -101,7 +96,7 @@ textarea:focus,input[type=text]:focus,select:focus{border-color:var(--acc-line);
   font-size:11px;color:var(--muted);line-height:1.65}
 .viewer{overflow:hidden;min-height:420px}
 .viewer-head{padding:11px 14px;border-bottom:1px solid var(--line)}
-.viewer-head .view-actions{display:flex;gap:6px;align-items:center}
+.viewer-head .view-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .viewer-body{padding:14px;min-height:340px}
 .empty{padding:44px 18px;display:flex;flex-direction:column;align-items:center;gap:7px;
   text-align:center;color:var(--muted);font-size:12.5px}
@@ -160,8 +155,6 @@ textarea:focus,input[type=text]:focus,select:focus{border-color:var(--acc-line);
 @media(max-width:600px){
   .topbar-in{padding:9px 12px}
   .wrap{padding:14px 12px calc(38px + env(safe-area-inset-bottom))}
-  h1{font-size:21px}
-  .hero p{font-size:12px}
   .back span{display:none}
   .tb-mount{display:none}
   .field-grid{grid-template-columns:1fr 1fr}
@@ -192,15 +185,6 @@ textarea:focus,input[type=text]:focus,select:focus{border-color:var(--acc-line);
 </header>
 
 <main class="wrap">
-  <section class="hero">
-    <div>
-      <h1>写一句画面，剩下的交给 Seedream。</h1>
-      <p>生成结果可以下载，也可以送到图片工坊继续压缩、裁剪、切图或拼图。
-        提示词会发送到火山方舟，和图片工坊的「本地处理」不是一回事。</p>
-    </div>
-    <span class="hero-badge">云端生成 · 提示词会上传</span>
-  </section>
-
   <div class="studio">
     <aside class="panel">
       <div id="keyBanner" class="banner" hidden></div>
@@ -222,6 +206,9 @@ textarea:focus,input[type=text]:focus,select:focus{border-color:var(--acc-line);
         <button class="chip" type="button" data-style="minimal">极简</button>
         <button class="chip" type="button" data-style="poster">海报</button>
       </div>
+
+      <div class="field-label">模型 <small id="modelHint">切换模型会按对应的价格计费</small></div>
+      <select id="model" aria-label="生成模型"></select>
 
       <div class="field-grid">
         <label>比例
@@ -265,6 +252,8 @@ textarea:focus,input[type=text]:focus,select:focus{border-color:var(--acc-line);
         <div><b>生成结果</b> <span id="jobMeta">还没有任务</span></div>
         <div class="view-actions">
           <a class="btn mini" href="/image-studio">图片工坊</a>
+          <a class="btn mini" href="https://prompt.always200.com/#/image/text2image"
+             target="_blank" rel="noopener noreferrer" title="打开提示词参考站（新窗口）">提示词</a>
           <button class="btn mini" id="refreshBtn" type="button">刷新</button>
         </div>
       </div>

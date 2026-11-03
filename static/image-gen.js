@@ -16,6 +16,8 @@ const $ = (id) => document.getElementById(id);
 const promptEl = $('prompt');
 const promptCount = $('promptCount');
 const styleChips = $('styleChips');
+const modelEl = $('model');
+const modelHint = $('modelHint');
 const ratioEl = $('ratio');
 const resolutionEl = $('resolution');
 const countEl = $('count');
@@ -44,6 +46,8 @@ const STATUS_TEXT = {
 const state = {
   ready: false,
   model: '',
+  models: [],
+  history: [],
   dailyLimit: 0,
   usedToday: 0,
   ttlDays: 7,
@@ -132,6 +136,52 @@ function fileName(job, image) {
   return `AI生成-${String(job.id || '').slice(0, 8)}-${image.index}.${ext}`;
 }
 
+function storedModel() {
+  try {
+    return localStorage.getItem('tb_image_model') || '';
+  } catch (error) {
+    return '';
+  }
+}
+
+function rememberModel(modelId) {
+  try {
+    if (modelId) localStorage.setItem('tb_image_model', modelId);
+  } catch (error) { /* 隐私模式下写不进去，不影响正常使用 */ }
+}
+
+function modelInfo(modelId) {
+  return (state.models || []).find((model) => model.id === modelId) || null;
+}
+
+function modelLabel(modelId) {
+  const info = modelInfo(modelId);
+  return info ? info.label : (modelId || '默认模型');
+}
+
+function updateModelHint() {
+  const info = modelInfo(modelEl.value);
+  modelHint.textContent = info && info.note ? info.note : '切换模型会按对应的价格计费';
+}
+
+function renderModels(models) {
+  const previous = modelEl.value || storedModel() || state.model;
+  modelEl.innerHTML = '';
+  (models || []).forEach((model) => {
+    const option = document.createElement('option');
+    option.value = model.id;
+    option.textContent = model.note ? `${model.label} · ${model.note}` : model.label;
+    modelEl.appendChild(option);
+  });
+  const ids = (models || []).map((model) => model.id);
+  if (ids.includes(previous)) {
+    modelEl.value = previous;
+  } else if (ids.includes(state.model)) {
+    modelEl.value = state.model;
+  }
+  updateModelHint();
+}
+
 function setStyle(style) {
   state.style = style;
   styleChips.querySelectorAll('.chip').forEach((chip) => {
@@ -169,7 +219,8 @@ function emptyBlock(title, text, icon) {
 function renderJob(job) {
   state.current = job;
   const images = job.images || [];
-  jobMeta.textContent = `${statusText(job)} · ${job.ratio || '1:1'} · ${job.count || 1} 张 · ${formatTime(job.createdAt)}`;
+  const modelText = job.model ? modelLabel(job.model) + ' · ' : '';
+  jobMeta.textContent = `${statusText(job)} · ${modelText}${job.ratio || '1:1'} · ${job.count || 1} 张 · ${formatTime(job.createdAt)}`;
 
   resultBody.innerHTML = '';
   if (images.length) {
@@ -329,7 +380,8 @@ function historyItem(job) {
   const title = document.createElement('b');
   title.textContent = job.prompt || '未命名任务';
   const meta = document.createElement('span');
-  meta.textContent = `${statusText(job)} · ${formatTime(job.createdAt)} · ${job.ratio || '1:1'} · ${job.count || 1} 张`;
+  const modelText = job.model ? modelLabel(job.model) + ' · ' : '';
+  meta.textContent = `${statusText(job)} · ${modelText}${formatTime(job.createdAt)} · ${job.ratio || '1:1'} · ${job.count || 1} 张`;
   main.appendChild(title);
   main.appendChild(meta);
   main.addEventListener('click', () => selectJob(job));
@@ -352,6 +404,7 @@ function historyItem(job) {
 }
 
 function renderHistory(items) {
+  state.history = items;
   historyList.innerHTML = '';
   historyCount.textContent = items.length ? items.length + ' 条' : '';
   if (!items.length) {
@@ -407,6 +460,7 @@ async function loadStatus() {
     const data = await api('/image-gen/api/status');
     state.ready = !!data.ready;
     state.model = data.model || '';
+    state.models = Array.isArray(data.models) ? data.models : [];
     state.dailyLimit = Number(data.dailyLimit) || 0;
     state.usedToday = Number(data.usedToday) || 0;
     state.ttlDays = Number(data.ttlDays) || 7;
@@ -417,6 +471,10 @@ async function loadStatus() {
     } else {
       showBanner('');
     }
+    renderModels(state.models);
+    // 历史可能比 status 先渲染完，模型显示名要等清单到了再刷一遍。
+    if (state.history.length) renderHistory(state.history);
+    if (state.current) renderJob(state.current);
     updateQuota();
     setBusy(state.busy);
   } catch (error) {
@@ -446,7 +504,8 @@ async function generate() {
     style: state.style,
     ratio: ratioEl.value,
     resolution: resolutionEl.value,
-    count: Number(countEl.value) || 1
+    count: Number(countEl.value) || 1,
+    model: modelEl.value || state.model
   };
 
   setBusy(true);
@@ -484,6 +543,11 @@ async function generate() {
 // ---------------------------------------------------------------
 // 事件绑定
 // ---------------------------------------------------------------
+modelEl.addEventListener('change', () => {
+  rememberModel(modelEl.value);
+  updateModelHint();
+});
+
 styleChips.addEventListener('click', (event) => {
   const chip = event.target.closest('.chip');
   if (!chip) return;

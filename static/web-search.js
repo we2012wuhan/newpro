@@ -34,6 +34,13 @@
     return mode === 'deep' ? '深度' : '快速';
   }
 
+  var IMAGE_EXT = /\.(png|jpe?g|gif|bmp|tiff?)$/i;
+  var IMAGE_MAX_BYTES = 1024 * 1024;
+
+  function isImage(name) {
+    return IMAGE_EXT.test(String(name || ''));
+  }
+
   var S = {
     mode: 'quick', knowledge: 'general', busy: false, ctrl: null,
     iqs: false, ai: false, recordId: null, answer: '',
@@ -171,7 +178,8 @@
       return '<span class="file-chip">' +
         '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></svg>' +
         '<span class="file-name" title="' + esc(item.name || '') + '">' + esc(item.name || '附件') + '</span>' +
-        '<span class="file-chars">' + esc(fileSizeLabel(item.chars)) + '</span>' +
+        '<span class="file-chars"' + (isImage(item.name) ? ' title="图片已通过 OCR.space 识别为文字"' : '') + '>' +
+          (isImage(item.name) ? 'OCR · ' : '') + esc(fileSizeLabel(item.chars)) + '</span>' +
         '<button class="file-x" type="button" data-file="' + i + '" aria-label="移除附件">×</button>' +
       '</span>';
     }).join('');
@@ -197,11 +205,16 @@
     }
     files = files.slice(0, room);
     setUploading(true);
-    uploadMessage('正在解析 ' + files.length + ' 个文件…', false);
+    uploadMessage('正在上传并解析 ' + files.length + ' 个文件…（图片 OCR 可能需要几十秒）', false);
     var chain = Promise.resolve();
     var okCount = 0;
+    var imageCount = 0;
     files.forEach(function (file) {
       chain = chain.then(function () {
+        if (isImage(file.name) && file.size > IMAGE_MAX_BYTES) {
+          uploadMessage(file.name + '：图片超过 OCR 免费接口 1 MB，请先压缩再上传。', true);
+          return;
+        }
         if (file.size > 10 * 1024 * 1024) {
           uploadMessage(file.name + ' 超过 10 MB，已跳过。', true);
           return;
@@ -214,6 +227,7 @@
               if (!resp.ok || !data.ok) { throw new Error(apiError(data, '上传失败')); }
               S.attachments.push(data.item);
               okCount++;
+              if (isImage(data.item.name)) { imageCount++; }
               renderAttachments();
             });
           })
@@ -225,7 +239,8 @@
     chain.then(function () {
       setUploading(false);
       if (okCount) {
-        uploadMessage('已附加 ' + S.attachments.length + ' 个文件，会参与本次研究。', false);
+        uploadMessage('已附加 ' + S.attachments.length + ' 个文件，会参与本次研究。' +
+          (imageCount ? ' ' + imageCount + ' 张图片已通过 OCR.space 转成文字。' : ''), false);
       }
     });
   }

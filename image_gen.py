@@ -77,7 +77,7 @@ STYLES = {
 }
 
 # 宽高比 + 清晰度 -> 方舟接受的像素尺寸。
-# 只选 5.0 Pro / Lite / 4.5 都能接受的 2K 档；1K 给草稿用。
+# 只选 5.0 Pro / Flash / 4.5 / 4.0 都能接受的 2K 档；1K 给草稿用。
 RATIOS = {
     '1:1': {'label': '1:1', '1K': '1024x1024', '2K': '2048x2048'},
     '4:3': {'label': '4:3', '1K': '1152x864', '2K': '2304x1728'},
@@ -239,7 +239,7 @@ def _download_image(url: str) -> bytes:
         resp.close()
 
 
-def _ark_generate(prompt: str, size: str) -> bytes:
+def _ark_generate(prompt: str, size: str, model: str = '') -> bytes:
     """调用火山方舟 images/generations，返回图片二进制。
 
     返回格式统一用 url：方舟的 URL 只保留 24 小时，所以这里立刻下载，
@@ -251,7 +251,7 @@ def _ark_generate(prompt: str, size: str) -> bytes:
 
     endpoint = model_config.ark_image_base() + '/images/generations'
     body = {
-        'model': model_config.ark_image_model(),
+        'model': model or model_config.ark_image_model(),
         'prompt': prompt,
         'size': size,
         'response_format': 'url',
@@ -363,12 +363,13 @@ def _process_job(job: dict) -> None:
                             job.get('negative_prompt') or '')
     ratio = RATIOS.get(job.get('ratio') or '1:1') or RATIOS['1:1']
     size = ratio.get(job.get('resolution') or '2K') or ratio['2K']
+    model = job.get('model') or model_config.ark_image_model()
 
     files: list[str] = []
     error = ''
     for index in range(int(job.get('count') or 1)):
         try:
-            data = _ark_generate(prompt, size)
+            data = _ark_generate(prompt, size, model)
             ext = _image_ext(data)
             name = '%02d.%s' % (index + 1, ext)
             _save_image(user, job_id, name, data)
@@ -516,6 +517,10 @@ def _clean_job_body(body) -> dict:
     if resolution not in RESOLUTIONS:
         raise ValueError('清晰度只支持 1K / 2K')
 
+    model = str(body.get('model') or '').strip() or model_config.ark_image_model()
+    if not model_config.ark_image_model_allowed(model):
+        raise ValueError('不支持的模型')
+
     try:
         count = int(body.get('count', 1))
     except (TypeError, ValueError):
@@ -530,6 +535,7 @@ def _clean_job_body(body) -> dict:
         'ratio': ratio,
         'resolution': resolution,
         'count': count,
+        'model': model,
     }
 
 
@@ -560,6 +566,7 @@ async def image_gen_status(request: Request):
         'ok': True,
         'ready': model_config.image_gen_ready(),
         'model': model_config.ark_image_model(),
+        'models': model_config.ark_image_models(),
         'dailyLimit': _daily_limit(),
         'usedToday': used,
         'ttlDays': _ttl_days(),
@@ -612,7 +619,7 @@ async def create_job(request: Request):
             storage.image_job_add,
             user, data['prompt'], data['negative'], data['style'],
             data['ratio'], data['resolution'], data['count'],
-            model_config.ark_image_model(),
+            data['model'],
         )
     except storage.StorageUnavailable as exc:
         return JSONResponse({'ok': False, 'message': str(exc)}, status_code=503)

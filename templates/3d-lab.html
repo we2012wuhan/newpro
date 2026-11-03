@@ -153,13 +153,53 @@ h1{margin:0;font-size:25px;line-height:1.35;color:var(--ink)}
   radial-gradient(circle at 50% 42%,rgba(70,110,120,.18),transparent 55%),
   linear-gradient(150deg,var(--canvas),var(--bg))}
 #sketchCanvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
-.sketch-toolbar{position:absolute;left:12px;top:12px;z-index:2;display:flex;gap:5px;flex-wrap:wrap;
-  max-width:calc(100% - 24px);padding:6px;border:1px solid var(--line);border-radius:10px;
-  background:var(--top);backdrop-filter:blur(9px)}
+.sketch-toolbar{position:absolute;left:12px;top:12px;z-index:2;display:flex;gap:6px;flex-wrap:wrap;
+  align-items:center;max-width:calc(100% - 24px);padding:6px;border:1px solid var(--line);
+  border-radius:10px;background:var(--top);backdrop-filter:blur(9px)}
 .sketch-btn{min-height:32px;padding:0 9px;border-radius:7px;border:1px solid var(--line);
-  background:var(--field);color:var(--muted);font-size:10.5px;cursor:pointer}
+  background:var(--field);color:var(--muted);font-size:10.5px;cursor:pointer;white-space:nowrap}
 .sketch-btn:hover,.sketch-btn.on{color:var(--acc);border-color:var(--acc-line);background:var(--acc-l)}
 .sketch-btn:disabled{opacity:.38;cursor:not-allowed}
+.sketch-btn.primary{border-color:transparent;color:#fff;background:linear-gradient(135deg,#0f9f8f,#5865f2)}
+.sketch-btn.primary:hover{filter:brightness(1.06);color:#fff}
+.sketch-btn.danger:hover{color:var(--err);border-color:var(--err-line);background:var(--err-l)}
+.tool-group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.tool-group+.tool-group{padding-left:7px;border-left:1px solid var(--line)}
+.snap-toggle{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;color:var(--muted);
+  cursor:pointer;white-space:nowrap}
+.snap-toggle input{accent-color:var(--acc);cursor:pointer}
+.sketch-select{min-height:30px;padding:0 5px;border:1px solid var(--line);border-radius:7px;
+  background:var(--field);color:var(--text);font-size:10.5px;outline:none;cursor:pointer}
+.sketch-select:focus{border-color:var(--acc-line)}
+.radius-input{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;color:var(--muted);
+  white-space:nowrap}
+.radius-input input{width:52px;min-height:30px;padding:0 5px;border:1px solid var(--line);
+  border-radius:7px;background:var(--field);color:var(--ink);font-size:10.5px;text-align:right;outline:none}
+.radius-input input:focus{border-color:var(--acc-line);box-shadow:0 0 0 2px rgba(15,159,143,.12)}
+.sketch-props{position:absolute;right:12px;bottom:62px;z-index:4;width:236px;padding:10px;
+  border:1px solid var(--line);border-radius:11px;background:var(--top);backdrop-filter:blur(10px);
+  box-shadow:var(--sh)}
+.sketch-props[hidden]{display:none}
+.sketch-props-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.sketch-props-head b{font-size:11.5px;color:var(--ink)}
+.prop-close{width:24px;height:24px;border:1px solid var(--line);border-radius:6px;background:transparent;
+  color:var(--muted);cursor:pointer;line-height:1;font-size:14px}
+.prop-close:hover{color:var(--ink);border-color:var(--acc-line)}
+.prop-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:7px}
+.prop-row[hidden]{display:none}
+.prop-row label{display:inline-flex;align-items:center;gap:4px;color:var(--muted);font-size:10.5px}
+.prop-row input{width:64px;min-height:29px;padding:2px 5px;border:1px solid var(--line);border-radius:7px;
+  background:var(--field);color:var(--ink);text-align:right;font-size:11px;outline:none}
+.prop-row input:focus{border-color:var(--acc-line);box-shadow:0 0 0 2px rgba(15,159,143,.12)}
+.prop-row input:disabled{opacity:.55;cursor:not-allowed}
+.prop-row select{min-height:29px;padding:2px 5px;border:1px solid var(--line);border-radius:7px;
+  background:var(--field);color:var(--ink);font-size:11px;outline:none}
+.prop-meta{color:var(--muted);font-size:10.5px;line-height:1.55;margin-bottom:6px}
+.prop-note{padding:6px 7px;border-radius:7px;background:var(--acc-l);border:1px solid var(--acc-line);
+  color:var(--acc);font-size:10px;line-height:1.55;margin-bottom:7px}
+.prop-note[hidden]{display:none}
+.prop-actions{display:flex;gap:6px}
+.prop-actions .sketch-btn{flex:1}
 .sketch-help{position:absolute;left:12px;right:12px;bottom:12px;z-index:2;display:flex;gap:10px;
   align-items:center;justify-content:space-between;padding:7px 10px;border-radius:9px;
   background:var(--top);border:1px solid var(--line);color:var(--muted);font-size:10.5px;
@@ -201,6 +241,12 @@ h1{margin:0;font-size:25px;line-height:1.35;color:var(--ink)}
   .note-grid{grid-template-columns:1fr}
   .back span{display:none}
   .tb-mount{display:none}
+  .sketch-toolbar{left:8px;right:8px;top:8px;max-width:none;gap:4px;padding:5px}
+  .tool-group+.tool-group{padding-left:0;border-left:0}
+  .sketch-btn{min-height:30px;padding:0 7px;font-size:10px}
+  .sketch-props{left:8px;right:8px;bottom:56px;width:auto}
+  .sketch-help{left:8px;right:8px;bottom:8px;font-size:10px;gap:6px}
+  .sketch-help #sketchHint{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
 @media(prefers-reduced-motion:reduce){.loading .spinner{animation:none}}
 </style>
@@ -234,7 +280,7 @@ h1{margin:0;font-size:25px;line-height:1.35;color:var(--ink)}
   <section class="hero">
     <div>
       <h1>用模板起步，也可以自己画。</h1>
-      <p>调整现成尺寸，或在毫米网格上绘制闭合轮廓、添加圆孔并拉伸成 3D 小作品。</p>
+      <p>调整现成尺寸，或用毫米网格绘制外轮廓、多边形孔、圆孔、圆弧和圆角，再拉伸成 3D 小作品。</p>
     </div>
     <span class="hero-badge">毫米单位 · 离线生成</span>
   </section>
@@ -297,16 +343,75 @@ h1{margin:0;font-size:25px;line-height:1.35;color:var(--ink)}
         <div id="canvasHost" tabindex="0" aria-label="3D 模型预览，可拖动旋转和滚轮缩放"></div>
         <div class="canvas-badge" id="canvasBadge">拖动旋转 · 滚轮缩放 · 右键平移</div>
         <div class="sketch-layer" id="sketchLayer" hidden>
-          <canvas id="sketchCanvas" aria-label="2D 轮廓草图"></canvas>
-          <div class="sketch-toolbar">
-            <button class="sketch-btn on" id="sketchOutline" type="button">画轮廓</button>
-            <button class="sketch-btn" id="sketchHole" type="button">加圆孔</button>
-            <button class="sketch-btn" id="closeOutline" type="button">闭合轮廓</button>
-            <button class="sketch-btn" id="undoSketch" type="button">撤回</button>
-            <button class="sketch-btn" id="clearSketch" type="button">清空重画</button>
+          <canvas id="sketchCanvas" tabindex="0" aria-label="2D 轮廓草图"></canvas>
+          <div class="sketch-toolbar" role="toolbar" aria-label="草图工具">
+            <div class="tool-group">
+              <button class="sketch-btn" id="sketchSelect" type="button" title="选择并拖动顶点或圆孔">选择</button>
+              <button class="sketch-btn on" id="sketchOutline" type="button" title="绘制外轮廓">外轮廓</button>
+              <button class="sketch-btn" id="sketchHole" type="button" title="绘制多边形孔">多边形孔</button>
+              <button class="sketch-btn" id="sketchCircle" type="button" title="拖动绘制圆孔">圆孔</button>
+              <button class="sketch-btn" id="sketchFillet" type="button" title="点击顶点倒圆角">圆角</button>
+            </div>
+            <div class="tool-group">
+              <button class="sketch-btn" id="closeOutline" type="button" title="闭合当前轮廓（Enter）">闭合</button>
+              <button class="sketch-btn" id="deleteSketchItem" type="button" title="删除选中项（Delete）">删除</button>
+              <button class="sketch-btn" id="undoSketch" type="button" title="撤销（Ctrl+Z）">撤销</button>
+              <button class="sketch-btn" id="redoSketch" type="button" title="重做（Ctrl+Shift+Z）">重做</button>
+            </div>
+            <div class="tool-group">
+              <label class="snap-toggle" title="吸附到已有顶点和网格">
+                <input id="snapToggle" type="checkbox" checked> 吸附
+              </label>
+              <select class="sketch-select" id="gridSize" aria-label="网格大小">
+                <option value="1">1 mm</option>
+                <option value="2">2 mm</option>
+                <option value="5" selected>5 mm</option>
+                <option value="10">10 mm</option>
+              </select>
+              <label class="radius-input" title="圆角半径">
+                R <input id="filletRadius" type="number" value="5" min="0.5" max="100" step="0.5" aria-label="圆角半径（毫米）">
+              </label>
+            </div>
+            <div class="tool-group">
+              <button class="sketch-btn" id="fitSketch" type="button" title="缩放到全部内容">适配</button>
+              <button class="sketch-btn" id="importSvg" type="button" title="从 SVG 导入轮廓">导入 SVG</button>
+              <button class="sketch-btn danger" id="clearSketch" type="button">清空</button>
+              <input id="svgFile" type="file" accept=".svg,image/svg+xml" hidden>
+            </div>
           </div>
+
+          <div class="sketch-props" id="sketchProps" hidden>
+            <div class="sketch-props-head">
+              <b id="propTitle">选中项</b>
+              <button class="prop-close" id="propClose" type="button" aria-label="关闭属性面板">×</button>
+            </div>
+            <div class="prop-row" id="propVertexRow" hidden>
+              <label>X <input id="propX" type="number" step="0.1" inputmode="decimal" aria-label="顶点 X 坐标"></label>
+              <label>Y <input id="propY" type="number" step="0.1" inputmode="decimal" aria-label="顶点 Y 坐标"></label>
+            </div>
+            <div class="prop-row" id="propCircleRow" hidden>
+              <label>X <input id="propCX" type="number" step="0.1" inputmode="decimal" aria-label="圆心 X 坐标"></label>
+              <label>Y <input id="propCY" type="number" step="0.1" inputmode="decimal" aria-label="圆心 Y 坐标"></label>
+              <label>R <input id="propCR" type="number" step="0.1" min="0.5" inputmode="decimal" aria-label="圆孔半径"></label>
+            </div>
+            <div class="prop-row" id="propOutlineRow" hidden>
+              <label>类型
+                <select id="propRole" aria-label="轮廓类型">
+                  <option value="outer">外轮廓</option>
+                  <option value="hole">孔</option>
+                </select>
+              </label>
+            </div>
+            <div class="prop-meta" id="propMeta"></div>
+            <div class="prop-note" id="propNote" hidden></div>
+            <div class="prop-actions">
+              <button class="sketch-btn primary" id="propApply" type="button">应用</button>
+              <button class="sketch-btn danger" id="propDelete" type="button">删除选中</button>
+            </div>
+          </div>
+
           <div class="sketch-help">
-            <span id="sketchHint">依次点击网格画外轮廓，点回第一个点即可闭合。</span>
+            <span id="sketchHint">依次点击画外轮廓；点回第一个点或按「闭合」完成。Shift 正交吸附。</span>
             <span id="sketchPosition">X 0 · Y 0 mm</span>
           </div>
         </div>

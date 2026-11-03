@@ -16,7 +16,8 @@
   OCR_SPACE_API_KEY    OCR.space 的 Key，不填就用公共免费 Key（会被限流）    可选
   ARK_API_KEY          火山方舟（文生图）的 Key，不填就只有图片工具不能用       可选
   ARK_BASE_URL         方舟接口地址，默认北京区 v3                      可选
-  ARK_IMAGE_MODEL      图片模型，默认 doubao-seedream-5-0-pro-260628     可选
+  ARK_IMAGE_MODEL      默认图片模型，默认 doubao-seedream-5-0-pro-260628   可选
+  ARK_IMAGE_MODELS     页面可切换的模型清单，逗号分隔，留空用内置清单       可选
   VOLC_TTS_API_KEY     火山引擎（豆包）语音合成的 Key，不填就只剩浏览器本地朗读   可选
   VOLC_TTS_VOICE       音色 ID，默认 zh_female_vv_uranus_bigtts           可选
   VOLC_TTS_RESOURCE_ID 资源 ID，默认 seed-tts-2.0                        可选
@@ -29,6 +30,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 _BASE_DIR = Path(__file__).resolve().parent
@@ -43,6 +45,7 @@ ENV_OCR_KEY = 'OCR_SPACE_API_KEY'
 ENV_ARK_KEY = 'ARK_API_KEY'
 ENV_ARK_BASE = 'ARK_BASE_URL'
 ENV_ARK_IMAGE_MODEL = 'ARK_IMAGE_MODEL'
+ENV_ARK_IMAGE_MODELS = 'ARK_IMAGE_MODELS'
 
 # 朗读（火山引擎 / 豆包语音合成）：只有 Key 是必填，不填就回落到浏览器自带语音
 ENV_TTS_KEY = 'VOLC_TTS_API_KEY'
@@ -66,6 +69,16 @@ _DEFAULT_ARK_BASE = 'https://ark.cn-beijing.volces.com/api/v3'
 # 2026 年可用的 Seedream 5.0 Pro；模型会迭代，线上直接改 ARK_IMAGE_MODEL 即可，
 # 不用动代码。控制台里模型 ID 一般带日期后缀，抄完整的那一串。
 _DEFAULT_ARK_IMAGE_MODEL = 'doubao-seedream-5-0-pro-260628'
+
+# 页面下拉框里的模型清单：(模型 ID, 显示名, 一句备注)。
+# 第一项之外都是比 Pro 便宜的档位，价格只是参考值，实际以方舟控制台账单为准。
+# 模型下线、改名时不用改代码，设 ARK_IMAGE_MODELS 覆盖即可。
+_DEFAULT_ARK_IMAGE_MODELS = (
+    ('doubao-seedream-5-0-pro-260628', 'Seedream 5.0 Pro', '画质最好 · 约 ¥0.30/张'),
+    ('doubao-seedream-5-0-flash-260915', 'Seedream 5.0 Flash', '速度快 · 约 ¥0.12/张'),
+    ('doubao-seedream-4-5-251128', 'Seedream 4.5', '均衡 · 约 ¥0.25/张'),
+    ('doubao-seedream-4-0-20260415', 'Seedream 4.0', '性价比高 · 约 ¥0.20/张'),
+)
 _DEFAULT_IQS_ENDPOINT = 'https://cloud-iqs.aliyuncs.com/search/unified'
 _DEFAULT_IQS_ENGINE_FAST = 'CNLiteBasic'
 _DEFAULT_IQS_ENGINE_DEEP = 'CNAuto'
@@ -153,6 +166,60 @@ def ark_image_base() -> str:
 
 def ark_image_model() -> str:
     return os.environ.get(ENV_ARK_IMAGE_MODEL, '').strip() or _DEFAULT_ARK_IMAGE_MODEL
+
+
+def ark_image_models() -> list:
+    """页面能选的模型清单。
+
+    默认用代码里的清单；设了 ARK_IMAGE_MODELS 就以环境变量为准，格式：
+
+        doubao-seedream-5-0-flash-260915,doubao-seedream-4-5-251128
+
+    想自己起名、写价格备注，用竖线分隔（第二段显示名，第三段备注）：
+
+        doubao-seedream-5-0-flash-260915|5.0 Flash|约 ¥0.12/张
+
+    默认模型（ARK_IMAGE_MODEL）如果不在清单里，会自动补到第一项，
+    避免页面没有选项、任务却仍用它。
+    """
+    raw = os.environ.get(ENV_ARK_IMAGE_MODELS, '').strip()
+    entries = []
+    if raw:
+        for chunk in re.split(r'[,;，；\n]+', raw):
+            part = chunk.strip()
+            if not part:
+                continue
+            bits = [bit.strip() for bit in re.split(r'[|｜=]', part)]
+            model_id = bits[0]
+            if not model_id:
+                continue
+            label = bits[1] if len(bits) > 1 and bits[1] else model_id
+            note = bits[2] if len(bits) > 2 else ''
+            entries.append((model_id, label, note))
+    if not entries:
+        entries = list(_DEFAULT_ARK_IMAGE_MODELS)
+
+    default_id = ark_image_model()
+    if not any(item[0] == default_id for item in entries):
+        entries.insert(0, (default_id, default_id, '默认模型'))
+
+    seen = set()
+    models = []
+    for model_id, label, note in entries:
+        if model_id in seen:
+            continue
+        seen.add(model_id)
+        models.append({
+            'id': model_id,
+            'label': label,
+            'note': note,
+            'default': model_id == default_id,
+        })
+    return models
+
+
+def ark_image_model_allowed(model_id: str) -> bool:
+    return any(item['id'] == model_id for item in ark_image_models())
 
 
 def image_gen_ready() -> bool:
