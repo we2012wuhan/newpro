@@ -1,5 +1,6 @@
 fastapi
 uvicorn
+websockets
 requests
 yt-dlp
 openpyxl
@@ -7,5 +8,3 @@ python-multipart
 pypdf
 python-docx
 paramiko
-langchain
-langchain-openai

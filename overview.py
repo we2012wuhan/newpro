@@ -44,7 +44,6 @@ TOOL_META = {
     'goal-split': {'name': '目标拆解器', 'ico': '🎯', 'href': '/goal-split', 'deep': True},
     'focus': {'name': '专注台', 'ico': '🍅', 'href': '/focus', 'deep': False},
     'site-collect': {'name': '网站收集', 'ico': '🔖', 'href': '/site-collect', 'deep': True},
-    'langchain-test': {'name': 'LangChain 测试', 'ico': '🧪', 'href': '/langchain-test', 'deep': True},
     'first_principles': {'name': '第一性原理', 'ico': '🧩', 'href': '/ask-hub?tab=fp', 'deep': True},
     'design-assistant': {'name': '页面设计助手', 'ico': '✏️', 'href': '/design-assistant', 'deep': True},
     'web-search': {'name': '联网搜索', 'ico': '🌐', 'href': '/web-search', 'deep': True},
@@ -103,8 +102,6 @@ def _excerpt(tool: str, payload: dict) -> str:
         return _text(payload.get('why')) or _text(payload.get('url'))
     if tool == 'first_principles':
         return _text(payload.get('goal'))
-    if tool == 'langchain-test':
-        return _text(payload.get('input')) or _text(payload.get('case_name'))
     if tool == 'design-assistant':
         spec = payload.get('spec') if isinstance(payload.get('spec'), dict) else {}
         return _text(spec.get('summary')) or _text(payload.get('brief'))
@@ -181,9 +178,6 @@ def _status(tool: str, payload: dict) -> dict:
         names = {2: '零件待拷问', 3: '拷问中', 4: '从零重算中'}
         return {'tracked': True, 'open': True,
                 'label': names.get(step, '还没拆零件')}
-    if tool == 'langchain-test':
-        # 跑一次就是一次记录，没有「收尾」这一说；标签用来标是哪个用例
-        return {'tracked': False, 'open': False, 'label': _text(payload.get('case_name'), 20)}
     if tool == 'site-collect':
         # 收藏没有「收尾」这一说，不参与「没收尾」筛选，但状态标签照样显示
         label = {'new': '待看', 'using': '常用', 'archived': '归档'}.get(payload.get('state'), '')
@@ -299,10 +293,6 @@ def _detail(tool: str, payload: dict) -> list:
         add('从零重算下限', payload.get('floor'), 60)
         if payload.get('diff'):
             add('差额', payload.get('diff'), 60)
-    elif tool == 'langchain-test':
-        add('用例', payload.get('case_name'), 40)
-        add('输入', payload.get('input'))
-        add('返回块数', _count(payload.get('blocks')) or None, 8)
     elif tool == 'ai-chart':
         add('提示词', payload.get('prompt'))
         data = payload.get('data')

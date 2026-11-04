@@ -24,7 +24,7 @@ PERIODS = [('深夜', 0, 6), ('上午', 6, 12), ('下午', 12, 18), ('晚上', 1
 HISTORY_NAMES = {
     'five_why': '五问分析', 'socratic': '苏格拉底提问', 'first_principles': '第一性原理',
     'bill_analysis': '账单分析', 'judgement-trainer': '判断力教练', 'predict-diary': '贝叶斯日记',
-    'langchain-test': 'LangChain 测试', 'reading-practice': '读书落地', 'kolb': '库博学习圈',
+    'reading-practice': '读书落地', 'kolb': '库博学习圈',
     'goal-split': '目标拆解器', 'focus': '专注台', 'rumination': '内耗拆解', 'writing-ideas': '写作选题',
     'ocr': 'OCR 图片识别', 'study-assistant': '学习模型助手', 'ai-chart': 'AI 生成图表',
     'opc': 'OPC 资讯', 'douyin': '抖音下载器', 'ask-hub': '提问三件套',
