@@ -64,6 +64,22 @@ _BASE_DIR = Path(__file__).resolve().parent
 _TEMPLATE_FILE = _BASE_DIR / 'templates' / 'image-gen.html'
 _JOB_ID_RE = re.compile(r'^[0-9a-f]{32}$')
 
+# Notion 信息图风格不是简单追加一句：它要求风格前缀 + 内容 + 风格后缀，
+# 所以 notion 在 _compose_prompt() 里单独组装，其余风格仍只追加一句描述。
+NOTION_PREFIX = (
+    'Notion官方插画风格松弛感线稿信息图。线条特征：纯黄色为主，搭配其他适合的颜色；'
+    '线条粗细不均匀，像马克笔随手画的质感；笔触松弛、略带抖动，不追求工整；'
+    '所有图标、人物、图表都保持手绘涂鸦感；少部份地方填充黑色让整体压实。'
+    '人物画法（如需要）：简笔画风格女孩，短发，圆润的头、点或线表示五官，'
+    '肢体夸张、动作松弛自然，可以是完整人物或只露出局部。'
+)
+NOTION_SUFFIX = (
+    '禁止事项（严格执行）：不要彩色渐变或复杂配色；不要粗黑边框或生硬分隔线；'
+    '不要3D效果、阴影、立体感；不要密集文字堆砌，文字内容简化；'
+    '保持大量留白和呼吸感；装饰元素要克制，不要太多。'
+    '输出规范：图片比例16:9，中文标注，直接生成，不需要解释。'
+)
+
 # 风格只做「追加一句描述」，不替用户改原提示词。
 # 想加新风格时，前后端各加一项即可；后端会拒绝未知 key。
 STYLES = {
@@ -74,6 +90,7 @@ STYLES = {
     'watercolor': ('水彩', '水彩画风格，纸张纹理，留白自然'),
     'minimal': ('极简', '极简设计风格，大留白，构图干净'),
     'poster': ('海报', '海报设计风格，强对比，视觉中心明确'),
+    'notion': ('Notion 信息图', ''),
 }
 
 # 宽高比 + 清晰度 -> 方舟接受的像素尺寸。
@@ -156,7 +173,20 @@ def _job_dir(user: str, job_id: str) -> Path:
 
 
 def _compose_prompt(prompt: str, style: str, negative: str) -> str:
-    parts = [prompt.strip()]
+    content = prompt.strip()
+    if style == 'notion':
+        # 用户也可能直接粘贴 skill 产出的完整提示词，已经带风格前后缀就不再包一层。
+        if 'Notion官方插画风格' in content and '禁止事项' in content:
+            if negative.strip():
+                return content + '\n\n画面中避免出现：' + negative.strip()
+            return content
+        # 信息图的风格前缀/后缀必须完整包裹内容；用户只写「画什么」。
+        parts = [NOTION_PREFIX, content, NOTION_SUFFIX]
+        if negative.strip():
+            parts.append('画面中避免出现：' + negative.strip())
+        return '\n\n'.join(part for part in parts if part)
+
+    parts = [content]
     style_desc = (STYLES.get(style) or ('', ''))[1]
     if style_desc:
         parts.append(style_desc)
@@ -513,6 +543,8 @@ def _clean_job_body(body) -> dict:
     ratio = str(body.get('ratio') or '1:1').strip()
     if ratio not in RATIOS:
         raise ValueError('不支持的比例')
+    if style == 'notion' and ratio != '16:9':
+        raise ValueError('Notion 信息图只支持 16:9 比例')
     resolution = str(body.get('resolution') or '2K').strip().upper()
     if resolution not in RESOLUTIONS:
         raise ValueError('清晰度只支持 1K / 2K')

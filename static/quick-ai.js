@@ -348,7 +348,10 @@
     if (path.indexOf('/image-gen') === 0) {
       var prompt = readValue('#prompt');
       if (prompt) { out.push('当前提示词：' + prompt); }
-      var style = readStyleText('#styleChips .chip.on');
+      var mode = readStyleText('#mode option:checked');
+      if (mode) { out.push('当前模式：' + mode); }
+      var style = readStyleText('#style option:checked') ||
+        readStyleText('#styleChips .chip.on');
       if (style) { out.push('当前风格：' + style); }
       var pairs = [['#model', '模型'], ['#ratio', '比例'], ['#resolution', '分辨率'], ['#count', '数量']];
       pairs.forEach(function (p) {

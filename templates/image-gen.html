@@ -73,11 +73,8 @@ textarea:focus,input[type=text]:focus,select:focus{border-color:var(--acc-line);
 .field-label{display:flex;align-items:center;justify-content:space-between;gap:8px;
   margin:13px 0 6px;font-size:12px;font-weight:650;color:var(--text)}
 .field-label small{font-weight:400;color:var(--muted)}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{min-height:32px;padding:0 11px;border-radius:999px;border:1px solid var(--line);
-  background:var(--field);color:var(--text);font-size:12px;cursor:pointer}
-.chip:hover{border-color:var(--acc-line);color:var(--acc)}
-.chip.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+.mode-tip{margin:8px 0 0;padding:7px 10px;border:1px solid var(--acc-line);
+  background:var(--acc-l);color:var(--acc);border-radius:9px;font-size:11.5px;line-height:1.6}
 .field-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px}
 .field-grid label{display:block;font-size:11.5px;color:var(--muted)}
 .field-grid select{min-height:36px;margin-top:4px;padding:4px 7px;font-size:12.5px}
@@ -197,16 +194,24 @@ textarea:focus,input[type=text]:focus,select:focus{border-color:var(--acc-line);
       <textarea id="prompt" maxlength="2000" rows="6"
         placeholder="例如：清晨的江南小镇，石桥下有小船，薄雾，水彩画风格，画面干净"></textarea>
 
-      <div class="field-label">风格 <small>只是追加描述，不会改你的原话</small></div>
-      <div class="chips" id="styleChips">
-        <button class="chip on" type="button" data-style="none">不指定</button>
-        <button class="chip" type="button" data-style="photo">摄影</button>
-        <button class="chip" type="button" data-style="illustration">插画</button>
-        <button class="chip" type="button" data-style="3d">3D 渲染</button>
-        <button class="chip" type="button" data-style="watercolor">水彩</button>
-        <button class="chip" type="button" data-style="minimal">极简</button>
-        <button class="chip" type="button" data-style="poster">海报</button>
-      </div>
+      <div class="field-label">模式 <small id="modeHint">信息图会自动配好比例和风格</small></div>
+      <select id="mode" aria-label="生成模式">
+        <option value="free" selected>自由创作</option>
+        <option value="notion">Notion 信息图</option>
+      </select>
+
+      <div class="field-label">风格 <small id="styleHint">只是追加描述，不会改你的原话</small></div>
+      <select id="style" aria-label="画面风格">
+        <option value="none">不指定</option>
+        <option value="photo">摄影</option>
+        <option value="illustration">插画</option>
+        <option value="3d">3D 渲染</option>
+        <option value="watercolor">水彩</option>
+        <option value="minimal">极简</option>
+        <option value="poster">海报</option>
+        <option value="notion">Notion 信息图</option>
+      </select>
+      <p class="mode-tip" id="notionTip" hidden>只写画面内容即可：黄色手绘风格会自动加上，比例固定 16:9、清晰度 2K。</p>
 
       <div class="field-label">模型 <small id="modelHint">切换模型会按对应的价格计费</small></div>
       <select id="model" aria-label="生成模型"></select>

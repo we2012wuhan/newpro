@@ -15,7 +15,10 @@ const $ = (id) => document.getElementById(id);
 
 const promptEl = $('prompt');
 const promptCount = $('promptCount');
-const styleChips = $('styleChips');
+const modeEl = $('mode');
+const styleEl = $('style');
+const styleHint = $('styleHint');
+const notionTip = $('notionTip');
 const modelEl = $('model');
 const modelHint = $('modelHint');
 const ratioEl = $('ratio');
@@ -43,15 +46,34 @@ const STATUS_TEXT = {
   failed: '失败'
 };
 
+const FALLBACK_STYLES = [
+  { key: 'none', label: '不指定' },
+  { key: 'photo', label: '摄影' },
+  { key: 'illustration', label: '插画' },
+  { key: '3d', label: '3D 渲染' },
+  { key: 'watercolor', label: '水彩' },
+  { key: 'minimal', label: '极简' },
+  { key: 'poster', label: '海报' },
+  { key: 'notion', label: 'Notion 信息图' }
+];
+
+const DEFAULT_PLACEHOLDER =
+  '例如：清晨的江南小镇，石桥下有小船，薄雾，水彩画风格，画面干净';
+const NOTION_PLACEHOLDER =
+  '例如：一个人站在分岔路口，左边路牌写「传统开发」，右边写「AI 编程」；底部标注「72% 开发者已用 AI」';
+
 const state = {
   ready: false,
   model: '',
   models: [],
+  styles: [],
   history: [],
   dailyLimit: 0,
   usedToday: 0,
   ttlDays: 7,
+  mode: 'free',
   style: 'none',
+  freeSnapshot: null,
   current: null,
   polling: 0,
   busy: false,
@@ -182,13 +204,77 @@ function renderModels(models) {
   updateModelHint();
 }
 
+function styleLabel(style) {
+  const info = (state.styles.length ? state.styles : FALLBACK_STYLES)
+    .find((item) => item.key === style);
+  if (info) return info.label;
+  return style === 'notion' ? 'Notion 信息图' : style;
+}
+
 function setStyle(style) {
-  state.style = style;
-  styleChips.querySelectorAll('.chip').forEach((chip) => {
-    const on = chip.dataset.style === style;
-    chip.classList.toggle('on', on);
-    chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+  const list = state.styles.length ? state.styles : FALLBACK_STYLES;
+  const next = list.some((item) => item.key === style) ? style : 'none';
+  state.style = next;
+  styleEl.value = next;
+}
+
+function renderStyles(styles) {
+  const list = Array.isArray(styles) && styles.length ? styles : FALLBACK_STYLES;
+  const previous = styleEl.value || state.style;
+  state.styles = list;
+  styleEl.innerHTML = '';
+  list.forEach((item) => {
+    const option = document.createElement('option');
+    option.value = item.key;
+    option.textContent = item.label;
+    styleEl.appendChild(option);
   });
+  setStyle(previous);
+}
+
+function applyMode(mode) {
+  const next = mode === 'notion' ? 'notion' : 'free';
+  if (next === 'notion') {
+    if (state.mode !== 'notion') {
+      state.freeSnapshot = {
+        style: state.style,
+        ratio: ratioEl.value,
+        resolution: resolutionEl.value,
+        count: countEl.value
+      };
+    }
+    state.mode = 'notion';
+    modeEl.value = 'notion';
+    setStyle('notion');
+    ratioEl.value = '16:9';
+    ratioEl.disabled = true;
+    resolutionEl.value = '2K';
+    countEl.value = '1';
+    styleEl.disabled = true;
+    styleHint.textContent = 'Notion 信息图使用固定风格';
+    notionTip.hidden = false;
+    promptEl.placeholder = NOTION_PLACEHOLDER;
+    return;
+  }
+
+  const snapshot = state.freeSnapshot;
+  state.mode = 'free';
+  state.freeSnapshot = null;
+  modeEl.value = 'free';
+  styleEl.disabled = false;
+  ratioEl.disabled = false;
+  if (snapshot) {
+    setStyle(snapshot.style);
+    ratioEl.value = snapshot.ratio;
+    resolutionEl.value = snapshot.resolution;
+    countEl.value = snapshot.count;
+  } else if (state.style === 'notion') {
+    setStyle('none');
+    if (ratioEl.value === '16:9') ratioEl.value = '1:1';
+  }
+  styleHint.textContent = '只是追加描述，不会改你的原话';
+  notionTip.hidden = true;
+  promptEl.placeholder = DEFAULT_PLACEHOLDER;
 }
 
 function updatePromptCount() {
@@ -220,7 +306,8 @@ function renderJob(job) {
   state.current = job;
   const images = job.images || [];
   const modelText = job.model ? modelLabel(job.model) + ' · ' : '';
-  jobMeta.textContent = `${statusText(job)} · ${modelText}${job.ratio || '1:1'} · ${job.count || 1} 张 · ${formatTime(job.createdAt)}`;
+  const styleText = job.style && job.style !== 'none' ? styleLabel(job.style) + ' · ' : '';
+  jobMeta.textContent = `${statusText(job)} · ${styleText}${modelText}${job.ratio || '1:1'} · ${job.count || 1} 张 · ${formatTime(job.createdAt)}`;
 
   resultBody.innerHTML = '';
   if (images.length) {
@@ -381,7 +468,8 @@ function historyItem(job) {
   title.textContent = job.prompt || '未命名任务';
   const meta = document.createElement('span');
   const modelText = job.model ? modelLabel(job.model) + ' · ' : '';
-  meta.textContent = `${statusText(job)} · ${modelText}${formatTime(job.createdAt)} · ${job.ratio || '1:1'} · ${job.count || 1} 张`;
+  const styleText = job.style && job.style !== 'none' ? styleLabel(job.style) + ' · ' : '';
+  meta.textContent = `${statusText(job)} · ${styleText}${modelText}${formatTime(job.createdAt)} · ${job.ratio || '1:1'} · ${job.count || 1} 张`;
   main.appendChild(title);
   main.appendChild(meta);
   main.addEventListener('click', () => selectJob(job));
@@ -472,6 +560,7 @@ async function loadStatus() {
       showBanner('');
     }
     renderModels(state.models);
+    renderStyles(data.styles);
     // 历史可能比 status 先渲染完，模型显示名要等清单到了再刷一遍。
     if (state.history.length) renderHistory(state.history);
     if (state.current) renderJob(state.current);
@@ -548,10 +637,14 @@ modelEl.addEventListener('change', () => {
   updateModelHint();
 });
 
-styleChips.addEventListener('click', (event) => {
-  const chip = event.target.closest('.chip');
-  if (!chip) return;
-  setStyle(chip.dataset.style || 'none');
+modeEl.addEventListener('change', () => applyMode(modeEl.value));
+styleEl.addEventListener('change', () => {
+  if (styleEl.value === 'notion') {
+    // 从风格下拉直接选信息图，也切到对应模式，保证比例是 16:9。
+    applyMode('notion');
+    return;
+  }
+  setStyle(styleEl.value);
 });
 
 promptEl.addEventListener('input', updatePromptCount);
@@ -568,6 +661,7 @@ refreshBtn.addEventListener('click', () => {
 });
 
 setStyle('none');
+applyMode('free');
 updatePromptCount();
 loadStatus();
 loadHistory();
