@@ -36,9 +36,112 @@
 
   var IMAGE_EXT = /\.(png|jpe?g|gif|bmp|tiff?)$/i;
   var IMAGE_MAX_BYTES = 1024 * 1024;
+  var IMAGE_TYPE_EXT = {
+    'image/png': '.png', 'image/jpeg': '.jpg', 'image/jpg': '.jpg',
+    'image/gif': '.gif', 'image/bmp': '.bmp',
+    'image/tiff': '.tif', 'image/x-tiff': '.tif'
+  };
 
   function isImage(name) {
     return IMAGE_EXT.test(String(name || ''));
+  }
+
+  // 剪贴板里可能是 files，也可能只在 items 里；两种都取一次。
+  function clipboardImages(data) {
+    var out = [];
+    if (!data) { return out; }
+    Array.prototype.forEach.call(data.files || [], function (file) {
+      if (file && (isImage(file.name) || /^image\//i.test(file.type || ''))) { out.push(file); }
+    });
+    if (out.length) { return out; }
+    Array.prototype.forEach.call(data.items || [], function (item) {
+      if (!item || item.kind !== 'file' || !/^image\//i.test(item.type || '')) { return; }
+      var file = item.getAsFile();
+      if (file) { out.push(file); }
+    });
+    return out;
+  }
+
+  function clipboardStamp() {
+    var d = new Date();
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    return d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' +
+      pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+  }
+
+  function clipboardImageName(file, index) {
+    var name = String(file.name || '').trim();
+    // 浏览器截图常叫 image.png / blob，改成带时间的名字，附件列表更好辨认。
+    var generic = /^(image|blob|untitled|clipboard)(\.[a-z0-9]+)?$/i;
+    if (isImage(name) && !generic.test(name)) { return name; }
+    var ext = IMAGE_TYPE_EXT[String(file.type || '').toLowerCase()] || '.png';
+    return '剪贴板图片-' + clipboardStamp() + (index ? '-' + (index + 1) : '') + ext;
+  }
+
+  function imageToPng(file) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth || img.width;
+          canvas.height = img.naturalHeight || img.height;
+          canvas.getContext('2d').drawImage(img, 0, 0);
+          canvas.toBlob(function (blob) {
+            URL.revokeObjectURL(url);
+            if (blob) { resolve(blob); } else { reject(new Error('图片转换失败')); }
+          }, 'image/png');
+        } catch (err) {
+          URL.revokeObjectURL(url);
+          reject(err);
+        }
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        reject(new Error('无法读取剪贴板图片'));
+      };
+      img.src = url;
+    });
+  }
+
+  // 浏览器给的剪贴板文件常常没有扩展名（或 webp 等后端不认的格式）。
+  function normalizeClipboardImage(file, index) {
+    var type = String(file.type || '').toLowerCase();
+    var name = clipboardImageName(file, index);
+    var supported = !!IMAGE_TYPE_EXT[type] || (!type && isImage(name));
+    if (supported) {
+      if (name === file.name) { return Promise.resolve(file); }
+      try {
+        return Promise.resolve(new File([file], name, { type: file.type || 'image/png' }));
+      } catch (e) {
+        return Promise.resolve(file);
+      }
+    }
+    return imageToPng(file).then(function (blob) {
+      return new File([blob], name, { type: 'image/png' });
+    });
+  }
+
+  function handlePaste(event) {
+    var data = event.clipboardData;
+    var files = clipboardImages(data);
+    if (!files.length) { return; }
+    var target = event.target;
+    var editable = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+    var text = '';
+    try { text = data.getData('text/plain') || ''; } catch (e) {}
+    // 输入框里粘贴“文字 + 图片”时，保留文字的正常粘贴；图片仍然会附加。
+    if (!(editable && text)) { event.preventDefault(); }
+    Promise.all(files.slice(0, 3).map(function (file, index) {
+      return normalizeClipboardImage(file, index).catch(function (err) {
+        uploadMessage('“' + (file.name || '剪贴板图片') + '”读取失败：' + (err.message || '未知错误'), true);
+        return null;
+      });
+    })).then(function (items) {
+      items = items.filter(Boolean);
+      if (items.length) { uploadFiles(items); }
+    });
   }
 
   var S = {
@@ -607,6 +710,7 @@
       uploadFiles(fileInput.files);
       fileInput.value = '';
     };
+    document.addEventListener('paste', handlePaste);
     if (queryShell) {
       ['dragenter', 'dragover'].forEach(function (name) {
         queryShell.addEventListener(name, function (event) {
