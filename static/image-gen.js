@@ -18,7 +18,7 @@ const promptCount = $('promptCount');
 const modeEl = $('mode');
 const styleEl = $('style');
 const styleHint = $('styleHint');
-const notionTip = $('notionTip');
+const modeTip = $('modeTip');
 const modelEl = $('model');
 const modelHint = $('modelHint');
 const ratioEl = $('ratio');
@@ -54,13 +54,37 @@ const FALLBACK_STYLES = [
   { key: 'watercolor', label: '水彩' },
   { key: 'minimal', label: '极简' },
   { key: 'poster', label: '海报' },
-  { key: 'notion', label: 'Notion 信息图' }
+  { key: 'notion', label: 'Notion 信息图' },
+  { key: 'comic', label: '漫画信息图' }
 ];
 
 const DEFAULT_PLACEHOLDER =
   '例如：清晨的江南小镇，石桥下有小船，薄雾，水彩画风格，画面干净';
 const NOTION_PLACEHOLDER =
   '例如：一个人站在分岔路口，左边路牌写「传统开发」，右边写「AI 编程」；底部标注「72% 开发者已用 AI」';
+const COMIC_PLACEHOLDER =
+  '例如：标题「我的三位 AI 同事」；第一格 Claude 穿橙色毛衣托腮说「我懂」；第二格 GPT 举着彩色画喊「看我这个」；第三格 DeepSeek 趴在稿纸上说「再试一版」。';
+
+const MODE_PRESETS = {
+  notion: {
+    style: 'notion',
+    ratio: '16:9',
+    resolution: '2K',
+    count: '1',
+    styleHint: 'Notion 信息图使用固定风格',
+    tip: '只写画面内容即可：黄色手绘风格会自动加上，比例固定 16:9、清晰度 2K。',
+    placeholder: NOTION_PLACEHOLDER
+  },
+  comic: {
+    style: 'comic',
+    ratio: '3:4',
+    resolution: '2K',
+    count: '1',
+    styleHint: '漫画信息图使用固定风格',
+    tip: '只写标题和三格内容：手绘漫画风格会自动加上，比例固定 3:4、清晰度 2K。中文长句仍可能被模型写错。',
+    placeholder: COMIC_PLACEHOLDER
+  }
+};
 
 const state = {
   ready: false,
@@ -233,9 +257,10 @@ function renderStyles(styles) {
 }
 
 function applyMode(mode) {
-  const next = mode === 'notion' ? 'notion' : 'free';
-  if (next === 'notion') {
-    if (state.mode !== 'notion') {
+  const preset = MODE_PRESETS[mode] || null;
+  if (preset) {
+    // 只记住第一次进入预设前的自由创作参数，两个预设之间切换不覆盖。
+    if (state.mode === 'free') {
       state.freeSnapshot = {
         style: state.style,
         ratio: ratioEl.value,
@@ -243,17 +268,18 @@ function applyMode(mode) {
         count: countEl.value
       };
     }
-    state.mode = 'notion';
-    modeEl.value = 'notion';
-    setStyle('notion');
-    ratioEl.value = '16:9';
+    state.mode = mode;
+    modeEl.value = mode;
+    setStyle(preset.style);
+    ratioEl.value = preset.ratio;
     ratioEl.disabled = true;
-    resolutionEl.value = '2K';
-    countEl.value = '1';
+    resolutionEl.value = preset.resolution;
+    countEl.value = preset.count;
     styleEl.disabled = true;
-    styleHint.textContent = 'Notion 信息图使用固定风格';
-    notionTip.hidden = false;
-    promptEl.placeholder = NOTION_PLACEHOLDER;
+    styleHint.textContent = preset.styleHint;
+    modeTip.textContent = preset.tip;
+    modeTip.hidden = false;
+    promptEl.placeholder = preset.placeholder;
     return;
   }
 
@@ -268,12 +294,12 @@ function applyMode(mode) {
     ratioEl.value = snapshot.ratio;
     resolutionEl.value = snapshot.resolution;
     countEl.value = snapshot.count;
-  } else if (state.style === 'notion') {
+  } else if (MODE_PRESETS[state.style]) {
     setStyle('none');
-    if (ratioEl.value === '16:9') ratioEl.value = '1:1';
+    if (ratioEl.value === '16:9' || ratioEl.value === '3:4') ratioEl.value = '1:1';
   }
   styleHint.textContent = '只是追加描述，不会改你的原话';
-  notionTip.hidden = true;
+  modeTip.hidden = true;
   promptEl.placeholder = DEFAULT_PLACEHOLDER;
 }
 
@@ -639,9 +665,9 @@ modelEl.addEventListener('change', () => {
 
 modeEl.addEventListener('change', () => applyMode(modeEl.value));
 styleEl.addEventListener('change', () => {
-  if (styleEl.value === 'notion') {
-    // 从风格下拉直接选信息图，也切到对应模式，保证比例是 16:9。
-    applyMode('notion');
+  if (MODE_PRESETS[styleEl.value]) {
+    // 从风格下拉直接选信息图 / 漫画，也切到对应模式，保证比例正确。
+    applyMode(styleEl.value);
     return;
   }
   setStyle(styleEl.value);

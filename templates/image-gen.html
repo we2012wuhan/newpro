@@ -198,6 +198,7 @@ textarea:focus,input[type=text]:focus,select:focus{border-color:var(--acc-line);
       <select id="mode" aria-label="生成模式">
         <option value="free" selected>自由创作</option>
         <option value="notion">Notion 信息图</option>
+        <option value="comic">漫画信息图</option>
       </select>
 
       <div class="field-label">风格 <small id="styleHint">只是追加描述，不会改你的原话</small></div>
@@ -210,8 +211,9 @@ textarea:focus,input[type=text]:focus,select:focus{border-color:var(--acc-line);
         <option value="minimal">极简</option>
         <option value="poster">海报</option>
         <option value="notion">Notion 信息图</option>
+        <option value="comic">漫画信息图</option>
       </select>
-      <p class="mode-tip" id="notionTip" hidden>只写画面内容即可：黄色手绘风格会自动加上，比例固定 16:9、清晰度 2K。</p>
+      <p class="mode-tip" id="modeTip" hidden></p>
 
       <div class="field-label">模型 <small id="modelHint">切换模型会按对应的价格计费</small></div>
       <select id="model" aria-label="生成模型"></select>

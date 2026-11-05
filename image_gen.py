@@ -80,6 +80,22 @@ NOTION_SUFFIX = (
     '输出规范：图片比例16:9，中文标注，直接生成，不需要解释。'
 )
 
+# 漫画信息图：竖版三格叙事，风格词固定，用户只描述标题和三格内容。
+# 中文长句仍可能被模型写错，先按单图预设做，后续再考虑 Canvas 叠字。
+COMIC_PREFIX = (
+    '竖版三格漫画信息图，日系手绘漫画 + 复古丝网印刷拼贴风。'
+    '米黄色纸张底，黑色粗线稿，线条略微抖动，纸张颗粒和半调网点；'
+    '暖橙、芥末黄、墨绿、钴蓝点缀，整体像复古杂志内页。'
+    '画面从上到下分成三格：顶部手写中文大标题，每格一个角色或场景，配对话气泡；'
+    '格内点缀手写标签、便签、清单、箭头和贴纸。人物画风统一，表情和动作不同。'
+    '中文手写标注，文字清晰，排版有呼吸感。'
+)
+COMIC_SUFFIX = (
+    '禁止事项（严格执行）：不要3D效果，不要照片写实，不要复杂渐变，'
+    '不要密集小字，不要乱码，不要水印。'
+    '输出规范：3:4 竖版，中文标注，直接生成，不需要解释。'
+)
+
 # 风格只做「追加一句描述」，不替用户改原提示词。
 # 想加新风格时，前后端各加一项即可；后端会拒绝未知 key。
 STYLES = {
@@ -91,6 +107,13 @@ STYLES = {
     'minimal': ('极简', '极简设计风格，大留白，构图干净'),
     'poster': ('海报', '海报设计风格，强对比，视觉中心明确'),
     'notion': ('Notion 信息图', ''),
+    'comic': ('漫画信息图', ''),
+}
+
+# 这些风格自带版式，比例固定，避免提示词和画布互相打架。
+STYLE_RATIOS = {
+    'notion': '16:9',
+    'comic': '3:4',
 }
 
 # 宽高比 + 清晰度 -> 方舟接受的像素尺寸。
@@ -182,6 +205,17 @@ def _compose_prompt(prompt: str, style: str, negative: str) -> str:
             return content
         # 信息图的风格前缀/后缀必须完整包裹内容；用户只写「画什么」。
         parts = [NOTION_PREFIX, content, NOTION_SUFFIX]
+        if negative.strip():
+            parts.append('画面中避免出现：' + negative.strip())
+        return '\n\n'.join(part for part in parts if part)
+
+    if style == 'comic':
+        # 同样支持直接粘贴完整漫画提示词，避免重复包一层。
+        if '竖版三格漫画信息图' in content and '禁止事项' in content:
+            if negative.strip():
+                return content + '\n\n画面中避免出现：' + negative.strip()
+            return content
+        parts = [COMIC_PREFIX, content, COMIC_SUFFIX]
         if negative.strip():
             parts.append('画面中避免出现：' + negative.strip())
         return '\n\n'.join(part for part in parts if part)
@@ -543,8 +577,9 @@ def _clean_job_body(body) -> dict:
     ratio = str(body.get('ratio') or '1:1').strip()
     if ratio not in RATIOS:
         raise ValueError('不支持的比例')
-    if style == 'notion' and ratio != '16:9':
-        raise ValueError('Notion 信息图只支持 16:9 比例')
+    fixed_ratio = STYLE_RATIOS.get(style)
+    if fixed_ratio and ratio != fixed_ratio:
+        raise ValueError('%s 只支持 %s 比例' % (STYLES[style][0], fixed_ratio))
     resolution = str(body.get('resolution') or '2K').strip().upper()
     if resolution not in RESOLUTIONS:
         raise ValueError('清晰度只支持 1K / 2K')
