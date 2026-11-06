@@ -54,6 +54,7 @@ SCHEMA = (
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_history_tool ON history(tool, user, id DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_history_user_time ON history(user, created_at DESC)",
     """
     CREATE TABLE IF NOT EXISTS image_jobs(
         id              TEXT PRIMARY KEY,
@@ -389,6 +390,27 @@ def list_records_all(user: str = '', limit: int = 300) -> list:
     conn = connect()
     try:
         rows = _rows(conn, sql, args)
+    finally:
+        conn.close()
+    for row in rows:
+        try:
+            row['payload'] = json.loads(row['payload'] or '{}')
+        except ValueError:
+            row['payload'] = {}
+    return rows
+
+
+def list_records_since(user: str, since: str, limit: int = 1000) -> list:
+    """按时间窗口读某个用户的跨工具历史；给复盘摘要用。
+
+    created_at 和 usage_since 一样是本地时间字符串，直接按字典序比较。
+    """
+    limit = max(1, min(int(limit or 1000), 2000))
+    sql = ('SELECT id, tool, user, title, payload, created_at FROM history '
+           'WHERE user = ? AND created_at >= ? ORDER BY id DESC LIMIT ?')
+    conn = connect()
+    try:
+        rows = _rows(conn, sql, [user, str(since or ''), limit])
     finally:
         conn.close()
     for row in rows:

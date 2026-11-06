@@ -69,6 +69,16 @@
     '  color:var(--tb-ink,#152033);font-weight:600}',
     '.ctxmeta{flex:1 1 auto;min-width:0;font-size:11px;color:var(--tb-muted,#8b93ab);',
     '  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+    /* 场景 */
+    '.scenes{display:flex;flex-wrap:wrap;align-items:center;gap:6px;flex:0 0 auto;padding:2px 12px 4px}',
+    '.scene{min-height:28px;padding:0 10px;border-radius:999px;border:1px solid var(--tb-line,#282d45);',
+    '  background:transparent;color:var(--tb-text,#c6cbdd);font-size:11.5px;cursor:pointer}',
+    '.scene:hover{border-color:var(--tb-acc1,#6d7cff);color:var(--tb-ink,#eef1fa)}',
+    '.scene.on{border-color:rgba(45,212,191,.6);background:rgba(45,212,191,.16);',
+    '  color:var(--tb-ink,#152033);font-weight:600}',
+    '.scene:disabled{opacity:.45;cursor:default}',
+    '.range{min-height:28px;padding:0 8px;border-radius:999px;border:1px solid var(--tb-line,#282d45);',
+    '  background:transparent;color:var(--tb-text,#c6cbdd);font-size:11.5px}',
     /* 选中的文字 */
     '.sel{display:flex;align-items:flex-start;gap:8px;margin:2px 12px 4px;padding:7px 9px;',
     '  border-left:3px solid #6d7cff;background:rgba(109,124,255,.09);border-radius:8px;font-size:12px;',
@@ -187,6 +197,17 @@
     '    <button class="ctxbtn" id="ctxBtn" type="button" aria-pressed="false">📄 读取本页</button>',
     '    <span class="ctxmeta" id="ctxMeta">默认不读取页面内容</span>',
     '  </div>',
+    '  <div class="scenes" id="scenes" role="group" aria-label="对话场景">',
+    '    <button class="scene on" type="button" data-scene="free">自由</button>',
+    '    <button class="scene" type="button" data-scene="review">复盘</button>',
+    '    <button class="scene" type="button" data-scene="training">训练</button>',
+    '    <button class="scene" type="button" data-scene="plan">计划</button>',
+    '    <select class="range" id="rangeDays" aria-label="记录时间范围" hidden>',
+    '      <option value="7">近 7 天</option>',
+    '      <option value="14">近 14 天</option>',
+    '      <option value="30">近 30 天</option>',
+    '    </select>',
+    '  </div>',
     '  <div class="sel" id="sel" hidden><span class="seltxt" id="selTxt"></span>',
     '    <button class="selx" id="selX" type="button" aria-label="移除选中文字">×</button></div>',
     '  <div class="selacts" id="selActs" hidden>',
@@ -218,6 +239,7 @@
   var selEl = null, selTxtEl = null, selActsEl = null, ctxBtn = null, ctxMeta = null;
   var statusEl = null, copyBtn = null, stopBtn = null, speakBtn = null, sendBtn = null;
   var histEl = null, histListEl = null, pageTagEl = null;
+  var sceneBtns = [], rangeSel = null;
   var voicePromise = null, voiceBound = false;
 
   var LS_HIST = 'tb_ai_sessions_v1';
@@ -237,9 +259,41 @@
     ctrl: null,
     hideTimer: 0,
     contextOn: false,
+    scene: 'free',
+    rangeDays: 7,
     gen: 0,
     historyOpen: false
   };
+
+  var SCENE_INFO = {
+    free: { label: '自由' },
+    review: {
+      label: '复盘',
+      ask: function (days) {
+        return '请基于我最近 ' + days + ' 天的工具使用记录做一次复盘。按这个结构回答：'
+          + '1. 最近主要在做什么；2. 最常用或最有效的操作；3. 反复卡住或低效的地方；'
+          + '4. 还没收尾的事；5. 下周最值得做的 3 件事。'
+          + '每条尽量引用具体工具、记录标题或数字；没有数据就直说，不要编造。';
+      }
+    },
+    training: {
+      label: '训练',
+      ask: function (days) {
+        return '请基于我最近 ' + days + ' 天的记录，找出一个最值得练的点。'
+          + '先说明今天练什么、为什么选它，然后只出第一道题或第一个追问，等我回答后再点评。'
+          + '不要一次给答案，也不要提前把后面几题说出来。';
+      }
+    },
+    plan: {
+      label: '计划',
+      ask: function (days) {
+        return '请基于我最近 ' + days + ' 天的记录、目标拆解和专注情况，帮我制定下周 3 个可执行动作。'
+          + '每个动作写清：做什么、预计分钟、完成标准。动作要少而具体。';
+      }
+    }
+  };
+  var SCENE_KEYS = ['free', 'review', 'training', 'plan'];
+  var RANGE_KEYS = [7, 14, 30];
 
   var SEL_ACTIONS = {
     explain: {
@@ -277,6 +331,25 @@
 
   function clampText(value, limit) {
     return String(value || '').slice(0, limit || 6000);
+  }
+
+  function normalizeScene(value) {
+    return SCENE_KEYS.indexOf(value) >= 0 ? value : 'free';
+  }
+
+  function normalizeRange(value) {
+    var n = +value;
+    return RANGE_KEYS.indexOf(n) >= 0 ? n : 7;
+  }
+
+  function starterFor(scene, days) {
+    var info = SCENE_INFO[scene];
+    return (info && typeof info.ask === 'function') ? info.ask(days) : '';
+  }
+
+  function syncSceneFromSession() {
+    S.scene = normalizeScene(S.session && S.session.scene);
+    S.rangeDays = normalizeRange(S.session && S.session.rangeDays);
   }
 
   function isNarrow() {
@@ -403,7 +476,10 @@
 
   /* ---------------- 本地会话 ---------------- */
   function newSession() {
-    return { id: uid(), title: '', createdAt: Date.now(), updatedAt: Date.now(), messages: [] };
+    return {
+      id: uid(), title: '', createdAt: Date.now(), updatedAt: Date.now(), messages: [],
+      scene: 'free', rangeDays: 7
+    };
   }
 
   function normalizeMessage(m) {
@@ -428,6 +504,8 @@
       title: clampText(s.title || '', 60),
       createdAt: +s.createdAt || Date.now(),
       updatedAt: +s.updatedAt || Date.now(),
+      scene: normalizeScene(s.scene),
+      rangeDays: normalizeRange(s.rangeDays),
       messages: msgs.slice(-30)
     };
   }
@@ -452,6 +530,7 @@
       if (S.sessions[i].id === cur) { found = S.sessions[i]; break; }
     }
     S.session = found || newSession();
+    syncSceneFromSession();
   }
 
   function titleFor(messages) {
@@ -485,6 +564,8 @@
         title: s.title,
         createdAt: s.createdAt,
         updatedAt: s.updatedAt,
+        scene: normalizeScene(s.scene),
+        rangeDays: normalizeRange(s.rangeDays),
         messages: msgs.slice(-30)
       };
       var hit = false;
@@ -522,10 +603,11 @@
       S.busy = false;
     }
     S.session = found;
+    syncSceneFromSession();
     S.text = '';
     S.contextOn = false;
     setSelectionUI();
-    updateContextUI();
+    updateSceneUI();
     renderThread();
     closeHistory();
     setBusy(false);
@@ -542,10 +624,11 @@
       S.busy = false;
     }
     S.session = newSession();
+    syncSceneFromSession();
     S.text = '';
     S.contextOn = false;
     setSelectionUI();
-    updateContextUI();
+    updateSceneUI();
     renderThread();
     closeHistory();
     setBusy(false);
@@ -586,6 +669,8 @@
     histEl = root.getElementById('hist');
     histListEl = root.getElementById('histList');
     pageTagEl = root.getElementById('pageTag');
+    sceneBtns = Array.prototype.slice.call(root.querySelectorAll('.scene'));
+    rangeSel = root.getElementById('rangeDays');
 
     orb.classList.toggle('show', !embedded);
     setBusy(false);
@@ -727,18 +812,82 @@
     if (!ctxBtn) { return; }
     ctxBtn.classList.toggle('on', S.contextOn);
     ctxBtn.setAttribute('aria-pressed', S.contextOn ? 'true' : 'false');
+    var sceneNote = S.scene === 'free' ? '' :
+      ' · 当前场景会读取本账号最近 ' + S.rangeDays + ' 天记录';
     if (!S.contextOn) {
-      ctxMeta.textContent = '默认不读取页面内容';
+      ctxMeta.textContent = '默认不读取页面内容' + sceneNote;
       return;
     }
     var t = readPageText();
-    ctxMeta.textContent = t ? ('开启 · 约 ' + t.length + ' 字') : '开启 · 没读到文字';
+    ctxMeta.textContent = (t ? ('开启 · 约 ' + t.length + ' 字') : '开启 · 没读到文字') + sceneNote;
     ctxMeta.title = '只在你发送时读取页面文字；关闭后不再发送';
   }
 
   function toggleContext() {
     S.contextOn = !S.contextOn;
     updateContextUI();
+  }
+
+  function updateSceneUI() {
+    sceneBtns.forEach(function (b) {
+      b.classList.toggle('on', b.getAttribute('data-scene') === S.scene);
+    });
+    if (rangeSel) {
+      rangeSel.hidden = S.scene === 'free';
+      rangeSel.value = String(S.rangeDays);
+      rangeSel.disabled = !!S.busy;
+    }
+    if (qEl) {
+      qEl.placeholder = S.scene === 'free'
+        ? '问点什么…  Enter 发送，Shift+Enter 换行'
+        : '可以直接追问当前场景的结果…';
+    }
+    updateContextUI();
+  }
+
+  function changeRange(value) {
+    S.rangeDays = normalizeRange(value);
+    if (S.session) { S.session.rangeDays = S.rangeDays; }
+    persist();
+    updateSceneUI();
+    if (S.scene !== 'free') {
+      setStatus('范围已改为近 ' + S.rangeDays + ' 天，下轮生成生效');
+    }
+  }
+
+  function selectScene(scene) {
+    scene = normalizeScene(scene);
+    if (S.busy) {
+      setStatus('等这次回答结束再切换场景');
+      return;
+    }
+    var days = S.rangeDays;
+    if (scene === 'free') {
+      S.scene = 'free';
+      S.rangeDays = days;
+      if (S.session) { S.session.scene = 'free'; S.session.rangeDays = days; }
+      persist();
+      updateSceneUI();
+      setStatus('已切换到自由对话');
+      focusComposer();
+      return;
+    }
+
+    // 已经聊过的对话先存起来，复盘/训练/计划单独开一段。
+    if (S.session && S.session.messages.length) { newChat(); }
+    S.scene = scene;
+    S.rangeDays = normalizeRange(days);
+    if (S.session) {
+      S.session.scene = S.scene;
+      S.session.rangeDays = S.rangeDays;
+    }
+    updateSceneUI();
+    var info = SCENE_INFO[scene] || SCENE_INFO.free;
+    send(starterFor(scene, S.rangeDays), {
+      scene: scene,
+      rangeDays: S.rangeDays,
+      display: info.label + ' · 最近 ' + S.rangeDays + ' 天'
+    });
   }
 
   /* ---------------- 对话渲染 ---------------- */
@@ -760,7 +909,8 @@
     var h = document.createElement('h3');
     h.textContent = '随时问我';
     var p = document.createElement('p');
-    p.textContent = '可以直接问任何问题。想让我结合当前页面回答，就打开上面的「读取本页」；默认不会读取页面内容。';
+    p.textContent = '可以直接问任何问题。想让我结合当前页面回答，就打开上面的「读取本页」；'
+      + '也可以点「复盘 / 训练 / 计划」，我会读取最近 7 / 14 / 30 天的使用记录。';
     wrap.appendChild(h);
     wrap.appendChild(p);
     var chips = document.createElement('div');
@@ -853,6 +1003,8 @@
         b.disabled = !!on;
       });
     }
+    sceneBtns.forEach(function (b) { b.disabled = !!on; });
+    if (rangeSel) { rangeSel.disabled = !!on; }
   }
 
   function growInput() {
@@ -864,7 +1016,9 @@
   function pageTextForSend() {
     if (!S.contextOn) { return ''; }
     var t = readPageText();
-    ctxMeta.textContent = t ? ('开启 · 约 ' + t.length + ' 字') : '开启 · 没读到文字';
+    var sceneNote = S.scene === 'free' ? '' :
+      ' · 当前场景会读取本账号最近 ' + S.rangeDays + ' 天记录';
+    ctxMeta.textContent = (t ? ('开启 · 约 ' + t.length + ' 字') : '开启 · 没读到文字') + sceneNote;
     return t;
   }
 
@@ -889,7 +1043,7 @@
       display = (opts.label || typed || '关于选中的文字') + '\n（附带选中文字 ' + picked.length + ' 字）';
     } else {
       content = typed;
-      display = typed;
+      display = opts.display || typed;
     }
 
     var userMsg = { role: 'user', content: content, display: display, ts: Date.now() };
@@ -918,7 +1072,9 @@
       messages: history,
       page: pageMeta(),
       page_text: pageTextForSend(),
-      tool_context: S.contextOn ? readToolContext() : ''
+      tool_context: S.contextOn ? readToolContext() : '',
+      scene: normalizeScene(opts.scene || S.scene),
+      range_days: normalizeRange(opts.rangeDays || S.rangeDays)
     };
     var init = {
       method: 'POST',
@@ -1248,6 +1404,12 @@
       resetSession();
     };
     ctxBtn.onclick = toggleContext;
+    sceneBtns.forEach(function (b) {
+      b.onclick = function () { selectScene(b.getAttribute('data-scene')); };
+    });
+    if (rangeSel) {
+      rangeSel.onchange = function () { changeRange(rangeSel.value); };
+    }
     root.getElementById('selX').onclick = function () { setSelection(''); };
     selActsEl.onclick = function (e) {
       var b = e.target && e.target.closest ? e.target.closest('[data-sa]') : null;
@@ -1322,7 +1484,7 @@
     loadStore();
     bind();
     renderThread();
-    updateContextUI();
+    updateSceneUI();
     updatePageTag();
     layoutDock();
     setTimeout(layoutDock, 600);
