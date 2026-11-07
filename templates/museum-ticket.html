@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<title>国家博物馆抢票工具</title>
+<link rel="stylesheet" href="/static/theme.css">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<script src="/static/auth-guard.js"></script>
+<style>
+:root{--acc:#0f766e;--acc-d:#115e59;--acc-l:#ccfbf1;--acc-line:rgba(20,184,166,.35)}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;color:var(--tb-ink);font-family:"Segoe UI","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;background:radial-gradient(800px 500px at 0 -10%,rgba(20,184,166,.18),transparent 65%),linear-gradient(160deg,var(--tb-bg),var(--tb-bg-2))}
+.wrap{max-width:1060px;margin:auto;padding:28px 18px 70px}.back{display:inline-flex;color:var(--tb-muted);text-decoration:none;margin-bottom:18px}.top{display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:20px}.brand{display:flex;align-items:center;gap:13px}.mark{display:grid;place-items:center;width:50px;height:50px;border-radius:15px;font-size:25px;color:#fff;background:linear-gradient(135deg,#0f766e,#14b8a6);box-shadow:0 12px 28px rgba(15,118,110,.35)}h1{font-size:24px;margin:0}.sub{color:var(--tb-muted);font-size:13px;margin-top:4px}.pill{border:1px solid var(--acc-line);background:rgba(20,184,166,.1);color:var(--c-5eead4);border-radius:999px;padding:7px 12px;font-size:12px}
+.card{padding:19px;border:1px solid var(--tb-line);border-radius:18px;background:linear-gradient(180deg,var(--tb-card),var(--tb-card-2));box-shadow:0 18px 44px var(--tb-sh);margin-top:16px}.card h2{font-size:17px;margin:0 0 6px}.hint,.note{font-size:13px;line-height:1.8;color:var(--tb-muted)}.note{padding:11px 13px;border:1px solid rgba(251,191,36,.3);background:rgba(251,191,36,.08);border-radius:11px;color:var(--c-fcd34d);margin:12px 0 0}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.field{display:block}.field span{display:block;font-size:12px;color:var(--tb-muted);margin:0 0 6px}.field input,.field select{width:100%;min-height:44px;padding:10px 12px;border-radius:10px;border:1px solid var(--tb-line);background:var(--tb-field);color:var(--tb-ink);font:inherit;outline:none}.field input:focus,.field select:focus{border-color:var(--acc-line);box-shadow:0 0 0 3px rgba(20,184,166,.12)}
+.visitors{display:grid;gap:10px}.visitor{display:grid;grid-template-columns:1fr 1.35fr 1fr auto;gap:9px;align-items:end;padding:12px;border:1px solid var(--tb-line);border-radius:13px;background:var(--tb-hover)}.visitor .remove{min-height:44px}.actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:15px}.btn{min-height:44px;border:0;border-radius:10px;padding:10px 16px;color:#fff;font:inherit;font-size:14px;font-weight:700;cursor:pointer}.btn:disabled{opacity:.55;cursor:not-allowed}.main{background:linear-gradient(135deg,#0f766e,#14b8a6);box-shadow:0 9px 20px rgba(15,118,110,.25)}.ghost{color:var(--tb-ink);background:var(--tb-card);border:1px solid var(--tb-line)}.danger{background:rgba(244,63,94,.13);color:var(--c-fda4af);border:1px solid rgba(244,63,94,.33)}.small{min-height:36px;padding:7px 12px;font-size:12px}.status{display:none;margin-top:14px;padding:12px 14px;border-radius:12px;border:1px solid var(--tb-line);line-height:1.7;font-size:13px}.status.show{display:block}.status.running,.status.countdown,.status.opening,.status.waiting{background:rgba(20,184,166,.09);border-color:var(--acc-line)}.status.waiting_user{background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.35);color:var(--c-fcd34d)}.status.success{background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.35);color:var(--c-86efac)}.status.error,.status.timeout{background:rgba(244,63,94,.08);border-color:rgba(244,63,94,.3);color:var(--c-fda4af)}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}.step{padding:12px;border-radius:12px;background:var(--tb-hover);border:1px solid var(--tb-line);font-size:13px;line-height:1.6}.step b{display:block;color:var(--tb-ink);margin-bottom:4px}.history{display:grid;gap:8px;margin-top:12px}.history-row{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--tb-line);border-radius:10px;font-size:12px}.muted{color:var(--tb-muted)}.switch{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--tb-muted)}.switch input{width:18px;height:18px}
+@media(max-width:760px){.grid,.steps{grid-template-columns:1fr 1fr}.visitor{grid-template-columns:1fr 1fr}.visitor .remove{grid-column:span 2}}@media(max-width:480px){.grid,.steps{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="/">← 返回工具箱</a>
+<header class="top"><div class="brand"><div class="mark">🏛</div><div><h1>国家博物馆抢票工具</h1><div class="sub">真实打开官方预约页面，在放票后自动刷新、填写并提交</div></div></div><span class="pill">Playwright 浏览器自动化</span></header>
+
+<div class="card">
+<h2>先说清楚：它会真实提交，但不会绕过验证</h2>
+<div class="hint">程序会使用真实浏览器进入你提供的官方预约地址。登录、短信验证码、图形验证码、滑块和风控页面出现时，任务会暂停，你在浏览器里完成后点“继续抢票”。不会调用未公开接口，也不会尝试绕过验证码。</div>
+<div class="note">证件号码只在当前任务内存中使用，不写入历史记录。请确认预约页面和地址属于国家博物馆官方渠道；成功与否以官网订单和短信为准。</div>
+</div>
+
+<div class="card">
+<h2>抢票任务</h2><div class="hint">放票时间留空表示立即开始。刷新间隔不要设置过短，避免触发官网风控。</div>
+<div class="grid" style="margin-top:13px">
+<label class="field"><span>官方预约页面 URL</span><input id="officialUrl" value="https://www.chnmuseum.cn/" autocomplete="off"></label>
+<label class="field"><span>目标参观日期</span><input id="targetDate" type="date"></label>
+<label class="field"><span>目标时段（可留空）</span><input id="timeSlot" placeholder="例如：上午 / 09:00-12:00" autocomplete="off"></label>
+<label class="field"><span>放票时间（可留空）</span><input id="releaseAt" type="datetime-local"></label>
+<label class="field"><span>刷新间隔（秒）</span><input id="refreshSeconds" type="number" min="1" max="30" step="0.5" value="2.5"></label>
+<label class="field"><span>&nbsp;</span><label class="switch"><input id="headless" type="checkbox"> 无头模式（看不到浏览器，不建议）</label></label>
+</div>
+<div style="margin-top:17px"><h2>预约人</h2><div class="hint">姓名、证件号和手机号只用于填写当前官方表单；不要把信息发给任何第三方。</div></div>
+<div id="visitors" class="visitors" style="margin-top:10px"></div>
+<div class="actions"><button id="addVisitor" class="btn ghost small" type="button">＋ 添加预约人</button><button id="start" class="btn main" type="button">开始真实抢票</button><button id="resume" class="btn ghost" type="button" disabled>继续抢票</button><button id="stop" class="btn danger" type="button" disabled>停止任务</button></div>
+<div id="status" class="status"></div>
+</div>
+
+<div class="card"><h2>运行方式</h2><div class="steps"><div class="step"><b>1 · 打开官网</b>启动真实 Chromium 会话，保留登录状态。</div><div class="step"><b>2 · 等待放票</b>按你设置的时间开始刷新，不提前高频请求。</div><div class="step"><b>3 · 人工验证</b>需要登录/验证码时暂停，浏览器里完成后点继续。</div><div class="step"><b>4 · 提交预约</b>尝试选日期、时段并提交，成功后立即停止。</div></div></div>
+<div class="card"><h2>最近任务</h2><div id="history" class="history"><span class="muted">正在读取…</span></div></div>
+</div>
+<script>
+(function(){'use strict';
+var state={taskId:'',poll:null};
+function $(id){return document.getElementById(id)}
+function esc(value){var d=document.createElement('div');d.textContent=value==null?'':String(value);return d.innerHTML}
+function visitorRow(data){data=data||{};var el=document.createElement('div');el.className='visitor';el.innerHTML='<label class="field"><span>姓名</span><input class="v-name" maxlength="40" autocomplete="off" value="'+esc(data.name||'')+'"></label><label class="field"><span>证件号码</span><input class="v-id" maxlength="30" autocomplete="off" value="'+esc(data.id_number||'')+'"></label><label class="field"><span>手机号（可选）</span><input class="v-phone" maxlength="20" autocomplete="off" value="'+esc(data.phone||'')+'"></label><button class="btn danger remove" type="button">删除</button>';el.querySelector('.remove').onclick=function(){el.remove();if(!$('visitors').children.length)addVisitor()};return el}
+function addVisitor(data){if($('visitors').children.length>=6){show('最多支持 6 位预约人','error');return}$('visitors').appendChild(visitorRow(data))}
+function collect(){return Array.from(document.querySelectorAll('.visitor')).map(function(row){return{name:row.querySelector('.v-name').value.trim(),id_number:row.querySelector('.v-id').value.trim(),phone:row.querySelector('.v-phone').value.trim()}})}
+function show(message,type){var el=$('status');el.className='status show '+(type||'');el.innerHTML=esc(message)}
+function busy(on){$('start').disabled=on;$('stop').disabled=!on;$('resume').disabled=true}
+function json(url,options){return fetch(url,Object.assign({headers:{'Content-Type':'application/json'}},options||{})).then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.message||d.detail||'请求失败');return d})})}
+function renderStatus(d){if(!d)return;state.taskId=d.task_id||state.taskId;show((d.status||'')+'：'+(d.message||''),d.status);var active=['opening','waiting','countdown','running','waiting_user'].indexOf(d.status)>=0;busy(active);$('resume').disabled=d.status!=='waiting_user';if(!active&&state.poll){clearInterval(state.poll);state.poll=null}loadHistory()}
+function poll(){if(state.poll)clearInterval(state.poll);state.poll=setInterval(function(){json('/museum-ticket/api/status').then(function(d){renderStatus(d.current)}).catch(function(e){show(e.message,'error')})},1200)}
+function loadHistory(){json('/museum-ticket/api/history').then(function(d){$('history').innerHTML=d.items.length?d.items.map(function(x){return'<div class="history-row"><span>'+esc(x.title)+'<br><span class="muted">'+esc(x.created_at)+'</span></span><span>'+esc(x.status||'已创建')+'</span></div>'}).join(''):'<span class="muted">还没有任务记录</span>'}).catch(function(){})}
+$('addVisitor').onclick=function(){addVisitor()};addVisitor();
+$('start').onclick=function(){var visitors=collect();if(!visitors.length||visitors.some(function(x){return!x.name||!x.id_number})){show('请完整填写至少一位预约人的姓名和证件号码','error');return}var payload={official_url:$('officialUrl').value,target_date:$('targetDate').value,time_slot:$('timeSlot').value,release_at:$('releaseAt').value,refresh_seconds:$('refreshSeconds').value,headless:$('headless').checked,visitors:visitors};busy(true);show('正在启动浏览器任务…','opening');json('/museum-ticket/api/start',{method:'POST',body:JSON.stringify(payload)}).then(function(d){state.taskId=d.task_id;renderStatus(d);poll();loadHistory()}).catch(function(e){busy(false);show(e.message,'error')})};
+$('resume').onclick=function(){json('/museum-ticket/api/resume',{method:'POST',body:JSON.stringify({task_id:state.taskId})}).then(function(){show('已通知任务继续','running')}).catch(function(e){show(e.message,'error')})};
+$('stop').onclick=function(){json('/museum-ticket/api/stop',{method:'POST',body:JSON.stringify({task_id:state.taskId})}).then(function(){show('正在停止任务…','stopped')}).catch(function(e){show(e.message,'error')})};
+json('/museum-ticket/api/status').then(function(d){renderStatus(d.current);loadHistory()}).catch(function(){$('history').innerHTML='<span class="muted">暂无历史</span>'});
+})();
+</script>
+</body></html>

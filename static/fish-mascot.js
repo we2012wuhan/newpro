@@ -1,6 +1,6 @@
 /* 全站大肥鱼精灵
  * ------------------------------------------------------------
- * 右下角常驻的一只胖鱼：呼吸、摆尾、眨眼、吐泡泡，眼神会跟着鼠标走。
+ * 右下角常驻的一只胖鱼：呼吸、摆尾、眨眼、吐气泡，眼神会跟着鼠标走。
  * 点一下会弹一句小提示，再点一下还会蹦一下。
  * 它和 AI 助手入口并排停靠，AI 面板打开时自动让位。
  * 可以按住拖到任意位置，位置记在 localStorage；双击回到 AI 入口旁边。
@@ -28,73 +28,13 @@
     '摸到我了，那就再坚持一下。'
   ];
 
-  var SVG = [
-    '<svg viewBox="0 0 220 170" aria-hidden="true" draggable="false">',
-    '<defs>',
-    '<linearGradient id="fmBody" x1="0" y1="0" x2="1" y2="1">',
-    '<stop offset="0" stop-color="#a8f3ff"/><stop offset=".28" stop-color="#62c4ff"/>',
-    '<stop offset=".62" stop-color="#4b83ff"/><stop offset="1" stop-color="#7458ff"/>',
-    '</linearGradient>',
-    '<radialGradient id="fmBelly" cx=".42" cy=".35" r=".8">',
-    '<stop offset="0" stop-color="#ffffff"/><stop offset=".58" stop-color="#eafaff"/>',
-    '<stop offset="1" stop-color="#bde8ff"/></radialGradient>',
-    '<linearGradient id="fmTail" x1="0" y1="0" x2="1" y2="1">',
-    '<stop offset="0" stop-color="#7de8ff"/><stop offset=".45" stop-color="#4d8dff"/>',
-    '<stop offset="1" stop-color="#684dff"/></linearGradient>',
-    '<linearGradient id="fmFin" x1="0" y1="0" x2="1" y2="1">',
-    '<stop offset="0" stop-color="#a8eeff"/><stop offset="1" stop-color="#5a8dff"/></linearGradient>',
-    '<radialGradient id="fmGlow">',
-    '<stop offset="0" stop-color="#69d8ff" stop-opacity=".34"/>',
-    '<stop offset=".55" stop-color="#6f7dff" stop-opacity=".15"/>',
-    '<stop offset="1" stop-color="#6f7dff" stop-opacity="0"/></radialGradient>',
-    '</defs>',
-    '<g class="glow"><ellipse cx="104" cy="98" rx="98" ry="66" fill="url(#fmGlow)"/></g>',
-    '<g class="bubbles">',
-    '<circle class="bub b1" cx="35" cy="47" r="3.3"/>',
-    '<circle class="bub b2" cx="18" cy="66" r="2.3"/>',
-    '<circle class="bub b3" cx="45" cy="28" r="1.9"/>',
-    '</g>',
-    '<g class="float"><g class="tilt">',
-    '<g class="tail">',
-    '<path d="M148 80 C164 76 174 60 178 40 C198 46 212 66 208 88 C205 105 191 116 176 118 C187 125 192 137 188 150 C179 157 165 154 157 145 C148 134 145 121 146 109 C139 100 141 87 148 80 Z" fill="url(#fmTail)" stroke="#2f58b5" stroke-opacity=".3" stroke-width="2"/>',
-    '<path d="M162 92 C174 91 185 84 195 72" fill="none" stroke="#e8fbff" stroke-opacity=".58" stroke-width="3" stroke-linecap="round"/>',
-    '<path d="M160 111 C170 116 178 126 181 138" fill="none" stroke="#bfeaff" stroke-opacity=".34" stroke-width="2.4" stroke-linecap="round"/>',
-    '</g>',
-    '<path class="dorsal" d="M72 40 C79 21 98 13 114 21 C101 24 89 31 82 45 Z" fill="url(#fmFin)" stroke="#3566c6" stroke-opacity=".3" stroke-width="1.8"/>',
-    '<path d="M22 90 C22 58 48 33 90 33 C133 33 161 52 164 81 C167 109 143 137 99 137 C56 137 24 121 22 90 Z" fill="url(#fmBody)" stroke="#2c57b0" stroke-opacity=".28" stroke-width="2"/>',
-    '<path d="M42 99 C56 125 90 141 125 132 C143 127 155 115 160 102 C157 126 132 142 99 142 C65 141 47 124 42 99 Z" fill="url(#fmBelly)" opacity=".93"/>',
-    '<path d="M30 76 C36 49 62 34 93 33" fill="none" stroke="#ddFAFF" stroke-opacity=".45" stroke-width="3" stroke-linecap="round"/>',
-    '<path d="M42 60 C55 43 80 34 105 35 C82 42 62 52 51 70 Z" fill="#ffffff" opacity=".25"/>',
-    '<g class="scales" fill="none" stroke="#e9fbff" stroke-opacity=".22" stroke-width="2" stroke-linecap="round">',
-    '<path d="M109 58 q8 8 0 16"/><path d="M121 57 q8 8 0 16"/>',
-    '<path d="M133 59 q7 7 0 14"/><path d="M115 75 q8 8 0 16"/>',
-    '<path d="M127 74 q7 7 0 14"/>',
-    '</g>',
-    '<path class="pectoral" d="M75 102 C64 106 57 117 59 128 C68 127 82 117 90 106 Z" fill="url(#fmFin)" stroke="#3566c6" stroke-opacity=".3" stroke-width="1.8"/>',
-    '<path class="ventral" d="M107 133 C111 143 118 150 127 152 C122 143 120 136 118 130 Z" fill="url(#fmFin)" stroke="#3566c6" stroke-opacity=".26" stroke-width="1.6"/>',
-    '<g class="face">',
-    '<ellipse cx="54" cy="98" rx="8" ry="4.2" fill="#ff9fc8" opacity=".34"/>',
-    '<ellipse cx="108" cy="93" rx="7" ry="3.6" fill="#ff9fc8" opacity=".28"/>',
-    '<g class="eyes">',
-    '<g class="eye eye-l"><ellipse cx="68" cy="79" rx="8.6" ry="10.4" fill="#12254a"/><ellipse cx="65.4" cy="75.6" rx="2.9" ry="3.6" fill="#ffffff"/><circle cx="71" cy="83" r="1.5" fill="#7ce8ff"/></g>',
-    '<g class="eye eye-r"><ellipse cx="98" cy="76" rx="8.1" ry="9.8" fill="#12254a"/><ellipse cx="95.6" cy="72.8" rx="2.7" ry="3.4" fill="#ffffff"/><circle cx="100.6" cy="80" r="1.4" fill="#7ce8ff"/></g>',
-    '</g>',
-    '<path d="M59 65 Q67 61 76 64" fill="none" stroke="#214a91" stroke-opacity=".5" stroke-width="2" stroke-linecap="round"/>',
-    '<path d="M91 62 Q98 59 106 62" fill="none" stroke="#214a91" stroke-opacity=".42" stroke-width="2" stroke-linecap="round"/>',
-    '<path d="M64 96 Q75 104 86 96" fill="none" stroke="#1c3c78" stroke-width="2.6" stroke-linecap="round"/>',
-    '<circle cx="52" cy="88" r="1" fill="#29549c" opacity=".45"/><circle cx="58" cy="86" r=".8" fill="#29549c" opacity=".35"/>',
-    '</g>',
-    '</g>',
-    '<g class="sparkles">',
-    '<path class="sp sp1" d="M183 27 l2.2 6 6 2.2 -6 2.2 -2.2 6 -2.2 -6 -6 -2.2 6 -2.2Z" fill="#c9f7ff"/>',
-    '<path class="sp sp2" d="M204 123 l1.7 4.6 4.6 1.7 -4.6 1.7 -1.7 4.6 -1.7 -4.6 -4.6 -1.7 4.6 -1.7Z" fill="#bde9ff"/>',
-    '</g>',
-    '</g></svg>'
-  ].join('');
+  // 视图状态用于拖动和休息动作；角色使用 PNG 三视图素材。
+  var VIEWS = { front: '/static/fish-mascot/front.png', side: '/static/fish-mascot/side.png', back: '/static/fish-mascot/back.png' };
+  var PET_HTML = '<span class="pet"><img class="pet-img" src="' + VIEWS.front + '" alt="大肥鱼" draggable="false"></span>';
 
   var CSS = [
     ':host{all:initial;position:fixed;right:24px;bottom:20px;z-index:2147482000;',
-    'width:112px;height:86px;display:block;pointer-events:none;opacity:0;',
+    'width:112px;height:150px;display:block;pointer-events:none;opacity:0;',
     'transition:opacity .45s ease,right .18s ease,bottom .18s ease,left .18s ease,top .18s ease;',
     'font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif}',
     ':host([data-ready]){opacity:1}',
@@ -102,31 +42,21 @@
     ':host(.is-covered){opacity:0;pointer-events:none}',
     ':host(.is-covered) .fish{pointer-events:none}',
     '.fish{display:block;width:100%;height:100%;padding:0;border:0;background:none;',
-    'pointer-events:auto;cursor:grab;position:relative;border-radius:22px;touch-action:none;',
+    'pointer-events:auto;cursor:grab;position:relative;border-radius:26px;touch-action:none;',
     'user-select:none;-webkit-user-select:none;-webkit-user-drag:none;',
-    'filter:drop-shadow(0 12px 18px rgba(54,92,210,.32));-webkit-tap-highlight-color:transparent}',
-    '.dragging .fish{cursor:grabbing;filter:drop-shadow(0 18px 26px rgba(54,92,210,.46))}',
-    '.dragging .float{animation-play-state:paused}',
-    '.dragging .bubble{opacity:0!important}',
+    '-webkit-tap-highlight-color:transparent}',
+    '.dragging .fish{cursor:grabbing}',
+    '.pet{position:absolute;inset:0;z-index:1;display:flex;align-items:flex-end;justify-content:center;animation:fmFloat 5.6s ease-in-out infinite;',
+    'transform:translate(var(--look-x,0px),var(--look-y,0px)) rotate(var(--tilt,0deg));',
+    'transform-origin:50% 90%;transition:filter .2s ease}',
+    '.pet-img{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;',
+    'user-select:none;-webkit-user-drag:none;filter:drop-shadow(0 10px 16px rgba(38,54,120,.34))}',
+    '.fish[data-view="side"] .pet{transform:translate(var(--look-x,0px),var(--look-y,0px)) rotate(var(--tilt,0deg))}',
+    '.fish[data-view="back"] .pet{opacity:.86}',
+    '.dragging .pet{filter:drop-shadow(0 18px 24px rgba(38,54,120,.46));animation-play-state:paused}',
+    '.poke .pet{animation:fmPoke .9s cubic-bezier(.2,.8,.3,1)}',
     '.fish:focus-visible{outline:2px solid #6d7cff;outline-offset:5px}',
-    '.fish svg{display:block;width:100%;height:100%;overflow:visible}',
-    '.glow{animation:fmGlow 5.2s ease-in-out infinite}',
-    '.float{animation:fmBob 5.6s ease-in-out infinite;transform-origin:108px 108px}',
-    '.tilt{transform:rotate(var(--tilt,0deg));transform-origin:106px 104px;transition:transform .35s ease}',
-    '.tail{transform-origin:154px 94px;animation:fmWag 1.9s ease-in-out infinite}',
-    '.dorsal{transform-origin:92px 43px;animation:fmDorsal 4.8s ease-in-out infinite}',
-    '.pectoral{transform-origin:81px 107px;animation:fmFin 3.7s ease-in-out infinite}',
-    '.ventral{transform-origin:115px 138px;animation:fmFin 4.4s ease-in-out infinite reverse}',
-    '.eyes{transform:translate(var(--look-x,0px),var(--look-y,0px));transition:transform .28s ease}',
-    '.eye{transform-box:fill-box;transform-origin:center;animation:fmBlink 7.4s infinite}',
-    '.eye-r{animation-delay:.08s}',
-    '.bub{fill:#8fe8ff;opacity:0;transform-box:fill-box;transform-origin:center;animation:fmBubble 5.8s ease-in-out infinite}',
-    '.b2{animation-delay:1.7s}.b3{animation-delay:3.1s}',
-    '.sp{transform-box:fill-box;transform-origin:center;animation:fmTwinkle 4.2s ease-in-out infinite}',
-    '.sp2{animation-delay:1.9s}',
-    '.poke .float{animation:fmPoke .9s cubic-bezier(.2,.8,.3,1)}',
-    '.poke .tail{animation:fmWagFast .22s ease-in-out 4 alternate}',
-    '.bubble{position:absolute;right:6px;bottom:calc(100% + 2px);max-width:190px;width:max-content;',
+    '.bubble{position:absolute;z-index:2;right:6px;bottom:calc(100% + 2px);max-width:190px;width:max-content;',
     'padding:8px 11px;border-radius:13px;background:var(--tb-menu-bg,#ffffff);color:var(--tb-ink,#152033);',
     'border:1px solid var(--tb-line,#e4e9f1);box-shadow:0 12px 28px -14px rgba(16,24,40,.45);',
     'font-size:12px;line-height:1.55;letter-spacing:.2px;pointer-events:none;opacity:0;',
@@ -143,27 +73,23 @@
     'transform:rotate(45deg);border-bottom-right-radius:0;border-top-left-radius:2px}',
     '.bubble.show{opacity:1;transform:translateY(0) scale(1)}',
     '.sleeping *{animation-play-state:paused!important}',
-    '@keyframes fmBob{0%,100%{transform:translateY(1px) rotate(-.8deg)}50%{transform:translateY(-7px) rotate(.8deg)}}',
-    '@keyframes fmWag{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(8deg)}}',
-    '@keyframes fmWagFast{0%{transform:rotate(-9deg)}100%{transform:rotate(11deg)}}',
-    '@keyframes fmDorsal{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(3deg)}}',
-    '@keyframes fmFin{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(6deg)}}',
-    '@keyframes fmBlink{0%,90%,96%,100%{transform:scaleY(1)}93%{transform:scaleY(.08)}}',
-    '@keyframes fmBubble{0%{opacity:0;transform:translate(0,5px) scale(.65)}22%{opacity:.75}',
-    '75%{opacity:.4}100%{opacity:0;transform:translate(-7px,-13px) scale(1.15)}}',
-    '@keyframes fmTwinkle{0%,100%{opacity:.25;transform:scale(.75)}50%{opacity:.95;transform:scale(1.12)}}',
-    '@keyframes fmGlow{0%,100%{opacity:.55;transform:scale(.97)}50%{opacity:1;transform:scale(1.03)}}',
-    '@keyframes fmPoke{0%{transform:translateY(0) rotate(0)}25%{transform:translateY(-13px) rotate(-7deg) scale(1.06)}',
-    '55%{transform:translateY(2px) rotate(4deg) scale(.99)}78%{transform:translateY(-4px) rotate(-2deg)}100%{transform:translateY(1px) rotate(0)}}',
-    '@media(max-width:700px){:host{width:82px;height:63px}.bubble{max-width:158px;font-size:11px;padding:7px 9px}}',
-    '@media(prefers-reduced-motion:reduce){',
-    '.glow,.float,.tail,.dorsal,.pectoral,.ventral,.eye,.bub,.sp{animation:none!important}',
-    '.bub{opacity:.4}.sp{opacity:.6}}',
+    '@keyframes fmFloat{0%,100%{transform:translate(var(--look-x,0px),var(--look-y,0px)) rotate(var(--tilt,0deg))}50%{transform:translate(var(--look-x,0px),calc(var(--look-y,0px) - 5px)) rotate(calc(var(--tilt,0deg) + .7deg))}}',
+    '@keyframes fmPoke{0%{transform:translate(var(--look-x,0px),var(--look-y,0px)) rotate(var(--tilt,0deg))}',
+    '25%{transform:translate(var(--look-x,0px),calc(var(--look-y,0px) - 13px)) rotate(-6deg) scale(1.04)}',
+    '55%{transform:translate(var(--look-x,0px),calc(var(--look-y,0px) + 2px)) rotate(3deg) scale(.99)}',
+    '78%{transform:translate(var(--look-x,0px),calc(var(--look-y,0px) - 4px)) rotate(-2deg)}',
+    '100%{transform:translate(var(--look-x,0px),var(--look-y,0px)) rotate(var(--tilt,0deg))}}',
+    '@media(max-width:700px){:host{width:82px;height:110px}.bubble{max-width:158px;font-size:11px;padding:7px 9px}}',
+    '@media(prefers-reduced-motion:reduce){.pet{animation:none!important}}',
     '@media print{:host{display:none!important}}'
   ].join('');
 
   var POS_KEY = 'tb_fish_pos_v1';
-  var host = null, root = null, fish = null, bubble = null, noteTimer = 0, pokeTimer = 0;
+  var IDLE_TURN_MS = 90000;
+  var host = null, root = null, fish = null, bubble = null;
+  var noteTimer = 0, pokeTimer = 0, idleTimer = 0;
+  var view = 'front';
+  var petImage = null;
   var reduced = false;
   var lastPoint = 0;
   var customPos = null;
@@ -179,10 +105,28 @@
     root = host.attachShadow({ mode: 'open' });
     root.innerHTML = '<style>' + CSS + '</style>' +
       '<button class="fish" type="button" draggable="false" aria-label="摸摸大肥鱼；拖动可以换位置，双击回到 AI 助手旁边">' +
-      '<span class="bubble"></span>' + SVG + '</button>';
+      '<span class="bubble"></span>' + PET_HTML + '</button>';
     fish = root.querySelector('.fish');
     bubble = root.querySelector('.bubble');
+    petImage = root.querySelector('.pet-img');
     return true;
+  }
+
+  // 拖动时换侧面图，长时间无操作时换背面图。
+  function setView(name) {
+    if (!fish || !VIEWS[name] || view === name) { return; }
+    view = name;
+    fish.setAttribute('data-view', name);
+    if (petImage) { petImage.src = VIEWS[name]; }
+  }
+
+  // 长时间没互动就转身；鼠标一动、点一下或开拖都会转回来并重新计时。
+  function wake() {
+    if (view === 'back') { setView('front'); }
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(function () {
+      if (!drag) { setView('back'); }
+    }, IDLE_TURN_MS);
   }
 
   function clamp(value, min, max) {
@@ -265,7 +209,7 @@
   function applyPos() {
     if (!host || !customPos) { return false; }
     var w = host.offsetWidth || 112;
-    var h = host.offsetHeight || 86;
+    var h = host.offsetHeight || 150;
     var vw = W.innerWidth || document.documentElement.clientWidth;
     var vh = W.innerHeight || document.documentElement.clientHeight;
     var margin = 2;
@@ -328,10 +272,11 @@
       if (dx * dx + dy * dy < 16) { return; }
       drag.moved = true;
       host.classList.add('dragging');
+      setView('side');
     }
     if (e.cancelable) { e.preventDefault(); }
     var w = host.offsetWidth || 112;
-    var h = host.offsetHeight || 86;
+    var h = host.offsetHeight || 150;
     var vw = W.innerWidth || document.documentElement.clientWidth;
     var vh = W.innerHeight || document.documentElement.clientHeight;
     var margin = 2;
@@ -353,6 +298,7 @@
     if (!host) { return; }
     if (!moved) {
       host.classList.remove('dragging');
+      wake();
       return;
     }
     var vw = W.innerWidth || document.documentElement.clientWidth;
@@ -365,6 +311,8 @@
       r = host.getBoundingClientRect();
     }
     host.classList.remove('dragging');
+    setView('front');
+    wake();
     savePos((r.left + r.width / 2) / Math.max(1, vw), (r.top + r.height / 2) / Math.max(1, vh));
     // 拖完松手时浏览器仍可能补一个 click，别让它误触“摸鱼”。
     suppressClick = true;
@@ -417,6 +365,7 @@
     document.addEventListener('pointercancel', onDragEnd);
 
     fish.addEventListener('click', function (e) {
+      wake();
       if (suppressClick) {
         suppressClick = false;
         clearTimeout(suppressTimer);
@@ -430,12 +379,21 @@
 
     fish.addEventListener('dblclick', function (e) {
       e.preventDefault();
+      wake();
       clearTimeout(clickTimer);
       var wasCustom = !!customPos;
       resetPos(true);
       bounce();
       say(wasCustom ? '回到老位置啦。' : '我一直住在这里呀。');
     });
+
+    // 转身后，鼠标随便动一下就转回来；一秒最多判断一次，避免高频定时器。
+    var lastWake = 0;
+    document.addEventListener('pointermove', function (e) {
+      if (e.pointerType === 'touch' || Date.now() - lastWake < 1000) { return; }
+      lastWake = Date.now();
+      wake();
+    }, { passive: true });
 
     document.addEventListener('pointermove', function (e) {
       if (drag || reduced || e.pointerType === 'touch' || Date.now() - lastPoint < 55) { return; }
@@ -464,7 +422,7 @@
       var open = !!(e && e.detail && e.detail.open);
       cover(open);
       if (bubble) { bubble.classList.remove('show'); }
-      if (!open) { layout(); }
+      if (!open) { wake(); layout(); }
     });
     document.addEventListener('tb-focus-panel', function (e) {
       cover(e && e.detail && e.detail.open);
@@ -489,6 +447,8 @@
     customPos = readStoredPos();
     layout();
     bind();
+    wake();
+
     W.TBFishMascot = {
       say: say,
       poke: poke,

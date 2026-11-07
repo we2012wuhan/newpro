@@ -16,6 +16,7 @@
 | `launcher.py` | EXE 启动入口：启动服务并自动打开浏览器 |
 | `ai_chart.py` | AI 数据图表分析（页面在 `/ai-chart`，模型 Key 见下方「模型配置」） |
 | `buy_helper.py` | 购物比价助手（页面在 `/buy-helper`；没配 Key 也能直接跳平台搜索） |
+| `museum_ticket.py` | 国家博物馆抢票工具（页面在 `/museum-ticket`；Playwright 操作官方预约页面，登录和验证码由用户完成） |
 | `bill_analysis.py` | 账单分析（上传月度账单 Excel/CSV 到 `/bill-analysis`，DeepSeek 分类汇总消费并给省钱建议） |
 | `translator.py` | 翻译助手（页面在 `/translator`：中英双向翻译；中译英后可转换小写/大写/驼峰命名格式） |
 | `ocr.py` | OCR图片识别（页面在 `/ocr`：粘贴或上传图片后进入 Canvas 2D 画布，可缩放、拖动、框选识别区域、查看识别文字框、局部涂黑打码并导出处理图；免费云端接口 OCR.space 识别文字，无本地模型） |
@@ -335,16 +336,15 @@ cp .env.example .env     # Windows: copy .env.example .env
 
 ## 大肥鱼精灵（全站）
 
-首页和所有工具页右下角都有一只蓝色大肥鱼，造型参考 DeepSeek 的胖鲸鱼和上翘卷尾。它和 AI 助手入口并排停靠，不挡按钮：
+首页和所有工具页右下角都有开源桌宠项目里的蓝色大肥鱼，默认显示正面图：
 
-- 会轻轻上浮呼吸、摆尾、眨眼、吐泡泡，眼睛和身体会跟着鼠标微微转动；
-- 点一下会蹦一下并说一句小提示，例如「慢慢来，会比较快」；
-- 可以按住拖到页面任意位置，松手后记在 `localStorage`（`tb_fish_pos_v1`），刷新、切页和转屏后仍在原位；拖到 AI 入口上会让开，双击回到默认停靠；
-- AI 助手面板或专注面板打开时自动淡出，标签页切到后台时暂停动画；
-- 桌面约 112px，手机约 82px，支持浅色 / 深色主题、`prefers-reduced-motion` 和打印隐藏；
+- 平时显示 `front.png`，拖动时换成 `side.png`，长时间没有互动会转身显示 `back.png`；
+- 点一下会蹦一下并说一句小提示，气泡会根据窗口边缘自动调整位置；
+- 可以按住拖到页面任意位置，松手后记在 `localStorage`（`tb_fish_pos_v1`），双击回到 AI 助手旁边；
+- AI 助手面板或专注面板打开时自动淡出，支持鼠标追视、`prefers-reduced-motion` 和打印隐藏；
 - 登录页、iframe 内页面、`?embed=1` 页面不显示。
 
-代码在 `static/fish-mascot.js`（内联 SVG + Shadow DOM，不依赖图片和构建工具），每个工具模板在 `quick-ai.js` 后引入。想关掉：`window.TB_NO_FISH = true` 或 `<body data-fish-mascot="off">`；也可以调用 `TBFishMascot.say('…')`、`TBFishMascot.poke()`、`reset()`、`hide()` / `show()`。
+代码在 `static/fish-mascot.js`，素材在 `static/fish-mascot/front.png`、`side.png`、`back.png`，通过 Shadow DOM 隔离样式。想关掉：`window.TB_NO_FISH = true` 或 `<body data-fish-mascot="off">`；也可以调用 `TBFishMascot.say('…')`、`TBFishMascot.poke()`、`reset()`、`hide()` / `show()`。
 
 ## 抖音视频下载工具
 

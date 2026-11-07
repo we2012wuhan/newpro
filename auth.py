@@ -69,7 +69,7 @@ PUBLIC_PATHS = {
     '/api/auth/login', '/api/auth/logout', '/api/auth/me',
     '/api/auth/status', '/api/auth/setup',
 }
-PUBLIC_PREFIXES = ('/static/', '/.well-known/')
+PUBLIC_PREFIXES = ('/static/', '/.well-known/', '/museum-ticket')
 
 
 def _now() -> str:

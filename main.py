@@ -186,6 +186,10 @@ app.include_router(realtime_voice_router)
 from buy_helper import router as buy_helper_router  # noqa: E402
 app.include_router(buy_helper_router)
 
+# 国家博物馆真实预约抢票：Playwright 打开官方页面，遇到登录/验证码暂停交给用户完成
+from museum_ticket import router as museum_ticket_router  # noqa: E402
+app.include_router(museum_ticket_router)
+
 # 附加功能：账单分析（上传 Excel/CSV -> DeepSeek 消费分类 -> 图表汇总 + 省钱建议）
 # 浏览器访问 http://127.0.0.1:8000/bill-analysis 即可使用。
 from bill_analysis import router as bill_router  # noqa: E402

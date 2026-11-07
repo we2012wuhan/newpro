@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0E7490">
+<title>我的地点 · 个人地图</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<script src="/static/auth-guard.js"></script>
+<style>
+:root{
+  --acc:#0E7490; --acc-d:#155E75;
+  --acc-l:rgba(14,116,144,.10); --acc-line:rgba(14,116,144,.28);
+  --bg:var(--tb-bg); --card:var(--tb-card); --line:var(--tb-line); --line2:var(--tb-line-2);
+  --ink:var(--tb-ink); --text:var(--tb-text); --muted:var(--tb-muted); --field:var(--tb-field);
+  --ok:var(--tb-ok); --ok-bg:var(--tb-ok-bg); --ok-line:var(--tb-ok-line);
+  --warn:var(--tb-warn); --warn-bg:var(--tb-warn-bg); --warn-line:var(--tb-warn-line);
+  --err:var(--tb-err); --err-bg:var(--tb-err-bg); --err-line:var(--tb-err-line);
+  --mono:ui-monospace,SFMono-Regular,Consolas,"Cascadia Mono",Menlo,monospace;
+  --glass:rgba(255,255,255,.92);
+  --shadow:0 18px 48px rgba(15,23,42,.18);
+}
+[data-theme="dark"]{
+  --acc:#67E8F9;--acc-d:#A5F3FC;--acc-l:rgba(103,232,249,.13);--acc-line:rgba(103,232,249,.32);
+  --glass:rgba(15,23,42,.90);
+  --shadow:0 18px 48px rgba(0,0,0,.42);
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);overflow:hidden;
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+#placesMap{position:fixed;inset:0;width:100%;height:100%;z-index:0;background:var(--field)}
+.topbar{position:fixed;z-index:30;top:12px;left:16px;right:16px;display:flex;align-items:center;gap:10px;
+  min-height:56px;padding:8px 12px;border:1px solid var(--line);border-radius:16px;
+  background:var(--glass);box-shadow:var(--shadow);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.back{flex:0 0 auto;font-size:13px;color:var(--muted);text-decoration:none;
+  border:1px solid var(--line);background:var(--field);border-radius:999px;
+  padding:9px 12px;line-height:1.2;white-space:nowrap}
+.back:hover{color:var(--ink);border-color:var(--acc-line)}
+.brand{flex:1;min-width:0}
+.brand h1{font-size:18px;margin:0;color:var(--ink);line-height:1.25}
+.brand .sub{font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;
+  border:1px solid var(--line);background:var(--field);font-size:12px;color:var(--muted);white-space:nowrap}
+.pill .dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.pill.ok .dot{background:var(--ok)} .pill.warn .dot{background:var(--warn)}
+.panel-toggle{display:none;flex:0 0 auto;min-height:40px;padding:0 13px;border-radius:11px;
+  border:1px solid var(--acc-line);background:var(--acc-l);color:var(--acc);font-family:inherit;
+  font-size:13px;font-weight:600;cursor:pointer}
+.banner{position:fixed;z-index:29;top:78px;left:422px;right:16px;width:auto;max-width:560px;
+  display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);
+  background:var(--glass);box-shadow:var(--shadow);border-radius:13px;padding:11px 13px;
+  font-size:12.5px;color:var(--muted);line-height:1.7;backdrop-filter:blur(14px)}
+.banner .ico{flex:0 0 auto;font-size:15px;line-height:1.5}
+.banner.warn{border-color:var(--warn-line);background:var(--warn-bg);color:var(--warn)}
+.banner code{font-family:var(--mono);font-size:11.5px;background:var(--acc-l);color:var(--acc);
+  border-radius:5px;padding:1px 5px}
+.side-panel{position:fixed;z-index:20;top:84px;left:16px;bottom:16px;width:390px;max-width:calc(100vw - 32px);
+  overflow-y:auto;overscroll-behavior:contain;padding:14px;border:1px solid var(--line);border-radius:18px;
+  background:var(--glass);box-shadow:var(--shadow);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  scrollbar-width:thin}
+.side-panel::-webkit-scrollbar{width:8px}
+.side-panel::-webkit-scrollbar-thumb{background:var(--line2);border-radius:8px}
+.panel-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.panel-head b{font-size:15px;color:var(--ink)}
+.panel-head .mini{margin-right:auto}
+.panel-head .lnk{white-space:nowrap}
+.panel-collapse{flex:0 0 auto;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);
+  background:var(--field);color:var(--muted);font-family:inherit;font-size:17px;line-height:1;cursor:pointer}
+.panel-collapse:hover{color:var(--ink);border-color:var(--acc-line)}
+.panel-expand{display:none;position:fixed;z-index:25;top:84px;left:16px;align-items:center;
+  min-height:42px;padding:0 14px;border-radius:11px;border:1px solid var(--line);
+  background:var(--glass);box-shadow:var(--shadow);color:var(--ink);font-family:inherit;
+  font-size:13px;font-weight:600;cursor:pointer;backdrop-filter:blur(14px)}
+.sheet-close{display:none;flex:0 0 auto;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);
+  background:var(--field);color:var(--muted);font-family:inherit;font-size:18px;cursor:pointer}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.card:last-child{margin-bottom:0}
+.card-h{font-size:14px;font-weight:600;color:var(--ink);margin:0 0 8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card-h .sp{margin-left:auto}
+.mini{font-size:12px;color:var(--muted);line-height:1.7}
+.lbl{display:block;font-size:12px;color:var(--muted);margin:10px 0 5px}
+.lbl:first-child{margin-top:0}
+.inp{width:100%;border:1px solid var(--line2);border-radius:11px;padding:10px 11px;
+  background:var(--field);color:var(--text);font-family:inherit;font-size:14px;
+  outline:none;min-height:42px}
+.inp:focus{border-color:var(--acc-line);box-shadow:0 0 0 3px var(--acc-l)}
+.inp::placeholder{color:var(--muted)}
+.withbtn{display:flex;gap:8px;align-items:stretch}
+.withbtn .inp{flex:1;min-width:0}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{min-height:32px;padding:0 10px;border-radius:999px;border:1px solid var(--line2);
+  background:var(--card);color:var(--text);font-family:inherit;font-size:12px;cursor:pointer}
+.chip:hover{border-color:var(--acc-line)}
+.chip.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc);font-weight:600}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px;
+  padding:0 14px;border-radius:11px;border:1px solid var(--line2);background:var(--card);
+  color:var(--text);font-family:inherit;font-size:13.5px;cursor:pointer;text-decoration:none}
+.btn:active{opacity:.75}.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:var(--tb-acc-on);font-weight:600;
+  box-shadow:0 8px 22px rgba(14,116,144,.22)}
+.btn.sm{min-height:36px;padding:0 11px;font-size:12.5px;border-radius:10px}
+.btn.ghost{background:transparent}
+.btn.wide{width:100%;margin-top:10px}
+.msg{font-size:12px;margin-top:7px;min-height:16px;color:var(--muted)}
+.msg.err{color:var(--err)}
+.msg.ok{color:var(--ok)}
+.tip{display:flex;gap:7px;align-items:flex-start;font-size:11px;color:var(--muted);line-height:1.65;margin-top:8px}
+.tip .n{flex:0 0 auto;width:15px;height:15px;border-radius:50%;background:var(--acc-l);color:var(--acc);
+  display:inline-flex;align-items:center;justify-content:center;font-size:9px;margin-top:1px}
+.lnk{background:none;border:0;padding:0;color:var(--acc);font-family:inherit;font-size:12px;
+  cursor:pointer;min-height:26px;display:inline-flex;align-items:center}
+.lnk:hover{text-decoration:underline}.lnk.danger{color:var(--err)}
+.add-box{border:1px solid var(--line);border-radius:14px;background:var(--card);margin-bottom:10px;overflow:hidden}
+.add-box summary{list-style:none;cursor:pointer;padding:12px;font-size:13.5px;font-weight:600;color:var(--ink);
+  display:flex;align-items:center;gap:7px}
+.add-box summary::-webkit-details-marker{display:none}
+.add-box summary:after{content:"+";margin-left:auto;color:var(--acc);font-size:18px;font-weight:400}
+.add-box[open] summary:after{content:"−"}
+.add-box summary .mini{margin-left:auto;font-weight:400;color:var(--muted)}
+.add-box[open] summary .mini{display:none}
+.add-box .form{padding:0 12px 12px}
+.search-results{margin-top:7px;display:flex;flex-direction:column;gap:5px;max-height:210px;overflow:auto}
+.search-result{text-align:left;border:1px solid var(--line);border-radius:10px;background:var(--field);
+  padding:8px 10px;font-family:inherit;cursor:pointer;color:var(--text)}
+.search-result:hover{border-color:var(--acc-line);background:var(--acc-l)}
+.search-result b{display:block;font-size:12.5px;color:var(--ink);font-weight:600}
+.search-result span{display:block;font-size:11px;color:var(--muted);margin-top:2px;line-height:1.55}
+.place-list{display:flex;flex-direction:column;gap:7px;margin-top:8px;max-height:330px;overflow:auto;
+  overscroll-behavior:contain}
+.place-item{border:1px solid var(--line);border-radius:11px;background:var(--field);padding:8px 10px}
+.place-top{display:flex;gap:7px;align-items:flex-start}
+.place-name{font-size:12.5px;font-weight:600;color:var(--ink);flex:1;min-width:0;line-height:1.45}
+.place-cat{flex:0 0 auto;font-size:10px;line-height:1.8;padding:0 6px;border-radius:999px;
+  background:var(--acc-l);color:var(--acc);border:1px solid var(--acc-line)}
+.place-addr{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.55}
+.place-note{font-size:11px;color:var(--text);margin-top:4px;line-height:1.6}
+.place-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:5px;align-items:center}
+.place-actions .lnk{font-size:11px}
+.quota-box{border:1px solid var(--line);border-radius:12px;background:var(--card);margin-top:10px}
+.quota-box summary{list-style:none;cursor:pointer;padding:9px 11px;font-size:12px;color:var(--muted);
+  display:flex;align-items:center;gap:7px}
+.quota-box summary::-webkit-details-marker{display:none}
+.quota-box summary .mini{margin-left:auto}
+.quota-list{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11.5px;color:var(--muted);
+  padding:0 11px 11px}
+.quota-row{display:flex;justify-content:space-between;gap:8px;border:1px solid var(--line);
+  border-radius:8px;background:var(--field);padding:5px 8px}
+.quota-row b{color:var(--ink);font-weight:600}
+.quota-row.full{border-color:var(--warn-line);background:var(--warn-bg);color:var(--warn)}
+.map-note{position:fixed;z-index:12;left:50%;bottom:92px;transform:translateX(-50%);
+  max-width:min(360px,calc(100vw - 32px));
+  border:1px solid var(--line);border-radius:12px;background:var(--glass);box-shadow:var(--shadow);
+  padding:8px 11px;font-size:11px;color:var(--muted);line-height:1.55;text-align:center;
+  backdrop-filter:blur(12px);pointer-events:none}
+.amap-pin{width:26px;height:26px;border-radius:50%;background:var(--acc);color:#fff;border:2px solid #fff;
+  box-shadow:0 3px 10px rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;font-family:system-ui,sans-serif}
+.amap-pin.cat-home{background:#0E7490}
+.amap-pin.cat-work{background:#7c3aed}
+.amap-pin.cat-food{background:#d97706}
+.amap-pin.cat-scenic{background:#059669}
+.amap-pin.cat-other{background:#475569}
+.amap-pin.search{background:#e11d48;width:30px;height:30px;font-size:14px}
+.toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,12px);z-index:80;
+  background:var(--tb-ink);color:var(--tb-bg);font-size:13px;padding:10px 16px;border-radius:11px;
+  box-shadow:0 12px 30px rgba(0,0,0,.22);opacity:0;pointer-events:none;transition:.2s;max-width:88vw;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media (min-width:901px){
+  .side-panel{transition:transform .24s ease,opacity .18s ease}
+  body.trip-panel-collapsed #sidePanel{transform:translateX(calc(-100% - 24px));opacity:0;pointer-events:none}
+  body.trip-panel-collapsed .panel-expand{display:inline-flex}
+}
+@media (max-width:900px){
+  .panel-collapse{display:none!important}
+  .topbar{top:8px;left:8px;right:8px;min-height:52px;padding:7px 9px;border-radius:14px}
+  .brand .sub{display:none}
+  .panel-toggle{display:inline-flex;align-items:center;justify-content:center}
+  .back{padding:9px 10px}
+  .back .back-text{display:none}
+  .side-panel{top:auto;left:0;right:0;bottom:0;width:auto;max-width:none;height:82vh;height:82dvh;
+    border-radius:18px 18px 0 0;border-bottom:0;padding:14px 14px calc(14px + env(safe-area-inset-bottom));
+    transform:translateY(105%);transition:transform .24s ease;z-index:40;box-shadow:0 -18px 48px rgba(0,0,0,.28)}
+  .side-panel.open{transform:translateY(0)}
+  .sheet-close{display:inline-flex;align-items:center;justify-content:center}
+  .place-list{max-height:36vh}
+  .map-note{left:50%;right:auto;bottom:92px;max-width:calc(100vw - 32px);transform:translateX(-50%)}
+  .banner{top:70px;left:50%;right:auto;transform:translateX(-50%);width:calc(100vw - 16px);max-width:none}
+  body.trip-sheet-open #tbqa-host,
+  body.trip-sheet-open #tb-fish-mascot{visibility:hidden!important;opacity:0!important;pointer-events:none!important}
+}
+@media (max-width:560px){
+  .brand h1{font-size:16px}
+  .pill{font-size:11px;padding:4px 8px}
+  .side-panel{padding:12px}
+  .quota-list{grid-template-columns:1fr}
+}
+</style>
+<script src="/static/quick-ai.js" defer></script>
+<script src="/static/fish-mascot.js" defer></script>
+<script src="/static/usage.js" defer></script>
+</head>
+<body>
+<div id="placesMap" aria-label="我的地点地图"></div>
+
+<section id="panel-places">
+  <header class="topbar">
+    <a class="back" href="/">←<span class="back-text"> 工具箱</span></a>
+    <div class="brand">
+      <h1>我的地点</h1>
+      <div class="sub">搜地址、收藏常去的地方；标记按分类显示在地图上。</div>
+    </div>
+    <span class="pill" id="statusPill"><span class="dot"></span><span id="statusTxt">检查高德配置…</span></span>
+    <button class="panel-toggle" id="sheetToggle" type="button" aria-controls="sidePanel" aria-expanded="false" aria-label="打开地点搜索">搜索</button>
+  </header>
+
+  <div class="banner" id="configBanner" hidden>
+    <span class="ico" id="bannerIco">ⓘ</span>
+    <div id="bannerText"></div>
+  </div>
+
+  <button class="panel-expand" id="panelExpand" type="button" aria-label="展开地点面板">☰ 地点</button>
+
+  <aside class="side-panel" id="sidePanel" aria-label="我的地点操作面板">
+    <div class="panel-head">
+      <b>地点</b>
+      <span class="mini" id="placeCount"></span>
+      <button class="lnk" id="fitBtn" type="button">看全部</button>
+      <button class="panel-collapse" id="panelCollapse" type="button" aria-label="收起地点面板">‹</button>
+      <button class="sheet-close" id="sheetClose" type="button" aria-label="收起面板">×</button>
+    </div>
+
+    <div class="card">
+      <label class="lbl" for="placeAddress" style="margin-top:0">搜索地点</label>
+      <div class="withbtn">
+        <input class="inp" id="placeAddress" type="text" maxlength="120" autocomplete="off"
+               placeholder="地址或地点名，搜到后点一下选中">
+        <button class="btn sm" id="placeSearchBtn" type="button">搜索</button>
+      </div>
+      <div class="msg" id="placeSearchMsg"></div>
+      <div class="search-results" id="placeSearchResults" hidden></div>
+      <div class="tip"><span class="n">1</span><span>搜索只在点按钮时调用高德，结果会缓存；个人 Key 的 POI 配额最紧。</span></div>
+    </div>
+
+    <details class="add-box" id="addBox">
+      <summary>添加地点<span class="mini" id="placeEditHint"></span></summary>
+      <div class="form">
+        <label class="lbl" for="placeName">名称</label>
+        <input class="inp" id="placeName" type="text" maxlength="80" autocomplete="off"
+               placeholder="家、公司、常去的店">
+
+        <span class="lbl">分类</span>
+        <div class="chips" id="placeCatChips" role="group" aria-label="地点分类">
+          <button class="chip" type="button" data-cat="home" aria-pressed="false">家</button>
+          <button class="chip" type="button" data-cat="work" aria-pressed="false">公司</button>
+          <button class="chip" type="button" data-cat="food" aria-pressed="false">餐饮</button>
+          <button class="chip" type="button" data-cat="scenic" aria-pressed="false">景点</button>
+          <button class="chip on" type="button" data-cat="other" aria-pressed="true">其他</button>
+        </div>
+
+        <label class="lbl" for="placeTags">标签 <span class="mini">逗号分隔，可留空</span></label>
+        <input class="inp" id="placeTags" type="text" maxlength="100" autocomplete="off"
+               placeholder="常去、安静、停车方便">
+
+        <label class="lbl" for="placeNote">备注</label>
+        <input class="inp" id="placeNote" type="text" maxlength="500" autocomplete="off"
+               placeholder="门牌、入口、停车提醒">
+
+        <button class="btn primary wide" id="placeSaveBtn" type="button">保存地点</button>
+        <button class="btn ghost sm wide" id="placeResetBtn" type="button">清空 / 取消编辑</button>
+        <div class="msg" id="placeFormMsg"></div>
+      </div>
+    </details>
+
+    <div class="card" style="margin-top:0">
+      <div class="card-h">我的地点<span class="sp"><span class="mini" id="placeMapHint"></span></span></div>
+      <input class="inp" id="placeFilter" type="search" maxlength="60"
+             placeholder="按名称、地址或备注筛选">
+      <div class="chips" id="placeFilterCats" role="group" aria-label="筛选分类" style="margin-top:8px">
+        <button class="chip on" type="button" data-cat="" aria-pressed="true">全部</button>
+        <button class="chip" type="button" data-cat="home" aria-pressed="false">家</button>
+        <button class="chip" type="button" data-cat="work" aria-pressed="false">公司</button>
+        <button class="chip" type="button" data-cat="food" aria-pressed="false">餐饮</button>
+        <button class="chip" type="button" data-cat="scenic" aria-pressed="false">景点</button>
+        <button class="chip" type="button" data-cat="other" aria-pressed="false">其他</button>
+      </div>
+      <div class="place-list" id="placeList"><div class="mini">还没有收藏地点。</div></div>
+    </div>
+
+    <details class="quota-box" id="quotaCard" hidden>
+      <summary>今日高德用量<span class="mini" id="quotaHint"></span></summary>
+      <div class="quota-list" id="quotaList"></div>
+    </details>
+  </aside>
+
+  <div class="map-note" id="placesMapNote">正在读取地图配置…</div>
+</section>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="/static/trip/map-core.js" defer></script>
+<script src="/static/trip/places.js" defer></script>
+<script src="/static/focus-widget.js" defer></script>
+</body>
+</html>
