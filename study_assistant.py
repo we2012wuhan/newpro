@@ -13,7 +13,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
 
-from model_config import MISSING_KEY_HINT, llm_endpoint, llm_key, llm_model
+from model_config import (MISSING_KEY_HINT, llm_body, llm_endpoint, llm_key,
+                          llm_model)
 
 import storage
 
@@ -233,7 +234,8 @@ def _do_analyze(topic, level='', blocker=''):
     }
     raw = ''
     try:
-        resp = requests.post(llm_endpoint(), json=body, headers=headers, timeout=(15, 240))
+        resp = requests.post(llm_endpoint(), json=llm_body(body),
+                             headers=headers, timeout=(15, 240))
     except requests.exceptions.Timeout:
         return JSONResponse({'ok': False, 'message': '请求大模型超时，请稍后重试或检查网络'})
     except requests.exceptions.RequestException as exc:

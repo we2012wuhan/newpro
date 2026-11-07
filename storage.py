@@ -165,6 +165,106 @@ SCHEMA = (
     """,
     "CREATE INDEX IF NOT EXISTS idx_media_state_user ON media_state(user, updated_at DESC)",
     "CREATE INDEX IF NOT EXISTS idx_media_state_fav ON media_state(user, favorite, updated_at DESC)",
+    """
+    CREATE TABLE IF NOT EXISTS ai_memories(
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        user       TEXT NOT NULL,
+        kind       TEXT NOT NULL DEFAULT 'fact',
+        content    TEXT NOT NULL,
+        norm       TEXT NOT NULL DEFAULT '',
+        source     TEXT NOT NULL DEFAULT 'auto',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )
+    """,
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_memories_norm ON ai_memories(user, norm)",
+    "CREATE INDEX IF NOT EXISTS idx_ai_memories_user ON ai_memories(user, id DESC)",
+    # ---- 个人地图（/trip）----
+    """
+    CREATE TABLE IF NOT EXISTS map_places(
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        user       TEXT NOT NULL,
+        name       TEXT NOT NULL,
+        address    TEXT NOT NULL DEFAULT '',
+        lng        REAL NOT NULL,
+        lat        REAL NOT NULL,
+        city       TEXT NOT NULL DEFAULT '',
+        district   TEXT NOT NULL DEFAULT '',
+        adcode     TEXT NOT NULL DEFAULT '',
+        category   TEXT NOT NULL DEFAULT 'other',
+        tags       TEXT NOT NULL DEFAULT '[]',
+        note       TEXT NOT NULL DEFAULT '',
+        source     TEXT NOT NULL DEFAULT 'manual',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_map_places_user ON map_places(user, category, updated_at DESC)",
+    """
+    CREATE TABLE IF NOT EXISTS map_routes(
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        user            TEXT NOT NULL,
+        name            TEXT NOT NULL,
+        mode            TEXT NOT NULL DEFAULT 'driving',
+        origin_name     TEXT NOT NULL DEFAULT '',
+        origin_lng      REAL NOT NULL,
+        origin_lat      REAL NOT NULL,
+        dest_name       TEXT NOT NULL DEFAULT '',
+        dest_lng        REAL NOT NULL,
+        dest_lat        REAL NOT NULL,
+        origin_place_id INTEGER,
+        dest_place_id   INTEGER,
+        distance_m      INTEGER NOT NULL DEFAULT 0,
+        duration_min    INTEGER NOT NULL DEFAULT 0,
+        polyline        TEXT NOT NULL DEFAULT '',
+        steps           TEXT NOT NULL DEFAULT '[]',
+        created_at      TEXT NOT NULL,
+        updated_at      TEXT NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_map_routes_user ON map_routes(user, updated_at DESC)",
+    """
+    CREATE TABLE IF NOT EXISTS map_route_runs(
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        user       TEXT NOT NULL,
+        route_id   INTEGER NOT NULL,
+        ran_on     TEXT NOT NULL,
+        actual_min INTEGER NOT NULL DEFAULT 0,
+        note       TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_map_runs_route ON map_route_runs(user, route_id, ran_on DESC)",
+    """
+    CREATE TABLE IF NOT EXISTS map_checkins(
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        user       TEXT NOT NULL,
+        place_id   INTEGER,
+        name       TEXT NOT NULL,
+        lng        REAL NOT NULL,
+        lat        REAL NOT NULL,
+        checkin_on TEXT NOT NULL,
+        note       TEXT NOT NULL DEFAULT '',
+        tags       TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_map_checkins_user ON map_checkins(user, checkin_on DESC)",
+    """
+    CREATE TABLE IF NOT EXISTS map_cache(
+        cache_key  TEXT PRIMARY KEY,
+        payload    TEXT NOT NULL DEFAULT '{}',
+        fetched_at REAL NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS map_api_usage(
+        day     TEXT NOT NULL,
+        service TEXT NOT NULL,
+        count   INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY(day, service)
+    )
+    """,
 )
 
 
@@ -323,6 +423,105 @@ def clear_notes(user: str) -> int:
         cur = conn.execute('DELETE FROM notes WHERE user = ?', (user,))
         conn.commit()
         return cur.rowcount
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------
+# 全站 AI 助手的长期记忆：按账号存，按 norm 去重，最多保留 200 条
+# ---------------------------------------------------------------
+MEMORY_MAX = 200
+
+
+def add_memory(user: str, content: str, kind: str = 'fact',
+               source: str = 'auto', norm: str = '') -> dict:
+    """写一条长期记忆。同一账号下 norm 相同视为同一条，只刷新时间。"""
+    content = ' '.join(str(content or '').split())[:240]
+    if not content:
+        raise ValueError('记忆内容不能为空')
+    kind = (str(kind or 'fact').strip().lower() or 'fact')[:20]
+    source = (str(source or 'auto').strip().lower() or 'auto')[:20]
+    norm = (str(norm or '').strip().lower() or content.lower())[:240]
+    now = now_str()
+    try:
+        conn = connect()
+    except StorageUnavailable:
+        raise
+    try:
+        row = conn.execute(
+            'SELECT id, content, source, created_at FROM ai_memories'
+            ' WHERE user = ? AND norm = ?', (user, norm)).fetchone()
+        if row:
+            conn.execute('UPDATE ai_memories SET kind = ?, updated_at = ?'
+                         ' WHERE id = ?', (kind, now, row['id']))
+            conn.commit()
+            mid = row['id']
+            content = row['content']
+            source = row['source']
+            created = row['created_at']
+            duplicate = True
+        else:
+            cur = conn.execute(
+                'INSERT INTO ai_memories(user, kind, content, norm, source,'
+                ' created_at, updated_at) VALUES (?,?,?,?,?,?,?)',
+                (user, kind, content, norm, source, now, now))
+            conn.commit()
+            mid = cur.lastrowid
+            created = now
+            duplicate = False
+        # 只留最新 200 条，防止长期使用后无限增长
+        conn.execute(
+            'DELETE FROM ai_memories WHERE user = ? AND id NOT IN ('
+            ' SELECT id FROM ai_memories WHERE user = ?'
+            ' ORDER BY id DESC LIMIT ?)', (user, user, MEMORY_MAX))
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+    return {'id': mid, 'kind': kind, 'content': content, 'source': source,
+            'created_at': created, 'updated_at': now, 'duplicate': duplicate}
+
+
+def list_memories(user: str, limit: int = MEMORY_MAX) -> list:
+    limit = max(1, min(int(limit or MEMORY_MAX), 500))
+    conn = connect()
+    try:
+        return _rows(
+            conn,
+            'SELECT id, kind, content, source, created_at, updated_at'
+            ' FROM ai_memories WHERE user = ? ORDER BY id DESC LIMIT ?',
+            (user, limit))
+    finally:
+        conn.close()
+
+
+def delete_memory(user: str, memory_id: int) -> int:
+    conn = connect()
+    try:
+        cur = conn.execute('DELETE FROM ai_memories WHERE id = ? AND user = ?',
+                           (int(memory_id), user))
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def clear_memories(user: str) -> int:
+    conn = connect()
+    try:
+        cur = conn.execute('DELETE FROM ai_memories WHERE user = ?', (user,))
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def memory_count(user: str) -> int:
+    conn = connect()
+    try:
+        return conn.execute('SELECT COUNT(*) FROM ai_memories WHERE user = ?',
+                            (user,)).fetchone()[0]
     finally:
         conn.close()
 
@@ -1109,3 +1308,216 @@ def weekly_set(user: str, week: str, payload: dict, source: str = 'rules') -> di
     finally:
         conn.close()
     return {'user': user, 'week': week, 'payload': payload, 'source': source, 'created_at': now}
+
+
+# ---------------------------------------------------------------
+# 个人地图（/trip）：常用地点、缓存和高德配额计数
+#   - 所有查询都带 user，页面之间不会串数据；
+#   - 地点坐标统一存 GCJ-02（高德坐标系），由上层负责转换；
+#   - map_cache 让地理编码 / POI 结果跨进程复用，少扣高德配额。
+# ---------------------------------------------------------------
+def _map_place_row(row) -> dict:
+    data = dict(row)
+    try:
+        tags = json.loads(data.get('tags') or '[]')
+    except ValueError:
+        tags = []
+    data['tags'] = tags if isinstance(tags, list) else []
+    return data
+
+
+def map_place_add(user: str, name: str, lng: float, lat: float,
+                  address: str = '', city: str = '', district: str = '',
+                  adcode: str = '', category: str = 'other', tags=None,
+                  note: str = '', source: str = 'manual') -> dict:
+    name = (name or '').strip()[:80]
+    if not name:
+        raise ValueError('地点名称不能为空')
+    now = now_str()
+    blob = json.dumps(tags if isinstance(tags, list) else [], ensure_ascii=False)
+    conn = connect()
+    try:
+        cur = conn.execute(
+            'INSERT INTO map_places(user, name, address, lng, lat, city, district, adcode, '
+            'category, tags, note, source, created_at, updated_at) '
+            'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+            (user, name, (address or '')[:120], float(lng), float(lat),
+             (city or '')[:40], (district or '')[:40], (adcode or '')[:20],
+             (category or 'other')[:20], blob, (note or '')[:500],
+             (source or 'manual')[:20], now, now))
+        conn.commit()
+        row = conn.execute('SELECT * FROM map_places WHERE id = ?', (cur.lastrowid,)).fetchone()
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+    return _map_place_row(row)
+
+
+def map_place_list(user: str, q: str = '', category: str = '', limit: int = 200) -> list:
+    limit = max(1, min(int(limit or 200), 500))
+    sql = 'SELECT * FROM map_places WHERE user = ?'
+    args = [user]
+    q = (q or '').strip()
+    if q:
+        like = '%' + q + '%'
+        sql += ' AND (name LIKE ? OR address LIKE ? OR note LIKE ?)'
+        args += [like, like, like]
+    category = (category or '').strip()
+    if category:
+        sql += ' AND category = ?'
+        args.append(category)
+    sql += ' ORDER BY updated_at DESC, id DESC LIMIT ?'
+    args.append(limit)
+    conn = connect()
+    try:
+        rows = _rows(conn, sql, args)
+    finally:
+        conn.close()
+    return [_map_place_row(row) for row in rows]
+
+
+def map_place_get(user: str, place_id: int):
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT * FROM map_places WHERE id = ? AND user = ?',
+                     (int(place_id), user))
+    finally:
+        conn.close()
+    return _map_place_row(rows[0]) if rows else None
+
+
+def map_place_update(user: str, place_id: int, fields: dict):
+    fields = fields if isinstance(fields, dict) else {}
+    sets, args = [], []
+    for key in ('name', 'address', 'city', 'district', 'adcode', 'category', 'note', 'source'):
+        if key in fields:
+            sets.append(key + ' = ?')
+            args.append(str(fields.get(key) or '')[:500])
+    for key in ('lng', 'lat'):
+        if key in fields:
+            sets.append(key + ' = ?')
+            args.append(float(fields[key]))
+    if 'tags' in fields:
+        sets.append('tags = ?')
+        args.append(json.dumps(fields.get('tags') if isinstance(fields.get('tags'), list) else [],
+                               ensure_ascii=False))
+    if not sets:
+        return map_place_get(user, place_id)
+    sets.append('updated_at = ?')
+    args.append(now_str())
+    args.extend([int(place_id), user])
+    conn = connect()
+    try:
+        cur = conn.execute('UPDATE map_places SET ' + ', '.join(sets) +
+                           ' WHERE id = ? AND user = ?', args)
+        conn.commit()
+        affected = cur.rowcount
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('更新失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+    return map_place_get(user, place_id) if affected else None
+
+
+def map_place_delete(user: str, place_id: int) -> int:
+    conn = connect()
+    try:
+        cur = conn.execute('DELETE FROM map_places WHERE id = ? AND user = ?',
+                           (int(place_id), user))
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def map_cache_get(key: str, ttl_seconds: int = 600):
+    """取一条高德缓存；过期就删掉并返回 None。"""
+    key = (key or '')[:300]
+    if not key:
+        return None
+    conn = connect()
+    try:
+        row = conn.execute('SELECT payload, fetched_at FROM map_cache WHERE cache_key = ?',
+                           (key,)).fetchone()
+        if not row:
+            return None
+        if time.time() - float(row['fetched_at'] or 0) > max(0, int(ttl_seconds)):
+            conn.execute('DELETE FROM map_cache WHERE cache_key = ?', (key,))
+            conn.commit()
+            return None
+        try:
+            return json.loads(row['payload'] or 'null')
+        except ValueError:
+            return None
+    finally:
+        conn.close()
+
+
+def map_cache_put(key: str, payload) -> None:
+    key = (key or '')[:300]
+    if not key:
+        return
+    blob = json.dumps(payload, ensure_ascii=False)
+    conn = connect()
+    try:
+        conn.execute(
+            'INSERT INTO map_cache(cache_key, payload, fetched_at) VALUES (?,?,?) '
+            'ON CONFLICT(cache_key) DO UPDATE SET payload=excluded.payload, '
+            'fetched_at=excluded.fetched_at',
+            (key, blob, time.time()))
+        # 个人使用，缓存不会太大；顺手清掉 30 天前的旧条目
+        conn.execute('DELETE FROM map_cache WHERE fetched_at < ?', (time.time() - 30 * 86400,))
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def map_cache_clear() -> int:
+    conn = connect()
+    try:
+        cur = conn.execute('DELETE FROM map_cache')
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def map_quota_get(day: str, service: str) -> int:
+    conn = connect()
+    try:
+        row = conn.execute('SELECT count FROM map_api_usage WHERE day = ? AND service = ?',
+                           (day, service)).fetchone()
+        return int(row['count'] or 0) if row else 0
+    finally:
+        conn.close()
+
+
+def map_quota_bump(day: str, service: str, amount: int = 1) -> int:
+    conn = connect()
+    try:
+        conn.execute(
+            'INSERT INTO map_api_usage(day, service, count) VALUES (?,?,?) '
+            'ON CONFLICT(day, service) DO UPDATE SET count = count + excluded.count',
+            (day, service[:20], max(0, int(amount))))
+        row = conn.execute('SELECT count FROM map_api_usage WHERE day = ? AND service = ?',
+                           (day, service[:20])).fetchone()
+        conn.execute("DELETE FROM map_api_usage WHERE day < date('now','localtime','-90 days')")
+        conn.commit()
+        return int(row['count'] or 0) if row else 0
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def map_quota_today() -> dict:
+    day = time.strftime('%Y-%m-%d')
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT service, count FROM map_api_usage WHERE day = ?', (day,))
+    finally:
+        conn.close()
+    return {'date': day, 'services': {row['service']: int(row['count'] or 0) for row in rows}}

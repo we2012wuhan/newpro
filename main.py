@@ -78,6 +78,10 @@ app.add_middleware(LoginGate)
 from quick_ai import router as quick_ai_router  # noqa: E402
 app.include_router(quick_ai_router)
 
+# 首页「全站文本模型」切换：选择写入 data/llm.json，模型调用方不用改
+from model_settings import router as model_settings_router  # noqa: E402
+app.include_router(model_settings_router)
+
 # 联网搜索：IQS 检索来源 -> DeepSeek 基于来源总结 -> SQLite 保存研究记录
 from web_search import router as web_search_router  # noqa: E402
 app.include_router(web_search_router)
@@ -351,6 +355,22 @@ app.include_router(focus_router)
 # 浏览器访问 http://127.0.0.1:8000/site-collect 即可使用。
 from site_collect import router as site_collect_router  # noqa: E402
 app.include_router(site_collect_router)
+
+
+# 我的地点：页面在 /trip
+# 选起点、目的地、日期、时长和交通方式，高德查真实路线 / 天气 / 周边地点，
+# 模型只从候选里挑点、排序、写理由。所有到达时间和停留时长由服务端重算，
+# 模型不许编坐标、耗时、票价和营业时间；没配高德 Key 时只给明确标注的演示行程。
+# 记录存 SQLite（tool='trip'），按登录名隔离；页面认 ?r=<记录 id> 深链。
+# 浏览器访问 http://127.0.0.1:8000/trip 即可使用。
+from trip import router as trip_router  # noqa: E402
+app.include_router(trip_router)
+
+# 个人地图：常用地点（/trip#places）
+# 地址解析和 POI 搜索都走服务端高德 Web Key，结果进 SQLite 缓存；
+# POI 搜索默认 80 次/天软上限，避免个人免费额度被误触打满。
+from map_places import router as map_places_router  # noqa: E402
+app.include_router(map_places_router)
 
 
 # 朗读：语音合成（火山引擎 / 豆包）

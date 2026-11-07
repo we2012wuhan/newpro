@@ -48,6 +48,8 @@ TOOL_META = {
     'design-assistant': {'name': '页面设计助手', 'ico': '✏️', 'href': '/design-assistant', 'deep': True},
     'web-search': {'name': '联网搜索', 'ico': '🌐', 'href': '/web-search', 'deep': True},
     'image-gen': {'name': 'AI 文生图', 'ico': '🎨', 'href': '/image-gen', 'deep': False},
+    # /trip 现在只展示我的地点，旧行程记录仍可汇总，但没有可回看的单条页面。
+    'trip': {'name': '出行攻略（旧）', 'ico': '🗺️', 'href': '/trip', 'deep': False},
     '3d-lab': {'name': '3D 小作品实验室', 'ico': '🧊', 'href': '/3d-lab', 'deep': False},
     'sleep': {'name': '睡前打烊', 'ico': '🌙', 'href': '/sleep', 'deep': False},
 }
@@ -100,6 +102,13 @@ def _excerpt(tool: str, payload: dict) -> str:
         return _text(payload.get('task')) or _text(payload.get('intent'))
     if tool == 'site-collect':
         return _text(payload.get('why')) or _text(payload.get('url'))
+    if tool == 'trip':
+        req = payload.get('request') if isinstance(payload.get('request'), dict) else {}
+        if req.get('origin') or req.get('destination'):
+            return _text('%s → %s' % (req.get('origin') or '起点',
+                                      req.get('destination') or '目的地'))
+        digest = payload.get('digest') if isinstance(payload.get('digest'), dict) else {}
+        return _text(digest.get('summary'))
     if tool == 'first_principles':
         return _text(payload.get('goal'))
     if tool == 'design-assistant':
@@ -242,6 +251,21 @@ def _detail(tool: str, payload: dict) -> list:
         if acts:
             done = len([x for x in acts if isinstance(x, dict) and x.get('done')])
             add('动作进度', '%s/%s' % (done, len(acts)), 8)
+    elif tool == 'trip':
+        req = payload.get('request') if isinstance(payload.get('request'), dict) else {}
+        add('路线', '%s → %s' % (req.get('origin') or '起点',
+                                  req.get('destination') or '目的地'))
+        add('日期', req.get('date'), 20)
+        if req.get('start_time'):
+            add('出发', '%s · %s' % (req.get('start_time'),
+                                     '一天' if req.get('duration') == 'full' else '半天'), 30)
+        plan = payload.get('plan') if isinstance(payload.get('plan'), dict) else {}
+        items = plan.get('items') if isinstance(plan.get('items'), list) else []
+        if items:
+            add('站点', '、'.join(
+                _text((item.get('poi') or {}).get('name'), 24)
+                for item in items[:6] if isinstance(item, dict)), 160)
+        add('安排', plan.get('summary'))
     elif tool == 'site-collect':
         add('网址', payload.get('url'), 120)
         add('分类', {'tool': '工具', 'learn': '学习·教程', 'doc': '文档', 'design': '设计·灵感', 'ai': 'AI', 'data': '数据', 'media': '影音', 'other': '其他'}.get(payload.get('cat')), 20)

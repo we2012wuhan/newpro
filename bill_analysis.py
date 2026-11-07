@@ -14,7 +14,8 @@ from fastapi import APIRouter, File, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
 
-from model_config import MISSING_KEY_HINT, llm_base, llm_endpoint, llm_key, llm_model
+from model_config import (MISSING_KEY_HINT, llm_base, llm_body, llm_endpoint,
+                          llm_key, llm_model)
 
 router = APIRouter()
 
@@ -343,7 +344,8 @@ def _classify_with_llm(rows, key, base, model):
         'stream': False,
     }
     try:
-        resp = requests.post(llm_endpoint(base), json=body, headers=headers, timeout=(15, 240))
+        resp = requests.post(llm_endpoint(base), json=llm_body(body),
+                             headers=headers, timeout=(15, 240))
     except requests.exceptions.Timeout:
         raise ValueError('请求大模型超时，请稍后重试或检查网络')
     except requests.exceptions.RequestException as exc:

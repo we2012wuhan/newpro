@@ -13,7 +13,8 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
 
 from ai_chart import _extract_json
-from model_config import MISSING_KEY_HINT, llm_endpoint, llm_key, llm_model
+from model_config import (MISSING_KEY_HINT, llm_body, llm_endpoint, llm_key,
+                          llm_model)
 
 router = APIRouter()
 
@@ -132,7 +133,8 @@ def _do_analyze(payload: dict):
         'stream': False,
     }
     try:
-        resp = requests.post(llm_endpoint(), json=body, headers=headers, timeout=(15, 180))
+        resp = requests.post(llm_endpoint(), json=llm_body(body),
+                             headers=headers, timeout=(15, 180))
     except requests.exceptions.Timeout:
         return JSONResponse({'ok': False, 'message': '请求大模型超时，请稍后重试或检查网络'})
     except requests.exceptions.RequestException as exc:

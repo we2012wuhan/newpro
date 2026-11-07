@@ -34,7 +34,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
 
 try:
-    from model_config import llm_endpoint, llm_key, llm_model
+    from model_config import llm_body, llm_endpoint, llm_key, llm_model
 except Exception:  # 单独拷这个文件跑时的兜底
     def llm_key():
         return ''
@@ -44,6 +44,9 @@ except Exception:  # 单独拷这个文件跑时的兜底
 
     def llm_endpoint(base=''):
         return (base or 'https://api.deepseek.com').rstrip('/') + '/chat/completions'
+
+    def llm_body(body, model=''):
+        return body
 
 router = APIRouter()
 _BASE_DIR = Path(__file__).resolve().parent
@@ -147,7 +150,7 @@ def _chat(system, user, max_tokens=800, temperature=0.4):
         'stream': False,
     }
     try:
-        resp = requests.post(llm_endpoint(), json=body, timeout=(10, 90),
+        resp = requests.post(llm_endpoint(), json=llm_body(body), timeout=(10, 90),
                              headers={'Authorization': 'Bearer ' + key,
                                       'Content-Type': 'application/json'})
     except requests.RequestException as exc:

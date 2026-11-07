@@ -13,7 +13,7 @@ from starlette.concurrency import run_in_threadpool
 import storage
 
 try:
-    from model_config import llm_endpoint, llm_key, llm_model
+    from model_config import llm_body, llm_endpoint, llm_key, llm_model
 except Exception:  # 单独运行本文件时的兜底
     def llm_key():
         return ''
@@ -23,6 +23,9 @@ except Exception:  # 单独运行本文件时的兜底
 
     def llm_endpoint(base=''):
         return (base or 'https://api.deepseek.com').rstrip('/') + '/chat/completions'
+
+    def llm_body(body, model=''):
+        return body
 
 
 router = APIRouter()
@@ -170,7 +173,7 @@ def _chat(system, user, max_tokens=3600, temperature=0.35):
     try:
         resp = requests.post(
             llm_endpoint(),
-            json=body,
+            json=llm_body(body),
             timeout=(10, 180),
             headers={
                 'Authorization': 'Bearer ' + key,

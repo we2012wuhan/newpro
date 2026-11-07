@@ -7,7 +7,8 @@ import requests
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 
-from model_config import MISSING_KEY_HINT, llm_endpoint, llm_key, llm_model
+from model_config import (MISSING_KEY_HINT, llm_body, llm_endpoint, llm_key,
+                          llm_model)
 
 router = APIRouter()
 
@@ -164,7 +165,7 @@ def _stream_report(user_content):
     try:
         response = requests.post(
             llm_endpoint(),
-            json=body,
+            json=llm_body(body),
             headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'},
             stream=True,
             timeout=(15, 240),

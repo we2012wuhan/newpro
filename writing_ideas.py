@@ -26,7 +26,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
 
 try:
-    from model_config import llm_endpoint, llm_key, llm_model
+    from model_config import llm_body, llm_endpoint, llm_key, llm_model
 except Exception:  # 单独拷贝本文件运行时不带配置也能用（只是走配方）
     def llm_key():
         return ''
@@ -36,6 +36,9 @@ except Exception:  # 单独拷贝本文件运行时不带配置也能用（只�
 
     def llm_endpoint(base=''):
         return (base or 'https://api.deepseek.com').rstrip('/') + '/chat/completions'
+
+    def llm_body(body, model=''):
+        return body
 
 router = APIRouter()
 _BASE_DIR = Path(__file__).resolve().parent
@@ -363,7 +366,7 @@ def _post_llm(system, user, max_tokens, temperature):
     }
     try:
         resp = requests.post(
-            llm_endpoint(), json=body, timeout=(15, 120),
+            llm_endpoint(), json=llm_body(body), timeout=(15, 120),
             headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'},
         )
     except requests.RequestException as exc:

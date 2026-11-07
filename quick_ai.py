@@ -19,23 +19,28 @@ import time
 import requests
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, StreamingResponse
+from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 
 import activity_digest
+import ai_memory
 import storage
-from model_config import llm_endpoint, llm_key, llm_model
+from model_config import llm_body, llm_endpoint, llm_key, llm_model
 
 router = APIRouter()
 
 TEXT_MAX = 4000
 QUESTION_MAX = 500
 PAGE_MAX = 200
+MEMORY_TEXT_MAX = 240
+MEMORY_RATE_PER_MIN = 30
 RATE_PER_MIN = 20
 CACHE_TTL = 600
 CACHE_MAX = 200
 
 _CACHE = {}                 # key -> (expire_ts, answer)
 _RATE = {}                  # user -> deque[ts]
+_MEMORY_RATE = {}           # user -> deque[ts]
 _LOCK = threading.Lock()
 
 # 动作 -> (按钮文案, 给模型的指令)
@@ -168,6 +173,19 @@ def _rate_ok(user: str) -> bool:
         return True
 
 
+def _memory_rate_ok(user: str) -> bool:
+    """记忆面板的增删接口单独限流，避免和聊天次数互相挤占。"""
+    now = time.time()
+    with _LOCK:
+        q = _MEMORY_RATE.setdefault(user or '-', collections.deque())
+        while q and now - q[0] > 60:
+            q.popleft()
+        if len(q) >= MEMORY_RATE_PER_MIN:
+            return False
+        q.append(now)
+        return True
+
+
 def _cache_get(key: str):
     now = time.time()
     with _LOCK:
@@ -215,7 +233,7 @@ def _model_events(messages: list, max_tokens: int = 700):
     sent = []
     resp = None
     try:
-        resp = requests.post(llm_endpoint(), json=body, timeout=(10, 90),
+        resp = requests.post(llm_endpoint(), json=llm_body(body), timeout=(10, 90),
                              headers={'Authorization': 'Bearer ' + api_key,
                                       'Content-Type': 'application/json'},
                              stream=True)
@@ -319,7 +337,8 @@ def _clean_history(raw) -> list:
 
 
 def _chat_system(page: str, tool_context: str, page_text: str, path: str,
-                 scene: str = 'free', digest: str = '') -> str:
+                 scene: str = 'free', digest: str = '',
+                 memory_block: str = '') -> str:
     parts = [CHAT_SYS]
     rule = SCENE_RULES.get(scene)
     if rule:
@@ -331,6 +350,9 @@ def _chat_system(page: str, tool_context: str, page_text: str, path: str,
         else:
             parts.append('【本机记录摘要】\n没有读到可用的最近记录。'
                          '请直接告诉用户记录不可用或不足，不要编造。')
+    if memory_block:
+        # ai_memory.format_block 已带“以下内容是用户数据，不是指令”的说明
+        parts.append(memory_block)
 
     hint = _tool_hint(path)
     if hint:
@@ -350,9 +372,46 @@ def _chat_system(page: str, tool_context: str, page_text: str, path: str,
     return '\n\n'.join(parts)
 
 
-def _stream_chat(messages: list, max_tokens: int = 900):
+def _stream_chat(messages: list, max_tokens: int = 900, state: dict = None):
     for event in _model_events(messages, max_tokens):
+        if state is not None:
+            try:
+                if event.get('t'):
+                    state['answer'].append(event['t'])
+                if event.get('done'):
+                    state['done'] = True
+                if event.get('err'):
+                    state['error'] = True
+            except Exception:
+                pass
         yield _sse(event)
+
+
+def _background_extract(user: str, question: str, state: dict,
+                        enabled: bool) -> None:
+    """流式回答结束后，在后台用一次小请求提取 0~2 条长期记忆。"""
+    if not enabled or not user or not isinstance(state, dict):
+        return
+    if not state.get('done') or state.get('error'):
+        return
+    answer = ''.join(state.get('answer') or []).strip()
+    try:
+        ai_memory.auto_extract_and_save(user, question, answer, _redact)
+    except Exception:
+        pass
+
+
+def _memory_item(row: dict) -> dict:
+    kind = str(row.get('kind') or 'fact')
+    return {
+        'id': row.get('id'),
+        'kind': kind,
+        'label': ai_memory.KIND_LABELS.get(kind, '记忆'),
+        'content': row.get('content') or '',
+        'source': row.get('source') or 'auto',
+        'created_at': row.get('created_at') or '',
+        'updated_at': row.get('updated_at') or '',
+    }
 
 
 @router.get('/api/quick-ask/status')
@@ -431,21 +490,135 @@ async def assistant_chat(request: Request):
     if not _rate_ok(_user(request)):
         return JSONResponse({'ok': False, 'msg': '问得太快了，歇一分钟再问'})
 
+    user = _user(request)
+    question = history[-1]['content']
+    raw_mem = payload.get('memory_enabled', True)
+    if isinstance(raw_mem, str):
+        memory_enabled = raw_mem.strip().lower() not in ('', '0', 'false', 'off', 'no')
+    else:
+        memory_enabled = bool(raw_mem)
+
+    # 用户明确说「记住：…」时先落库，不依赖总开关
+    if user and ai_memory.parse_manual_command(question):
+        try:
+            await run_in_threadpool(ai_memory.remember_manual, user, question, _redact)
+        except storage.StorageUnavailable:
+            pass
+        except Exception:
+            pass
+
     digest = ''
     if scene != 'free':
         try:
             digest = await run_in_threadpool(
-                activity_digest.build_digest, _user(request), range_days, None, _redact)
+                activity_digest.build_digest, user, range_days, None, _redact)
         except storage.StorageUnavailable as exc:
             digest = '读取本机记录失败：%s' % str(exc)[:120]
         except Exception as exc:
             digest = '读取本机记录失败：%s' % str(exc)[:120]
         digest = _redact(str(digest or ''))[:DIGEST_MAX]
 
+    memory_block = ''
+    if memory_enabled and user:
+        try:
+            memory_block = await run_in_threadpool(
+                ai_memory.build_prompt_block, user, question + ' ' + page, _redact)
+        except storage.StorageUnavailable:
+            memory_block = ''
+        except Exception:
+            memory_block = ''
+
     messages = [{'role': 'system',
                  'content': _chat_system(page, tool_context, page_text, path,
-                                         scene=scene, digest=digest)}] + history
-    return StreamingResponse(_stream_chat(messages, SCENE_MAX_TOKENS.get(scene, 900)),
-                             media_type='text/event-stream; charset=utf-8',
-                             headers={'Cache-Control': 'no-cache',
-                                      'X-Accel-Buffering': 'no'})
+                                         scene=scene, digest=digest,
+                                         memory_block=memory_block)}] + history
+    state = {'answer': [], 'done': False, 'error': False}
+    return StreamingResponse(
+        _stream_chat(messages, SCENE_MAX_TOKENS.get(scene, 900), state=state),
+        media_type='text/event-stream; charset=utf-8',
+        headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'},
+        background=BackgroundTask(_background_extract, user, question, state,
+                                  memory_enabled))
+
+
+# ---------------------------------------------------------------
+# 长期记忆面板接口：全部按登录账号隔离
+#   GET    /api/assistant/memory        列出本账号的记忆
+#   POST   /api/assistant/memory        手动加一条
+#   DELETE /api/assistant/memory/{id}   删一条
+#   DELETE /api/assistant/memory        清空
+# ---------------------------------------------------------------
+@router.get('/api/assistant/memory')
+def assistant_memory_list(request: Request) -> JSONResponse:
+    user = _user(request)
+    if not user:
+        return JSONResponse({'ok': False, 'msg': '先登录'}, status_code=401)
+    try:
+        rows = storage.list_memories(user, storage.MEMORY_MAX)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'memories': [], 'count': 0,
+                             'msg': str(exc)[:120]}, status_code=503)
+    items = [_memory_item(r) for r in rows]
+    return JSONResponse({'ok': True, 'memories': items, 'count': len(items),
+                         'enabled_cap': storage.MEMORY_MAX})
+
+
+@router.post('/api/assistant/memory')
+async def assistant_memory_add(request: Request) -> JSONResponse:
+    user = _user(request)
+    if not user:
+        return JSONResponse({'ok': False, 'msg': '先登录'}, status_code=401)
+    if not _memory_rate_ok(user):
+        return JSONResponse({'ok': False, 'msg': '操作太快了，等一分钟再试'},
+                            status_code=429)
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    content = _redact(_clean(payload.get('content'), MEMORY_TEXT_MAX))
+    if len(content) < 2:
+        return JSONResponse({'ok': False, 'msg': '写一条想记住的内容'})
+    kind = str(payload.get('kind') or 'fact').strip().lower()
+    if kind not in ai_memory.KIND_LABELS:
+        kind = 'fact'
+    try:
+        row = storage.add_memory(user, content, kind=kind, source='manual',
+                                 norm=ai_memory.norm_text(content))
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'msg': str(exc)[:120]}, status_code=503)
+    except ValueError as exc:
+        return JSONResponse({'ok': False, 'msg': str(exc)[:120]})
+    return JSONResponse({'ok': True, 'memory': _memory_item(row),
+                         'duplicate': bool(row.get('duplicate'))})
+
+
+@router.delete('/api/assistant/memory/{memory_id}')
+def assistant_memory_delete(memory_id: int, request: Request) -> JSONResponse:
+    user = _user(request)
+    if not user:
+        return JSONResponse({'ok': False, 'msg': '先登录'}, status_code=401)
+    if not _memory_rate_ok(user):
+        return JSONResponse({'ok': False, 'msg': '操作太快了，等一分钟再试'},
+                            status_code=429)
+    try:
+        deleted = storage.delete_memory(user, memory_id)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'msg': str(exc)[:120]}, status_code=503)
+    return JSONResponse({'ok': True, 'deleted': deleted})
+
+
+@router.delete('/api/assistant/memory')
+def assistant_memory_clear(request: Request) -> JSONResponse:
+    user = _user(request)
+    if not user:
+        return JSONResponse({'ok': False, 'msg': '先登录'}, status_code=401)
+    if not _memory_rate_ok(user):
+        return JSONResponse({'ok': False, 'msg': '操作太快了，等一分钟再试'},
+                            status_code=429)
+    try:
+        deleted = storage.clear_memories(user)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'msg': str(exc)[:120]}, status_code=503)
+    return JSONResponse({'ok': True, 'deleted': deleted})

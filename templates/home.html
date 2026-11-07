@@ -97,6 +97,8 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .t-sl .go{background:linear-gradient(135deg,#64748b,#334155);box-shadow:0 8px 20px rgba(100,116,139,.35)}
 .tool.t-sc:hover{border-color:rgba(45,212,191,.55);box-shadow:0 24px 52px rgba(15,118,110,.28)}
 .t-sc .go{background:linear-gradient(135deg,#2dd4bf,#0f766e);box-shadow:0 8px 20px rgba(15,118,110,.34)}
+.tool.t-trip:hover{border-color:rgba(14,116,144,.62);box-shadow:0 24px 52px rgba(14,116,144,.26)}
+.t-trip .go{background:linear-gradient(135deg,#0e7490,#0891b2);box-shadow:0 8px 20px rgba(14,116,144,.34)}
 .tool.t-da:hover{border-color:rgba(124,135,255,.62);box-shadow:0 24px 52px rgba(91,108,255,.28)}
 .t-da .go{background:linear-gradient(135deg,#7c87ff,#5b6cff);box-shadow:0 8px 20px rgba(91,108,255,.34)}
 .tool.t-3d:hover{border-color:rgba(15,159,143,.62);box-shadow:0 24px 52px rgba(15,159,143,.26)}
@@ -113,7 +115,7 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .t-game .go{background:linear-gradient(135deg,#ff526b,#ff9b54);box-shadow:0 8px 20px rgba(255,82,107,.34)}
 .tool.t-fc:hover{border-color:rgba(226,86,74,.62);box-shadow:0 24px 52px rgba(216,66,60,.26)}
 .t-fc .go{background:linear-gradient(135deg,#f0705f,#d8423c);box-shadow:0 8px 20px rgba(216,66,60,.32)}
-.search-col{display:flex;flex-direction:column;align-items:stretch;gap:7px;flex:1;max-width:610px;min-width:260px;margin-left:auto}
+.search-col{position:relative;display:flex;flex-direction:column;align-items:stretch;flex:1;max-width:780px;min-width:260px;margin-left:auto}
 .search-box{position:relative;width:100%}
 .search-box .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none;font-size:15px}
 #toolSearch{width:100%;background:var(--tb-card);border:1px solid var(--line);color:var(--text);
@@ -121,8 +123,68 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
   transition:border-color .2s,box-shadow .2s}
 #toolSearch:focus{border-color:rgba(109,124,255,.65);box-shadow:0 0 0 3px rgba(109,124,255,.18)}
 #toolSearch::placeholder{color:#71809f}
-.search-row{display:flex;gap:8px;align-items:stretch}
-.search-row .search-box{flex:1 1 auto}
+.search-row{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap}
+.search-row .search-box{flex:1 1 0;min-width:170px;width:auto}
+/* 首页：全站文本模型切换 */
+.model-switch{position:relative;flex:0 0 auto}
+.model-btn{display:inline-flex;align-items:center;gap:6px;min-height:48px;max-width:180px;padding:0 10px;
+  border-radius:14px;border:1px solid var(--line);background:var(--tb-card);color:var(--text);
+  font:inherit;font-size:12.5px;cursor:pointer;white-space:nowrap;
+  transition:border-color .2s,background .2s,box-shadow .2s}
+.model-btn:hover{border-color:rgba(109,124,255,.6);background:var(--tb-hover)}
+.model-btn[aria-expanded="true"]{border-color:rgba(109,124,255,.7);box-shadow:0 0 0 3px rgba(109,124,255,.14)}
+.model-btn:disabled{opacity:.6;cursor:default}
+.model-dot{width:8px;height:8px;border-radius:50%;background:#3ddc97;flex:none;
+  box-shadow:0 0 0 3px rgba(61,220,151,.16)}
+.model-dot.off{background:#e0575f;box-shadow:0 0 0 3px rgba(224,87,95,.16)}
+.model-cur{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.model-caret{width:14px;height:14px;flex:none;fill:none;stroke:currentColor;stroke-width:2;
+  transition:transform .2s}
+.model-btn[aria-expanded="true"] .model-caret{transform:rotate(180deg)}
+.model-pop{position:absolute;z-index:80;top:calc(100% + 8px);left:0;width:min(370px,calc(100vw - 40px));
+  padding:12px;border-radius:16px;border:1px solid var(--tb-line);background:var(--tb-card);
+  box-shadow:0 24px 60px -20px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:10px}
+.model-pop[hidden]{display:none}
+.model-pop-head{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13.5px}
+.model-pop-head b{font-weight:600}
+.model-test{min-height:28px;padding:0 10px;border-radius:999px;border:1px solid var(--tb-line);
+  background:transparent;color:var(--tb-muted);font:inherit;font-size:11.5px;cursor:pointer}
+.model-test:hover{border-color:rgba(45,212,191,.55);color:#14b8a6}
+.model-test:disabled{opacity:.5;cursor:default}
+.model-list{display:flex;flex-direction:column;gap:8px;max-height:48vh;overflow:auto}
+.model-group{display:flex;flex-direction:column;gap:5px}
+.model-group + .model-group{padding-top:8px;border-top:1px dashed var(--tb-line)}
+.model-group-name{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--tb-muted);letter-spacing:.04em}
+.model-opt{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:40px;
+  padding:6px 10px;border-radius:10px;border:1px solid transparent;background:transparent;
+  color:var(--text);font:inherit;font-size:13px;text-align:left;cursor:pointer}
+.model-opt:hover{border-color:rgba(109,124,255,.5);background:var(--tb-hover)}
+.model-opt.on{border-color:rgba(109,124,255,.65);background:rgba(109,124,255,.12)}
+.model-opt:disabled{opacity:.45;cursor:not-allowed}
+.mo-main{min-width:0;display:flex;flex-direction:column;gap:1px}
+.mo-name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mo-id{font-size:11px;color:var(--tb-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mo-tag{flex:none;font-size:10.5px;color:var(--tb-muted);border:1px solid var(--tb-line);
+  padding:2px 7px;border-radius:999px}
+.model-hint{font-size:11px;line-height:1.6;color:var(--tb-muted);padding:0 10px 2px}
+.model-custom{display:flex;gap:6px}
+.model-custom input{flex:1;min-width:0;padding:9px 10px;border-radius:10px;border:1px solid var(--line);
+  background:var(--tb-card);color:var(--text);font:inherit;font-size:12.5px;outline:none}
+.model-custom input:focus{border-color:rgba(109,124,255,.65)}
+.model-custom button{flex:none;padding:0 12px;border-radius:10px;border:1px solid rgba(109,124,255,.55);
+  background:rgba(109,124,255,.16);color:var(--text);font:inherit;font-size:12.5px;cursor:pointer}
+.model-custom button:disabled{opacity:.5;cursor:default}
+.model-scope{margin:0;padding-top:8px;border-top:1px dashed var(--tb-line);
+  font-size:11.5px;line-height:1.7;color:var(--tb-muted)}
+.model-msg{font-size:12px;min-height:1em;color:var(--tb-muted);word-break:break-word}
+.model-msg.err{color:#e0575f}
+.model-msg.ok{color:#2fbf87}
+@media(max-width:760px){
+  .hero{flex-direction:column;align-items:stretch}
+  .search-col{max-width:none;width:100%;margin-left:0}
+  .model-pop{position:fixed;left:16px;right:16px;bottom:16px;top:auto;width:auto}
+  .model-list{max-height:40vh}
+}
 .voice-btn{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;
   width:48px;min-height:48px;padding:0;border-radius:14px;border:1px solid var(--line);
   background:var(--tb-card);color:var(--tb-muted);cursor:pointer;
@@ -145,7 +207,9 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
   fill:none;stroke-linecap:round;stroke-linejoin:round}
 .web-btn:hover{border-color:rgba(45,212,191,.62);color:#14b8a6;background:var(--tb-hover)}
 .web-btn .web-txt{font-size:13px}
-.voice-hint{min-height:16px;font-size:12px;color:var(--tb-muted);text-align:right}
+.voice-hint{position:absolute;top:calc(100% + 2px);right:0;font-size:12px;line-height:16px;
+  color:var(--tb-muted);text-align:right;pointer-events:none}
+.voice-hint:empty{display:none}
 .vnav{position:fixed;inset:0;z-index:2147482000;background:rgba(6,9,20,.55);display:flex;
   align-items:flex-start;justify-content:center;padding:14vh 16px 16px}
 .vnav[hidden]{display:none}
@@ -443,8 +507,30 @@ body.is-dragging .tool:not(.dragging){transition:none}
   <div class="hero">
     <div class="brand">
       <div class="mark">🧰</div>
-      <div>
-        <h1>我的工具箱</h1>
+      <div class="model-switch" id="modelSwitch">
+          <button class="model-btn" id="modelBtn" type="button" aria-haspopup="true"
+                  aria-expanded="false" title="切换全站文本模型">
+            <span class="model-dot" id="modelDot"></span>
+            <span class="model-cur" id="modelCur">模型加载中…</span>
+            <svg class="model-caret" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M6 9l6 6 6-6"></path>
+            </svg>
+          </button>
+          <div class="model-pop" id="modelPop" hidden>
+            <div class="model-pop-head">
+              <b>全站文本模型</b>
+              <button class="model-test" id="modelTest" type="button">测试连接</button>
+            </div>
+            <div class="model-list" id="modelList"></div>
+            <div class="model-custom">
+              <input id="modelCustom" type="text" name="model-id" autocomplete="off"
+                     autocapitalize="off" autocorrect="off" spellcheck="false"
+                     placeholder="给当前服务商手动输入模型 ID">
+              <button id="modelApply" type="button">应用</button>
+            </div>
+            <p class="model-scope">切换后，所有调用 model_config 的文本工具（对话、分析、复盘等）一起生效；文生图（ARK_*）、朗读与语音识别（VOLC_*）、OCR、联网搜索（IQS）是各自独立的配置，不受影响。</p>
+            <div class="model-msg" id="modelMsg"></div>
+          </div>
       </div>
     </div>
     <div class="search-col">
@@ -486,6 +572,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
     <button class="cat" type="button" data-cat="think" aria-pressed="false"><span class="cat-ico">🧠</span><span class="cat-txt">思考训练</span><span class="cat-n"></span></button>
     <button class="cat" type="button" data-cat="learn" aria-pressed="false"><span class="cat-ico">📚</span><span class="cat-txt">学习·开发</span><span class="cat-n"></span></button>
     <button class="cat" type="button" data-cat="content" aria-pressed="false"><span class="cat-ico">✨</span><span class="cat-txt">内容·资讯</span><span class="cat-n"></span></button>
+    <button class="cat" type="button" data-cat="life" aria-pressed="false"><span class="cat-ico">🧭</span><span class="cat-txt">生活·出行</span><span class="cat-n"></span></button>
     <button class="cat" type="button" data-cat="play" aria-pressed="false"><span class="cat-ico">🎮</span><span class="cat-txt">小游戏</span><span class="cat-n"></span></button>
     <button class="cat" type="button" data-cat="ext" aria-pressed="false"><span class="cat-ico">🔗</span><span class="cat-txt">外部工具</span><span class="cat-n"></span></button>
     <button class="cat-add" id="catAdd" type="button" title="新建分类" aria-label="新建分类">＋</button>
@@ -771,6 +858,14 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <h3>网站收集</h3>
         <p class="desc">刷到有用的网址就丢进来：网址 + 一句为什么收它。AI 会先真去抓这个页面，再告诉你值不值得留、值在哪。</p>
         <span class="go">立即打开</span>
+      </div>
+    </a>
+    <a class="tool t-trip" data-cat="life" href="/trip">
+      <div class="t-icon">🗺️</div>
+      <div class="t-info">
+        <h3>高德地图</h3>
+        <p class="desc">地图铺满全屏，收藏家、公司、常去的店和景点。搜索地址时由高德解析坐标，按分类在地图上显示，所有地点按登录用户单独保存。</p>
+        <span class="go">打开地图</span>
       </div>
     </a>
   </div>
@@ -1677,6 +1772,208 @@ if(document.readyState === 'loading'){
   } else {
     load();
   }
+})();
+</script>
+<script>
+/* 首页：全站文本模型切换（选择存在服务端 data/llm.json） */
+(function(){
+'use strict';
+
+var root = document.getElementById('modelSwitch');
+if(!root){ return; }
+
+var btn    = document.getElementById('modelBtn');
+var pop    = document.getElementById('modelPop');
+var curEl  = document.getElementById('modelCur');
+var dotEl  = document.getElementById('modelDot');
+var listEl = document.getElementById('modelList');
+var input  = document.getElementById('modelCustom');
+var apply  = document.getElementById('modelApply');
+var testBtn= document.getElementById('modelTest');
+var msgEl  = document.getElementById('modelMsg');
+
+var state = null;
+var busy = false;
+// 浏览器会把保存过的登录名自动填进页面里的文本框（之前就填进了 admin）。
+// 只有用户自己敲键或粘贴过才算数，否则打开下拉时清空。
+var customTouched = false;
+
+function setMsg(text, kind){
+  msgEl.textContent = text || '';
+  msgEl.className = 'model-msg' + (kind ? ' ' + kind : '');
+}
+
+function setBusy(on){
+  busy = !!on;
+  btn.disabled = busy;
+  apply.disabled = busy;
+  testBtn.disabled = busy;
+}
+
+function close(){
+  pop.setAttribute('hidden', '');
+  btn.setAttribute('aria-expanded', 'false');
+}
+
+function open(){
+  if(!pop.hasAttribute('hidden')){ close(); return; }
+  if(!customTouched){ input.value = ''; }
+  pop.removeAttribute('hidden');
+  btn.setAttribute('aria-expanded', 'true');
+  if(!state){ load(); }
+}
+
+function request(method, url, body){
+  return fetch(url, {
+    method: method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined
+  }).then(function(r){
+    return r.json().catch(function(){ return null; }).then(function(d){
+      if(!r.ok || !d || d.ok === false){
+        throw new Error((d && (d.error || d.detail)) || ('请求失败（' + r.status + '）'));
+      }
+      return d;
+    });
+  });
+}
+
+function paint(){
+  if(!state){
+    curEl.textContent = '模型不可用';
+    dotEl.classList.add('off');
+    return;
+  }
+  curEl.textContent = state.model || '选择模型';
+  dotEl.classList.toggle('off', !state.ready);
+  btn.title = '切换全站文本模型；当前：' + (state.provider_label || state.provider) +
+              ' / ' + state.model;
+}
+
+function option(p, m){
+  var b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'model-opt' + (p.id === state.provider && m.id === state.model ? ' on' : '');
+  b.disabled = !p.ready;
+  b.setAttribute('aria-pressed', b.classList.contains('on') ? 'true' : 'false');
+
+  var main = document.createElement('span');
+  main.className = 'mo-main';
+  var name = document.createElement('span');
+  name.className = 'mo-name';
+  name.textContent = m.label || m.id;
+  var id = document.createElement('span');
+  id.className = 'mo-id';
+  id.textContent = m.id;
+  main.appendChild(name);
+  main.appendChild(id);
+  b.appendChild(main);
+
+  if(m.note){
+    var tag = document.createElement('span');
+    tag.className = 'mo-tag';
+    tag.textContent = m.note;
+    b.appendChild(tag);
+  }
+  b.addEventListener('click', function(){ choose(p.id, m.id); });
+  return b;
+}
+
+function render(){
+  listEl.textContent = '';
+  if(!state){ return; }
+  (state.providers || []).forEach(function(p){
+    // 已经配好 Key、但没有配任何模型的服务商不占位置（比如中转没设 OPENAI_MODEL）。
+    if(p.ready && !(p.models || []).length){ return; }
+    var group = document.createElement('div');
+    group.className = 'model-group';
+
+    var head = document.createElement('div');
+    head.className = 'model-group-name';
+    var label = document.createElement('span');
+    label.textContent = p.label;
+    head.appendChild(label);
+    if(!p.ready){
+      var tag = document.createElement('span');
+      tag.className = 'mo-tag';
+      tag.textContent = '未配置';
+      head.appendChild(tag);
+    }
+    group.appendChild(head);
+
+    (p.models || []).forEach(function(m){ group.appendChild(option(p, m)); });
+
+    if(!p.ready){
+      var hint = document.createElement('div');
+      hint.className = 'model-hint';
+      hint.textContent = '去 .env 填 ' + p.hint;
+      group.appendChild(hint);
+    }
+    listEl.appendChild(group);
+  });
+}
+
+function load(){
+  setBusy(true);
+  setMsg('读取配置…');
+  request('GET', '/api/model/state').then(function(d){
+    state = d;
+    paint();
+    render();
+    setMsg('');
+  }).catch(function(e){
+    curEl.textContent = '模型读取失败';
+    dotEl.classList.add('off');
+    setMsg(e.message || '读取失败', 'err');
+  }).then(function(){ setBusy(false); });
+}
+
+function choose(provider, model){
+  if(busy){ return; }
+  setBusy(true);
+  setMsg('切换中…');
+  request('POST', '/api/model/select', { provider: provider, model: model })
+    .then(function(d){
+      state = d;
+      paint();
+      render();
+      setMsg('已切换：' + d.model, 'ok');
+    })
+    .catch(function(e){ setMsg(e.message || '切换失败', 'err'); })
+    .then(function(){ setBusy(false); });
+}
+
+btn.addEventListener('click', open);
+apply.addEventListener('click', function(){
+  var value = String(input.value || '').trim();
+  if(!value){ setMsg('先填模型 ID', 'err'); return; }
+  if(!state){ return; }
+  choose(state.provider, value);
+});
+input.addEventListener('keydown', function(e){
+  customTouched = true;
+  if(e.key === 'Enter'){ e.preventDefault(); apply.click(); }
+});
+input.addEventListener('paste', function(){ customTouched = true; });
+testBtn.addEventListener('click', function(){
+  if(busy){ return; }
+  setBusy(true);
+  setMsg('测试中…');
+  request('POST', '/api/model/test')
+    .then(function(d){
+      setMsg('连接正常 · ' + d.ms + 'ms' + (d.reply ? ' · ' + d.reply : ''), 'ok');
+    })
+    .catch(function(e){ setMsg(e.message || '测试失败', 'err'); })
+    .then(function(){ setBusy(false); });
+});
+document.addEventListener('click', function(e){
+  if(!root.contains(e.target)){ close(); }
+});
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){ close(); }
+});
+
+load();
 })();
 </script>
 <script src="/static/focus-widget.js" defer></script>

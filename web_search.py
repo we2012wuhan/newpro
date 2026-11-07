@@ -23,6 +23,7 @@ from model_config import (
     iqs_endpoint,
     iqs_engine_deep,
     iqs_engine_fast,
+    llm_body,
     llm_endpoint,
     llm_key,
     llm_model,
@@ -558,7 +559,7 @@ def _stream_llm(messages: list[dict], max_tokens: int = 1200):
     try:
         resp = requests.post(
             llm_endpoint(),
-            json=body,
+            json=llm_body(body),
             headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'},
             timeout=(10, 100),
             stream=True,

@@ -138,14 +138,16 @@
     '  flex:0 0 auto;padding:2px 12px 10px}',
     '.status{flex:1 1 auto;min-width:0;font-size:11px;color:var(--tb-muted,#8b93ab);',
     '  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-    '.footbtns{display:flex;gap:6px;flex:0 0 auto}',
-    '.footbtns button{min-height:30px;padding:0 10px;border-radius:999px;',
+    /* 对话下方的操作行：记住 / 朗读 / 复制，统一靠左 */
+    '.acts{display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:6px;',
+    '  flex:0 0 auto;padding:2px 12px 4px}',
+    '.acts button{min-height:30px;padding:0 10px;border-radius:999px;',
     '  border:1px solid var(--tb-line,#282d45);background:transparent;',
     '  color:var(--tb-text,#c6cbdd);font-size:12px;cursor:pointer}',
-    '.footbtns button:hover{border-color:var(--tb-acc1,#6d7cff)}',
-    '.footbtns button.on{border-color:rgba(45,212,191,.6);background:rgba(45,212,191,.16);',
+    '.acts button:hover{border-color:var(--tb-acc1,#6d7cff)}',
+    '.acts button.on{border-color:rgba(45,212,191,.6);background:rgba(45,212,191,.16);',
     '  color:var(--tb-ink,#152033)}',
-    '.footbtns button:disabled{opacity:.4;cursor:default}',
+    '.acts button:disabled{opacity:.4;cursor:default}',
     /* 历史 */
     '.hist{position:absolute;left:0;right:0;top:52px;z-index:3;max-height:56%;overflow-y:auto;',
     '  padding:8px 10px 10px;background:var(--tb-menu-bg,#171a2b);',
@@ -165,6 +167,25 @@
     '  background:transparent;color:var(--tb-muted,#8b93ab);font-size:15px;cursor:pointer}',
     '.histdel:hover{background:rgba(255,120,120,.14);color:#ff9a9a}',
     '.histempty{padding:14px 6px;font-size:12px;color:var(--tb-muted,#8b93ab)}',
+    /* 长期记忆 */
+    '.mem{max-height:74%}',
+    '.memadd{display:flex;gap:6px;padding:0 4px 4px}',
+    '.meminput{flex:1 1 auto;min-width:0;min-height:32px;padding:6px 9px;border-radius:9px;',
+    '  border:1px solid var(--tb-line,#282d45);background:var(--tb-field,rgba(255,255,255,.04));',
+    '  color:var(--tb-ink,#eef1fa);font-size:12px}',
+    '.meminput::placeholder{color:var(--tb-muted,#8b93ab)}',
+    '.memopt{display:flex;align-items:center;gap:8px;padding:0 4px 6px}',
+    '.memopt .ctxbtn{min-height:28px;font-size:11px}',
+    '.memhint{flex:1 1 auto;min-width:0;font-size:11px;color:var(--tb-muted,#8b93ab);',
+    '  line-height:1.4}',
+    '.memitem{display:flex;align-items:flex-start;gap:8px;padding:8px;border-radius:9px}',
+    '.memitem:hover{background:rgba(127,127,127,.10)}',
+    '.memmain{flex:1 1 auto;min-width:0}',
+    '.memtext{display:block;font-size:12.5px;color:var(--tb-ink,#eef1fa);white-space:pre-wrap;',
+    '  word-break:break-word}',
+    '.memmeta{display:block;font-size:10.5px;color:var(--tb-muted,#8b93ab);margin-top:2px}',
+    '.memtag{display:inline-block;padding:0 5px;border-radius:6px;margin-right:4px;',
+    '  background:rgba(109,124,255,.14);color:#9aa6ff}',
     /* 手机 / 窄屏：底部抽屉 */
     '@media (max-width:700px){',
     '  #panel.show{left:0;right:0;bottom:0;width:100%;height:auto;max-height:82vh;',
@@ -185,6 +206,7 @@
     '  <div class="hd">',
     '    <div class="brand"><span class="logo">✦</span><span class="ttl">AI 助手</span>',
     '      <span class="page" id="pageTag"></span></div>',
+    '    <button class="icon" id="memBtn" type="button" aria-label="长期记忆">记忆</button>',
     '    <button class="icon" id="historyBtn" type="button" aria-label="历史对话">历史</button>',
     '    <button class="icon" id="newBtn" type="button" aria-label="新对话">＋</button>',
     '    <button class="icon" id="close" type="button" aria-label="关闭">✕</button>',
@@ -192,6 +214,19 @@
     '  <div class="hist" id="hist" hidden>',
     '    <div class="histhd"><span>最近的对话</span><button id="histClear" type="button">清空</button></div>',
     '    <div id="histList"></div>',
+    '  </div>',
+    '  <div class="hist mem" id="mem" hidden>',
+    '    <div class="histhd"><span>长期记忆</span><button id="memClear" type="button">清空</button></div>',
+    '    <div class="memadd">',
+    '      <input class="meminput" id="memInput" type="text" maxlength="240"',
+    '        placeholder="记一条… 例如：我偏好简短中文回答">',
+    '      <button class="ctxbtn" id="memAdd" type="button">保存</button>',
+    '    </div>',
+    '    <div class="memopt">',
+    '      <button class="ctxbtn on" id="memToggle" type="button" aria-pressed="true">自动记忆</button>',
+    '      <span class="memhint" id="memHint">开启时按需带入相关记忆；关闭后不再带入，也不自动提取。</span>',
+    '    </div>',
+    '    <div id="memList"></div>',
     '  </div>',
     '  <div class="ctx">',
     '    <button class="ctxbtn" id="ctxBtn" type="button" aria-pressed="false">📄 读取本页</button>',
@@ -217,17 +252,18 @@
     '    <button type="button" data-sa="summary">总结</button>',
     '  </div>',
     '  <div class="thread" id="thread" aria-live="polite"></div>',
+    '  <div class="acts">',
+    '    <button id="remember" type="button" title="把最近一条回答加入长期记忆">记住</button>',
+    '    <button id="speak" type="button" aria-pressed="false">朗读</button>',
+    '    <button id="copy" type="button">复制</button>',
+    '    <button id="stop" type="button" hidden>停止</button>',
+    '  </div>',
     '  <div class="compose">',
     '    <textarea id="q" rows="1" maxlength="3000" placeholder="问点什么…  Enter 发送，Shift+Enter 换行"></textarea>',
     '    <button class="send" id="send" type="button">发送</button>',
     '  </div>',
     '  <div class="foot">',
     '    <span class="status" id="status"></span>',
-    '    <div class="footbtns">',
-    '      <button id="stop" type="button" hidden>停止</button>',
-    '      <button id="copy" type="button">复制</button>',
-    '      <button id="speak" type="button" aria-pressed="false">朗读</button>',
-    '    </div>',
     '  </div>',
     '</div>',
     '<button id="orb" type="button" aria-label="打开 AI 助手" title="AI 助手">✦</button>',
@@ -238,12 +274,16 @@
   var orb = null, pill = null, panel = null, threadEl = null, qEl = null;
   var selEl = null, selTxtEl = null, selActsEl = null, ctxBtn = null, ctxMeta = null;
   var statusEl = null, copyBtn = null, stopBtn = null, speakBtn = null, sendBtn = null;
+  var rememberBtn = null, rememberedText = '';
   var histEl = null, histListEl = null, pageTagEl = null;
+  var memBtn = null, memEl = null, memListEl = null, memInputEl = null;
+  var memToggleBtn = null, memHintEl = null;
   var sceneBtns = [], rangeSel = null;
   var voicePromise = null, voiceBound = false;
 
   var LS_HIST = 'tb_ai_sessions_v1';
   var LS_CUR = 'tb_ai_current_v1';
+  var LS_MEM = 'tb_ai_memory_on';
   var embedded = false;
   try { embedded = window.self !== window.top; } catch (e) { embedded = true; }
   try {
@@ -262,7 +302,10 @@
     scene: 'free',
     rangeDays: 7,
     gen: 0,
-    historyOpen: false
+    historyOpen: false,
+    memoryOpen: false,
+    memoryOn: true,
+    memories: []
   };
 
   var SCENE_INFO = {
@@ -533,6 +576,18 @@
     syncSceneFromSession();
   }
 
+  function loadMemoryPref() {
+    try {
+      var v = localStorage.getItem(LS_MEM);
+      if (v === '0') { S.memoryOn = false; }
+      else if (v === '1') { S.memoryOn = true; }
+    } catch (e) { /* 隐私模式：默认开启 */ }
+  }
+
+  function saveMemoryPref() {
+    try { localStorage.setItem(LS_MEM, S.memoryOn ? '1' : '0'); } catch (e) {}
+  }
+
   function titleFor(messages) {
     for (var i = 0; i < messages.length; i++) {
       if (messages[i].role === 'user') {
@@ -665,9 +720,16 @@
     copyBtn = root.getElementById('copy');
     stopBtn = root.getElementById('stop');
     speakBtn = root.getElementById('speak');
+    rememberBtn = root.getElementById('remember');
     sendBtn = root.getElementById('send');
     histEl = root.getElementById('hist');
     histListEl = root.getElementById('histList');
+    memBtn = root.getElementById('memBtn');
+    memEl = root.getElementById('mem');
+    memListEl = root.getElementById('memList');
+    memInputEl = root.getElementById('memInput');
+    memToggleBtn = root.getElementById('memToggle');
+    memHintEl = root.getElementById('memHint');
     pageTagEl = root.getElementById('pageTag');
     sceneBtns = Array.prototype.slice.call(root.querySelectorAll('.scene'));
     rangeSel = root.getElementById('rangeDays');
@@ -960,9 +1022,10 @@
     if (!threadEl) { return; }
     threadEl.innerHTML = '';
     var msgs = S.session ? S.session.messages : [];
-    if (!msgs.length) { renderWelcome(); return; }
+    if (!msgs.length) { renderWelcome(); syncActionButtons(); return; }
     msgs.forEach(function (m) { appendMessage(m, false); });
     scrollThread();
+    syncActionButtons();
   }
 
   function apiHistory() {
@@ -991,13 +1054,38 @@
     if (statusEl) { statusEl.textContent = text || ''; }
   }
 
+  function syncRememberBtn() {
+    if (!rememberBtn) { return; }
+    var text = lastAnswer();
+    var remembered = !!text && memoryText({ content: text }) === rememberedText;
+    rememberBtn.classList.toggle('on', remembered);
+    rememberBtn.textContent = remembered ? '已记住' : '记住';
+    rememberBtn.disabled = !text || !!S.busy;
+  }
+
+  function syncActionButtons() {
+    var has = !!lastAnswer();
+    if (copyBtn) { copyBtn.disabled = !has || !!S.busy; }
+    if (speakBtn) { speakBtn.disabled = !has || !!S.busy; }
+    syncRememberBtn();
+  }
+
+  function resetRememberBtn() {
+    rememberedText = '';
+    syncRememberBtn();
+  }
+
+  function rememberAnswer() {
+    var text = lastAnswer();
+    if (!text) { return; }
+    addMemory(text, 'conclusion', rememberBtn);
+  }
+
   function setBusy(on) {
     S.busy = !!on;
     if (stopBtn) { stopBtn.hidden = !on; }
     if (sendBtn) { sendBtn.disabled = !!on; }
-    var has = !!lastAnswer();
-    if (copyBtn) { copyBtn.disabled = !has; }
-    if (speakBtn) { speakBtn.disabled = !has; }
+    syncActionButtons();
     if (selActsEl) {
       Array.prototype.forEach.call(selActsEl.querySelectorAll('button'), function (b) {
         b.disabled = !!on;
@@ -1059,6 +1147,7 @@
 
     var aiMsg = { role: 'assistant', content: '', ts: Date.now() };
     S.session.messages.push(aiMsg);
+    resetRememberBtn();
     var ui = appendMessage(aiMsg, true);
     var history = apiHistory();
 
@@ -1074,7 +1163,8 @@
       page_text: pageTextForSend(),
       tool_context: S.contextOn ? readToolContext() : '',
       scene: normalizeScene(opts.scene || S.scene),
-      range_days: normalizeRange(opts.rangeDays || S.rangeDays)
+      range_days: normalizeRange(opts.rangeDays || S.rangeDays),
+      memory_enabled: !!S.memoryOn
     };
     var init = {
       method: 'POST',
@@ -1290,7 +1380,187 @@
   function toggleHistory() {
     S.historyOpen = !S.historyOpen;
     if (histEl) { histEl.hidden = !S.historyOpen; }
-    if (S.historyOpen) { renderHistory(); }
+    if (S.historyOpen) {
+      closeMemory();
+      renderHistory();
+    }
+  }
+
+  /* ---------------- 长期记忆 ---------------- */
+  function setMemoryUI() {
+    if (memToggleBtn) {
+      memToggleBtn.classList.toggle('on', !!S.memoryOn);
+      memToggleBtn.setAttribute('aria-pressed', S.memoryOn ? 'true' : 'false');
+      memToggleBtn.textContent = S.memoryOn ? '自动记忆 开' : '自动记忆 关';
+    }
+    if (memHintEl) {
+      memHintEl.textContent = S.memoryOn
+        ? '开启时按需带入相关记忆；关闭后不再带入，也不自动提取。'
+        : '已关闭：不注入、不自动提取；手动「记住」和面板新增仍可用。';
+    }
+  }
+
+  function toggleMemoryPref() {
+    S.memoryOn = !S.memoryOn;
+    saveMemoryPref();
+    setMemoryUI();
+    setStatus(S.memoryOn ? '已开启长期记忆' : '已关闭长期记忆（已有记忆仍可查看和删除）');
+  }
+
+  function fmtDay(stamp) {
+    return String(stamp || '').slice(0, 10);
+  }
+
+  function memoryText(m) {
+    var text = String((m && m.content) || '').replace(/\s+/g, ' ').trim();
+    return text.length > 240 ? text.slice(0, 240) : text;
+  }
+
+  function renderMemories() {
+    if (!memListEl) { return; }
+    memListEl.innerHTML = '';
+    if (!S.memories.length) {
+      var empty = document.createElement('div');
+      empty.className = 'histempty';
+      empty.textContent = '还没有长期记忆。可以在对话里说「记住：…」，'
+        + '或者点对话下方的「记住」，也可以在上面直接写一条。';
+      memListEl.appendChild(empty);
+      return;
+    }
+    S.memories.forEach(function (m) {
+      var row = document.createElement('div');
+      row.className = 'memitem';
+      var main = document.createElement('div');
+      main.className = 'memmain';
+      var text = document.createElement('span');
+      text.className = 'memtext';
+      text.textContent = m.content || '';
+      var meta = document.createElement('span');
+      meta.className = 'memmeta';
+      var tag = document.createElement('span');
+      tag.className = 'memtag';
+      tag.textContent = m.label || '记忆';
+      meta.appendChild(tag);
+      meta.appendChild(document.createTextNode(
+        fmtDay(m.updated_at || m.created_at) + ' · ' + (m.source === 'manual' ? '手动' : '自动')));
+      main.appendChild(text);
+      main.appendChild(meta);
+      row.appendChild(main);
+
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'histdel';
+      del.setAttribute('aria-label', '删除这条记忆');
+      del.textContent = '×';
+      del.onclick = function () { deleteMemoryItem(m.id); };
+      row.appendChild(del);
+      memListEl.appendChild(row);
+    });
+  }
+
+  function loadMemories() {
+    return fetch('/api/assistant/memory', { cache: 'no-store' }).then(function (resp) {
+      return resp.json().catch(function () { return {}; }).then(function (d) {
+        if (!resp.ok || !d.ok) { throw new Error((d && d.msg) || ('HTTP ' + resp.status)); }
+        return d;
+      });
+    }).then(function (d) {
+      S.memories = Array.isArray(d.memories) ? d.memories : [];
+      renderMemories();
+    }).catch(function (err) {
+      if (memListEl) {
+        memListEl.innerHTML = '';
+        var box = document.createElement('div');
+        box.className = 'histempty';
+        box.textContent = '读取记忆失败：' + ((err && err.message) || '网络不通');
+        memListEl.appendChild(box);
+      }
+    });
+  }
+
+  function addMemory(content, kind, btn) {
+    var text = memoryText({ content: content });
+    if (text.length < 2) {
+      setStatus('写一条想记住的内容');
+      return;
+    }
+    if (btn) { btn.disabled = true; }
+    fetch('/api/assistant/memory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: text, kind: kind || 'fact' })
+    }).then(function (resp) {
+      return resp.json().catch(function () { return {}; }).then(function (d) {
+        if (!resp.ok || !d.ok) { throw new Error((d && d.msg) || ('HTTP ' + resp.status)); }
+        return d;
+      });
+    }).then(function (d) {
+      setStatus(d.duplicate ? '这条已经记过了' : '已记住');
+      if (btn === rememberBtn) {
+        rememberedText = text;
+        syncRememberBtn();
+      } else if (btn) {
+        btn.textContent = '已记住';
+        btn.classList.add('on');
+      }
+      if (S.memoryOpen) { loadMemories(); }
+    }).catch(function (err) {
+      setStatus('保存失败：' + ((err && err.message) || '网络不通'));
+      if (btn) { btn.disabled = false; }
+    });
+  }
+
+  function deleteMemoryItem(id) {
+    fetch('/api/assistant/memory/' + encodeURIComponent(id), { method: 'DELETE' })
+      .then(function (resp) {
+        return resp.json().catch(function () { return {}; }).then(function (d) {
+          if (!resp.ok || !d.ok) { throw new Error((d && d.msg) || ('HTTP ' + resp.status)); }
+          return d;
+        });
+      }).then(function () {
+        S.memories = S.memories.filter(function (m) { return m.id !== id; });
+        renderMemories();
+        setStatus('已删除');
+      }).catch(function (err) {
+        setStatus('删除失败：' + ((err && err.message) || '网络不通'));
+      });
+  }
+
+  function clearAllMemories() {
+    if (!S.memories.length) { return; }
+    if (!window.confirm('清空所有长期记忆？这个操作不可恢复。')) { return; }
+    fetch('/api/assistant/memory', { method: 'DELETE' })
+      .then(function (resp) {
+        return resp.json().catch(function () { return {}; }).then(function (d) {
+          if (!resp.ok || !d.ok) { throw new Error((d && d.msg) || ('HTTP ' + resp.status)); }
+          return d;
+        });
+      }).then(function () {
+        S.memories = [];
+        renderMemories();
+        setStatus('长期记忆已清空');
+      }).catch(function (err) {
+        setStatus('清空失败：' + ((err && err.message) || '网络不通'));
+      });
+  }
+
+  function closeMemory() {
+    S.memoryOpen = false;
+    if (memEl) { memEl.hidden = true; }
+  }
+
+  function toggleMemory() {
+    S.memoryOpen = !S.memoryOpen;
+    if (memEl) { memEl.hidden = !S.memoryOpen; }
+    if (S.memoryOpen) {
+      closeHistory();
+      setMemoryUI();
+      renderMemories();
+      loadMemories();
+      setTimeout(function () {
+        try { memInputEl.focus(); } catch (e) {}
+      }, 40);
+    }
   }
 
   /* ---------------- 面板 ---------------- */
@@ -1302,6 +1572,7 @@
     panel.classList.add('show');
     hidePill();
     closeHistory();
+    closeMemory();
     updatePageTag();
     if (!threadEl || !threadEl.children.length) { renderThread(); }
     layoutDock();
@@ -1315,6 +1586,7 @@
     S.open = false;
     if (panel) { panel.classList.remove('show'); }
     closeHistory();
+    closeMemory();
     stopVoice();
     try {
       document.dispatchEvent(new CustomEvent('tb-assistant-panel', { detail: { open: false } }));
@@ -1403,6 +1675,22 @@
       try { localStorage.removeItem(LS_HIST); } catch (e) {}
       resetSession();
     };
+    memBtn.onclick = toggleMemory;
+    memToggleBtn.onclick = toggleMemoryPref;
+    root.getElementById('memClear').onclick = clearAllMemories;
+    root.getElementById('memAdd').onclick = function () {
+      if (!memInputEl) { return; }
+      addMemory(memInputEl.value, 'fact', null);
+      memInputEl.value = '';
+    };
+    if (memInputEl) {
+      memInputEl.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.isComposing) {
+          e.preventDefault();
+          root.getElementById('memAdd').onclick();
+        }
+      });
+    }
     ctxBtn.onclick = toggleContext;
     sceneBtns.forEach(function (b) {
       b.onclick = function () { selectScene(b.getAttribute('data-scene')); };
@@ -1429,6 +1717,7 @@
     stopBtn.onclick = stopStream;
     copyBtn.onclick = copyAnswer;
     speakBtn.onclick = speakAnswer;
+    if (rememberBtn) { rememberBtn.onclick = rememberAnswer; }
     document.addEventListener('tbvoice:error', function (e) {
       if (e && e.detail && e.detail.message && panel.classList.contains('show')) {
         setStatus(e.detail.message);
@@ -1457,6 +1746,7 @@
     window.addEventListener('scroll', function () { hidePill(); }, true);
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') { return; }
+      if (S.memoryOpen) { closeMemory(); return; }
       if (S.historyOpen) { closeHistory(); return; }
       if (panel.classList.contains('show')) { closePanel(); }
     });
@@ -1482,7 +1772,9 @@
     if (document.body && document.body.getAttribute('data-quick-ai') === 'off') { return; }
     build();
     loadStore();
+    loadMemoryPref();
     bind();
+    setMemoryUI();
     renderThread();
     updateSceneUI();
     updatePageTag();

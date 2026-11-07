@@ -40,7 +40,7 @@ from starlette.concurrency import run_in_threadpool
 import storage
 
 try:
-    from model_config import llm_endpoint, llm_key, llm_model
+    from model_config import llm_body, llm_endpoint, llm_key, llm_model
 except Exception:  # 单独跑这个文件时的兜底
     def llm_key():
         return ''
@@ -50,6 +50,9 @@ except Exception:  # 单独跑这个文件时的兜底
 
     def llm_endpoint(base=''):
         return (base or 'https://api.deepseek.com').rstrip('/') + '/chat/completions'
+
+    def llm_body(body, model=''):
+        return body
 
 import requests
 
@@ -158,7 +161,7 @@ def _chat(system, messages, max_tokens=900, temperature=0.7):
         'stream': False,
     }
     try:
-        resp = requests.post(llm_endpoint(), json=body, timeout=(10, 120),
+        resp = requests.post(llm_endpoint(), json=llm_body(body), timeout=(10, 120),
                              headers={'Authorization': 'Bearer ' + key,
                                       'Content-Type': 'application/json'})
     except requests.RequestException as exc:
@@ -205,7 +208,7 @@ def _chat_stream(system, messages, max_tokens=900, temperature=0.7):
     }
     resp = None
     try:
-        resp = requests.post(llm_endpoint(), json=body, timeout=(10, 120),
+        resp = requests.post(llm_endpoint(), json=llm_body(body), timeout=(10, 120),
                              headers={'Authorization': 'Bearer ' + key,
                                       'Content-Type': 'application/json'},
                              stream=True)
