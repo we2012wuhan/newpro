@@ -25,7 +25,7 @@ router = APIRouter()
 TOOL = "museum-ticket"
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATE_FILE = BASE_DIR / "templates" / "museum-ticket.html"
-DEFAULT_URL = "https://www.chnmuseum.cn/"
+DEFAULT_URL = "https://pcticket.chnmuseum.cn/museum-en/#/"
 MAX_VISITORS = 6
 MAX_RUNTIME_SECONDS = 45 * 60
 _TASKS: dict[str, dict[str, Any]] = {}
@@ -135,20 +135,65 @@ def _body_text(page) -> str:
         return ""
 
 
-def _human_gate(page) -> str:
-    text = _body_text(page)
+def _page_url(page) -> str:
     try:
-        inputs = page.locator("input").count()
-        has_password = any(
-            (page.locator("input").nth(i).get_attribute("type") or "").lower() == "password"
-            for i in range(min(inputs, 30))
-        )
+        return str(page.url or "").lower()
     except Exception:
-        has_password = False
-    if any(word in text for word in ("图形验证码", "滑块验证", "人机验证", "安全验证", "验证码")):
-        return "captcha"
-    if has_password and any(word in text for word in ("登录", "手机号", "账号")):
+        return ""
+
+
+def _visible_input_info(page) -> list[tuple[str, str]]:
+    """Return metadata for visible inputs only.
+
+    The museum SPA keeps login forms in the DOM after authentication.  Looking
+    at every input therefore produces a false "still on login" result.
+    """
+    result: list[tuple[str, str]] = []
+    try:
+        inputs = page.locator("input")
+        for index in range(min(inputs.count(), 60)):
+            item = inputs.nth(index)
+            if not item.is_visible():
+                continue
+            attrs = " ".join(filter(None, [
+                item.get_attribute("type"),
+                item.get_attribute("name"),
+                item.get_attribute("id"),
+                item.get_attribute("placeholder"),
+                item.get_attribute("aria-label"),
+            ])).lower()
+            result.append((attrs, (item.get_attribute("type") or "text").lower()))
+    except Exception:
+        return []
+    return result
+
+
+def _human_gate(page) -> str:
+    """Detect a visible human-interaction gate without matching hidden SPA DOM."""
+    text = _body_text(page)
+    url = _page_url(page)
+    visible_inputs = _visible_input_info(page)
+    login_route = any(token in url for token in ("login", "signin", "sign-in", "auth"))
+    login_words = ("登录", "手机号", "账号", "密码", "短信验证码", "sign in", "sign-in", "verification code", "email address")
+    captcha_words = ("图形验证码", "滑块验证", "人机验证", "安全验证", "验证码", "captcha", "verification code", "verification")
+
+    has_visible_password = any(input_type == "password" for _, input_type in visible_inputs)
+    has_visible_captcha = any(
+        any(word in attrs for word in ("验证码", "captcha", "verification", "verify"))
+        for attrs, _ in visible_inputs
+    )
+
+    # The reservation SPA exposes a visible "Sign in" trigger before the
+    # external login page is opened.  Pause there as well, so the worker never
+    # starts its reload loop while the user is signing in.
+    has_login_marker = any(word in text for word in ("登录", "sign in", "sign-in"))
+    if has_login_marker and (has_visible_password or login_route or "sign in" in text):
         return "login"
+    if has_visible_captcha and any(word in text for word in captcha_words):
+        return "captcha"
+    # Some verification pages expose no input until the challenge is opened.
+    if login_route and any(word in text for word in captcha_words):
+        return "captcha"
     return ""
 
 
@@ -263,25 +308,47 @@ def _fill_visitors(page, visitors: list[dict[str, str]]) -> int:
 
 def _click_booking_actions(page) -> bool:
     # 这些词只用于公开预约流程，不点击支付、充值或购买第三方商品。
-    return _click_first(page, [r"下一步", r"确认预约", r"提交预约", r"预约参观", r"立即预约", r"预约"])
+    return _click_first(page, [
+        r"下一步", r"确认预约", r"提交预约", r"预约参观", r"立即预约", r"预约",
+        r"next", r"reserve", r"reservation", r"confirm",
+    ])
 
 
 def _click_submit(page) -> bool:
-    return _click_first(page, [r"确认预约", r"提交预约", r"确认提交", r"提交订单", r"预约完成"])
+    return _click_first(page, [
+        r"确认预约", r"提交预约", r"确认提交", r"提交订单", r"预约完成",
+        r"confirm reservation", r"submit reservation", r"confirm", r"submit",
+    ])
 
 
 def _success(page) -> bool:
     text = _body_text(page)
-    return any(word in text for word in ("预约成功", "预约完成", "提交成功", "订单成功", "恭喜"))
+    return any(word in text for word in (
+        "预约成功", "预约完成", "提交成功", "订单成功", "恭喜",
+        "reservation successful", "reservation completed", "submitted successfully",
+    ))
 
 
-def _wait_for_resume(task: dict[str, Any], reason: str) -> bool:
-    _set_status(task, "waiting_user", reason)
+def _wait_for_resume(task: dict[str, Any], reason: str, page=None) -> bool:
+    """Wait without reloading, and only return after the gate is gone."""
     while not task["stop_event"].is_set():
-        if task["resume_event"].wait(timeout=1.0):
-            task["resume_event"].clear()
+        _set_status(task, "waiting_user", reason)
+        if not task["resume_event"].wait(timeout=1.0):
+            continue
+        task["resume_event"].clear()
+        if page is None or not _human_gate(page):
             return True
+        reason = "页面仍需要登录或验证码，请完成后再点击“继续抢票”。"
     return False
+
+
+def _latest_page(context, current):
+    """Use a newly opened official tab/popup when the booking flow creates one."""
+    try:
+        pages = [page for page in context.pages if not page.is_closed()]
+    except Exception:
+        return current
+    return pages[-1] if pages else current
 
 
 def _browser_worker(task: dict[str, Any]) -> None:
@@ -313,7 +380,7 @@ def _browser_worker(task: dict[str, Any]) -> None:
         page.goto(task["config"]["official_url"], wait_until="domcontentloaded", timeout=30000)
         _set_status(task, "waiting", "浏览器已打开。请确认页面是官方预约页；若需要登录或验证码，直接在浏览器中完成后点击“继续”。")
         if _human_gate(page):
-            if not _wait_for_resume(task, "请在浏览器中完成登录/验证码，然后点击“继续抢票”。"):
+            if not _wait_for_resume(task, "请在浏览器中完成登录/验证码，然后点击“继续抢票”。", page):
                 return
 
         release_at = task["release_ts"]
@@ -327,10 +394,15 @@ def _browser_worker(task: dict[str, Any]) -> None:
         _set_status(task, "running", "到点，开始刷新官方预约页并尝试提交…")
         deadline = time.time() + MAX_RUNTIME_SECONDS
         attempted_form = False
+        skip_reload = False
         while time.time() < deadline and not task["stop_event"].is_set():
+            page = _latest_page(context, page)
+            task["page"] = page
             try:
-                if not attempted_form:
-                    page.reload(wait_until="domcontentloaded", timeout=25000)
+                # After the user finishes login/captcha, process that page as-is
+                # once.  Reloading immediately can send the SPA back to login.
+                if skip_reload:
+                    skip_reload = False
                 else:
                     page.reload(wait_until="domcontentloaded", timeout=25000)
                 task["page_url"] = page.url
@@ -338,8 +410,9 @@ def _browser_worker(task: dict[str, Any]) -> None:
                 _set_status(task, "running", "页面响应较慢，继续等待下一轮…")
             gate = _human_gate(page)
             if gate:
-                if not _wait_for_resume(task, "检测到登录或验证码，请在浏览器中完成后点击“继续抢票”。"):
+                if not _wait_for_resume(task, "检测到登录或验证码，请在浏览器中完成后点击“继续抢票”。", page):
                     return
+                skip_reload = True
                 continue
             _fill_date(page, task["config"]["target_date"])
             _fill_slot(page, task["config"]["time_slot"])
@@ -348,6 +421,8 @@ def _browser_worker(task: dict[str, Any]) -> None:
                 attempted_form = True
             if not attempted_form:
                 _click_booking_actions(page)
+                page = _latest_page(context, page)
+                task["page"] = page
                 _set_status(task, "running", "正在寻找可预约日期/时段…")
             else:
                 _click_submit(page)
