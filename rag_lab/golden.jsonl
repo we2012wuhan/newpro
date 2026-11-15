@@ -1,0 +1,38 @@
+{"id":"arch-01","question":"系统使用什么数据库？","answerable":true,"gold":[{"file":"docs/architecture.md","contains":"SQLite data/app.db"}],"points":["SQLite"]}
+{"id":"data-01","question":"数据库默认路径是什么？","answerable":true,"gold":[{"file":"docs/data.md","contains":"data/app.db"}],"points":["data/app.db"]}
+{"id":"data-02","question":"history 表有哪些字段？","answerable":true,"gold":[{"file":"docs/data.md","contains":"CREATE TABLE history("}],"points":["id","tool","user","title","payload","created_at"]}
+{"id":"api-01","question":"未登录访问 API 会返回什么？","answerable":true,"gold":[{"file":"docs/api.md","contains":"API 请求未登录时返回 `401 JSON`"}],"points":["401 JSON"]}
+{"id":"api-02","question":"SSE 流式接口里用什么事件表示结束？","answerable":true,"gold":[{"file":"docs/api.md","contains":"data: {\"done\":1}"}],"points":["done"]}
+{"id":"api-03","question":"实时语音的 WebSocket 路径是什么？","answerable":true,"gold":[{"file":"docs/api.md","contains":"GET /ws/voice"}],"points":["/ws/voice"]}
+{"id":"api-04","question":"文生图任务有哪些状态？","answerable":true,"gold":[{"file":"docs/api.md","contains":"`queued` / `running` / `succeeded` / `failed`"}],"points":["queued","running","succeeded","failed"]}
+{"id":"arch-02","question":"文生图任务在进程重启后怎么处理 running 状态？","answerable":true,"gold":[{"file":"docs/architecture.md","contains":"进程重启时 `running` 任务标成失败而不自动重跑"}],"points":["标成失败，不自动重跑"]}
+{"id":"deploy-01","question":"敏感配置应该放在哪里？","answerable":true,"gold":[{"file":"docs/deployment.md","contains":"敏感配置只放 `.env` 或服务器环境变量"}],"points":[".env 或服务器环境变量"]}
+{"id":"deploy-02","question":"发布前必须确认用户同意什么？","answerable":true,"gold":[{"file":"docs/deployment.md","contains":"用户已明确同意服务器变更"}],"points":["服务器变更"]}
+{"id":"deploy-03","question":"服务器上哪些操作必须先征得同意？","answerable":true,"gold":[{"file":"docs/deployment.md","contains":"容器启动、停止、重启、删除和重命名"}],"points":["容器操作"]}
+{"id":"data-03","question":"数据库备份至少包含哪些文件？","answerable":true,"gold":[{"file":"docs/data.md","contains":"data/secret.key"}],"points":["data/app.db","data/auth.json","data/secret.key"]}
+{"id":"arch-03","question":"长期记忆检索为什么不使用 embedding？","answerable":true,"gold":[{"file":"docs/architecture.md","contains":"检索不引入 embedding / FTS"}],"points":["数据量小，二元组重合度足够"]}
+{"id":"arch-04","question":"长期记忆最多保留多少条？","answerable":true,"gold":[{"file":"docs/architecture.md","contains":"最多保留 200 条"}],"points":["200 条"]}
+{"id":"arch-05","question":"全站 AI 助手一次最多带多少条历史消息？","answerable":true,"gold":[{"file":"docs/architecture.md","contains":"最近 12 条消息、合计 12000 字"}],"points":["12 条","12000 字"]}
+{"id":"tools-01","question":"新增一个工具至少需要同步哪些地方？","answerable":true,"gold":[{"file":"docs/tools.md","contains":"新增业务模块和 `APIRouter`"}],"points":["模块","模板","main.py","首页卡片","README"]}
+{"id":"test-01","question":"修改模板后如何检查内联 JavaScript？","answerable":true,"gold":[{"file":"docs/testing.md","contains":"提取内联 JavaScript 并使用 `node --check`"}],"points":["node --check"]}
+{"id":"test-02","question":"数据库测试如何避免污染正式库？","answerable":true,"gold":[{"file":"docs/testing.md","contains":"`TB_DB_PATH` 指向临时库"}],"points":["TB_DB_PATH 指向临时库"]}
+{"id":"test-03","question":"实时语音测试要验证哪些边界？","answerable":true,"gold":[{"file":"docs/testing.md","contains":"30 秒静默和 10 分钟上限有效"}],"points":["30 秒静默","10 分钟上限"]}
+{"id":"arch-06","question":"为什么采用单体架构而不是微服务？","answerable":true,"gold":[{"file":"docs/architecture.md","contains":"当前是单人低频使用，单体部署和 SQLite 足够"}],"points":["单人低频","运维成本低"]}
+{"id":"arch-07","question":"密码是如何保存的？","answerable":true,"gold":[{"file":"docs/architecture.md","contains":"PBKDF2-HMAC-SHA256 加盐哈希"}],"points":["PBKDF2-HMAC-SHA256","加盐哈希"]}
+{"id":"arch-08","question":"会话 Cookie 有什么特点？","answerable":true,"gold":[{"file":"docs/architecture.md","contains":"HMAC 签名的 HttpOnly Cookie"}],"points":["HMAC 签名","HttpOnly"]}
+{"id":"arch-09","question":"影音库的媒体文件会保存到本地磁盘吗？","answerable":true,"gold":[{"file":"docs/architecture.md","contains":"媒体文件不落本地盘"}],"points":["不会"]}
+{"id":"arch-10","question":"OpenList 端口绑定在哪里？","answerable":true,"gold":[{"file":"docs/architecture.md","contains":"只绑定宿主机的 `127.0.0.1`"}],"points":["127.0.0.1"]}
+{"id":"arch-11","question":"全局文本模型切换的选择写到哪个文件？","answerable":true,"gold":[{"file":"docs/architecture.md","contains":"原子写 data/llm.json"}],"points":["data/llm.json"]}
+{"id":"arch-12","question":"图片工坊的图片像素会写进数据库吗？","answerable":true,"gold":[{"file":"docs/architecture.md","contains":"图片像素不入库"}],"points":["不会"]}
+{"id":"data-04","question":"文生图生成的图片默认保留多久？","answerable":true,"gold":[{"file":"docs/data.md","contains":"默认保留 7 天"}],"points":["7 天"]}
+{"id":"data-05","question":"读书工具的书讯缓存表叫什么？","answerable":true,"gold":[{"file":"docs/data.md","contains":"book_cache"}],"points":["book_cache"]}
+{"id":"overview-01","question":"项目主要依赖哪个模型服务的 Key？","answerable":true,"gold":[{"file":"docs/overview.md","contains":"大多数模型能力依赖服务端 `DEEPSEEK_API_KEY`"}],"points":["DEEPSEEK_API_KEY"]}
+{"id":"data-06","question":"登录数据保存在哪些文件？","answerable":true,"gold":[{"file":"docs/data.md","contains":"data/auth.json"}],"points":["data/auth.json","data/secret.key"]}
+{"id":"neg-01","question":"这个项目支持哪些编程语言的 SDK？","answerable":false,"gold":[]}
+{"id":"neg-02","question":"如何接入微信支付？","answerable":false,"gold":[]}
+{"id":"neg-03","question":"项目的测试覆盖率是多少？","answerable":false,"gold":[]}
+{"id":"neg-04","question":"服务器使用什么型号的 CPU？","answerable":false,"gold":[]}
+{"id":"neg-05","question":"如何配置 Redis 缓存？","answerable":false,"gold":[]}
+{"id":"neg-06","question":"这个项目在哪个应用商店上架？","answerable":false,"gold":[]}
+{"id":"neg-07","question":"项目使用哪种消息队列？","answerable":false,"gold":[]}
+{"id":"neg-08","question":"作者最喜欢哪个工具？","answerable":false,"gold":[]}
