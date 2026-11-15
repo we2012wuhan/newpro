@@ -12,11 +12,11 @@
        然后浏览器打开 http://127.0.0.1:8000/douyin-download
 
 解析通道（按顺序自动尝试）：
-    1. 浏览器自动解析：无头打开抖音视频页，拦截页面自带签名的请求拿到直链
-       （最稳定；成功后自动刷新并保存 douyin_cookies.txt 里的游客 Cookie）
-    2. 游客 Cookie 详情接口直连（不依赖 yt-dlp，偶尔被抽样风控时自动跳过）
-    3. yt-dlp 直接解析 / 携带游客 Cookie 解析
-    4. 无登录直连通道（share 页取 video_id -> aweme.snssdk.com，随时可能失效，仅兜底）
+    1. 游客 Cookie 详情接口直连（不依赖 yt-dlp，偶尔被抽样风控时自动跳过）
+    2. yt-dlp 携带游客 Cookie 解析
+    3. yt-dlp 直接解析
+    4. 本机浏览器 Cookie + yt-dlp（Edge / Chrome / Firefox）
+    5. 无登录直连通道（share 页取 video_id -> aweme.snssdk.com，随时可能失效，仅兜底）
 
 由于抖音官方没有开放下载接口，反爬策略也在不断变化，
 如果某天所有通道都失败，请先升级 yt-dlp（pip install -U yt-dlp），
@@ -44,11 +44,6 @@ try:
 except Exception:  # 依赖未安装时给出友好提示（见 parse 接口）
     YoutubeDL = None
     DownloadError = None
-
-try:
-    from playwright.sync_api import sync_playwright
-except Exception:
-    sync_playwright = None  # 未安装 playwright 时自动跳过"浏览器自动解析"通道
 
 # =========================================================
 # 常量
@@ -584,119 +579,6 @@ def _detail_api_parse(video_id, cookie_text):
         },
     }
 
-def _pw_page_parse(video_id):
-    """首选通道：用无头浏览器打开视频页，拦截页面自带签名的详情响应拿到直链。
-    抖音页面请求带 a_bogus 签名，比直接调接口稳定很多；
-    每次成功后还会顺手刷新 douyin_cookies.txt 里的游客 Cookie。"""
-    if sync_playwright is None:
-        raise DouyinError("缺少 playwright，无法使用浏览器自动解析，请先 pip install playwright", "dep")
-    detail = {}
-    media_urls = []
-    cookie_header = ""
-    launch_args = ['--disable-blink-features=AutomationControlled', '--no-first-run', '--no-default-browser-check']
-    with sync_playwright() as pw:
-        browser = None
-        try:
-            browser = pw.chromium.launch(channel='msedge', headless=True, args=launch_args)
-        except Exception:
-            try:
-                browser = pw.chromium.launch(headless=True, args=launch_args)
-            except Exception as exc:
-                raise DouyinError("启动无头浏览器失败：" + str(exc), "browser")
-        try:
-            ctx = browser.new_context(locale='zh-CN', timezone_id='Asia/Shanghai',
-                                      viewport={'width': 1280, 'height': 800},
-                                      user_agent=UA_DESKTOP)
-            page = ctx.new_page()
-
-            def on_request(request):
-                url = request.url
-                if 'douyinvod.com' in url or '/aweme/v1/play' in url:
-                    if url not in media_urls:
-                        media_urls.append(url)
-
-            page.on('request', on_request)
-
-            def handle_detail(route):
-                try:
-                    resp = route.fetch()
-                    body = resp.body()
-                    if body[:1] == b'{':
-                        import json
-                        aweme = (json.loads(body.decode('utf-8', 'ignore')) or {}).get('aweme_detail') or {}
-                        if aweme:
-                            detail['obj'] = aweme
-                    route.fulfill(response=resp)
-                except Exception:
-                    try:
-                        route.continue_()
-                    except Exception:
-                        pass
-
-            page.route('**/aweme/v1/web/aweme/detail/**', handle_detail)
-            try:
-                page.goto('https://www.douyin.com/video/' + video_id,
-                          timeout=60000, wait_until='domcontentloaded')
-                try:
-                    page.wait_for_selector('video', timeout=12000)
-                    page.locator('video').first.evaluate(
-                        '(v) => { v.muted = true; v.play().catch(() => {}); }')
-                except Exception:
-                    pass
-            except Exception as exc:
-                raise DouyinError("打开抖音视频页失败：" + str(exc), "browser")
-
-            deadline = time.time() + 25
-            while time.time() < deadline and not detail and not media_urls:
-                page.wait_for_timeout(1500)
-            try:
-                cookies = ctx.cookies()
-            except Exception:
-                cookies = []
-            cookie_header = '; '.join(c['name'] + '=' + c['value']
-                                      for c in cookies if c.get('name') and c.get('value'))
-        finally:
-            try:
-                browser.close()
-            except Exception:
-                pass
-
-    if not detail:
-        raise DouyinError("浏览器自动解析未拿到视频数据（可能被抖音风控，已改用其它方式）",
-                          "blocked", hint="如果反复失败，请稍后再试，或在浏览器里打开一次 douyin.com。")
-    video_info = (detail.get('obj') or {}).get('video') or {}
-    play_url = _pick_detail_url(video_info)
-    if not play_url and media_urls:
-        play_url = media_urls[0]
-    if not play_url:
-        raise DouyinError("页面返回成功，但没有找到可用的视频地址", "no_format")
-
-    # 顺手用刚拿到的新鲜游客 Cookie 刷新本地保存，方便其它通道复用
-    if 's_v_web_id=' in cookie_header:
-        try:
-            COOKIE_FILE.write_text(cookie_header, encoding='utf-8')
-        except Exception:
-            pass
-
-    duration = video_info.get('duration') or 0
-    title = (detail.get('obj').get('desc') or '').strip() or ('douyin_' + video_id)
-    author_info = (detail.get('obj') or {}).get('author') or {}
-    author = author_info.get('nickname') or author_info.get('unique_id') or ''
-    return {
-        "url": play_url,
-        "ext": "mp4",
-        "title": title,
-        "author": author,
-        "duration": int(duration / 1000) if duration else "",
-        "channel": "浏览器自动解析",
-        "download_headers": {
-            "User-Agent": UA_DESKTOP,
-            "Accept-Language": "zh-CN,zh;q=0.9",
-            "Referer": "https://www.douyin.com/",
-            "Cookie": cookie_header,
-        },
-    }
-
 # =========================================================
 # 核心：解析链接（失败时自动换下一种方式）
 # =========================================================
@@ -719,12 +601,6 @@ def _do_parse(raw_text, manual_cookie, use_browser):
     # 3. 依次尝试：手动/已保存 Cookie -> 无 Cookie -> 本机浏览器 Cookie -> 无登录直连
     errors = []
 
-    if sync_playwright is not None:
-        try:
-            # 首选：无头浏览器自动解析（页面自带签名，最稳定，成功时自动刷新 Cookie）
-            return _pw_page_parse(video_id)
-        except DouyinError as exc:
-            errors.append(("浏览器自动解析", exc))
     if cookie_text:
         try:
             # 首选：直接请求抖音详情接口（该通道已用游客 Cookie 实测通过）
@@ -844,8 +720,8 @@ async def douyin_parse_post(request: Request):
         payload = await request.json()
     except Exception:
         payload = {}
-    # 解析里会用 Playwright 同步 API 启动无头浏览器，
-    # 必须放到线程池执行，不能在 asyncio 事件循环里直接调用。
+    # 解析里包含同步的网络请求和 yt-dlp 调用，
+    # 必须放到线程池执行，不能在 asyncio 事件循环里直接阻塞。
     return await run_in_threadpool(
         _douyin_parse_json,
         payload.get("url", ""),

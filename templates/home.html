@@ -97,7 +97,6 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .t-sl .go{background:linear-gradient(135deg,#64748b,#334155);box-shadow:0 8px 20px rgba(100,116,139,.35)}
 .tool.t-sc:hover{border-color:rgba(45,212,191,.55);box-shadow:0 24px 52px rgba(15,118,110,.28)}
 .t-sc .go{background:linear-gradient(135deg,#2dd4bf,#0f766e);box-shadow:0 8px 20px rgba(15,118,110,.34)}
-.tool.t-museum:hover{border-color:rgba(20,184,166,.62);box-shadow:0 24px 52px rgba(20,184,166,.24)} .t-museum .go{background:linear-gradient(135deg,#0f766e,#14b8a6);box-shadow:0 8px 20px rgba(20,184,166,.3)}
 .tool.t-trip:hover{border-color:rgba(14,116,144,.62);box-shadow:0 24px 52px rgba(14,116,144,.26)}
 .t-trip .go{background:linear-gradient(135deg,#0e7490,#0891b2);box-shadow:0 8px 20px rgba(14,116,144,.34)}
 .tool.t-da:hover{border-color:rgba(124,135,255,.62);box-shadow:0 24px 52px rgba(91,108,255,.28)}
@@ -108,6 +107,8 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .t-img .go{background:linear-gradient(135deg,#4f46e5,#8b5cf6);box-shadow:0 8px 20px rgba(79,70,229,.34)}
 .tool.t-gen:hover{border-color:rgba(219,39,119,.62);box-shadow:0 24px 52px rgba(124,58,237,.26)}
 .t-gen .go{background:linear-gradient(135deg,#7c3aed,#db2777);box-shadow:0 8px 20px rgba(124,58,237,.34)}
+.tool.t-pod:hover{border-color:rgba(67,56,202,.62);box-shadow:0 24px 52px rgba(67,56,202,.26)}
+.t-pod .go{background:linear-gradient(135deg,#4338ca,#db2777);box-shadow:0 8px 20px rgba(67,56,202,.34)}
 .tool.t-ds:hover{border-color:rgba(226,109,90,.62);box-shadow:0 24px 52px rgba(226,109,90,.23)}
 .t-ds .go{background:linear-gradient(135deg,#e26d5a,#e8a16a);box-shadow:0 8px 20px rgba(226,109,90,.32)}
 .tool.t-sleep:hover{border-color:rgba(140,201,232,.62);box-shadow:0 24px 52px rgba(82,128,168,.25)}
@@ -628,6 +629,14 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
+    <a class="tool t-pod" data-cat="ai" href="/podcast">
+      <div class="t-icon">🎙️</div>
+      <div class="t-info">
+        <h3>AI 双人播客</h3>
+        <p class="desc">写一个主题，让两位 AI 主持人聊成一期播客；可粘贴参考资料控制内容，生成双音色 MP3 与逐字稿，直接播放或下载。</p>
+        <span class="go">立即打开</span>
+      </div>
+    </a>
     <a class="tool t-sleep" data-cat="think" href="/sleep">
       <div class="t-icon">🌙</div>
       <div class="t-info">
@@ -861,20 +870,20 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-museum" data-cat="life" href="/museum-ticket">
-      <div class="t-icon">🏛️</div>
-      <div class="t-info">
-        <h3>国家博物馆抢票</h3>
-        <p class="desc">在官方预约页面按放票时间自动刷新、填写并提交，验证码和登录由你亲自完成。</p>
-        <span class="go">开始抢票</span>
-      </div>
-    </a>
     <a class="tool t-trip" data-cat="life" href="/trip">
       <div class="t-icon">🗺️</div>
       <div class="t-info">
         <h3>高德地图</h3>
         <p class="desc">地图铺满全屏，收藏家、公司、常去的店和景点。搜索地址时由高德解析坐标，按分类在地图上显示，所有地点按登录用户单独保存。</p>
         <span class="go">打开地图</span>
+      </div>
+    </a>
+    <a class="tool" data-cat="learn" href="/rag-lab">
+      <div class="t-icon">🔬</div>
+      <div class="t-info">
+        <h3>RAG 实验台</h3>
+        <p class="desc">问一个关于本项目的问题：先看检索到的 5 段资料，再看模型只依据资料给出的带引用回答，还能用标注题跑 Recall / MRR 和失败归因。</p>
+        <span class="go">做实验</span>
       </div>
     </a>
   </div>

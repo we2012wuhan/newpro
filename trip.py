@@ -283,8 +283,50 @@ def _regeo(lng: float, lat: float):
 # ---------------------------------------------------------------
 # 路线
 # ---------------------------------------------------------------
+_MAX_POLYLINE_POINTS = 4000
+
+
+def _append_polyline(points: list, raw) -> None:
+    """把高德步骤里的 "lng,lat;lng,lat" 折线串并进 points。"""
+    for chunk in str(raw or '').split(';'):
+        parts = chunk.split(',')
+        if len(parts) != 2:
+            continue
+        lng, lat = _num(parts[0]), _num(parts[1])
+        if lng is None or lat is None or not map_common.valid_lnglat(lng, lat):
+            continue
+        point = [round(lng, 6), round(lat, 6)]
+        if points and points[-1] == point:
+            continue
+        points.append(point)
+
+
+def _append_steps_polyline(points: list, steps) -> None:
+    for step in steps or []:
+        if isinstance(step, dict):
+            _append_polyline(points, step.get('polyline'))
+
+
+def _limit_polyline(points: list) -> list:
+    """路线点数过多时等距抽样，但保留最后一个点，避免路线末端被截断。"""
+    if len(points) <= _MAX_POLYLINE_POINTS:
+        return points
+    stride = max(1, int(math.ceil(len(points) / _MAX_POLYLINE_POINTS)))
+    last = points[-1]
+    sampled = points[::stride]
+    if sampled and sampled[-1] != last:
+        sampled.append(last)
+    return sampled
+
+
+def _collect_polyline(steps) -> list:
+    points = []
+    _append_steps_polyline(points, steps)
+    return _limit_polyline(points)
+
+
 def _route(mode: str, origin: dict, dest: dict):
-    cache_key = 'route:%s:%s>%s' % (mode, origin.get('location'), dest.get('location'))
+    cache_key = 'route:v2:%s:%s>%s' % (mode, origin.get('location'), dest.get('location'))
     cached = _cache_get(cache_key, 300)
     if cached:
         return cached, ''
@@ -295,6 +337,7 @@ def _route(mode: str, origin: dict, dest: dict):
         'extensions': 'base',
     }
     steps = []
+    polyline = []
     cost = ''
     path = ''
 
@@ -329,6 +372,12 @@ def _route(mode: str, origin: dict, dest: dict):
             distance = _int(best.get('distance'))
             duration = _int(best.get('duration'))
             cost = best.get('cost')
+            # 折线要遍历全部换乘段，展示步骤只截前 8 段。
+            for seg in best.get('segments') or []:
+                _append_steps_polyline(polyline, (seg.get('walking') or {}).get('steps') or [])
+                for bus in (seg.get('bus') or {}).get('buslines') or []:
+                    _append_polyline(polyline, bus.get('polyline'))
+            polyline = _limit_polyline(polyline)
             for seg in (best.get('segments') or [])[:8]:
                 walk = _int((seg.get('walking') or {}).get('distance'))
                 if walk:
@@ -352,7 +401,12 @@ def _route(mode: str, origin: dict, dest: dict):
             best = paths[0]
             distance = _int(best.get('distance'))
             duration = _int(best.get('duration'))
-            for step in (best.get('steps') or [])[:10]:
+            all_steps = best.get('steps') or []
+            polyline = _collect_polyline(all_steps)
+            if not polyline:
+                _append_polyline(polyline, best.get('polyline'))
+                polyline = _limit_polyline(polyline)
+            for step in all_steps[:10]:
                 text = _strip_html(step.get('instruction'))
                 if text:
                     steps.append({'text': text, 'distance': _int(step.get('distance'))})
@@ -376,6 +430,7 @@ def _route(mode: str, origin: dict, dest: dict):
         'duration_min': max(1, round(duration / 60)) if duration else _travel_minutes(distance, mode),
         'summary': summary or MODES.get(mode, mode),
         'steps': steps,
+        'polyline': polyline,
         'estimated': False,
         'cost': _clean(cost, 20),
     }
@@ -388,6 +443,13 @@ def _estimate_route(mode: str, origin: dict, dest: dict, note: str = ''):
     distance = _haversine(origin.get('lng'), origin.get('lat'), dest.get('lng'), dest.get('lat'))
     if not distance:
         return None, note or '算不出路线'
+    line = []
+    if (map_common.valid_lnglat(origin.get('lng'), origin.get('lat')) and
+            map_common.valid_lnglat(dest.get('lng'), dest.get('lat'))):
+        line = [
+            [round(float(origin['lng']), 6), round(float(origin['lat']), 6)],
+            [round(float(dest['lng']), 6), round(float(dest['lat']), 6)],
+        ]
     return {
         'mode': mode,
         'label': MODES.get(mode, mode),
@@ -396,6 +458,7 @@ def _estimate_route(mode: str, origin: dict, dest: dict, note: str = ''):
         'duration_min': _travel_minutes(distance, mode),
         'summary': MODES.get(mode, mode) + '（直线估算）',
         'steps': [],
+        'polyline': line,
         'estimated': True,
         'cost': '',
         'note': note or '高德没有返回路线，距离和耗时是按直线估算的',
@@ -1045,6 +1108,28 @@ def _demo_plan(req: dict) -> dict:
     return plan
 
 
+def _route_point(value):
+    """页面传来的起点/终点：支持 {lng, lat, ...} 或 "lng,lat" 字符串。"""
+    if isinstance(value, dict):
+        lng, lat = _num(value.get('lng')), _num(value.get('lat'))
+        name = _clean(value.get('name'), 80)
+        city = _clean(value.get('city'), 40)
+        citycode = _clean(value.get('citycode'), 20)
+    else:
+        lng, lat = map_common.split_location(_clean(value, 60))
+        name = city = citycode = ''
+    if lng is None or lat is None or not map_common.valid_lnglat(lng, lat):
+        return None
+    return {
+        'lng': lng,
+        'lat': lat,
+        'location': '%.6f,%.6f' % (lng, lat),
+        'name': name,
+        'city': city,
+        'citycode': citycode,
+    }
+
+
 # ---------------------------------------------------------------
 # 路由
 # ---------------------------------------------------------------
@@ -1095,6 +1180,28 @@ def trip_status() -> JSONResponse:
         'js_key': os.getenv('AMAP_JS_KEY', '').strip() if allow_map else '',
         'security_code': os.getenv('AMAP_SECURITY_CODE', '').strip() if allow_map else '',
     })
+
+
+@router.post('/trip/api/route')
+async def trip_route(request: Request) -> JSONResponse:
+    """地图页的即时路线：起点终点都按 GCJ-02 坐标传入，不落库。"""
+    body = await _body(request)
+    raw_mode = _clean(body.get('mode'), 20) or 'driving'
+    if raw_mode not in MODES:
+        return JSONResponse({'ok': False, 'message': '不支持的出行方式。'}, status_code=400)
+    origin = _route_point(body.get('origin'))
+    dest = _route_point(body.get('destination') or body.get('dest'))
+    if not origin or not dest:
+        return JSONResponse({'ok': False, 'message': '起点或终点坐标不完整。'}, status_code=400)
+    if (abs(origin['lng'] - dest['lng']) < 1e-7 and
+            abs(origin['lat'] - dest['lat']) < 1e-7):
+        return JSONResponse({'ok': False, 'message': '起点和终点不能是同一个位置。'},
+                            status_code=400)
+
+    route, err = await run_in_threadpool(_route, raw_mode, origin, dest)
+    if not route:
+        return JSONResponse({'ok': False, 'message': err or '没有查到路线。'}, status_code=400)
+    return JSONResponse({'ok': True, 'route': route})
 
 
 @router.post('/trip/api/plan')

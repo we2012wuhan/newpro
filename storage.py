@@ -88,6 +88,48 @@ SCHEMA = (
     """,
     "CREATE INDEX IF NOT EXISTS idx_image_usage_user ON image_usage(user, created_at)",
     """
+    CREATE TABLE IF NOT EXISTS podcast_jobs(
+        id               TEXT PRIMARY KEY,
+        user             TEXT NOT NULL,
+        topic            TEXT NOT NULL,
+        material         TEXT NOT NULL DEFAULT '',
+        tone             TEXT NOT NULL DEFAULT 'casual',
+        minutes          INTEGER NOT NULL DEFAULT 5,
+        host_a           TEXT NOT NULL DEFAULT '',
+        host_b           TEXT NOT NULL DEFAULT '',
+        voice_a          TEXT NOT NULL DEFAULT '',
+        voice_b          TEXT NOT NULL DEFAULT '',
+        title            TEXT NOT NULL DEFAULT '',
+        summary          TEXT NOT NULL DEFAULT '',
+        status           TEXT NOT NULL DEFAULT 'queued',
+        stage            TEXT NOT NULL DEFAULT 'queued',
+        progress         INTEGER NOT NULL DEFAULT 0,
+        total_turns      INTEGER NOT NULL DEFAULT 0,
+        done_turns       INTEGER NOT NULL DEFAULT 0,
+        script           TEXT NOT NULL DEFAULT '[]',
+        audio            TEXT NOT NULL DEFAULT '',
+        duration_seconds INTEGER NOT NULL DEFAULT 0,
+        tts_words        INTEGER NOT NULL DEFAULT 0,
+        model            TEXT NOT NULL DEFAULT '',
+        error            TEXT NOT NULL DEFAULT '',
+        created_at       TEXT NOT NULL,
+        started_at       TEXT NOT NULL DEFAULT '',
+        finished_at      TEXT NOT NULL DEFAULT ''
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_podcast_jobs_user ON podcast_jobs(user, created_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_podcast_jobs_status ON podcast_jobs(status, created_at)",
+    """
+    CREATE TABLE IF NOT EXISTS podcast_usage(
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        job_id     TEXT NOT NULL UNIQUE,
+        user       TEXT NOT NULL,
+        minutes    INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_podcast_usage_user ON podcast_usage(user, created_at)",
+    """
     CREATE TABLE IF NOT EXISTS book_cache(
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         source     TEXT NOT NULL,
@@ -884,6 +926,200 @@ def image_job_expired(user: str, before: str) -> list:
     finally:
         conn.close()
     return [_image_job_row(row) for row in rows]
+
+
+# ---------------------------------------------------------------
+# podcast_jobs：双人播客任务（/podcast）
+#   脚本、进度、音频文件名都存这里；MP3 本体放 data/generated/podcast/ 下。
+#   任务先落 queued，再由独立后台线程「写脚本 -> 逐段合成 -> 拼接」。
+#   和 image_jobs 一样用 BEGIN IMMEDIATE 原子领取，避免重复计费。
+# ---------------------------------------------------------------
+_PODCAST_JOB_FIELDS = {
+    'status', 'stage', 'progress', 'total_turns', 'done_turns', 'script',
+    'audio', 'duration_seconds', 'tts_words', 'title', 'summary', 'model',
+    'error', 'started_at', 'finished_at',
+}
+
+
+def _podcast_job_row(row) -> dict:
+    data = dict(row)
+    try:
+        script = json.loads(data.get('script') or '[]')
+    except ValueError:
+        script = []
+    data['script'] = script if isinstance(script, list) else []
+    return data
+
+
+def podcast_job_add(user: str, topic: str, material: str, tone: str, minutes: int,
+                    host_a: str, host_b: str, voice_a: str, voice_b: str,
+                    model: str) -> dict:
+    job_id = uuid.uuid4().hex
+    created = now_str()
+    conn = connect()
+    try:
+        conn.execute(
+            'INSERT INTO podcast_jobs(id, user, topic, material, tone, minutes, '
+            'host_a, host_b, voice_a, voice_b, title, summary, status, stage, '
+            'progress, total_turns, done_turns, script, audio, duration_seconds, '
+            'tts_words, model, error, created_at, started_at, finished_at) '
+            "VALUES (?,?,?,?,?,?,?,?,?,?,'','','queued','queued',0,0,0,'[]','',0,0,?,'',?,'','')",
+            (job_id, user, topic, material, tone, int(minutes), host_a, host_b,
+             voice_a, voice_b, model, created))
+        # 额度单独记一笔：删历史不会让当天的限额回血。
+        conn.execute(
+            'INSERT INTO podcast_usage(job_id, user, minutes, created_at) VALUES(?,?,?,?)',
+            (job_id, user, int(minutes), created))
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+    return {
+        'id': job_id, 'user': user, 'topic': topic, 'material': material,
+        'tone': tone, 'minutes': int(minutes), 'host_a': host_a, 'host_b': host_b,
+        'voice_a': voice_a, 'voice_b': voice_b, 'title': '', 'summary': '',
+        'status': 'queued', 'stage': 'queued', 'progress': 0,
+        'total_turns': 0, 'done_turns': 0, 'script': [], 'audio': '',
+        'duration_seconds': 0, 'tts_words': 0, 'model': model, 'error': '',
+        'created_at': created, 'started_at': '', 'finished_at': '',
+    }
+
+
+def podcast_job_get(user: str, job_id: str):
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT * FROM podcast_jobs WHERE id = ? AND user = ?',
+                     (str(job_id), user))
+    finally:
+        conn.close()
+    return _podcast_job_row(rows[0]) if rows else None
+
+
+def podcast_job_list(user: str, limit: int = 20) -> list:
+    limit = max(1, min(int(limit or 20), 100))
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT * FROM podcast_jobs WHERE user = ? '
+                           'ORDER BY rowid DESC LIMIT ?', (user, limit))
+    finally:
+        conn.close()
+    return [_podcast_job_row(row) for row in rows]
+
+
+def podcast_job_claim_next():
+    """原子领取最早的一条 queued 任务；没有就返回 None。"""
+    conn = connect()
+    try:
+        conn.execute('BEGIN IMMEDIATE')
+        row = conn.execute(
+            "SELECT * FROM podcast_jobs WHERE status = 'queued' "
+            'ORDER BY rowid ASC LIMIT 1').fetchone()
+        if not row:
+            conn.rollback()
+            return None
+        started = now_str()
+        conn.execute(
+            "UPDATE podcast_jobs SET status = 'running', stage = 'script', started_at = ? "
+            'WHERE id = ?', (started, row['id']))
+        conn.commit()
+        data = _podcast_job_row(row)
+        data['status'] = 'running'
+        data['stage'] = 'script'
+        data['started_at'] = started
+        return data
+    except sqlite3.OperationalError as exc:
+        try:
+            conn.rollback()
+        except sqlite3.Error:
+            pass
+        raise StorageUnavailable('领取任务失败：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def podcast_job_update(job_id: str, fields: dict) -> int:
+    sets, args = [], []
+    for key, value in (fields or {}).items():
+        if key not in _PODCAST_JOB_FIELDS:
+            continue
+        if key == 'script':
+            value = json.dumps(value if isinstance(value, list) else [], ensure_ascii=False)
+        sets.append(key + ' = ?')
+        args.append(value)
+    if not sets:
+        return 0
+    args.append(str(job_id))
+    conn = connect()
+    try:
+        cur = conn.execute('UPDATE podcast_jobs SET ' + ', '.join(sets) + ' WHERE id = ?', args)
+        conn.commit()
+        return cur.rowcount
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('更新失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def podcast_job_delete(user: str, job_id: str) -> int:
+    conn = connect()
+    try:
+        cur = conn.execute('DELETE FROM podcast_jobs WHERE id = ? AND user = ?',
+                           (str(job_id), user))
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def podcast_job_delete_finished(user: str, job_id: str) -> int:
+    conn = connect()
+    try:
+        cur = conn.execute(
+            "DELETE FROM podcast_jobs WHERE id = ? AND user = ? "
+            "AND status NOT IN ('queued', 'running')",
+            (str(job_id), user))
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def podcast_jobs_since(user: str, since: str) -> int:
+    """某用户从 since 起一共创建了多少期播客（按分钟累加，失败任务也算）。"""
+    conn = connect()
+    try:
+        row = conn.execute(
+            'SELECT COALESCE(SUM(minutes), 0) AS n FROM podcast_usage '
+            'WHERE user = ? AND created_at >= ?', (user, since)).fetchone()
+        return int(row['n'] or 0)
+    finally:
+        conn.close()
+
+
+def podcast_job_recover_running(message: str) -> int:
+    conn = connect()
+    try:
+        cur = conn.execute(
+            "UPDATE podcast_jobs SET status = 'failed', stage = 'failed', error = ?, "
+            'finished_at = ? WHERE status = '
+            "'running'", (message, now_str()))
+        conn.commit()
+        return cur.rowcount
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('恢复任务失败：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def podcast_job_expired(user: str, before: str) -> list:
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT * FROM podcast_jobs WHERE user = ? AND created_at < ? '
+                           'ORDER BY rowid ASC', (user, before))
+    finally:
+        conn.close()
+    return [_podcast_job_row(row) for row in rows]
 
 
 # ---------------------------------------------------------------

@@ -86,6 +86,13 @@ app.include_router(model_settings_router)
 from web_search import router as web_search_router  # noqa: E402
 app.include_router(web_search_router)
 
+# RAG 实验台：页面在 /rag-lab
+# 把 README + docs 切块，BM25 / 中文二元组检索 -> 可选让模型只依据资料带引用回答
+# -> 用 golden set 算 Recall / MRR 并做失败归因。核心逻辑在 rag_lab 包，
+# 命令行 `python -m rag_lab` 和网页调用的是同一套函数，结果一致。
+from rag_lab.web import router as rag_lab_router  # noqa: E402
+app.include_router(rag_lab_router)
+
 # 首页「说一句打开工具」：/api/voice-nav（纯规则匹配，不用模型）
 from voice_nav import router as voice_nav_router  # noqa: E402
 app.include_router(voice_nav_router)
@@ -121,6 +128,11 @@ app.include_router(image_studio_router)
 # 页面在 /image-gen；Key 只在服务端，生成结果默认可保留 7 天。
 from image_gen import router as image_gen_router  # noqa: E402
 app.include_router(image_gen_router)
+
+# AI 双人播客：主题 -> 文本模型写逐字稿 -> 双音色 TTS -> ffmpeg 拼成一条 MP3。
+# 页面在 /podcast；Key 只在服务端，音频默认保留 7 天。
+from podcast import router as podcast_router  # noqa: E402
+app.include_router(podcast_router)
 
 # 影音库：只读浏览阿里云盘里的音乐 / 视频。
 # AList/OpenList 作为内网文件网关，浏览器只见 /media/stream 代理；收藏和续播写 SQLite。
@@ -185,10 +197,6 @@ app.include_router(realtime_voice_router)
 # 浏览器访问 http://127.0.0.1:8000/buy-helper 即可使用。
 from buy_helper import router as buy_helper_router  # noqa: E402
 app.include_router(buy_helper_router)
-
-# 国家博物馆真实预约抢票：Playwright 打开官方页面，遇到登录/验证码暂停交给用户完成
-from museum_ticket import router as museum_ticket_router  # noqa: E402
-app.include_router(museum_ticket_router)
 
 # 附加功能：账单分析（上传 Excel/CSV -> DeepSeek 消费分类 -> 图表汇总 + 省钱建议）
 # 浏览器访问 http://127.0.0.1:8000/bill-analysis 即可使用。

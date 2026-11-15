@@ -169,6 +169,43 @@ body{margin:0;background:var(--bg);color:var(--text);overflow:hidden;
 .amap-pin.cat-scenic{background:#059669}
 .amap-pin.cat-other{background:#475569}
 .amap-pin.search{background:#e11d48;width:30px;height:30px;font-size:14px}
+.amap-pin.route-a{background:#0E7490;width:28px;height:28px}
+.amap-pin.route-b{background:#e11d48;width:28px;height:28px}
+.amap-pin.measure{background:#d97706;width:22px;height:22px;font-size:10px}
+.amap-pin.pick{background:#7c3aed;width:28px;height:28px;font-size:13px}
+.map-tools{position:fixed;z-index:27;right:16px;top:50%;transform:translateY(-50%);
+  display:flex;flex-direction:column;gap:6px;padding:6px;border:1px solid var(--line);
+  border-radius:14px;background:var(--glass);box-shadow:var(--shadow);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.tool-btn{min-width:54px;min-height:38px;padding:0 10px;border-radius:10px;border:1px solid transparent;
+  background:transparent;color:var(--text);font-family:inherit;font-size:12.5px;line-height:1;cursor:pointer}
+.tool-btn:hover{background:var(--acc-l);color:var(--acc)}
+.tool-btn.on{background:var(--acc);border-color:var(--acc);color:var(--tb-acc-on);font-weight:600}
+.tool-total{min-width:54px;padding:5px 8px;border-radius:9px;background:var(--acc-l);color:var(--acc);
+  font-size:11px;text-align:center;white-space:nowrap}
+.tool-card{border-color:var(--acc-line)}
+.tool-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.tool-actions .btn{min-height:34px;padding:0 10px;font-size:12px}
+.route-row{display:flex;align-items:center;gap:7px;margin-top:7px}
+.route-tag{flex:0 0 auto;width:22px;height:22px;border-radius:50%;display:inline-flex;
+  align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff}
+.route-tag.a{background:#0E7490}.route-tag.b{background:#e11d48}.route-tag.m{background:#d97706}
+.route-select{min-height:36px;padding:6px 8px;font-size:12.5px;flex:1;min-width:0}
+.measure-list{margin-top:8px;display:flex;flex-direction:column;gap:5px;max-height:180px;overflow:auto}
+.measure-item{display:flex;align-items:flex-start;gap:7px;padding:6px 7px;border:1px solid var(--line);
+  border-radius:9px;background:var(--field)}
+.measure-num{flex:0 0 auto;width:18px;height:18px;border-radius:50%;background:#d97706;color:#fff;
+  font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.measure-item b{font-size:12px;color:var(--ink);font-weight:600}
+.measure-item .mini{font-size:11px;line-height:1.45;margin-top:1px}
+.measure-dist{margin-left:auto;flex:0 0 auto;font-size:11px;color:var(--acc);white-space:nowrap;font-weight:600}
+.route-result{margin-top:9px;border-top:1px solid var(--line);padding-top:9px}
+.route-summary{display:flex;gap:12px;flex-wrap:wrap;font-size:12.5px;color:var(--ink);font-weight:600}
+.route-summary b{color:var(--acc)}
+.route-warn{margin-top:6px;font-size:11px;color:var(--warn);line-height:1.55}
+.route-steps{margin:7px 0 0;padding-left:18px;font-size:11.5px;color:var(--muted);
+  max-height:190px;overflow:auto;line-height:1.6}
+.route-steps li{margin:2px 0}
 .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,12px);z-index:80;
   background:var(--tb-ink);color:var(--tb-bg);font-size:13px;padding:10px 16px;border-radius:11px;
   box-shadow:0 12px 30px rgba(0,0,0,.22);opacity:0;pointer-events:none;transition:.2s;max-width:88vw;text-align:center}
@@ -183,6 +220,10 @@ body{margin:0;background:var(--bg);color:var(--text);overflow:hidden;
   .topbar{top:8px;left:8px;right:8px;min-height:52px;padding:7px 9px;border-radius:14px}
   .brand .sub{display:none}
   .panel-toggle{display:inline-flex;align-items:center;justify-content:center}
+  .map-tools{top:70px;right:8px;bottom:auto;left:auto;transform:none;flex-direction:row;flex-wrap:wrap;
+    max-width:calc(100vw - 16px);padding:5px;border-radius:12px;gap:5px}
+  .tool-btn{min-width:48px;min-height:34px;padding:0 8px;font-size:12px}
+  .tool-total{min-width:0;padding:4px 8px;font-size:11px}
   .back{padding:9px 10px}
   .back .back-text{display:none}
   .side-panel{top:auto;left:0;right:0;bottom:0;width:auto;max-width:none;height:82vh;height:82dvh;
@@ -209,6 +250,14 @@ body{margin:0;background:var(--bg);color:var(--text);overflow:hidden;
 </head>
 <body>
 <div id="placesMap" aria-label="我的地点地图"></div>
+
+<div class="map-tools" id="mapTools" role="toolbar" aria-label="地图工具" hidden>
+  <button class="tool-btn" id="toolPick" type="button" data-tool="pick" aria-pressed="false">取点</button>
+  <button class="tool-btn" id="toolMeasure" type="button" data-tool="measure" aria-pressed="false">测距</button>
+  <button class="tool-btn" id="toolRoute" type="button" data-tool="route" aria-pressed="false">路线</button>
+  <button class="tool-btn" id="toolClear" type="button">清除</button>
+  <div class="tool-total" id="measureTotal" hidden></div>
+</div>
 
 <section id="panel-places">
   <header class="topbar">
@@ -237,6 +286,37 @@ body{margin:0;background:var(--bg);color:var(--text);overflow:hidden;
       <button class="sheet-close" id="sheetClose" type="button" aria-label="收起面板">×</button>
     </div>
 
+    <div class="card tool-card" id="pickCard" hidden>
+      <div class="card-h">地图取点
+        <span class="sp"><button class="lnk" id="pickClose" type="button">关闭</button></span>
+      </div>
+      <div class="mini" id="pickAddress">正在解析地址…</div>
+      <div class="mini" id="pickCoord"></div>
+      <div class="tool-actions">
+        <button class="btn sm" id="pickSavePlace" type="button">保存为地点</button>
+        <button class="btn sm" id="pickSetStart" type="button">设为起点</button>
+        <button class="btn sm" id="pickSetEnd" type="button">设为终点</button>
+      </div>
+    </div>
+
+    <div class="card tool-card" id="measureCard" hidden>
+      <div class="card-h">测距
+        <span class="sp"><button class="lnk" id="measureClose" type="button">关闭</button></span>
+      </div>
+      <div class="route-row">
+        <span class="route-tag m">点</span>
+        <select class="inp route-select" id="measurePointSelect" aria-label="从已标记地点选择测距点"></select>
+      </div>
+      <div class="mini" id="measureHint" style="margin-top:6px">直接点地图上的地点标记，或从上面选已收藏/已搜索的点。</div>
+      <div class="route-summary" id="measureSummary" style="margin-top:8px" hidden></div>
+      <div class="measure-list" id="measureList"></div>
+      <div class="tool-actions">
+        <button class="btn sm" id="measureUndo" type="button">撤回上一段</button>
+        <button class="btn sm" id="measureClearBtn" type="button">清空测距</button>
+      </div>
+      <div class="msg" id="measureMsg"></div>
+    </div>
+
     <div class="card">
       <label class="lbl" for="placeAddress" style="margin-top:0">搜索地点</label>
       <div class="withbtn">
@@ -247,6 +327,31 @@ body{margin:0;background:var(--bg);color:var(--text);overflow:hidden;
       <div class="msg" id="placeSearchMsg"></div>
       <div class="search-results" id="placeSearchResults" hidden></div>
       <div class="tip"><span class="n">1</span><span>搜索只在点按钮时调用高德，结果会缓存；个人 Key 的 POI 配额最紧。</span></div>
+    </div>
+
+    <div class="card tool-card" id="routeCard" hidden>
+      <div class="card-h">路线
+        <span class="sp"><button class="lnk" id="routeResetBtn" type="button">重选</button></span>
+      </div>
+      <div class="route-row">
+        <span class="route-tag a">起</span>
+        <select class="inp route-select" id="routeStartSelect" aria-label="路线起点"></select>
+      </div>
+      <div class="route-row">
+        <span class="route-tag b">终</span>
+        <select class="inp route-select" id="routeEndSelect" aria-label="路线终点"></select>
+      </div>
+      <div class="chips" id="routeModes" role="group" aria-label="出行方式" style="margin-top:9px">
+        <button class="chip on" type="button" data-mode="driving" aria-pressed="true">驾车</button>
+        <button class="chip" type="button" data-mode="walking" aria-pressed="false">步行</button>
+        <button class="chip" type="button" data-mode="riding" aria-pressed="false">骑行</button>
+      </div>
+      <div class="tool-actions">
+        <button class="btn sm primary" id="routeCalcBtn" type="button">算路线</button>
+        <button class="btn sm" id="routeSwapBtn" type="button">交换起终点</button>
+      </div>
+      <div class="msg" id="routeMsg"></div>
+      <div class="route-result" id="routeResult" hidden></div>
     </div>
 
     <details class="add-box" id="addBox">

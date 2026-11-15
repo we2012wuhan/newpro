@@ -16,7 +16,6 @@
 | `launcher.py` | EXE 启动入口：启动服务并自动打开浏览器 |
 | `ai_chart.py` | AI 数据图表分析（页面在 `/ai-chart`，模型 Key 见下方「模型配置」） |
 | `buy_helper.py` | 购物比价助手（页面在 `/buy-helper`；没配 Key 也能直接跳平台搜索） |
-| `museum_ticket.py` | 国家博物馆抢票工具（页面在 `/museum-ticket`；Playwright 操作官方预约页面，登录和验证码由用户完成） |
 | `bill_analysis.py` | 账单分析（上传月度账单 Excel/CSV 到 `/bill-analysis`，DeepSeek 分类汇总消费并给省钱建议） |
 | `translator.py` | 翻译助手（页面在 `/translator`：中英双向翻译；中译英后可转换小写/大写/驼峰命名格式） |
 | `ocr.py` | OCR图片识别（页面在 `/ocr`：粘贴或上传图片后进入 Canvas 2D 画布，可缩放、拖动、框选识别区域、查看识别文字框、局部涂黑打码并导出处理图；免费云端接口 OCR.space 识别文字，无本地模型） |
@@ -28,6 +27,7 @@
 | `parametric_3d.py` | 3D 小作品实验室（页面在 `/3d-lab`：提供收纳盒、手机支架、洞洞板挂钩模板，也支持在毫米网格上自由绘制闭合轮廓、添加圆孔并拉伸成 3D；浏览器实时预览并导出 STL / 3MF，参数方案存 SQLite、可跨设备恢复） |
 | `image_studio.py` | 图片工坊（页面在 `/image-studio`：Canvas 本地压缩到指定 KB、裁剪 / 旋转 / 翻转、九宫格切图打包 ZIP、9 张照片拼成一张方图；图片不上传、不入库，SQLite 只保存处理参数方案，支持 `?r=<id>` 深链） |
 | `image_gen.py` | AI 文生图（页面在 `/image-gen`：提示词 + 模式 / 风格 + 比例 + 数量交给火山方舟 Seedream 生成；支持 Notion 黄色手绘信息图和竖版三格手绘漫画信息图预设；任务异步排队、页面轮询，图片落在数据卷 `generated/` 下，默认保留 7 天；支持下载和经 IndexedDB 接力到图片工坊继续处理。注意它和图片工坊不同：提示词会上传第三方，生成图也会落盘） |
+| `podcast.py` | AI 双人播客（页面在 `/podcast`：写主题、可选粘贴参考资料、选 3 / 5 / 8 分钟和风格；一次模型调用写出 A/B 交替的完整逐字稿，再用女声小唯 + 男声刘飞两把火山 TTS 音色逐段合成，ffmpeg 拼成一条 MP3 并做响度归一；后台单线程排队、页面轮询进度，可播放、下载 MP3 和文字稿。主题与逐字稿会上传第三方，音频默认保留 7 天） |
 | `media_library.py` | 影音库（页面在 `/media`：通过内网的 OpenList / AList 只读浏览阿里云盘里的音乐和视频，文件夹导航、搜索、收藏、断点续播；`/media/stream` 代理 Range 请求，媒体文件不落本地盘，只在 SQLite `media_state` 里存收藏和播放进度） |
 | `sleep_tool.py` | 睡前打烊（页面在 `/sleep`：默认播放柔和溪流声，也支持白/粉/棕噪音和雨声、风扇、海浪；可上传永久音频到数据卷，电脑和手机共用；支持两路混音、20—60 分钟定时、平滑淡出、全黑睡眠屏和 SQLite 声音预设） |
 | `beat_em_up.py` | 夜巷清场（页面在 `/beat-em-up`：原创横向卷轴清版格斗第一关，含纵深移动、拳脚连击、两类敌人、Boss、三段街口、镜头跟随、程序化音效和手机虚拟摇杆；无外部游戏引擎和美术素材依赖） |
@@ -104,6 +104,7 @@ python video_downloader.py
 - `http://127.0.0.1:8000/3d-lab` **3D 小作品实验室**：调整现成模板，或自己绘制轮廓和圆孔，实时预览、保存方案并导出 STL / 3MF
 - `http://127.0.0.1:8000/image-studio` **图片工坊**：浏览器本地压缩到目标 KB、裁剪旋转翻转、九宫格切图 ZIP、9 张照片拼成一张方图；图片不上传，参数方案存 SQLite
 - `http://127.0.0.1:8000/image-gen` **AI 文生图**：写提示词，调用火山方舟 Seedream 生成图片；任务异步排队、页面轮询，生成图存服务端 7 天，可下载，也可一键接力到图片工坊继续处理（注意：提示词会上传第三方）
+- `http://127.0.0.1:8000/podcast` **AI 双人播客**：写一个主题（可附参考资料），选时长和风格，模型先写完整对谈稿，再用男女两把音色合成并拼成一条 MP3，可播放、下载音频和文字稿（注意：主题与逐字稿会上传第三方）
 - `http://127.0.0.1:8000/media` **影音库**：只读浏览阿里云盘里的音乐和视频，可进文件夹、搜索、收藏、断点续播；需要先按下方「影音库」一节启动 OpenList 并配置阿里云盘存储
 - `http://127.0.0.1:8000/sleep` **睡前打烊**：默认溪流声，可上传永久音频，定时淡出并进入全黑睡眠屏
 - `http://127.0.0.1:8000/beat-em-up` **夜巷清场**：原创横版清版格斗，穿过三个街口并击败 Boss
@@ -352,12 +353,11 @@ cp .env.example .env     # Windows: copy .env.example .env
 
 1. 在抖音 App 里点“分享 -> 复制链接”，把复制到的链接 / 整段分享文字粘贴到网页输入框；
 2. 点“解析并下载”，等几秒后浏览器会自动保存 mp4 视频（视频越大等待越久）；
-技术说明：解析优先使用“浏览器自动解析”（无头打开抖音视频页，拦截抖音页面自带签名的请求拿到直链，
-每次成功都会自动刷新并保存游客 Cookie 到 `douyin_cookies.txt`，全程无需登录）；
-失败时自动回退到 Cookie 详情接口、yt-dlp、无登录直连等备用通道。抖音官方没有开放下载接口，
+技术说明：解析优先使用 `douyin_cookies.txt` 里的游客 Cookie 请求抖音详情接口；
+失败时自动回退到 yt-dlp（含本机浏览器 Cookie）和无登录直连等备用通道。抖音官方没有开放下载接口，
 反爬会不定期变化，若某天全部解析失败，请先执行 `pip install -U yt-dlp`，再按页面里的“下载失败？先看这里”帮助操作。
-页面上的“手动提供 Cookie”输入框已经去掉：游客 Cookie 由工具自己保存到 `douyin_cookies.txt`，
-需要手动补的时候直接往这个文件里写整条 Cookie 值就行（容器里用环境变量 `TB_DOUYIN_COOKIE` 指到挂载卷）。
+页面上的“手动提供 Cookie”输入框早已去掉：需要补 Cookie 时，直接往 `douyin_cookies.txt` 写整条 Cookie 值
+（容器里用环境变量 `TB_DOUYIN_COOKIE` 指到挂载卷）。
 
 ## AI 数据图表分析工具
 
@@ -747,7 +747,6 @@ SQLite 从「能用」到「看得见」的那一步：不用装任何数据库�
 pip install pyinstaller
 pyinstaller --noconfirm --clean --onefile --console ^
     --name DouYinDownloader ^
-    --collect-all playwright ^
     --collect-submodules yt_dlp ^
     --collect-submodules uvicorn ^
     --add-data "static;static" ^

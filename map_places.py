@@ -6,6 +6,7 @@
 #   PATCH  /trip/api/places/{id}          修改
 #   DELETE /trip/api/places/{id}          删除
 #   POST   /trip/api/places/geocode       地址解析（显式）
+#   GET    /trip/api/places/regeo         坐标反查地址（地图取点用）
 #   GET    /trip/api/places/search        POI 搜索（显式，配额最紧）
 #   GET    /trip/api/map/status           地图 / 配额状态（不泄露 Key）
 #
@@ -275,6 +276,19 @@ async def places_geocode(request: Request) -> JSONResponse:
     if not geo:
         return _fail(err or '地址没解析出来。')
     return JSONResponse({'ok': True, 'place': geo})
+
+
+@router.get('/trip/api/places/regeo')
+def places_regeo(request: Request) -> JSONResponse:
+    """地图取点后按坐标反查地址；坐标必须是 GCJ-02。"""
+    lng = _num(request.query_params.get('lng'))
+    lat = _num(request.query_params.get('lat'))
+    if not map_common.valid_lnglat(lng, lat):
+        return _fail('坐标不完整或超出范围。')
+    place, err = map_common.regeo(lng, lat)
+    if not place:
+        return _fail(err or '这个位置没解析出地址。')
+    return JSONResponse({'ok': True, 'place': place})
 
 
 @router.get('/trip/api/places/search')
