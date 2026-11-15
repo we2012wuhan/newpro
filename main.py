@@ -115,7 +115,7 @@ app.include_router(design_sense_router)
 from parametric_3d import router as parametric_3d_router  # noqa: E402
 app.include_router(parametric_3d_router)
 
-# 睡前打烊：浏览器实时合成白噪音与场景声，声音预设存 SQLite。
+# 睡前打烊：只播放用户上传的音频，声音预设存 SQLite。
 from sleep_tool import router as sleep_tool_router  # noqa: E402
 app.include_router(sleep_tool_router)
 
@@ -175,6 +175,14 @@ app.mount('/static', _NoCacheStatic(directory=str(_static_dir), check_dir=False)
 # 它必须是公开可访问的（auth.py 的 PUBLIC_PREFIXES 里放了 /.well-known/）。
 app.mount('/.well-known', _NoCacheStatic(directory=str(_static_dir / 'wellknown'), check_dir=False),
           name='wellknown')  # noqa: E402
+
+# 第三方静态作品：千人小镇（Three.js + p5.js，CC BY 4.0）。
+# 刻意放在 /static 之外，这样 LoginGate 仍会拦住未登录访问；html=True 让
+# /thousand-town/ 直接返回目录里的 index.html，相对路径资源也能正常加载。
+# 署名与改动说明见 third_party/thousand-town/ATTRIBUTION.md。
+_town_dir = Path(__file__).resolve().parent / 'third_party' / 'thousand-town'
+app.mount('/thousand-town', _NoCacheStatic(directory=str(_town_dir), html=True),
+          name='thousand-town')  # noqa: E402
 
 
 @app.get('/sw.js', include_in_schema=False)  # noqa: E301,E302

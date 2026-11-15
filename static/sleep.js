@@ -1,18 +1,7 @@
 (function () {
   'use strict';
 
-  var LABELS = {
-    base: { white: '白噪音', pink: '粉红噪音', brown: '棕噪音' },
-    ambience: {
-      none: '无环境声', stream: '溪流', rain: '细雨', fan: '风扇', waves: '海浪',
-      library: '我的音频'
-    }
-  };
   var state = {
-    baseType: 'pink',
-    baseLevel: 0,
-    ambienceType: 'stream',
-    ambienceLevel: 58,
     duration: 30,
     fade: 10,
     volume: 65,
@@ -23,10 +12,9 @@
     timer: 0,
     context: null,
     fadeGain: null,
+    masterGain: null,
     sources: [],
     totalPaused: 0,
-    bubbleTimer: 0,
-    bubbleBuffer: null,
     selectedAudioId: 0,
     audioItems: [],
     mediaElement: null
@@ -59,58 +47,44 @@
   }
 
   function config() {
+    var selected = state.audioItems.find(function (item) {
+      return item.id === state.selectedAudioId;
+    });
     return {
-      base_type: state.baseType,
-      base_level: state.baseLevel,
-      ambience_type: state.ambienceType,
-      ambience_level: state.ambienceLevel,
+      ambience_type: 'library',
+      audio_id: state.selectedAudioId || 0,
+      audio_title: selected ? selected.title : '',
       duration: state.duration,
       fade: state.fade,
-      volume: state.volume,
-      audio_id: state.selectedAudioId || 0
+      volume: state.volume
     };
   }
 
   function describe(data) {
-    var base = LABELS.base[data.base_type] || '底噪';
-    var ambience = LABELS.ambience[data.ambience_type] || '无环境声';
-    if (data.ambience_type === 'library') {
-      var selected = state.audioItems.find(function (item) {
-        return item.id === Number(data.audio_id);
-      });
-      ambience = selected ? selected.title : '我的音频';
-    }
-    var sound = data.ambience_type === 'none'
-      ? base
-      : base + ' + ' + ambience;
-    return sound + ' · ' + data.duration + ' 分钟';
+    data = data || {};
+    var selected = state.audioItems.find(function (item) {
+      return item.id === Number(data.audio_id);
+    });
+    var title = selected ? selected.title : (data.audio_title || '我的音频');
+    return title + ' · ' + (Number(data.duration) || state.duration) + ' 分钟';
   }
 
   function setChoice(selector, chosen) {
     document.querySelectorAll(selector).forEach(function (button) {
-      var isChosen = button.dataset.base === chosen ||
-        button.dataset.ambience === chosen ||
-        Number(button.dataset.duration) === chosen ||
-        Number(button.dataset.fade) === chosen;
-      if (button.dataset.duration !== undefined) isChosen = Number(button.dataset.duration) === chosen;
-      if (button.dataset.fade !== undefined) isChosen = Number(button.dataset.fade) === chosen;
-      button.classList.toggle('on', isChosen);
+      var raw = button.dataset.duration !== undefined
+        ? button.dataset.duration
+        : button.dataset.fade;
+      button.classList.toggle('on', Number(raw) === chosen);
     });
   }
 
   function syncControls() {
-    $('baseLevel').value = String(state.baseLevel);
-    $('ambienceLevel').value = String(state.ambienceLevel);
     $('volumeLevel').value = String(state.volume);
-    $('baseValue').textContent = state.baseLevel + '%';
-    $('ambienceValue').textContent = state.ambienceLevel + '%';
     $('volumeValue').textContent = state.volume + '%';
     $('durationText').textContent = state.duration + ' 分钟';
     $('fadeText').textContent = state.fade
       ? '最后 ' + state.fade + ' 分钟'
       : '结束时直接关闭';
-    setChoice('[data-base]', state.baseType);
-    setChoice('[data-ambience]', state.ambienceType);
     setChoice('[data-duration]', state.duration);
     setChoice('[data-fade]', state.fade);
   }
@@ -118,11 +92,15 @@
   function applyPreset(item) {
     var data = item && item.payload ? item.payload : item;
     if (!data) return;
-    if (LABELS.base[data.base_type]) state.baseType = data.base_type;
-    if (LABELS.ambience[data.ambience_type]) state.ambienceType = data.ambience_type;
-    state.selectedAudioId = Number(data.audio_id || 0);
-    state.baseLevel = clamp(data.base_level == null ? 0 : data.base_level, 0, 100);
-    state.ambienceLevel = clamp(data.ambience_level == null ? 0 : data.ambience_level, 0, 100);
+    var audioId = Number(data.audio_id || 0);
+    var found = state.audioItems.some(function (audio) {
+      return audio.id === audioId;
+    });
+    if (!audioId || !found) {
+      setStatus('这个预设对应的音频已经不存在，请重新选择音频并保存。', 'err');
+      return;
+    }
+    state.selectedAudioId = audioId;
     state.volume = clamp(data.volume == null ? 65 : data.volume, 0, 100);
     if ([20, 30, 45, 60].indexOf(Number(data.duration)) >= 0) state.duration = Number(data.duration);
     if ([0, 5, 10, 15].indexOf(Number(data.fade)) >= 0) state.fade = Number(data.fade);
@@ -136,7 +114,7 @@
     if (!presets.length) {
       var empty = document.createElement('div');
       empty.className = 'empty';
-      empty.textContent = '还没有保存预设。调好声音和时长后，可以在上面保存。';
+      empty.textContent = '还没有保存预设。选好音频和时长后，可以在上面保存。';
       presetListEl.appendChild(empty);
       return;
     }
@@ -182,8 +160,8 @@
   }
 
   async function savePreset() {
-    if (state.ambienceType === 'library' && !state.selectedAudioId) {
-      setStatus('请先在“我的永久音频”里选择一个音频。', 'err');
+    if (!state.selectedAudioId) {
+      setStatus('请先上传并选择一个音频。', 'err');
       return;
     }
     savePresetBtn.disabled = true;
@@ -228,10 +206,9 @@
 
   function selectAudio(item) {
     state.selectedAudioId = item.id;
-    state.ambienceType = 'library';
     syncControls();
     renderAudioLibrary();
-    setStatus('已选择永久音频「' + item.title + '」。', 'info');
+    setStatus('已选择音频「' + item.title + '」。', 'info');
   }
 
   function renderAudioLibrary() {
@@ -239,7 +216,7 @@
     if (!state.audioItems.length) {
       var empty = document.createElement('div');
       empty.className = 'empty';
-      empty.textContent = '还没有永久音频。上传一次后，手机和电脑都能使用。';
+      empty.textContent = '还没有「我的音频」。点右上角「上传音频」，上传一次后手机和电脑都能使用。';
       audioListEl.appendChild(empty);
       return;
     }
@@ -262,7 +239,7 @@
       remove.type = 'button';
       remove.className = 'audio-del';
       remove.textContent = '×';
-      remove.title = '删除这个永久音频';
+      remove.title = '删除这个音频';
       remove.setAttribute('aria-label', '删除 ' + item.title);
       remove.addEventListener('click', function () { deleteAudio(item); });
       card.appendChild(choose);
@@ -280,14 +257,13 @@
       if (state.selectedAudioId &&
           !state.audioItems.some(function (item) { return item.id === state.selectedAudioId; })) {
         state.selectedAudioId = 0;
-        if (state.ambienceType === 'library') state.ambienceType = 'stream';
       }
       renderAudioLibrary();
       syncControls();
     } catch (error) {
       state.audioItems = [];
       renderAudioLibrary();
-      setStatus('读取永久音频失败：' + (error.message || error), 'err');
+      setStatus('读取音频失败：' + (error.message || error), 'err');
     }
   }
 
@@ -308,10 +284,9 @@
       if (!response.ok || !data.ok) throw new Error(data.message || '上传失败');
       await loadAudioLibrary();
       state.selectedAudioId = data.item.id;
-      state.ambienceType = 'library';
       syncControls();
       renderAudioLibrary();
-      setStatus('音频已经永久保存，可以在手机和电脑上使用。', 'info');
+      setStatus('音频已经保存，可以在手机和电脑上使用。', 'info');
     } catch (error) {
       setStatus('上传失败：' + (error.message || error), 'err');
     } finally {
@@ -321,107 +296,30 @@
   }
 
   async function deleteAudio(item) {
-    if (!window.confirm('删除永久音频「' + item.title + '」？')) return;
+    if (!window.confirm('删除音频「' + item.title + '」？')) return;
     try {
       var response = await fetch('/sleep/api/audio/' + item.id, { method: 'DELETE' });
       var data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.message || '删除失败');
-      if (state.selectedAudioId === item.id) {
-        state.selectedAudioId = 0;
-        state.ambienceType = 'stream';
-      }
+      if (state.selectedAudioId === item.id) state.selectedAudioId = 0;
       await loadAudioLibrary();
-      setStatus('永久音频已删除。', 'info');
+      setStatus('音频已删除。', 'info');
     } catch (error) {
       setStatus('删除失败：' + (error.message || error), 'err');
     }
-  }
-
-  function noiseBuffer(context, type, seconds) {
-    var length = Math.max(1, Math.floor(context.sampleRate * seconds));
-    var buffer = context.createBuffer(1, length, context.sampleRate);
-    var data = buffer.getChannelData(0);
-    var b0 = 0;
-    var b1 = 0;
-    var b2 = 0;
-    var b3 = 0;
-    var b4 = 0;
-    var b5 = 0;
-    var b6 = 0;
-    var last = 0;
-    for (var i = 0; i < length; i += 1) {
-      var white = Math.random() * 2 - 1;
-      if (type === 'white') {
-        data[i] = white * 0.52;
-      } else if (type === 'pink') {
-        b0 = 0.99886 * b0 + white * 0.0555179;
-        b1 = 0.99332 * b1 + white * 0.0750759;
-        b2 = 0.96900 * b2 + white * 0.1538520;
-        b3 = 0.86650 * b3 + white * 0.3104856;
-        b4 = 0.55000 * b4 + white * 0.5329522;
-        b5 = -0.7616 * b5 - white * 0.0168980;
-        var pink = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
-        b6 = white * 0.115926;
-        data[i] = pink * 0.11;
-      } else {
-        last = (last + 0.02 * white) / 1.02;
-        data[i] = last * 3.5;
-      }
-    }
-    return buffer;
-  }
-
-  function createSource(context, type) {
-    var source = context.createBufferSource();
-    source.buffer = noiseBuffer(context, type, 6);
-    source.loop = true;
-    state.sources.push(source);
-    return source;
-  }
-
-  function makePanner(context, pan) {
-    if (!context.createStereoPanner) return context.createGain();
-    var panner = context.createStereoPanner();
-    panner.pan.value = pan;
-    return panner;
-  }
-
-  function makeStreamSpace(context) {
-    var seconds = 1.8;
-    var length = Math.floor(context.sampleRate * seconds);
-    var impulse = context.createBuffer(2, length, context.sampleRate);
-    for (var channel = 0; channel < 2; channel += 1) {
-      var data = impulse.getChannelData(channel);
-      for (var i = 0; i < length; i += 1) {
-        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.8);
-      }
-    }
-    var convolver = context.createConvolver();
-    convolver.buffer = impulse;
-    return convolver;
-  }
-
-  function makeBubbleBuffer(context) {
-    var length = Math.floor(context.sampleRate * 0.13);
-    var buffer = context.createBuffer(1, length, context.sampleRate);
-    var data = buffer.getChannelData(0);
-    for (var i = 0; i < length; i += 1) {
-      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3.8);
-    }
-    return buffer;
   }
 
   async function buildLibraryAudio(context, fadeGain) {
     var item = state.audioItems.find(function (audio) {
       return audio.id === state.selectedAudioId;
     });
-    if (!item) throw new Error('请先上传并选择“我的音频”');
+    if (!item) throw new Error('请先上传并选择一个音频');
     var element = new Audio(item.url);
     element.loop = true;
     element.preload = 'auto';
     var source = context.createMediaElementSource(element);
     var gain = context.createGain();
-    gain.gain.value = (state.ambienceLevel / 100) * 0.78;
+    gain.gain.value = 0.78;
     source.connect(gain);
     gain.connect(fadeGain);
     state.mediaElement = element;
@@ -433,91 +331,8 @@
       element.removeAttribute('src');
       element.load();
       state.mediaElement = null;
-      throw new Error('永久音频无法播放，请换一个 MP3 或 M4A 文件');
+      throw new Error('音频无法播放，请换一个 MP3 或 M4A 文件');
     }
-  }
-
-  function scheduleBubbles(context, output) {
-    function nextBubble() {
-      if (!state.playing || state.ambienceType !== 'stream') return;
-      var delay = 95 + Math.random() * 260;
-      state.bubbleTimer = window.setTimeout(function () {
-        if (!state.playing || state.ambienceType !== 'stream') return;
-        var source = context.createBufferSource();
-        var filter = context.createBiquadFilter();
-        var gain = context.createGain();
-        var panner = makePanner(context, Math.random() * 1.2 - 0.6);
-        var now = context.currentTime;
-        source.buffer = state.bubbleBuffer;
-        filter.type = 'bandpass';
-        filter.frequency.value = 1150 + Math.random() * 2400;
-        filter.Q.value = 1.1 + Math.random() * 1.8;
-        source.playbackRate.value = 0.75 + Math.random() * 0.8;
-        gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.exponentialRampToValueAtTime(
-          0.012 + Math.random() * 0.018,
-          now + 0.008
-        );
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
-        source.connect(filter);
-        filter.connect(gain);
-        gain.connect(panner);
-        panner.connect(output);
-        source.start(now);
-        source.stop(now + 0.15);
-        source.onended = function () {
-          try { source.disconnect(); filter.disconnect(); gain.disconnect(); panner.disconnect(); } catch (error) {}
-        };
-        nextBubble();
-      }, delay);
-    }
-    nextBubble();
-  }
-
-  function buildStream(context, fadeGain) {
-    var streamLevel = (state.ambienceLevel / 100) * 0.72;
-    var bus = context.createGain();
-    bus.gain.value = streamLevel;
-    bus.connect(fadeGain);
-
-    var convolver = makeStreamSpace(context);
-    var wet = context.createGain();
-    wet.gain.value = 0.13;
-    bus.connect(convolver);
-    convolver.connect(wet);
-    wet.connect(fadeGain);
-
-    function layer(type, filterType, frequency, q, level, pan, lfoRate, lfoDepth) {
-      var source = createSource(context, type);
-      var filter = context.createBiquadFilter();
-      var gain = context.createGain();
-      var panner = makePanner(context, pan);
-      filter.type = filterType;
-      filter.frequency.value = frequency;
-      filter.Q.value = q;
-      gain.gain.value = level;
-      var lfo = context.createOscillator();
-      var depth = context.createGain();
-      lfo.frequency.value = lfoRate;
-      depth.gain.value = lfoDepth;
-      lfo.connect(depth);
-      depth.connect(gain.gain);
-      source.connect(filter);
-      filter.connect(gain);
-      gain.connect(panner);
-      panner.connect(bus);
-      source.start();
-      lfo.start();
-      state.sources.push(source, lfo);
-    }
-
-    layer('pink', 'highpass', 240, 0.35, 0.38, -0.2, 0.085, 0.055);
-    layer('pink', 'bandpass', 1750, 0.72, 0.17, 0.24, 0.13, 0.022);
-    layer('brown', 'lowpass', 310, 0.3, 0.16, 0.04, 0.055, 0.018);
-    layer('white', 'bandpass', 3150, 0.9, 0.028, 0.12, 0.19, 0.005);
-
-    state.bubbleBuffer = makeBubbleBuffer(context);
-    scheduleBubbles(context, bus);
   }
 
   async function buildAudio(context) {
@@ -534,77 +349,8 @@
     master.connect(compressor);
     compressor.connect(context.destination);
     state.fadeGain = fadeGain;
-
-    if (state.baseLevel > 0) {
-      var base = createSource(context, state.baseType);
-      var baseGain = context.createGain();
-      baseGain.gain.value = (state.baseLevel / 100) * 0.48;
-      base.connect(baseGain);
-      baseGain.connect(fadeGain);
-      base.start();
-    }
-
-    if (state.ambienceType === 'none' || state.ambienceLevel <= 0) return;
-    if (state.ambienceType === 'stream') {
-      buildStream(context, fadeGain);
-      return;
-    }
-    if (state.ambienceType === 'library') {
-      await buildLibraryAudio(context, fadeGain);
-      return;
-    }
-    var ambience = createSource(
-      context,
-      state.ambienceType === 'fan' || state.ambienceType === 'waves' ? 'brown' : 'white'
-    );
-    var ambienceGain = context.createGain();
-    var ambienceLevel = (state.ambienceLevel / 100) * 0.38;
-    ambienceGain.gain.value = ambienceLevel;
-    var filter = context.createBiquadFilter();
-
-    if (state.ambienceType === 'rain') {
-      filter.type = 'bandpass';
-      filter.frequency.value = 2600;
-      filter.Q.value = 0.55;
-      ambience.connect(filter);
-      filter.connect(ambienceGain);
-    } else if (state.ambienceType === 'fan') {
-      filter.type = 'lowpass';
-      filter.frequency.value = 920;
-      filter.Q.value = 0.35;
-      var fanMod = context.createGain();
-      fanMod.gain.value = 0.82;
-      var fanLfo = context.createOscillator();
-      var fanDepth = context.createGain();
-      fanLfo.frequency.value = 0.22;
-      fanDepth.gain.value = 0.16;
-      fanLfo.connect(fanDepth);
-      fanDepth.connect(fanMod.gain);
-      ambience.connect(filter);
-      filter.connect(fanMod);
-      fanMod.connect(ambienceGain);
-      state.sources.push(fanLfo);
-      fanLfo.start();
-    } else {
-      filter.type = 'lowpass';
-      filter.frequency.value = 1500;
-      filter.Q.value = 0.25;
-      var waveMod = context.createGain();
-      waveMod.gain.value = 0.72;
-      var waveLfo = context.createOscillator();
-      var waveDepth = context.createGain();
-      waveLfo.frequency.value = 0.085;
-      waveDepth.gain.value = 0.28;
-      waveLfo.connect(waveDepth);
-      waveDepth.connect(waveMod.gain);
-      ambience.connect(filter);
-      filter.connect(waveMod);
-      waveMod.connect(ambienceGain);
-      state.sources.push(waveLfo);
-      waveLfo.start();
-    }
-    ambienceGain.connect(fadeGain);
-    ambience.start();
+    state.masterGain = master;
+    await buildLibraryAudio(context, fadeGain);
   }
 
   function fadeFactor(remainingMs, fadeMinutes) {
@@ -646,14 +392,15 @@
 
   async function startSession(secondsOverride) {
     if (state.playing) return;
-    if (state.ambienceType === 'library' && !state.selectedAudioId) {
-      setStatus('请先在“我的永久音频”里上传并选择一个音频。', 'err');
+    if (!state.selectedAudioId) {
+      setStatus('请先上传并选择一个音频。', 'err');
+      document.querySelector('.audio-head').scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
     stopSources(0.05);
     var AudioCtor = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtor) {
-      setStatus('当前浏览器不支持 Web Audio，无法生成白噪音。', 'err');
+      setStatus('当前浏览器不支持 Web Audio，无法播放音频。', 'err');
       return;
     }
     startBtn.disabled = true;
@@ -687,7 +434,7 @@
       }
     } catch (error) {
       state.playing = false;
-      state.context = null;
+      stopSources(0.05);
       setStatus('启动声音失败：' + (error.message || error), 'err');
     } finally {
       startBtn.disabled = false;
@@ -697,9 +444,6 @@
   function stopSources(delay) {
     window.clearInterval(state.timer);
     state.timer = 0;
-    window.clearTimeout(state.bubbleTimer);
-    state.bubbleTimer = 0;
-    state.bubbleBuffer = null;
     if (state.mediaElement) {
       try { state.mediaElement.pause(); } catch (error) {}
       try {
@@ -715,6 +459,7 @@
     var context = state.context;
     state.context = null;
     state.fadeGain = null;
+    state.masterGain = null;
     if (context) {
       window.setTimeout(function () {
         context.close().catch(function () {});
@@ -769,12 +514,18 @@
       state.pauseStarted = 0;
       state.paused = false;
       await state.context.resume();
+      if (state.mediaElement) {
+        try { await state.mediaElement.play(); } catch (error) {}
+      }
       toggleAudioBtn.textContent = '暂停';
       scheduleTick();
       if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
     } else {
       state.paused = true;
       state.pauseStarted = performance.now();
+      if (state.mediaElement) {
+        try { state.mediaElement.pause(); } catch (error) {}
+      }
       await state.context.suspend();
       window.clearInterval(state.timer);
       state.timer = 0;
@@ -816,24 +567,6 @@
   }
 
   function bindChoices() {
-    document.querySelectorAll('[data-base]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        state.baseType = button.dataset.base;
-        syncControls();
-      });
-    });
-    document.querySelectorAll('[data-ambience]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        state.ambienceType = button.dataset.ambience;
-        syncControls();
-      });
-    });
-    document.querySelector('[data-ambience="library"]').addEventListener('click', function () {
-      if (!state.selectedAudioId) {
-        setStatus('先在下面上传一个音频，上传后会永久保存。', 'info');
-        document.querySelector('.audio-head').scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    });
     uploadAudioBtn.addEventListener('click', function () { $('audioFile').click(); });
     $('audioFile').addEventListener('change', function (event) {
       var file = event.target.files && event.target.files[0];
@@ -852,16 +585,15 @@
         syncControls();
       });
     });
-    $('baseLevel').addEventListener('input', function (event) {
-      state.baseLevel = Number(event.target.value);
-      syncControls();
-    });
-    $('ambienceLevel').addEventListener('input', function (event) {
-      state.ambienceLevel = Number(event.target.value);
-      syncControls();
-    });
     $('volumeLevel').addEventListener('input', function (event) {
       state.volume = Number(event.target.value);
+      if (state.masterGain && state.context) {
+        state.masterGain.gain.setTargetAtTime(
+          Math.pow(state.volume / 100, 1.45),
+          state.context.currentTime,
+          0.05
+        );
+      }
       syncControls();
     });
   }

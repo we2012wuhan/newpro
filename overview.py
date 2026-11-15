@@ -129,11 +129,7 @@ def _excerpt(tool: str, payload: dict) -> str:
         size = ' × '.join(str(params.get(k)) for k in ('width', 'depth', 'height') if params.get(k))
         return model + (('：' + size + ' mm') if size else '')
     if tool == 'sleep':
-        base = {'white': '白噪音', 'pink': '粉红噪音', 'brown': '棕噪音'}.get(
-            payload.get('base_type'), '底噪')
-        ambience = {'none': '', 'stream': '溪流', 'rain': '细雨', 'fan': '风扇', 'waves': '海浪'}.get(
-            payload.get('ambience_type'), '')
-        return base + ((' + ' + ambience) if ambience else '') + \
+        return (_text(payload.get('audio_title')) or '我的音频') + \
             ' · %s 分钟' % (payload.get('duration') or 30)
     return ''
 
@@ -346,16 +342,10 @@ def _detail(tool: str, payload: dict) -> list:
             if params.get(key) is not None:
                 add(label, params.get(key), 20)
     elif tool == 'sleep':
-        names = {
-            'base': {'white': '白噪音', 'pink': '粉红噪音', 'brown': '棕噪音'},
-            'ambience': {'none': '无', 'stream': '溪流', 'rain': '细雨', 'fan': '风扇', 'waves': '海浪'},
-        }
-        add('底噪', names['base'].get(payload.get('base_type')), 20)
-        add('底噪强度', payload.get('base_level'), 8)
-        add('环境声', names['ambience'].get(payload.get('ambience_type')), 20)
-        add('环境音量', payload.get('ambience_level'), 8)
+        add('音频', payload.get('audio_title') or '我的音频', 40)
         add('播放时长', payload.get('duration'), 8)
         add('淡出', payload.get('fade'), 8)
+        add('音量', payload.get('volume'), 8)
     elif tool == 'web-search':
         add('问题', payload.get('query'))
         add('模式', '深度' if payload.get('mode') == 'deep' else '快速', 8)

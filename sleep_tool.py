@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""睡前打烊：内置声音由浏览器合成，也支持数据卷永久音频和 SQLite 预设。"""
+"""睡前打烊：只播放用户上传的永久音频，声音预设存 SQLite。"""
 import hashlib
 import secrets
 from pathlib import Path
@@ -21,8 +21,6 @@ MAX_AUDIO_BYTES = 100 * 1024 * 1024
 _BASE_DIR = Path(__file__).resolve().parent
 _TEMPLATE_FILE = _BASE_DIR / 'templates' / 'sleep.html'
 
-BASE_TYPES = {'white', 'pink', 'brown'}
-AMBIENCE_TYPES = {'none', 'stream', 'rain', 'fan', 'waves', 'library'}
 DURATIONS = {20, 30, 45, 60}
 FADES = {0, 5, 10, 15}
 
@@ -88,12 +86,6 @@ def _number(value, minimum, maximum, default):
 
 
 def _clean_preset(payload: dict):
-    base_type = str(payload.get('base_type') or 'brown')
-    ambience_type = str(payload.get('ambience_type') or 'stream')
-    if base_type not in BASE_TYPES:
-        base_type = 'brown'
-    if ambience_type not in AMBIENCE_TYPES:
-        ambience_type = 'stream'
     try:
         audio_id = int(payload.get('audio_id') or 0)
     except (TypeError, ValueError):
@@ -115,14 +107,12 @@ def _clean_preset(payload: dict):
     if not title:
         title = '睡前声音预设'
     return title, {
-        'base_type': base_type,
-        'base_level': round(_number(payload.get('base_level'), 0, 100, 0)),
-        'ambience_type': ambience_type,
-        'ambience_level': round(_number(payload.get('ambience_level'), 0, 100, 58)),
+        'ambience_type': 'library',
+        'audio_id': max(0, audio_id),
+        'audio_title': str(payload.get('audio_title') or '').strip()[:80],
         'duration': duration,
         'fade': fade,
         'volume': round(_number(payload.get('volume'), 0, 100, 65)),
-        'audio_id': max(0, audio_id),
     }
 
 
@@ -151,10 +141,11 @@ def _save_preset(user: str, title: str, payload: dict):
     existing = storage.list_records(TOOL, user, limit=MAX_PRESETS)
     if len(existing) >= MAX_PRESETS:
         return None, '最多保存 %d 个声音预设，请先删除一个。' % MAX_PRESETS
-    if payload.get('ambience_type') == 'library':
-        audio = storage.get_record(user, payload.get('audio_id') or 0)
-        if not audio or audio.get('tool') != AUDIO_TOOL:
-            return None, '请选择一个已经上传的永久音频。'
+    audio = storage.get_record(user, payload.get('audio_id') or 0)
+    if not audio or audio.get('tool') != AUDIO_TOOL:
+        return None, '请选择一个已经上传的音频。'
+    if not payload.get('audio_title'):
+        payload['audio_title'] = audio.get('title') or '我的音频'
     return storage.add_record(TOOL, user, title, payload), ''
 
 

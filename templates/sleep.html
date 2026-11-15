@@ -67,16 +67,9 @@ h1{margin:0;color:var(--ink);font-size:30px;line-height:1.3;letter-spacing:.02em
 .card-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:15px}
 .card-title{font-size:14px;font-weight:680;color:var(--ink)}
 .card-note{margin-left:auto;font-size:11px;color:var(--muted)}
-.sound-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.sound-block{min-width:0;padding:13px;border-radius:14px;background:rgba(9,25,37,.52);border:1px solid var(--line)}
 .block-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
 .block-title b{font-size:12px;color:var(--ink)}
 .block-title span{font-size:10.5px;color:var(--muted)}
-.choices{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px}
-.choice{min-height:40px;padding:0 12px;border-radius:9px;border:1px solid var(--line);
-  background:var(--field);color:var(--muted);font-size:12px;cursor:pointer}
-.choice:hover{color:var(--text);border-color:var(--line2)}
-.choice.on{color:var(--ink);border-color:var(--acc-line);background:var(--acc-l)}
 .slider-row{display:grid;grid-template-columns:1fr 46px;gap:8px;align-items:center}
 .slider-row label{font-size:10.5px;color:var(--muted)}
 .slider-row output{font-size:10.5px;color:var(--text);text-align:right;font-variant-numeric:tabular-nums}
@@ -120,7 +113,9 @@ h1{margin:0;color:var(--ink);font-size:30px;line-height:1.3;letter-spacing:.02em
 .empty{grid-column:1 / -1;padding:18px;border:1px dashed var(--line);border-radius:11px;
   text-align:center;color:var(--muted);font-size:11.5px;line-height:1.7}
 .audio-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:13px}
-.audio-head .card-note{margin-left:auto}
+.audio-head > div{min-width:0}
+.audio-head .card-note{margin-left:0}
+.audio-head .upload-btn{margin-left:auto}
 .upload-btn{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--acc-line);
   background:var(--acc-l);color:var(--acc);font-size:12px;font-weight:650;cursor:pointer}
 .upload-btn:disabled{opacity:.5;cursor:wait}
@@ -170,7 +165,7 @@ h1{margin:0;color:var(--ink);font-size:30px;line-height:1.3;letter-spacing:.02em
   .night-orb{display:none}
   h1{font-size:25px}
   .card{padding:14px;border-radius:16px}
-  .sound-grid,.setting-grid{grid-template-columns:1fr}
+  .setting-grid{grid-template-columns:1fr}
   .preset-grid{grid-template-columns:1fr}
   .audio-list{grid-template-columns:1fr}
   .back span{display:none}
@@ -205,61 +200,27 @@ h1{margin:0;color:var(--ink);font-size:30px;line-height:1.3;letter-spacing:.02em
     <div class="hero-main">
       <div class="kicker">Sleep shutdown</div>
       <h1>今天到这里，剩下的明天再说。</h1>
-      <p>默认只播放更自然的溪流层，不叠加粗糙底噪。需要时再自行加入粉红或棕噪音。</p>
+      <p>只播放你自己上传的音频。上传一次，手机和电脑登录都能用；到点会自动淡出。</p>
     </div>
     <div class="night-orb" aria-hidden="true"></div>
   </section>
 
   <section class="card">
-    <div class="card-head">
-      <div class="card-title">今晚听什么</div>
-      <div class="card-note">声音在手机本地实时生成</div>
-    </div>
-    <div class="sound-grid">
-      <div class="sound-block">
-        <div class="block-title"><b>基础底噪</b><span>默认关闭，避免电子沙沙声</span></div>
-        <div class="choices" id="baseChoices">
-          <button class="choice" type="button" data-base="white">白噪音</button>
-          <button class="choice" type="button" data-base="pink">粉红噪音</button>
-          <button class="choice on" type="button" data-base="brown">棕噪音</button>
-        </div>
-        <div class="slider-row">
-          <label for="baseLevel">底噪强度</label>
-          <output id="baseValue">0%</output>
-          <input id="baseLevel" type="range" min="0" max="100" step="1" value="0">
-        </div>
-      </div>
-
-      <div class="sound-block">
-        <div class="block-title"><b>环境场景</b><span>给房间加一点空间感</span></div>
-        <div class="choices" id="ambienceChoices">
-          <button class="choice" type="button" data-ambience="none">无</button>
-          <button class="choice on" type="button" data-ambience="stream">溪流</button>
-          <button class="choice" type="button" data-ambience="rain">细雨</button>
-          <button class="choice" type="button" data-ambience="fan">风扇</button>
-          <button class="choice" type="button" data-ambience="waves">海浪</button>
-          <button class="choice" type="button" data-ambience="library">我的音频</button>
-        </div>
-        <div class="slider-row">
-          <label for="ambienceLevel">场景音量</label>
-          <output id="ambienceValue">58%</output>
-          <input id="ambienceLevel" type="range" min="0" max="100" step="1" value="58">
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="card">
     <div class="audio-head">
       <div>
-        <div class="card-title">我的永久音频</div>
-        <div class="card-note">上传一次，手机和电脑登录都能使用</div>
+        <div class="card-title">今晚听什么</div>
+        <div class="card-note">只播放「我的音频」里的声音</div>
       </div>
       <button class="upload-btn" id="uploadAudioBtn" type="button">上传音频</button>
       <input id="audioFile" type="file" accept="audio/*,.mp3,.m4a,.aac,.ogg,.opus,.wav,.flac,.webm" hidden>
     </div>
     <div class="audio-help">支持 MP3、M4A、AAC、OGG、WAV、FLAC、WEBM，单文件最大 100MB。文件保存到服务器数据卷，不会公开给其他账号。</div>
     <div class="audio-list" id="audioList"></div>
+    <div class="volume slider-row">
+      <label for="volumeLevel">播放音量</label>
+      <output id="volumeValue">65%</output>
+      <input id="volumeLevel" type="range" min="0" max="100" step="1" value="65">
+    </div>
   </section>
 
   <section class="card">
@@ -287,14 +248,9 @@ h1{margin:0;color:var(--ink);font-size:30px;line-height:1.3;letter-spacing:.02em
         </div>
       </div>
     </div>
-    <div class="volume slider-row">
-      <label for="volumeLevel">手机总音量</label>
-      <output id="volumeValue">65%</output>
-      <input id="volumeLevel" type="range" min="0" max="100" step="1" value="65">
-    </div>
     <div class="start-row">
       <button class="start-btn" id="startBtn" type="button">开始睡前打烊</button>
-      <div class="start-aside">默认只响溪流。也可以在“我的永久音频”里上传喜欢的流水录音。</div>
+      <div class="start-aside">只播放「我的音频」里选中的声音，上传一次即可在手机和电脑使用。</div>
     </div>
     <div class="status" id="status" role="status" aria-live="polite"></div>
   </section>
@@ -307,13 +263,13 @@ h1{margin:0;color:var(--ink);font-size:30px;line-height:1.3;letter-spacing:.02em
       </div>
     </div>
     <div class="save-row">
-      <input id="presetName" type="text" maxlength="50" placeholder="例如：雨夜 30 分钟">
+      <input id="presetName" type="text" maxlength="50" placeholder="例如：睡前 30 分钟">
       <button id="savePreset" type="button">保存预设</button>
     </div>
     <div class="preset-grid" id="presetList"></div>
   </section>
 
-  <p class="fineprint">白噪音可以帮助遮蔽环境声音，并形成固定的睡前提示，但它不能代替失眠治疗。<br>
+  <p class="fineprint">上传的音频只保存在你自己的账号下，不会公开给其他账号。<br>
     网页音频在锁屏后是否持续播放取决于手机系统，建议你先用自己的小米手机实际测试一次。</p>
 </main>
 
