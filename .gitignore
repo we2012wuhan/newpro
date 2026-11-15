@@ -38,6 +38,7 @@ data/
 *.db
 
 # ---- 本地临时文件 / 调试截图 ----
+.tmp/
 _shot_*.png
 _shot_*.jpg
 _v_*.png

@@ -50,6 +50,19 @@ _CACHE_MAX_BYTES = 48 * 1024 * 1024   # 音频缓存上限，超了丢最老的
 _KEY_HINT = ('需在服务端配置环境变量 %s（火山引擎语音合成控制台里开通后拿到）'
              % ENV_TTS_KEY)
 
+# 豆包语音合成 2.0 的表达力控制。多情感音色支持的情绪枚举因音色而异，
+# 这里只放播客常用的几个；不支持时 synthesize() 会自动回落到纯文本参数。
+_EMOTIONS = {'happy', 'surprised', 'calm', 'tender', 'excited', 'sad'}
+_EMOTION_ALIASES = {
+    '开心': 'happy', '高兴': 'happy', '愉快': 'happy', '轻松': 'happy',
+    '惊讶': 'surprised', '好奇': 'surprised',
+    '平静': 'calm', '认真': 'calm', '沉稳': 'calm',
+    '温柔': 'tender', '亲切': 'tender', '柔和': 'tender',
+    '兴奋': 'excited', '激动': 'excited',
+    '难过': 'sad', '低落': 'sad', '无奈': 'sad',
+    '中性': '', 'neutral': '', '普通': '',
+}
+
 # 有序字典当 LRU 用：命中就挪到末尾，满了从头丢
 _cache = collections.OrderedDict()
 _cache_bytes = 0
@@ -84,36 +97,57 @@ def _speed_rate(speed):
     return max(-50, min(100, rate))
 
 
-def synthesize(text, voice=None, speed=None):
-    """合成一段文字 -> (mp3 字节, 计费字数)。失败抛 ValueError（消息可以直接给用户看）。"""
-    text = (text or '').strip()
-    if not text:
-        raise ValueError('没有要朗读的内容')
-    if len(text) > _MAX_CHARS:
-        raise ValueError('这一段有 %d 个字，超过单次 %d 字上限，请分句朗读'
-                         % (len(text), _MAX_CHARS))
-    key = volc_tts_key()
-    if not key:
-        raise ValueError('服务端没有配置语音合成 Key（%s）' % ENV_TTS_KEY)
+def _normalize_emotion(value):
+    raw = str(value or '').strip().lower()
+    raw = _EMOTION_ALIASES.get(raw, raw)
+    return raw if raw in _EMOTIONS else ''
 
-    use_voice = (voice or '').strip() or volc_tts_voice()
-    use_speed = volc_tts_speed() if speed is None else speed
 
-    hit = _cache_get(text, use_voice, use_speed)
-    if hit is not None:
-        return hit
+def _normalize_scale(value):
+    try:
+        scale = float(value)
+    except (TypeError, ValueError):
+        scale = 3.0
+    return round(max(1.0, min(5.0, scale)), 1)
 
-    payload = {
-        'req_params': {
-            'text': text,
-            'speaker': use_voice,
-            'audio_params': {
-                'format': 'mp3',
-                'sample_rate': _SAMPLE_RATE,
-                'speech_rate': _speed_rate(use_speed),
-            },
-        }
+
+def _context_texts(context):
+    """把一句风格说明整理成 context_texts；只保留第一条（官方只有首条生效）。"""
+    if isinstance(context, str):
+        items = [context]
+    elif isinstance(context, (list, tuple)):
+        items = list(context)
+    else:
+        items = []
+    for item in items:
+        text = str(item or '').strip()[:200]
+        if text:
+            return [text]
+    return []
+
+
+def _build_payload(text, voice, speed, emotion='', scale=0.0, additions=''):
+    audio_params = {
+        'format': 'mp3',
+        'sample_rate': _SAMPLE_RATE,
+        'speech_rate': _speed_rate(speed),
     }
+    if emotion:
+        # 实测：emotion 必须放在 audio_params 里。写成文本内联标签会被当成正文读出来。
+        audio_params['emotion'] = emotion
+        audio_params['emotion_scale'] = scale
+    params = {
+        'text': text,
+        'speaker': voice,
+        'audio_params': audio_params,
+    }
+    if additions:
+        # 实测：additions 是字符串字段，不是对象；传 JSON 字符串才能被解析。
+        params['additions'] = additions
+    return {'req_params': params}
+
+
+def _post(payload, key):
     headers = {
         'X-Api-Key': key,
         'X-Api-Resource-Id': volc_tts_resource(),
@@ -122,12 +156,14 @@ def synthesize(text, voice=None, speed=None):
         'Content-Type': 'application/json',
     }
     try:
-        resp = _session.post(_API_URL, headers=headers, json=payload, timeout=_TIMEOUT)
+        return _session.post(_API_URL, headers=headers, json=payload, timeout=_TIMEOUT)
     except requests.exceptions.Timeout:
         raise ValueError('语音合成响应超时，请稍后再试')
     except requests.exceptions.RequestException as exc:
         raise ValueError('连不上语音合成接口：' + str(exc)[:160])
 
+
+def _parse_audio(resp):
     if resp.status_code >= 400:
         code = 0
         try:
@@ -138,6 +174,7 @@ def synthesize(text, voice=None, speed=None):
 
     chunks = []
     words = 0
+    error = ''
     for line in (resp.text or '').splitlines():
         line = line.strip()
         if not line:
@@ -147,6 +184,10 @@ def synthesize(text, voice=None, speed=None):
         except ValueError:
             continue
         if not isinstance(item, dict):
+            continue
+        code = item.get('code')
+        if code not in (None, 0, '0'):
+            error = str(item.get('message') or ('错误码 %s' % code))
             continue
         usage = item.get('usage') or {}
         if isinstance(usage, dict) and usage.get('text_words'):
@@ -160,30 +201,83 @@ def synthesize(text, voice=None, speed=None):
 
     audio = b''.join(chunks)
     if not audio:
+        if error:
+            raise ValueError('语音合成接口返回错误：%s' % error[:160])
         raise ValueError('语音合成没有返回音频，稍后再试')
+    return audio, words
+
+
+def synthesize(text, voice=None, speed=None, emotion=None, intensity=None,
+               context=None):
+    """合成一段文字 -> (mp3 字节, 计费字数)。失败抛 ValueError（消息可以直接给用户看）。
+
+    emotion / intensity / context 是豆包语音合成 2.0 的可选表达力控制：
+      · emotion: happy / surprised / calm / tender / excited / sad
+      · intensity: 1~5，默认 3
+      · context: 一句自然语言风格说明，例如“像朋友私下聊天，不要播音腔”
+    个别音色或资源不支持这些参数时，会自动回落到普通请求，不会让整期播客失败。
+    """
+    text = (text or '').strip()
+    if not text:
+        raise ValueError('没有要朗读的内容')
+    if len(text) > _MAX_CHARS:
+        raise ValueError('这一段有 %d 个字，超过单次 %d 字上限，请分句朗读'
+                         % (len(text), _MAX_CHARS))
+    key = volc_tts_key()
+    if not key:
+        raise ValueError('服务端没有配置语音合成 Key（%s）' % ENV_TTS_KEY)
+
+    use_voice = (voice or '').strip() or volc_tts_voice()
+    use_speed = volc_tts_speed() if speed is None else speed
+    emotion = _normalize_emotion(emotion)
+    scale = _normalize_scale(intensity) if emotion else 0.0
+    contexts = _context_texts(context)
+
+    extra = '%s|%g|%s' % (emotion, scale, ';'.join(contexts))
+    hit = _cache_get(text, use_voice, use_speed, extra)
+    if hit is not None:
+        return hit
+
+    additions = ''
+    if contexts:
+        additions = json.dumps({'context_texts': contexts}, ensure_ascii=False)
+    expressive = bool(emotion or additions)
+
+    resp = _post(_build_payload(
+        text, use_voice, use_speed, emotion, scale, additions), key)
+    try:
+        audio, words = _parse_audio(resp)
+    except ValueError:
+        if not expressive or getattr(resp, 'status_code', 0) in (401, 429):
+            raise
+        # 某个音色不支持表达力参数时，退回最普通的请求再试一次。
+        resp = _post(_build_payload(text, use_voice, use_speed), key)
+        audio, words = _parse_audio(resp)
+
     if not words:
         words = len(text)
-    _cache_put(text, use_voice, use_speed, audio, words)
+    _cache_put(text, use_voice, use_speed, extra, audio, words)
     return audio, words
 
 
 # ---------------- 音频缓存（内存，重启即清） ----------------
-def _cache_key(text, voice, speed):
-    raw = '%s|%s|%s' % (voice, speed, text)
+def _cache_key(text, voice, speed, extra=''):
+    raw = '%s|%s|%s|%s' % (voice, speed, extra, text)
     return hashlib.sha1(raw.encode('utf-8')).hexdigest()
 
 
-def _cache_get(text, voice, speed):
-    item = _cache.get(_cache_key(text, voice, speed))
+def _cache_get(text, voice, speed, extra=''):
+    k = _cache_key(text, voice, speed, extra)
+    item = _cache.get(k)
     if item is None:
         return None
-    _cache.move_to_end(_cache_key(text, voice, speed))
+    _cache.move_to_end(k)
     return item
 
 
-def _cache_put(text, voice, speed, audio, words):
+def _cache_put(text, voice, speed, extra, audio, words):
     global _cache_bytes
-    k = _cache_key(text, voice, speed)
+    k = _cache_key(text, voice, speed, extra)
     if k in _cache:
         _cache_bytes -= len(_cache[k][0])
         del _cache[k]
@@ -205,15 +299,24 @@ async def tts_speak(payload: dict):
     text = ''
     voice = ''
     speed = None
+    emotion = ''
+    intensity = None
+    context = None
     if isinstance(payload, dict):
         text = str(payload.get('text') or '')
         voice = str(payload.get('voice') or '')
         if payload.get('speed') is not None:
             speed = payload.get('speed')
+        emotion = str(payload.get('emotion') or '')
+        if payload.get('intensity') is not None:
+            intensity = payload.get('intensity')
+        if payload.get('context') is not None:
+            context = payload.get('context')
     if not tts_ready():
         return JSONResponse({'ok': False, 'message': '服务端没有配置语音合成 Key（%s）' % ENV_TTS_KEY})
     try:
-        audio, words = await run_in_threadpool(synthesize, text, voice, speed)
+        audio, words = await run_in_threadpool(
+            synthesize, text, voice, speed, emotion, intensity, context)
     except ValueError as exc:
         return JSONResponse({'ok': False, 'message': str(exc)})
     except Exception as exc:                      # 兜底：任何意外都别把页面读不出声变成 500
