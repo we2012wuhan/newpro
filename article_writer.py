@@ -61,7 +61,18 @@ DEFAULT_DAILY_IMAGES = 24
 DEFAULT_TTL_DAYS = 7
 LLM_TIMEOUT = (10, 180)
 OUTLINE_LIMIT = 6              # 每用户每分钟最多请求几次大纲
+REFINE_LIMIT = 12              # 每用户每分钟最多润色 / 扩写几次
+MAX_EDIT_PARAGRAPH = 2000      # 编辑后的单段上限；原生成段落通常不超过 500 字
+MAX_SELECTION = 1600
 FLASH_MODEL = 'doubao-seedream-5-0-flash-260915'
+
+REFINE_ACTIONS = {
+    'polish': ('润色', '保持原意、事实和段落位置不变，让表达更准确、顺畅、有节奏；'
+                       '不添加新的信息或例子，长度和原文接近。'),
+    'expand': ('扩展', '在保持原意和语气的前提下，把选中内容写得更充分：'
+                       '补充解释、具体场景、因果或自然过渡；长度约为原文的 1.5～2 倍，'
+                       '不要重复，不要编造无法核实的数字、人名、时间或研究结论。'),
+}
 
 _BASE_DIR = Path(__file__).resolve().parent
 _TEMPLATE_FILE = _BASE_DIR / 'templates' / 'article.html'
@@ -95,9 +106,17 @@ IMAGE_STYLES = {
     'watercolor': '水彩',
     'minimal': '极简',
     '3d': '3D 渲染',
+    'notion': 'Notion 信息图',
+    'comic': '漫画信息图',
 }
 
+# 信息图风格需要中文标注，所以不能像普通配图那样一律禁止文字。
+INFOGRAPHIC_STYLES = ('notion', 'comic')
 IMAGE_NEGATIVE = '文字、字母、水印、logo、边框、低清晰度、畸形'
+STYLE_NEGATIVES = {
+    'notion': '水印、logo、乱码错字、低清晰度、畸形、密集小字、粗黑边框',
+    'comic': '水印、logo、乱码错字、低清晰度、畸形、照片写实、3D 效果',
+}
 JSON_SYSTEM = (
     '你是一位资深中文编辑。你只输出一个合法的 JSON 对象，'
     '不要 Markdown 代码块，不要解释，不要任何前后缀。'
@@ -550,6 +569,129 @@ def _llm_section(job: dict, section: dict, index: int, previous_tail: str) -> di
 
 
 # ---------------------------------------------------------------
+# 段落润色 / 扩展
+# ---------------------------------------------------------------
+def _refine_prompt(job: dict, section: dict, paragraph: str, selected: str,
+                   action: str) -> str:
+    outline = job.get('outline') if isinstance(job.get('outline'), dict) else {}
+    action_label, action_hint = REFINE_ACTIONS[action]
+    genre_label, genre_hint = GENRES.get(job.get('genre') or 'insight') or GENRES['insight']
+    tone_label, tone_hint = TONES.get(job.get('tone') or 'warm') or TONES['warm']
+    parts = [
+        '你在修改一篇中文文章中的一段文字。只替换「选中文字」，并让它和整段自然衔接。',
+        '',
+        '【全文标题】' + str(outline.get('title') or job.get('title') or ''),
+        '【全文导语】' + str(outline.get('summary') or ''),
+        '【本节小标题】' + str(section.get('heading') or ''),
+        '【文章类型】%s：%s' % (genre_label, genre_hint),
+        '【语气】%s：%s' % (tone_label, tone_hint),
+        '',
+        '【这一段完整原文】',
+        paragraph,
+        '',
+        '【需要处理的选中文字】',
+        selected,
+        '',
+        '【任务】%s：%s' % (action_label, action_hint),
+        '',
+        '【输出要求】',
+        '1. 只输出替换「选中文字」后的那一小段文字本身，不要输出整段或上下文。',
+        '2. 不要加引号、标签、标题、解释或 Markdown，不要写“润色如下”之类的话。',
+        '3. 和前后文衔接自然，不要重复相邻句子。',
+        '4. 不编造无法核实的具体数字、人名、时间或研究结论。',
+    ]
+    points = section.get('points')
+    if isinstance(points, list) and points:
+        parts.insert(5, '【本节要点】' + '；'.join(str(point) for point in points[:4]))
+    return '\n'.join(parts)
+
+
+def _llm_refine(job: dict, section: dict, paragraph: str, selected: str,
+                action: str) -> str:
+    messages = [
+        {'role': 'system', 'content':
+            '你是一位资深中文编辑。你只输出修改后的文字本身，不要解释，不要 Markdown。'},
+        {'role': 'user', 'content':
+            _refine_prompt(job, section, paragraph, selected, action)},
+    ]
+    temperature = 0.55 if action == 'polish' else 0.7
+    max_tokens = max(600, min(3000, int(len(selected) * 2.2) + 300))
+    raw = _chat(messages, temperature, max_tokens)
+    text = _clean_text(raw, MAX_EDIT_PARAGRAPH + 1)
+    text = text.strip('“”"\'「」『』')
+    if not text:
+        raise ArticleError('模型没有返回可用文字，请重试')
+    if len(text) > MAX_EDIT_PARAGRAPH:
+        raise ArticleError('改写结果太长了，缩小选中范围再试')
+    return text
+
+
+def _replace_selection(paragraph: str, start: int, end: int,
+                       replacement: str) -> str:
+    merged = _clean_text(paragraph[:start] + replacement + paragraph[end:],
+                         MAX_EDIT_PARAGRAPH + 1)
+    if len(merged) > MAX_EDIT_PARAGRAPH:
+        raise ArticleError('替换后这一段太长了，缩小选中范围或改用润色')
+    return merged
+
+
+def _clean_selection(body) -> dict:
+    if not isinstance(body, dict):
+        raise ValueError('请求格式不正确')
+    try:
+        section_index = int(body.get('sectionIndex'))
+        paragraph_index = int(body.get('paragraphIndex'))
+        start = int(body.get('start'))
+        end = int(body.get('end'))
+    except (TypeError, ValueError):
+        raise ValueError('选中的文字位置不正确，请重新选择')
+    if section_index < 0 or paragraph_index < 0 or start < 0 or end <= start:
+        raise ValueError('选中的文字位置不正确，请重新选择')
+    if end - start > MAX_SELECTION:
+        raise ValueError('一次最多处理 %d 字，请缩小选中范围' % MAX_SELECTION)
+    action = str(body.get('action') or '').strip().lower()
+    if action not in REFINE_ACTIONS:
+        raise ValueError('不支持的润色方式')
+    return {
+        'section_index': section_index,
+        'paragraph_index': paragraph_index,
+        'start': start,
+        'end': end,
+        'action': action,
+    }
+
+
+def _edit_target(job: dict, section_index: int, paragraph_index: int) -> tuple:
+    sections = job.get('sections') if isinstance(job.get('sections'), list) else []
+    if section_index >= len(sections) or not isinstance(sections[section_index], dict):
+        raise ValueError('找不到这一段，文章可能已经更新')
+    section = sections[section_index]
+    paragraphs = section.get('paragraphs')
+    if not isinstance(paragraphs, list) or paragraph_index >= len(paragraphs):
+        raise ValueError('找不到这一段，文章可能已经更新')
+    paragraph = str(paragraphs[paragraph_index] or '')
+    if not paragraph:
+        raise ValueError('这一段是空的，不能编辑')
+    return sections, section, paragraph
+
+
+def _sync_history(job: dict, sections: list, body_chars: int) -> None:
+    try:
+        records = storage.list_records(TOOL, job.get('user') or '', 100)
+        for record in records:
+            payload = record.get('payload')
+            if not isinstance(payload, dict) or payload.get('jobId') != job['id']:
+                continue
+            payload = dict(payload)
+            payload['bodyChars'] = int(body_chars)
+            payload['sections'] = len(sections)
+            storage.update_record(job['user'], record['id'], payload=payload)
+            break
+    except (storage.StorageUnavailable, ValueError, TypeError):
+        pass
+
+
+# ---------------------------------------------------------------
 # 图片
 # ---------------------------------------------------------------
 def _default_image_model() -> str:
@@ -559,34 +701,93 @@ def _default_image_model() -> str:
     return model_config.ark_image_model()
 
 
+def _outline_section(job: dict, index: int) -> dict:
+    outline = job.get('outline') if isinstance(job.get('outline'), dict) else {}
+    sections = outline.get('sections') if isinstance(outline.get('sections'), list) else []
+    if 0 <= index < len(sections) and isinstance(sections[index], dict):
+        return sections[index]
+    return {}
+
+
+def _points_text(entry: dict) -> str:
+    points = entry.get('points')
+    if not isinstance(points, list):
+        return ''
+    return '；'.join(str(point).strip() for point in points[:4] if str(point).strip())
+
+
 def _cover_prompt(job: dict) -> str:
     outline = job.get('outline') if isinstance(job.get('outline'), dict) else {}
+    style = job.get('image_style') or 'illustration'
+    title = str(outline.get('title') or job.get('topic') or '')
+    summary = str(outline.get('summary') or '')
+    if style == 'notion':
+        # 风格前后缀由 image_gen 负责；这里只描述「画什么」，并允许中文标注。
+        return (
+            '为文章《%s》制作横版 Notion 风格信息图封面。文章导语：%s。'
+            '把文章的核心判断画成 3～4 个手绘图标、简笔人物或小图示，'
+            '用箭头、便签和简短中文标签串起来；突出标题关键词和一句话结论，'
+            '中文文字少而大，留白充足。'
+            % (title, summary or _points_text(_outline_section(job, 0)))
+        )
+    if style == 'comic':
+        return (
+            '为文章《%s》制作竖版三格漫画信息图封面，中文手写标题。'
+            '三格依次呈现：读者熟悉的问题或场景、一个转折或发现、一句话结论。'
+            '用人物或场景围绕主题展开，每格配简短中文标签或对话气泡；导语：%s。'
+            % (title, summary or _points_text(_outline_section(job, 0)))
+        )
+
     genre_label = (GENRES.get(job.get('genre') or 'insight') or GENRES['insight'])[0]
     return (
         '为一篇中文%s文章制作编辑级封面插画。标题：%s。导语：%s。'
         '构图要有明确视觉中心、留白和杂志感，气质与文章一致；'
         '画面里不要出现任何文字、字母或水印。'
-        % (genre_label, str(outline.get('title') or job.get('topic') or ''),
-           str(outline.get('summary') or ''))
+        % (genre_label, title, summary)
     )
 
 
-def _inline_prompt(job: dict, section: dict) -> str:
+def _inline_prompt(job: dict, section: dict, index: int) -> str:
     outline = job.get('outline') if isinstance(job.get('outline'), dict) else {}
-    idea = section.get('imagePrompt') or section.get('imageIdea') or section.get('heading') or ''
+    style = job.get('image_style') or 'illustration'
+    title = str(outline.get('title') or job.get('topic') or '')
+    heading = str(section.get('heading') or '')
+    idea = section.get('imagePrompt') or section.get('imageIdea') or heading
+    if style in INFOGRAPHIC_STYLES:
+        points = (_points_text(_outline_section(job, index))
+                  or str(section.get('imagePrompt') or heading))
+        if style == 'notion':
+            return (
+                '为文章《%s》的小节“%s”制作横版 Notion 风格信息图。本节要点：%s。'
+                '围绕 2～3 个核心点，用手绘图标、箭头、便签和小图示组织成清晰的信息图；'
+                '每块配简短的中文标签，中文文字少而大，不要整段文字。'
+                % (title, heading, points)
+            )
+        return (
+            '为文章《%s》的小节“%s”制作竖版三格漫画信息图，中文手写标题。'
+            '按“场景或问题 → 转折 → 结论”分配三格，人物与场景围绕本节内容：%s；'
+            '画面参考：%s。每格配简短的中文标签或对话气泡。'
+            % (title, heading, points, str(idea))
+        )
     return (
         '为文章《%s》的小节“%s”制作配图。画面内容：%s。'
         '构图干净、有编辑感，和全文气质一致；不要出现文字、字母、水印或 logo。'
-        % (str(outline.get('title') or job.get('topic') or ''),
-           str(section.get('heading') or ''), str(idea))
+        % (title, heading, str(idea))
     )
 
 
 def _image_tasks(job: dict) -> list:
+    style = job.get('image_style') or 'illustration'
+    # 信息图有自己的版式，沿用 /image-gen 的固定比例；中文标注需要更清晰，
+    # 所以内文图也用 2K。普通配图仍保持封面 2K、内文 1K。
+    fixed_ratio = image_gen.STYLE_RATIOS.get(style)
+    cover_ratio = fixed_ratio or '16:9'
+    inline_ratio = fixed_ratio or '4:3'
+    inline_resolution = '2K' if fixed_ratio else '1K'
     tasks = [{
         'role': 'cover',
         'sectionIndex': None,
-        'ratio': '16:9',
+        'ratio': cover_ratio,
         'resolution': '2K',
         'prompt': _cover_prompt(job),
         'name': 'cover',
@@ -600,9 +801,9 @@ def _image_tasks(job: dict) -> list:
         tasks.append({
             'role': 'inline',
             'sectionIndex': index,
-            'ratio': '4:3',
-            'resolution': '1K',
-            'prompt': _inline_prompt(job, section),
+            'ratio': inline_ratio,
+            'resolution': inline_resolution,
+            'prompt': _inline_prompt(job, section, index),
             'name': 'section-%02d' % (index + 1),
         })
     return tasks
@@ -615,6 +816,7 @@ def _generate_images(job: dict) -> tuple:
     total = max(1, len(tasks))
     images, warnings = [], []
     style = job.get('image_style') or 'illustration'
+    negative = STYLE_NEGATIVES.get(style, IMAGE_NEGATIVE)
     model = job.get('image_model') or _default_image_model()
     directory = _job_dir(job['user'], job_id)
     directory.mkdir(parents=True, exist_ok=True)
@@ -623,7 +825,7 @@ def _generate_images(job: dict) -> tuple:
         try:
             data, ext = image_gen.generate_image_bytes(
                 task['prompt'], ratio=task['ratio'], resolution=task['resolution'],
-                model=model, style=style, negative=IMAGE_NEGATIVE)
+                model=model, style=style, negative=negative)
             name = '%s.%s' % (task['name'], ext)
             (directory / name).write_bytes(data)
             images.append({
@@ -808,6 +1010,7 @@ def _process_job(job: dict) -> None:
 
 def _remember_history(job: dict, sections: list, images: list, body_chars: int,
                       warning: str) -> None:
+    outline = job.get('outline') if isinstance(job.get('outline'), dict) else {}
     payload = {
         'jobId': job['id'],
         'topic': job.get('topic') or '',
@@ -818,6 +1021,7 @@ def _remember_history(job: dict, sections: list, images: list, body_chars: int,
         'sections': len(sections),
         'images': len(images),
         'warning': warning,
+        'sourceIdea': str(outline.get('sourceIdea') or ''),
     }
     try:
         storage.add_record(TOOL, job['user'],
@@ -841,11 +1045,13 @@ def _public_image(job_id: str, image: dict) -> dict:
 
 
 def _public_job(job: dict, with_content: bool = False) -> dict:
+    outline = job.get('outline') if isinstance(job.get('outline'), dict) else {}
     data = {
         'id': job['id'],
         'topic': job.get('topic') or '',
         'title': job.get('title') or job.get('topic') or '',
         'summary': job.get('summary') or '',
+        'sourceIdea': str(outline.get('sourceIdea') or ''),
         'genre': job.get('genre') or 'insight',
         'genreLabel': (GENRES.get(job.get('genre') or 'insight') or GENRES['insight'])[0],
         'tone': job.get('tone') or 'warm',
@@ -1160,6 +1366,10 @@ def _clean_job_body(body) -> dict:
     if not isinstance(outline, dict):
         raise ValueError('先生成大纲，再开始写正文')
     outline = _normalize_outline(outline, data['topic'])
+    # 选题工具交接过来的原标题，只做来源标记；不参与提示词，也不改正文流程。
+    source_idea = _clean_text(body.get('sourceIdea'), 120)
+    if source_idea:
+        outline['sourceIdea'] = source_idea
     inline_count = min(max(image_count - 1, 0), len(outline['sections']))
     data.update({
         'image_count': image_count,          # 总配图数（含封面）
@@ -1185,6 +1395,22 @@ def _outline_allowed(user: str) -> bool:
         while hits and now - hits[0] > 60:
             hits.popleft()
         if len(hits) >= OUTLINE_LIMIT:
+            return False
+        hits.append(now)
+        return True
+
+
+_refine_lock = threading.Lock()
+_refine_hits = {}
+
+
+def _refine_allowed(user: str) -> bool:
+    now = time.time()
+    with _refine_lock:
+        hits = _refine_hits.setdefault(user, deque())
+        while hits and now - hits[0] > 60:
+            hits.popleft()
+        if len(hits) >= REFINE_LIMIT:
             return False
         hits.append(now)
         return True
@@ -1239,6 +1465,9 @@ async def article_status(request: Request):
         'defaultImageCount': DEFAULT_IMAGE_COUNT,
         'maxTopic': MAX_TOPIC,
         'maxMaterial': MAX_MATERIAL,
+        'refineLimit': REFINE_LIMIT,
+        'maxSelection': MAX_SELECTION,
+        'maxEditParagraph': MAX_EDIT_PARAGRAPH,
         'storageError': storage_error,
     })
 
@@ -1342,6 +1571,140 @@ async def get_job(job_id: str, request: Request):
     if not row:
         return JSONResponse({'ok': False, 'message': '任务不存在或已过期'}, status_code=404)
     return JSONResponse({'ok': True, 'job': _public_job(row, with_content=True)})
+
+
+@router.post('/article/api/jobs/{job_id}/refine')
+async def refine_job(job_id: str, request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    try:
+        data = _clean_selection(body)
+    except ValueError as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=400)
+    if not model_config.llm_ready():
+        return JSONResponse({'ok': False, 'message': model_config.llm_missing_hint()},
+                            status_code=503)
+    user = _user(request)
+    try:
+        row = await run_in_threadpool(storage.article_job_get, user, job_id)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=503)
+    if not row:
+        return JSONResponse({'ok': False, 'message': '文章不存在或已过期'},
+                            status_code=404)
+    if row.get('status') in ('queued', 'running'):
+        return JSONResponse({'ok': False, 'message': '文章还在生成，等写完再润色'},
+                            status_code=409)
+    try:
+        sections, section, paragraph = _edit_target(
+            row, data['section_index'], data['paragraph_index'])
+    except ValueError as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=400)
+    if data['end'] > len(paragraph):
+        return JSONResponse({'ok': False, 'message': '选中的文字位置不正确，请重新选择'},
+                            status_code=400)
+    selected = paragraph[data['start']:data['end']]
+    if not selected.strip():
+        return JSONResponse({'ok': False, 'message': '请选择一段有内容的文字'},
+                            status_code=400)
+    if not _refine_allowed(user):
+        return JSONResponse({
+            'ok': False,
+            'message': '润色有点频繁，等一分钟再试（每分钟最多 %d 次）' % REFINE_LIMIT,
+        }, status_code=429)
+    try:
+        refined = await run_in_threadpool(
+            _llm_refine, row, section, paragraph, selected, data['action'])
+        replacement = _replace_selection(paragraph, data['start'], data['end'], refined)
+    except ArticleError as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=502)
+    action_label = REFINE_ACTIONS[data['action']][0]
+    return JSONResponse({
+        'ok': True,
+        'action': data['action'],
+        'actionLabel': action_label,
+        'sectionIndex': data['section_index'],
+        'paragraphIndex': data['paragraph_index'],
+        'start': data['start'],
+        'end': data['end'],
+        'selection': selected,
+        'text': refined,
+        'replacement': replacement,
+        'remaining': max(0, MAX_EDIT_PARAGRAPH - len(replacement)),
+    })
+
+
+@router.post('/article/api/jobs/{job_id}/paragraph')
+async def save_paragraph(job_id: str, request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    try:
+        section_index = int(body.get('sectionIndex'))
+        paragraph_index = int(body.get('paragraphIndex'))
+    except (TypeError, ValueError):
+        return JSONResponse({'ok': False, 'message': '段落位置不正确，请重新打开文章'},
+                            status_code=400)
+    if section_index < 0 or paragraph_index < 0:
+        return JSONResponse({'ok': False, 'message': '段落位置不正确，请重新打开文章'},
+                            status_code=400)
+    text = _clean_text(body.get('text'), MAX_EDIT_PARAGRAPH + 1)
+    if not text:
+        return JSONResponse({'ok': False, 'message': '段落不能为空'}, status_code=400)
+    if len(text) > MAX_EDIT_PARAGRAPH:
+        return JSONResponse({
+            'ok': False,
+            'message': '这一段超过 %d 字，请缩短后再保存' % MAX_EDIT_PARAGRAPH,
+        }, status_code=400)
+
+    user = _user(request)
+
+    def _save():
+        row = storage.article_job_get(user, job_id)
+        if not row:
+            return 'missing', None
+        if row.get('status') in ('queued', 'running'):
+            return 'busy', None
+        sections, _section, _paragraph = _edit_target(
+            row, section_index, paragraph_index)
+        sections[section_index]['paragraphs'][paragraph_index] = text
+        body_chars = 0
+        for item in sections:
+            if not isinstance(item, dict):
+                continue
+            for paragraph in item.get('paragraphs') or []:
+                body_chars += len(str(paragraph or ''))
+        storage.article_job_update(job_id, {
+            'sections': sections,
+            'body_chars': body_chars,
+        })
+        _sync_history(row, sections, body_chars)
+        updated = storage.article_job_get(user, job_id)
+        return 'ok', updated
+
+    try:
+        result, updated = await run_in_threadpool(_save)
+    except ValueError as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=400)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=503)
+    if result == 'missing':
+        return JSONResponse({'ok': False, 'message': '文章不存在或已过期'},
+                            status_code=404)
+    if result == 'busy':
+        return JSONResponse({'ok': False, 'message': '文章还在生成，等写完再修改'},
+                            status_code=409)
+    return JSONResponse({
+        'ok': True,
+        'job': _public_job(updated, with_content=True),
+        'sectionIndex': section_index,
+        'paragraphIndex': paragraph_index,
+    })
 
 
 @router.delete('/article/api/jobs/{job_id}')

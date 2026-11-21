@@ -250,7 +250,7 @@ app.include_router(socratic_router)
 
 # 附加功能：写作选题（给一点线索 -> 大模型出一批选题 -> 挑一个深挖成写作启动包，
 # 没配 Key 时用内置「角度 x 素材」配方兜底）
-# 浏览器访问 http://127.0.0.1:8000/writing-ideas 即可使用。
+# 页面已并入 /article 的「选题」页签；旧地址 /writing-ideas 会 302 过去。
 from writing_ideas import router as writing_ideas_router  # noqa: E402
 app.include_router(writing_ideas_router)
 

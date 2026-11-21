@@ -23,6 +23,7 @@ const lengthsEl = $('lengths');
 const imageCountEl = $('imageCount');
 const imageCountHint = $('imageCountHint');
 const imageStyleEl = $('imageStyle');
+const imageStyleHint = $('imageStyleHint');
 const imageModelEl = $('imageModel');
 const outlineBtn = $('outlineBtn');
 const quotaEl = $('quota');
@@ -36,8 +37,27 @@ const stageTip = $('stageTip');
 const jobError = $('jobError');
 const historyList = $('historyList');
 const historyCount = $('historyCount');
+const ideaBanner = $('ideaBanner');
+const ideaBannerText = $('ideaBannerText');
+const ideaBannerClose = $('ideaBannerClose');
+const writeView = $('writeView');
+const ideasView = $('ideasView');
+const modeTabs = Array.from(document.querySelectorAll('.mode-tab'));
+const histFold = $('histFold');
+const histReopen = $('histReopen');
 const refreshBtn = $('refreshBtn');
 const statusEl = $('status');
+const refineTools = $('refineTools');
+const refineMask = $('refineMask');
+const refineTitle = $('refineTitle');
+const refineMeta = $('refineMeta');
+const refineOriginal = $('refineOriginal');
+const refineResultLabel = $('refineResultLabel');
+const refineResult = $('refineResult');
+const refineNote = $('refineNote');
+const refineClose = $('refineClose');
+const refineCancel = $('refineCancel');
+const refineApply = $('refineApply');
 
 const STATUS_TEXT = {
   queued: '排队中',
@@ -66,7 +86,15 @@ const state = {
   statusTimer: 0,
   tab: 'web',
   markdownJob: '',
-  markdownText: ''
+  markdownText: '',
+  editView: null,
+  editSelection: null,
+  refineBusy: false,
+  refineData: null,
+  refineToken: 0,
+  selectionTimer: 0,
+  sourceIdea: '',
+  mode: 'write'
 };
 
 function toast(message, kind = 'info') {
@@ -79,6 +107,27 @@ function toast(message, kind = 'info') {
   clearTimeout(state.statusTimer);
   state.statusTimer = setTimeout(() => statusEl.classList.remove('show'),
     kind === 'err' ? 4600 : 2600);
+}
+
+const HIST_FOLD_KEY = 'tb_article_hist_fold';
+
+function setHistFold(folded, persist = true) {
+  if (folded) document.documentElement.setAttribute('data-hist-fold', 'on');
+  else document.documentElement.removeAttribute('data-hist-fold');
+  histFold.setAttribute('aria-expanded', folded ? 'false' : 'true');
+  histFold.title = folded ? '展开最近文章' : '收起最近文章';
+  histFold.setAttribute('aria-label', histFold.title);
+  if (persist) {
+    try {
+      localStorage.setItem(HIST_FOLD_KEY, folded ? '1' : '0');
+    } catch (error) {
+      /* 隐私模式下 localStorage 可能不可写，不影响本次折叠 */
+    }
+  }
+}
+
+function toggleHistFold() {
+  setHistFold(document.documentElement.getAttribute('data-hist-fold') !== 'on');
 }
 
 function showBanner(message, kind = 'err') {
@@ -177,6 +226,105 @@ function updateCounts() {
   materialCount.textContent = materialEl.value.length + ' / 8000';
 }
 
+const HANDOFF_KEY = 'tb_article_idea';
+
+function handoffMaterial(idea) {
+  const lines = [];
+  if (idea.claim) lines.push('【核心观点】' + idea.claim);
+  if (idea.angle) lines.push('【切入角度】' + idea.angle);
+  if (idea.hook) lines.push('【开头灵感】' + idea.hook);
+  const outline = (Array.isArray(idea.outline) ? idea.outline : [])
+    .filter((item) => String(item || '').trim());
+  if (outline.length) {
+    lines.push('【选题提纲】');
+    outline.forEach((item, index) => lines.push(`${index + 1}. ${item}`));
+  }
+  if (idea.material) lines.push('【要补的素材】' + idea.material);
+  return lines.join('\n');
+}
+
+function applyIdeaData(idea) {
+  if (!idea || !idea.title) return false;
+  topicEl.value = String(idea.title).slice(0, 200);
+  const genre = String(idea.genre || '');
+  if (Array.from(genreEl.options).some((option) => option.value === genre)) {
+    genreEl.value = genre;
+  }
+  const block = handoffMaterial(idea);
+  const current = materialEl.value.trim();
+  if (block && !current.includes(block)) {
+    materialEl.value = (current ? current + '\n\n' : '') + block;
+  }
+  if (materialEl.value.length > 8000) {
+    materialEl.value = materialEl.value.slice(0, 8000);
+  }
+  state.sourceIdea = String(idea.title).slice(0, 120);
+  ideaBannerText.textContent =
+    `已从选题「${String(idea.title).slice(0, 40)}」带入，确认篇幅和配图后生成大纲。`;
+  ideaBanner.hidden = false;
+  updateCounts();
+  updateStyleHint();
+  return true;
+}
+
+function setMode(mode, { updateUrl = true, scroll = true } = {}) {
+  const next = mode === 'ideas' ? 'ideas' : 'write';
+  state.mode = next;
+  if (writeView) writeView.hidden = next !== 'write';
+  if (ideasView) ideasView.hidden = next !== 'ideas';
+  // 「最近文章」的贴边标签只属于写作区，切到选题时先藏起来。
+  if (histReopen) histReopen.hidden = next !== 'write';
+  modeTabs.forEach((button) => {
+    const on = button.dataset.mode === next;
+    button.classList.toggle('on', on);
+    button.setAttribute('aria-selected', on ? 'true' : 'false');
+    button.tabIndex = on ? 0 : -1;
+  });
+  document.title = next === 'ideas' ? '选题 · AI 文章写作' : 'AI 文章写作';
+  if (updateUrl) {
+    const url = new URL(window.location.href);
+    if (next === 'ideas') url.searchParams.set('tab', 'ideas');
+    else url.searchParams.delete('tab');
+    window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+  }
+  if (scroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function adoptIdea(idea) {
+  if (!applyIdeaData(idea)) {
+    toast('选题数据不完整，请重新选择', 'err');
+    return false;
+  }
+  setMode('write');
+  toast('已带入选题，确认篇幅和配图后生成大纲', 'info');
+  return true;
+}
+
+function applyIdeaHandoff() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('from') !== 'idea') return;
+  let idea = null;
+  try {
+    idea = JSON.parse(window.sessionStorage.getItem(HANDOFF_KEY) || 'null');
+    window.sessionStorage.removeItem(HANDOFF_KEY);
+  } catch (error) {
+    idea = null;
+  }
+  if (!idea || !idea.title) {
+    toast('没有找到选题数据，请到「选题」页签重新选择', 'err');
+    return;
+  }
+  adoptIdea(idea);
+  const url = new URL(window.location.href);
+  url.searchParams.delete('from');
+  window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+}
+
+// 给「选题」页签的脚本调用：同一个页面里直接切到写作，不再跳转。
+window.TBArticleAdoptIdea = adoptIdea;
+window.TBArticleToast = (message, kind) => toast(message, kind);
+window.TBArticleShowIdeas = () => setMode('ideas');
+
 function updateStyleHint() {
   const genre = state.genres.find((item) => item.key === genreEl.value);
   const tone = state.tones.find((item) => item.key === toneEl.value);
@@ -184,6 +332,17 @@ function updateStyleHint() {
   if (genre && genre.hint) parts.push(genre.label + '：' + genre.hint);
   if (tone && tone.hint) parts.push(tone.label + '：' + tone.hint);
   styleHint.textContent = parts.join('　');
+}
+
+function updateImageStyleHint() {
+  const style = imageStyleEl.value;
+  if (style === 'notion') {
+    imageStyleHint.textContent = 'Notion 信息图固定 16:9，全部 2K 出图；图和正文都带简短中文标注。';
+  } else if (style === 'comic') {
+    imageStyleHint.textContent = '漫画信息图固定 3:4，全部 2K 出图；中文手写标题、标签和对话框。';
+  } else {
+    imageStyleHint.textContent = '封面 16:9 / 2K，内文图 4:3 / 1K；文字由模型写，配图本身不含文字。';
+  }
 }
 
 function setImageLimit(sections) {
@@ -511,6 +670,7 @@ async function generateJob() {
   body.imageStyle = imageStyleEl.value;
   body.imageModel = imageModelEl.value;
   body.outline = outline;
+  if (state.sourceIdea) body.sourceIdea = state.sourceIdea;
 
   setBusy(true);
   stopPoll();
@@ -530,6 +690,8 @@ async function generateJob() {
     });
     state.outline = null;
     state.outlineEstimate = null;
+    state.sourceIdea = '';
+    ideaBanner.hidden = true;
     renderJob(data.job);
     loadStatus();
     loadHistory({ autoSelect: false });
@@ -598,6 +760,7 @@ function previewShell(job) {
   const buttons = [
     ['web', '网页版'],
     ['wechat', '公众号版'],
+    ['edit', '编辑润色'],
     ['markdown', 'Markdown']
   ].map(([key, label]) => {
     const button = el('button', 'preview-tab', label);
@@ -614,13 +777,249 @@ function previewShell(job) {
   return shell;
 }
 
+function hideRefineTools(clear = false) {
+  refineTools.hidden = true;
+  if (clear) state.editSelection = null;
+}
+
+function paragraphFromNode(node) {
+  if (!node) return null;
+  const element = node.nodeType === 3 ? node.parentElement : node;
+  if (!element || !element.closest) return null;
+  return element.closest('.edit-p');
+}
+
+function offsetWithin(root, node, offset) {
+  const range = document.createRange();
+  range.selectNodeContents(root);
+  try {
+    range.setEnd(node, offset);
+  } catch (error) {
+    return -1;
+  }
+  return range.toString().length;
+}
+
+function showRefineTools(range) {
+  const rect = range.getBoundingClientRect();
+  refineTools.hidden = false;
+  const width = refineTools.offsetWidth || 150;
+  const height = refineTools.offsetHeight || 38;
+  const anchor = rect.width ? rect.left + rect.width / 2 : window.innerWidth / 2;
+  let left = anchor - width / 2;
+  left = Math.max(8, Math.min(window.innerWidth - width - 8, left));
+  let top = rect.bottom + 9;
+  if (top + height > window.innerHeight - 8) top = rect.top - height - 9;
+  top = Math.max(8, Math.min(window.innerHeight - height - 8, top));
+  refineTools.style.left = left + 'px';
+  refineTools.style.top = top + 'px';
+}
+
+function captureSelection() {
+  if (!state.editView || !refineMask.hidden) return;
+  const pane = state.editView.pane;
+  const selection = window.getSelection();
+  if (!selection || !selection.rangeCount || selection.isCollapsed) {
+    hideRefineTools();
+    return;
+  }
+  const range = selection.getRangeAt(0);
+  const startParagraph = paragraphFromNode(range.startContainer);
+  const endParagraph = paragraphFromNode(range.endContainer);
+  if (!startParagraph || startParagraph !== endParagraph
+      || !pane.contains(startParagraph)) {
+    hideRefineTools();
+    return;
+  }
+  const start = offsetWithin(startParagraph, range.startContainer, range.startOffset);
+  const end = offsetWithin(startParagraph, range.endContainer, range.endOffset);
+  const text = startParagraph.textContent || '';
+  if (start < 0 || end <= start || end > text.length) {
+    hideRefineTools();
+    return;
+  }
+  const selected = text.slice(start, end);
+  if (!selected.trim()) {
+    hideRefineTools();
+    return;
+  }
+  state.editSelection = {
+    jobId: state.current ? state.current.id : '',
+    sectionIndex: Number(startParagraph.dataset.section),
+    paragraphIndex: Number(startParagraph.dataset.paragraph),
+    start,
+    end,
+    text: selected,
+    paragraph: text
+  };
+  showRefineTools(range);
+}
+
+function renderEditor(job, pane, tabs) {
+  state.editView = { job, pane, tabs };
+  pane.classList.add('edit-pane');
+  const doc = el('div', 'edit-doc');
+  // 编辑区有自己的「润色 / 扩展」浮标，关掉全站划词问 AI，避免两个浮层叠在一起。
+  doc.setAttribute('data-quick-ai', 'off');
+  doc.appendChild(el('p', 'edit-tip',
+    '选中正文中的任意一段文字，会出现「润色 / 扩展」。确认结果后会直接写回正文，'
+    + '网页版、公众号版、Markdown 和 ZIP 导出都会同步更新。'));
+
+  if (job.title) doc.appendChild(el('h2', 'edit-title', job.title));
+  if (job.summary) doc.appendChild(el('p', 'edit-summary', job.summary));
+
+  let paragraphs = 0;
+  (job.sections || []).forEach((section, sectionIndex) => {
+    if (!section || typeof section !== 'object') return;
+    const wrap = el('section', 'edit-section');
+    if (section.heading) wrap.appendChild(el('h3', 'edit-heading', section.heading));
+    (section.paragraphs || []).forEach((text, paragraphIndex) => {
+      if (!text) return;
+      const p = el('p', 'edit-p', text);
+      p.dataset.section = String(sectionIndex);
+      p.dataset.paragraph = String(paragraphIndex);
+      p.tabIndex = 0;
+      wrap.appendChild(p);
+      paragraphs += 1;
+    });
+    doc.appendChild(wrap);
+  });
+  if (!paragraphs) {
+    doc.appendChild(el('div', 'edit-empty', '正文还没有内容。等生成完成后再来润色。'));
+  }
+  pane.appendChild(doc);
+
+  const schedule = () => setTimeout(captureSelection, 0);
+  doc.addEventListener('mouseup', schedule);
+  doc.addEventListener('touchend', () => setTimeout(captureSelection, 260));
+  doc.addEventListener('keyup', schedule);
+}
+
+function openRefineDialog(action) {
+  const selection = state.editSelection;
+  const job = state.current;
+  if (!selection || !job || selection.jobId !== job.id) {
+    toast('先在正文里选中一段文字', 'err');
+    return;
+  }
+  hideRefineTools();
+  const token = ++state.refineToken;
+  state.refineBusy = true;
+  state.refineData = null;
+  const label = action === 'expand' ? '扩展' : '润色';
+  refineTitle.textContent = label + '选中文字';
+  refineMeta.textContent = `${selection.text.length} 字 · 第 ${selection.sectionIndex + 1} 节`
+    + `第 ${selection.paragraphIndex + 1} 段`;
+  refineOriginal.textContent = selection.text;
+  refineResultLabel.textContent = 'AI 结果';
+  refineResult.textContent = '正在' + label + '…';
+  refineNote.classList.remove('err');
+  refineNote.textContent = '会调用一次文本模型，通常几秒；确认前不会改动正文。';
+  refineApply.disabled = true;
+  refineApply.textContent = '应用到正文';
+  refineMask.hidden = false;
+  document.body.style.overflow = 'hidden';
+
+  api(`/article/api/jobs/${encodeURIComponent(job.id)}/refine`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sectionIndex: selection.sectionIndex,
+      paragraphIndex: selection.paragraphIndex,
+      start: selection.start,
+      end: selection.end,
+      action
+    })
+  }).then((data) => {
+    if (token !== state.refineToken) return;
+    state.refineBusy = false;
+    state.refineData = data;
+    refineResult.textContent = data.text || '';
+    refineNote.textContent = `${data.actionLabel || label}完成。确认后会替换选中的文字，`
+      + '导出也会同步更新。';
+    refineApply.disabled = !data.replacement;
+  }).catch((error) => {
+    if (token !== state.refineToken) return;
+    state.refineBusy = false;
+    refineResult.textContent = '没有处理成功';
+    refineNote.classList.add('err');
+    refineNote.textContent = error.message || '润色失败，请稍后再试';
+  });
+}
+
+function closeRefine() {
+  if (refineMask.hidden) return;
+  state.refineToken += 1;
+  state.refineBusy = false;
+  state.refineData = null;
+  refineMask.hidden = true;
+  document.body.style.overflow = '';
+  refineApply.disabled = true;
+  refineApply.textContent = '应用到正文';
+  refineNote.classList.remove('err');
+  hideRefineTools();
+}
+
+function refreshPills(job) {
+  const old = resultBody.querySelector('.pills');
+  if (old) old.replaceWith(pills(job));
+}
+
+async function applyRefine() {
+  const data = state.refineData;
+  const job = state.current;
+  if (!data || !job || state.refineBusy || refineApply.disabled) return;
+  const editView = state.editView;
+  refineApply.disabled = true;
+  refineApply.textContent = '保存中…';
+  refineNote.classList.remove('err');
+  refineNote.textContent = '正在写回正文…';
+  try {
+    const res = await api(`/article/api/jobs/${encodeURIComponent(job.id)}/paragraph`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sectionIndex: data.sectionIndex,
+        paragraphIndex: data.paragraphIndex,
+        text: data.replacement
+      })
+    });
+    const updated = res.job;
+    Object.assign(job, updated);
+    state.markdownJob = '';
+    state.markdownText = '';
+    state.editSelection = null;
+    closeRefine();
+    refreshPills(job);
+    if (editView && editView.job === job && editView.pane.isConnected) {
+      showPreview(job, 'edit', editView.tabs, editView.pane);
+    } else {
+      renderJob(job);
+    }
+    loadHistory({ autoSelect: false });
+    toast('已应用到正文，导出会同步更新', 'info');
+  } catch (error) {
+    refineApply.disabled = false;
+    refineApply.textContent = '应用到正文';
+    refineNote.classList.add('err');
+    refineNote.textContent = error.message || '保存失败，请稍后再试';
+  }
+}
+
 async function showPreview(job, tab, tabs, pane) {
   state.tab = tab;
+  hideRefineTools(true);
+  state.editView = null;
   tabs.querySelectorAll('.preview-tab').forEach((button) => {
     button.classList.toggle('on', button.dataset.tab === tab);
   });
   pane.innerHTML = '';
   pane.className = 'preview-pane';
+
+  if (tab === 'edit') {
+    renderEditor(job, pane, tabs);
+    return;
+  }
 
   if (tab === 'markdown') {
     pane.classList.add('md-pane');
@@ -765,6 +1164,9 @@ async function openJob(jobId) {
 }
 
 function selectJob(job, autoPoll = true) {
+  if (!refineMask.hidden) closeRefine();
+  hideRefineTools(true);
+  state.editView = null;
   state.outline = null;
   state.markdownJob = '';
   state.markdownText = '';
@@ -837,7 +1239,9 @@ function historyItem(job) {
   main.appendChild(el('b', null, job.title || job.topic || '未命名文章'));
   const meta = el('span', null,
     `${statusText(job)} · ${job.genreLabel || '文章'} · ${job.bodyChars || 0} 字 · `
-    + `${(job.images || []).length} 图 · ${formatTime(job.createdAt)}`);
+    + `${(job.images || []).length} 图 · ${formatTime(job.createdAt)}`
+    + (job.sourceIdea ? ' · 来自选题' : ''));
+  if (job.sourceIdea) main.title = '来自选题：' + job.sourceIdea;
   main.appendChild(meta);
   main.addEventListener('click', () => openJob(job.id));
   wrap.appendChild(main);
@@ -884,6 +1288,9 @@ async function deleteJob(job) {
   try {
     await api('/article/api/jobs/' + encodeURIComponent(job.id), { method: 'DELETE' });
     if (state.current && state.current.id === job.id) {
+      if (!refineMask.hidden) closeRefine();
+      hideRefineTools(true);
+      state.editView = null;
       stopPoll();
       setBusy(false);
       state.current = null;
@@ -931,6 +1338,8 @@ materialEl.addEventListener('keydown', (event) => {
 genreEl.addEventListener('change', updateStyleHint);
 toneEl.addEventListener('change', updateStyleHint);
 imageCountEl.addEventListener('change', updateQuota);
+imageStyleEl.addEventListener('change', updateImageStyleHint);
+ideaBannerClose.addEventListener('click', () => { ideaBanner.hidden = true; });
 lengthsEl.querySelectorAll('[data-length]').forEach((button) => {
   button.addEventListener('click', () => {
     state.length = button.dataset.length || 'medium';
@@ -942,6 +1351,67 @@ lengthsEl.querySelectorAll('[data-length]').forEach((button) => {
 outlineBtn.addEventListener('click', generateOutline);
 refreshBtn.addEventListener('click', refresh);
 
+modeTabs.forEach((button) => {
+  button.addEventListener('click', () => setMode(button.dataset.mode));
+  button.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    const next = button.dataset.mode === 'ideas' ? 'write' : 'ideas';
+    const target = modeTabs.find((item) => item.dataset.mode === next);
+    if (target) {
+      target.focus();
+      setMode(next);
+    }
+  });
+});
+
+histFold.addEventListener('click', toggleHistFold);
+histReopen.addEventListener('click', () => setHistFold(false));
+
+refineTools.addEventListener('mousedown', (event) => event.preventDefault());
+refineTools.querySelectorAll('[data-refine]').forEach((button) => {
+  button.addEventListener('click', () => openRefineDialog(button.dataset.refine));
+});
+refineApply.addEventListener('click', applyRefine);
+refineClose.addEventListener('click', closeRefine);
+refineCancel.addEventListener('click', closeRefine);
+refineMask.addEventListener('click', (event) => {
+  if (event.target === refineMask) closeRefine();
+});
+document.addEventListener('mousedown', (event) => {
+  if (refineTools.hidden) return;
+  if (refineTools.contains(event.target)) return;
+  hideRefineTools();
+});
+document.addEventListener('selectionchange', () => {
+  if (!state.editView || !refineMask.hidden) return;
+  clearTimeout(state.selectionTimer);
+  state.selectionTimer = setTimeout(() => {
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed && refineTools.hidden) captureSelection();
+  }, 260);
+});
+window.addEventListener('scroll', () => {
+  if (!refineTools.hidden) hideRefineTools();
+}, true);
+window.addEventListener('resize', () => {
+  if (!refineTools.hidden) hideRefineTools();
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  if (!refineMask.hidden) {
+    closeRefine();
+    return;
+  }
+  hideRefineTools(true);
+});
+
+setHistFold(document.documentElement.getAttribute('data-hist-fold') === 'on', false);
+setMode(new URLSearchParams(window.location.search).get('tab') === 'ideas'
+  ? 'ideas' : 'write', { updateUrl: false, scroll: false });
+applyIdeaHandoff();
 updateCounts();
+updateStyleHint();
+updateImageStyleHint();
 updateQuota();
 loadStatus().then(() => loadHistory());

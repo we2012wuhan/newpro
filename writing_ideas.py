@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# 写作选题工具（页面在 /writing-ideas）
+# 写作选题（已并入 /article 的「选题」页签）
 # ------------------------------------------------------------
 # 解决的是「想写点什么，但脑子里是空的」：不用先想清楚，给一点线索就行，
 # 什么都不给也能出一批。生成走大模型；没配 Key 时用内置的「角度 × 素材」
@@ -18,11 +18,10 @@
 import json
 import random
 import re
-from pathlib import Path
 
 import requests
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.concurrency import run_in_threadpool
 
 try:
@@ -41,8 +40,6 @@ except Exception:  # 单独拷贝本文件运行时不带配置也能用（只�
         return body
 
 router = APIRouter()
-_BASE_DIR = Path(__file__).resolve().parent
-_TEMPLATE_FILE = _BASE_DIR / 'templates' / 'writing-ideas.html'
 
 MAX_IDEAS = 8
 MAX_TITLE = 40
@@ -584,15 +581,10 @@ def _develop(payload):
 # =========================================================
 # 路由
 # =========================================================
-@router.get('/writing-ideas', response_class=HTMLResponse)
+@router.get('/writing-ideas')
 def writing_ideas_page():
-    if _TEMPLATE_FILE.exists():
-        html = _TEMPLATE_FILE.read_text(encoding='utf-8')
-    else:
-        html = ('<!DOCTYPE html><html lang="zh-CN"><meta charset="utf-8">'
-                '<body style="font-family:system-ui"><h2>模板文件缺失</h2>'
-                '<p>请确认 templates/writing-ideas.html 存在。</p></body></html>')
-    return HTMLResponse(html)
+    # 旧入口保留，统一跳到合并后的「选题」页签，避免书签和旧链接失效。
+    return RedirectResponse('/article?tab=ideas', status_code=302)
 
 
 @router.post('/writing-ideas/api/ideas')
