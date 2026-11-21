@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<title>AI 文章写作</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}
+if(localStorage.getItem('tb_article_hist_fold')==='1'){document.documentElement.setAttribute('data-hist-fold','on')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<script src="/static/auth-guard.js"></script>
+<style>
+:root{
+  --acc:#0f766e; --acc-d:#115e59; --acc-l:#e7f6f3; --acc-line:#b9e3dc;
+  --gold:#b7791f; --gold-l:#fbf3e2; --gold-line:#ecd6ab;
+  --ink:#1f2a2e; --text:#4b5a60; --muted:#7d8b90;
+  --bg:#f6f3ea; --card:#fffdf8; --line:#e5dfd0; --soft:#f3eee2; --field:#fffcf5;
+  --ok:#237a57; --ok-l:#eaf7f0; --ok-line:#c7e9d8;
+  --err:#b8404a; --err-l:#fcedef; --err-line:#edced2;
+  --sh:0 22px 54px -38px rgba(60,50,32,.36);
+  --top:rgba(246,243,234,.92);
+}
+[data-theme="dark"]{
+  --acc:#5eead4; --acc-d:#99f6e4; --acc-l:#102b28; --acc-line:#1f5b54;
+  --gold:#e7b96a; --gold-l:#2b2314; --gold-line:#5b4721;
+  --ink:#eef4f2; --text:#c4d1ce; --muted:#8ea19d;
+  --bg:#0e1415; --card:#161d1e; --line:#2a3536; --soft:#1c2526; --field:#121a1b;
+  --ok:#7ed7aa; --ok-l:#12271d; --ok-line:#28513a;
+  --err:#ffa1a8; --err-l:#2b171a; --err-line:#572b31;
+  --sh:0 22px 56px -30px rgba(0,0,0,.86);
+  --top:rgba(14,20,21,.93);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg)}
+body{color:var(--text);font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(circle at 12% 0%,rgba(183,121,31,.10),transparent 32%),
+    radial-gradient(circle at 92% 8%,rgba(15,118,110,.08),transparent 30%)}
+button,input,select,textarea{font:inherit}
+[hidden]{display:none!important}
+.topbar{position:sticky;top:0;z-index:30;background:var(--top);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line)}
+.topbar-in{max-width:1320px;margin:0 auto;padding:11px 18px;display:flex;align-items:center;gap:12px}
+.mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none;
+  color:#fff;font-weight:800;font-size:16px;background:linear-gradient(135deg,#0f766e,#b7791f);
+  box-shadow:0 9px 24px -12px rgba(15,118,110,.9)}
+.brand-text{min-width:0}
+.ttl{font-size:16px;font-weight:720;color:var(--ink);line-height:1.35}
+.sub{font-size:11.5px;color:var(--muted)}
+.top-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.tb-mount{display:inline-flex;align-items:center}
+.back{min-height:38px;display:inline-flex;align-items:center;color:var(--muted);text-decoration:none;
+  border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 14px;
+  font-size:12.5px;white-space:nowrap}
+.back:hover{color:var(--ink);border-color:var(--acc-line)}
+.wrap{max-width:1320px;margin:0 auto;padding:20px 18px calc(46px + env(safe-area-inset-bottom))}
+.studio{--side-w:340px;display:grid;
+  grid-template-columns:minmax(0,var(--side-w)) minmax(0,1fr) minmax(250px,292px);
+  grid-template-areas:"panel viewer history";gap:14px;align-items:start;
+  transition:grid-template-columns .22s ease}
+.panel,.viewer,.history-card{min-width:0;background:var(--card);border:1px solid var(--line);
+  border-radius:18px;box-shadow:var(--sh)}
+.panel{grid-area:panel;padding:15px;position:sticky;top:72px;max-height:calc(100vh - 90px);
+  overflow:auto;overscroll-behavior:contain}
+.viewer{grid-area:viewer}
+.panel-head,.viewer-head,.section-head,.outline-head{display:flex;align-items:center;
+  justify-content:space-between;gap:10px;flex-wrap:wrap}
+.panel-head b,.viewer-head b,.section-head b,.outline-head b{font-size:13px;font-weight:720;
+  color:var(--ink)}
+.panel-head span,.viewer-head span,.section-head span{font-size:11px;color:var(--muted)}
+.banner{padding:10px 12px;border:1px solid var(--err-line);background:var(--err-l);color:var(--err);
+  border-radius:10px;font-size:12px;line-height:1.6;margin-bottom:12px}
+.banner.info{border-color:var(--acc-line);background:var(--acc-l);color:var(--acc)}
+.banner.idea{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.banner.idea button{border:0;background:none;color:inherit;font-size:16px;line-height:1;
+  padding:0 2px;cursor:pointer;flex:0 0 auto}
+textarea,input[type=text],select{width:100%;border:1px solid var(--line);border-radius:11px;
+  background:var(--field);color:var(--ink);outline:none}
+textarea{padding:10px 11px;resize:vertical;min-height:72px;line-height:1.65}
+input[type=text]{min-height:38px;padding:6px 10px}
+select{min-height:38px;padding:6px 9px;font-size:12.5px}
+textarea:focus,input[type=text]:focus,select:focus{border-color:var(--acc-line);
+  box-shadow:0 0 0 3px rgba(15,118,110,.12)}
+.field-label{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin:13px 0 6px;font-size:12px;font-weight:650;color:var(--text)}
+.field-label small{font-weight:400;color:var(--muted)}
+.hint{margin:6px 0 0;font-size:11px;color:var(--muted);line-height:1.6;min-height:16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.seg-btn{min-height:40px;border:1px solid var(--line);border-radius:11px;background:var(--field);
+  color:var(--text);font-size:12.5px;cursor:pointer}
+.seg-btn:hover{border-color:var(--acc-line);color:var(--acc)}
+.seg-btn.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc);font-weight:650}
+.actions{margin-top:14px;display:flex;gap:8px}
+.btn{min-height:36px;padding:0 14px;border-radius:10px;border:1px solid var(--line);
+  background:var(--card);color:var(--text);font-size:12.5px;cursor:pointer;white-space:nowrap;
+  text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:5px}
+.btn:hover{border-color:var(--acc-line);color:var(--acc)}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:650}
+.btn.primary:hover{background:var(--acc-d);border-color:var(--acc-d);color:#fff}
+.btn.gold{background:var(--gold);border-color:var(--gold);color:#fff;font-weight:650}
+.btn.gold:hover{filter:brightness(.95);color:#fff}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn.wide{width:100%;min-height:44px;font-size:13.5px}
+.btn.mini{min-height:28px;padding:0 9px;font-size:11.5px}
+.cost{margin:9px 0 0;font-size:11.5px;color:var(--muted);line-height:1.6}
+.privacy{margin:12px 0 0;padding-top:11px;border-top:1px dashed var(--line);
+  font-size:11px;color:var(--muted);line-height:1.65}
+.viewer{overflow:hidden;min-height:440px}
+.viewer-head{padding:11px 14px;border-bottom:1px solid var(--line)}
+.viewer-head .view-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.viewer-body{padding:14px;min-height:360px}
+.empty{padding:48px 18px;display:flex;flex-direction:column;align-items:center;gap:8px;
+  text-align:center;color:var(--muted);font-size:12.5px}
+.empty b{font-size:16px;color:var(--ink)}
+.empty .ico{font-size:40px;line-height:1}
+/* 大纲编辑器 */
+.outline-head{padding:2px 2px 12px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.outline-head .outline-actions{display:flex;gap:6px;flex-wrap:wrap}
+.outline-title{font-size:12px}
+.outline-title input{font-size:18px;font-weight:700;min-height:46px;padding:8px 12px}
+.outline-summary{margin-top:8px}
+.outline-summary textarea{min-height:76px;font-size:13px}
+.sec-list{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.sec-card{border:1px solid var(--line);border-radius:13px;background:var(--field);padding:10px;
+  position:relative}
+.sec-top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.sec-no{width:24px;height:24px;border-radius:50%;background:var(--acc-l);color:var(--acc);
+  display:grid;place-items:center;font-size:11px;font-weight:700;flex:none}
+.sec-top input{font-weight:650;font-size:13.5px}
+.sec-del{margin-left:auto;width:28px;height:28px;border:1px solid var(--line);border-radius:8px;
+  background:var(--card);color:var(--muted);cursor:pointer;line-height:1;flex:none}
+.sec-del:hover{color:var(--err);border-color:var(--err-line);background:var(--err-l)}
+.sec-card label{display:block;font-size:10.5px;color:var(--muted);margin:8px 0 4px}
+.sec-card textarea{min-height:68px;font-size:12.5px}
+.outline-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin-top:12px;flex-wrap:wrap}
+/* 任务视图 */
+.job-title{font-size:24px;line-height:1.45;color:var(--ink);font-weight:760;margin:2px 0 6px}
+.job-summary{font-size:13px;color:var(--muted);line-height:1.7;margin:0 0 10px}
+.pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.pill{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);
+  background:var(--soft);color:var(--muted);border-radius:999px;padding:3px 9px;font-size:10.5px}
+.pill.acc{color:var(--acc);border-color:var(--acc-line);background:var(--acc-l)}
+.pill.gold{color:var(--gold);border-color:var(--gold-line);background:var(--gold-l)}
+.active-card{display:flex;gap:14px;align-items:center;padding:10px;border:1px solid var(--line);
+  border-radius:14px;background:var(--field)}
+.active-art{width:104px;height:78px;border-radius:12px;flex:none;position:relative;overflow:hidden;
+  background:linear-gradient(145deg,#0f766e,#134e4a 55%,#b7791f);color:#fff;padding:11px;
+  display:flex;flex-direction:column;justify-content:flex-end}
+.active-art:after{content:"";position:absolute;width:90px;height:90px;border-radius:50%;
+  right:-36px;top:-42px;background:rgba(255,255,255,.14)}
+.active-art span{font-size:9.5px;letter-spacing:.14em;opacity:.8;position:relative;z-index:1}
+.active-art b{font-size:11.5px;line-height:1.35;position:relative;z-index:1;margin-top:2px}
+.active-info{min-width:0}
+.active-info b{display:block;font-size:15px;color:var(--ink);line-height:1.45}
+.active-info p{margin:4px 0 0;font-size:12px;color:var(--muted);line-height:1.65}
+.job-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.warn{margin:12px 0 0;padding:8px 10px;border:1px solid var(--gold-line);background:var(--gold-l);
+  color:var(--gold);border-radius:9px;font-size:11.5px;line-height:1.6}
+.preview-shell{margin-top:12px;border:1px solid var(--line);border-radius:13px;overflow:hidden;
+  background:var(--soft)}
+.preview-tabs{display:flex;gap:4px;padding:7px;border-bottom:1px solid var(--line);flex-wrap:wrap;
+  background:var(--field)}
+.preview-tab{min-height:28px;padding:0 10px;border:1px solid transparent;border-radius:8px;
+  background:transparent;color:var(--muted);font-size:11.5px;cursor:pointer}
+.preview-tab:hover{color:var(--acc)}
+.preview-tab.on{background:var(--acc-l);border-color:var(--acc-line);color:var(--acc);font-weight:650}
+.preview-pane{position:relative;min-height:420px;background:#fff}
+.preview-pane iframe{width:100%;height:560px;border:0;display:block;background:#fff}
+.preview-pane pre{margin:0;padding:16px;max-height:560px;overflow:auto;white-space:pre-wrap;
+  font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;line-height:1.7;
+  color:#2c3038;background:#fffdf8}
+.wechat-frame{padding:16px;background:#e9e5db;min-height:420px}
+.wechat-frame iframe{max-width:375px;height:620px;margin:0 auto;border:0;display:block;
+  background:#fff;box-shadow:0 14px 32px -20px rgba(39,32,18,.5);border-radius:10px}
+/* 历史：桌面收进右栏，窄屏变成横向回看条，不再堆在页面底部 */
+.history-card{grid-area:history;padding:12px;position:sticky;top:72px;
+  max-height:calc(100vh - 90px);overflow:auto;overscroll-behavior:contain}
+.history-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.history-empty{padding:18px 12px;text-align:center;font-size:11.5px;color:var(--muted);
+  border:1px dashed var(--line);border-radius:10px;min-width:230px}
+.history-item{display:flex;gap:8px;align-items:center;border:1px solid var(--line);
+  background:var(--field);border-radius:11px;padding:6px;min-width:0}
+.history-thumb{width:44px;height:44px;border-radius:8px;flex:none;display:grid;place-items:center;
+  color:#fff;font-size:14px;background:linear-gradient(145deg,#0f766e,#b7791f)}
+.history-thumb.ph{background:var(--soft);color:var(--muted)}
+.history-main{flex:1;min-width:0;cursor:pointer;text-align:left;border:0;background:transparent;
+  padding:2px;color:inherit}
+.history-main b{display:block;font-size:12px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;font-weight:650}
+.history-main span{display:block;font-size:10.5px;color:var(--muted);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+.history-del{flex:none;width:28px;height:28px;border:1px solid var(--line);border-radius:8px;
+  background:var(--card);color:var(--muted);cursor:pointer;line-height:1}
+.history-del:hover{color:var(--err);border-color:var(--err-line);background:var(--err-l)}
+.hist-tools{display:inline-flex;align-items:center;gap:6px;margin-left:auto}
+.hist-fold{width:26px;height:26px;border:1px solid var(--line);border-radius:8px;
+  background:var(--card);color:var(--muted);cursor:pointer;line-height:1;font-size:14px;flex:none}
+.hist-fold:hover{color:var(--acc);border-color:var(--acc-line);background:var(--acc-l)}
+.hist-reopen{display:none;position:fixed;right:0;top:46%;z-index:45;transform:translateY(-50%);
+  writing-mode:vertical-rl;letter-spacing:.14em;padding:13px 7px;border:1px solid var(--line);
+  border-right:0;border-radius:11px 0 0 11px;background:var(--card);color:var(--acc);
+  font-size:11.5px;font-weight:650;cursor:pointer;box-shadow:var(--sh)}
+.hist-reopen:hover{background:var(--acc-l);border-color:var(--acc-line)}
+@media(min-width:1081px){
+  html[data-hist-fold="on"] .studio{
+    grid-template-columns:minmax(0,var(--side-w)) minmax(0,1fr) 0px}
+  html[data-hist-fold="on"] .history-card{opacity:0;visibility:hidden;pointer-events:none;
+    transform:translateX(12px);padding-left:0;padding-right:0;border-width:0;overflow:hidden}
+  html[data-hist-fold="on"] .hist-reopen{display:inline-flex}
+}
+/* 编辑润色 */
+.preview-pane.edit-pane{background:#fffdf8;padding:18px 18px 24px;color:#2c3038}
+.edit-doc{max-width:720px;margin:0 auto}
+.edit-tip{margin:0 0 18px;padding:9px 11px;border:1px solid #ecd6ab;background:#fbf3e2;
+  color:#8a6424;border-radius:10px;font-size:11.5px;line-height:1.65}
+.edit-title{margin:0 0 8px;font-size:25px;line-height:1.4;color:#1f2430}
+.edit-summary{margin:0 0 20px;padding:10px 13px;border-left:3px solid #c8a96a;
+  background:#fffaf0;color:#5c5346;font-size:13px;line-height:1.8}
+.edit-section{margin:24px 0 0}
+.edit-heading{margin:0 0 10px;font-size:19px;line-height:1.5;color:#1f2430}
+.edit-p{margin:0 -5px 13px;padding:2px 5px;border-radius:7px;font-size:15px;line-height:1.95;
+  color:#2c3038;cursor:text;transition:background .15s}
+.edit-p:hover{background:#faf5e8}
+.edit-p::selection{background:#f3d9a5;color:#1f2430}
+.edit-empty{padding:30px 10px;text-align:center;color:#8a8172;font-size:12.5px}
+.refine-tools{position:fixed;z-index:68;align-items:center;gap:2px;padding:4px;
+  background:#1f2a2e;border:1px solid rgba(255,255,255,.16);border-radius:10px;
+  box-shadow:0 14px 30px -14px rgba(15,23,42,.75);display:flex}
+.refine-tools button{min-height:29px;padding:0 11px;border:0;border-radius:7px;
+  background:transparent;color:#fff;font-size:12px;font-weight:650;cursor:pointer}
+.refine-tools button:hover{background:rgba(255,255,255,.14)}
+.refine-tools button[data-refine="expand"]{color:#f3d59a}
+.refine-mask{position:fixed;inset:0;z-index:80;display:flex;align-items:center;
+  justify-content:center;padding:18px;background:rgba(15,23,32,.52);backdrop-filter:blur(2px)}
+.refine-dialog{width:min(560px,100%);max-height:min(82vh,720px);overflow:auto;
+  background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--sh)}
+.refine-head{display:flex;align-items:flex-start;gap:10px;padding:14px 16px;
+  border-bottom:1px solid var(--line)}
+.refine-head-text{min-width:0;flex:1}
+.refine-head b{display:block;font-size:14px;color:var(--ink)}
+.refine-head span{display:block;margin-top:2px;font-size:11px;color:var(--muted)}
+.refine-close{flex:none;width:30px;height:30px;border:1px solid var(--line);border-radius:8px;
+  background:var(--card);color:var(--muted);font-size:16px;line-height:1;cursor:pointer}
+.refine-close:hover{color:var(--ink);border-color:var(--acc-line)}
+.refine-body{padding:14px 16px}
+.refine-block + .refine-block{margin-top:12px}
+.refine-block span{display:block;font-size:10.5px;letter-spacing:.08em;color:var(--muted);
+  margin-bottom:5px}
+.refine-block p{margin:0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
+  background:var(--field);color:var(--text);font-size:13px;line-height:1.8;white-space:pre-wrap}
+.refine-block p.result{border-color:var(--acc-line);background:var(--acc-l);color:var(--ink)}
+.refine-note{margin:11px 0 0;font-size:11px;color:var(--muted);line-height:1.6}
+.refine-note.err{color:var(--err)}
+.refine-actions{display:flex;justify-content:flex-end;gap:8px;padding:0 16px 15px}
+.progress{display:flex;align-items:center;gap:9px;padding:9px 14px;border-top:1px solid var(--line);
+  background:var(--soft);font-size:11.5px;color:var(--muted)}
+.bar{height:6px;border-radius:99px;background:var(--line);overflow:hidden;flex:1}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#0f766e,#b7791f);
+  transition:width .25s ease}
+.job-error{margin:0 14px 14px;padding:9px 11px;border:1px solid var(--err-line);
+  background:var(--err-l);color:var(--err);border-radius:9px;font-size:11.5px;line-height:1.6}
+.stage-tip{padding:0 14px 12px;font-size:11px;color:var(--muted);line-height:1.6}
+.status{position:fixed;left:50%;bottom:20px;z-index:60;max-width:calc(100% - 32px);
+  padding:8px 14px;border-radius:999px;background:#1f2a44;color:#fff;font-size:12px;
+  opacity:0;pointer-events:none;transform:translate(-50%,8px);transition:opacity .18s,transform .18s;
+  box-shadow:0 10px 26px -12px rgba(15,23,42,.7)}
+.status.show{opacity:1;transform:translate(-50%,0)}
+.status.err{background:#b8404a}
+.status.info{background:#1f2a44}
+.spin{width:13px;height:13px;border:2px solid var(--line);border-top-color:var(--acc);
+  border-radius:50%;display:inline-block;animation:spin .8s linear infinite;flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* 选题 / 写作：放进顶栏，紧挨「返回工具箱」 */
+.mode-tabs{display:inline-flex;flex:none;gap:3px;padding:3px;border:1px solid var(--line);
+  border-radius:10px;background:var(--field)}
+.mode-tab{min-height:30px;padding:0 16px;border:0;border-radius:7px;background:transparent;
+  color:var(--muted);font-size:12.5px;font-weight:680;cursor:pointer;white-space:nowrap}
+.mode-tab:hover{color:var(--ink)}
+.mode-tab.on{background:var(--acc-l);color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc-line)}
+/* 选题工作区：沿用文章页配色，类名加 wi- 前缀避免和写作区冲突 */
+.ideas{max-width:900px;margin:0 auto}
+.ideas-lead{margin:0 0 14px;padding:9px 12px;border:1px dashed var(--acc-line);border-radius:10px;
+  background:var(--acc-l);color:var(--acc);font-size:12px;line-height:1.65}
+.wi-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;
+  box-shadow:var(--sh);margin-bottom:14px}
+.wi-card-h{font-size:15px;font-weight:720;color:var(--ink);margin-bottom:5px}
+.wi-card-sub{font-size:12.5px;color:var(--muted);line-height:1.65}
+.wi-f{display:block;font-size:12px;font-weight:650;color:var(--text);margin:13px 0 6px}
+.wi-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.wi-chip{min-height:36px;padding:0 13px;border-radius:999px;border:1px solid var(--line);
+  background:var(--field);color:var(--text);font-size:12.5px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:5px}
+.wi-chip:hover{border-color:var(--acc-line);color:var(--acc)}
+.wi-chip.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc);font-weight:650}
+.wi-btn-row{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.wi-btn-row .btn{flex:1 1 150px;min-height:42px;font-size:13px}
+.wi-note{font-size:12px;color:var(--muted);margin-top:10px;min-height:18px;line-height:1.65}
+.wi-note.err{color:var(--err)}
+.wi-sec-head{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin:20px 2px 8px}
+.wi-sec-head b{font-size:13px;font-weight:720;color:var(--ink)}
+.wi-idea{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:15px 16px;
+  box-shadow:var(--sh);margin-top:12px}
+.wi-idea-t{font-size:16px;font-weight:720;color:var(--ink);line-height:1.5}
+.wi-idea-claim{font-size:13.5px;line-height:1.75;color:var(--text);margin-top:6px}
+.wi-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:9px}
+.wi-badge{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;
+  font-size:11px;line-height:1.8;background:var(--soft);color:var(--muted);border:1px solid var(--line)}
+.wi-badge.b-ok{background:var(--ok-l);color:var(--ok);border-color:var(--ok-line)}
+.wi-badge.b-warn{background:var(--gold-l);color:var(--gold);border-color:var(--gold-line)}
+.wi-line{font-size:13px;line-height:1.75;color:var(--text);margin-top:9px}
+.wi-line>b{display:block;font-size:11px;font-weight:650;color:var(--muted);
+  letter-spacing:.02em;margin-bottom:2px}
+.wi-hook{background:var(--soft);border-radius:10px;padding:8px 11px;font-size:13px;
+  line-height:1.7;color:var(--text)}
+.wi-outline{margin:2px 0 0;padding-left:20px}
+.wi-outline li{margin-bottom:3px}
+.wi-fold{margin-top:9px}
+.wi-fold>summary{cursor:pointer;font-size:12px;color:var(--muted);list-style:none;padding:6px 0}
+.wi-fold>summary::-webkit-details-marker{display:none}
+.wi-fold>summary::before{content:"▸ ";color:var(--muted)}
+.wi-fold[open]>summary::before{content:"▾ "}
+.wi-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.wi-iconbtn{font-size:12px;padding:6px 12px;border-radius:9px;border:1px solid var(--line);
+  background:var(--field);color:var(--text);cursor:pointer;min-height:32px}
+.wi-iconbtn:hover{border-color:var(--acc-line);color:var(--acc)}
+.wi-iconbtn.primary{border-color:var(--acc);background:var(--acc-l);color:var(--acc);font-weight:650}
+.wi-iconbtn.primary:hover{border-color:var(--acc);color:var(--acc-d)}
+.wi-iconbtn.danger:hover{border-color:var(--err-line);color:var(--err)}
+.wi-pk-sec{border-left:2px solid var(--acc-line);padding:2px 0 2px 12px;margin-top:12px}
+.wi-pk-h{font-size:13.5px;font-weight:650;color:var(--ink);margin-bottom:4px}
+.wi-pk-ul{margin:0;padding-left:18px;font-size:13px;line-height:1.8;color:var(--text)}
+.wi-pk-ul li{margin-bottom:3px}
+.wi-tbtn{display:block;width:100%;text-align:left;background:var(--field);border:1px solid var(--line);
+  border-radius:10px;padding:8px 12px;font-size:13px;color:var(--text);cursor:pointer;margin-top:6px}
+.wi-tbtn:hover{border-color:var(--acc-line);color:var(--acc)}
+.wi-series{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.wi-series-item{display:flex;align-items:center;gap:8px;background:var(--field);
+  border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:13px}
+.wi-series-item span{flex:1;min-width:0}
+.wi-mine-item{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:12px 14px;box-shadow:var(--sh);margin-top:10px}
+.wi-mine-t{font-size:14px;font-weight:650;color:var(--ink);line-height:1.55}
+.wi-mine-m{font-size:11.5px;color:var(--muted);margin-top:5px;display:flex;flex-wrap:wrap;gap:8px}
+.wi-empty{padding:26px 12px;text-align:center;color:var(--muted);font-size:12.5px;line-height:1.9;
+  border:1px dashed var(--line);border-radius:12px}
+.wi-empty b{display:block;color:var(--ink);font-size:14px;margin-bottom:6px}
+@keyframes wi-up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.wi-up{animation:wi-up .3s ease-out both}
+@media(prefers-reduced-motion:reduce){.wi-up{animation:none}}
+@media(max-width:1180px){
+  .studio{--side-w:320px;
+    grid-template-columns:minmax(0,var(--side-w)) minmax(0,1fr) minmax(240px,260px)}
+}
+@media(max-width:1080px){
+  .studio{grid-template-columns:minmax(0,1fr);grid-template-areas:"panel" "history" "viewer"}
+  .panel{position:static;max-height:none}
+  .history-card{position:static;max-height:none;overflow:visible;
+    transition:padding .2s ease,border-color .2s ease}
+  .history-list{flex-direction:row;overflow-x:auto;padding-bottom:4px;
+    scroll-snap-type:x proximity;overscroll-behavior-x:contain}
+  .history-item{flex:0 0 270px;scroll-snap-align:start}
+  html[data-hist-fold="on"] .history-card{padding-top:10px;padding-bottom:10px}
+  html[data-hist-fold="on"] .history-list{display:none}
+  html[data-hist-fold="on"] .hist-fold{transform:rotate(180deg)}
+}
+@media(max-width:640px){
+  .topbar-in{padding:9px 12px}
+  .wrap{padding:14px 12px calc(38px + env(safe-area-inset-bottom))}
+  .back span{display:none}
+  .tb-mount{display:none}
+  .grid2{grid-template-columns:1fr}
+  .history-item{flex-basis:235px}
+  .job-title{font-size:20px}
+  .preview-pane iframe{height:460px}
+  .wechat-frame iframe{height:540px}
+  .preview-pane.edit-pane{padding:14px 12px 20px}
+  .edit-title{font-size:21px}
+  .edit-p{font-size:14.5px}
+  .refine-mask{padding:12px}
+  .refine-dialog{border-radius:14px}
+  .top-actions{gap:6px}
+  .mode-tab{min-height:28px;padding:0 11px;font-size:12px}
+  .brand-text .sub{display:none}
+  .wi-card{padding:14px}
+}
+@media(prefers-reduced-motion:reduce){
+  .status,.bar i{transition:none}
+  .spin{animation:none}
+}
+</style>
+<script src="/static/quick-ai.js" defer></script>
+<script src="/static/fish-mascot.js" defer></script>
+<script src="/static/usage.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="mark" aria-hidden="true">文</div>
+    <div class="brand-text">
+      <div class="ttl">AI 文章写作</div>
+      <div class="sub">先定选题 · 再写正文 · 自动配图 · 公众号可复制</div>
+    </div>
+    <div class="top-actions">
+      <span class="tb-mount"></span>
+      <nav class="mode-tabs" role="tablist" aria-label="文章工具切换">
+        <button class="mode-tab" id="tabIdeas" type="button" role="tab"
+          aria-selected="false" aria-controls="ideasView" data-mode="ideas" tabindex="-1">选题</button>
+        <button class="mode-tab on" id="tabWrite" type="button" role="tab"
+          aria-selected="true" aria-controls="writeView" data-mode="write">写作</button>
+      </nav>
+      <a class="back" href="/">← <span>返回工具箱</span></a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="studio" id="writeView" role="tabpanel" aria-labelledby="tabWrite">
+    <aside class="panel">
+      <div id="keyBanner" class="banner" hidden></div>
+      <div id="ideaBanner" class="banner info idea" hidden>
+        <span id="ideaBannerText"></span>
+        <button type="button" id="ideaBannerClose" aria-label="关闭选题提示">×</button>
+      </div>
+
+      <div class="panel-head">
+        <b>写什么</b>
+        <span id="topicCount">0 / 200</span>
+      </div>
+      <input type="text" id="topic" maxlength="200"
+        placeholder="例如：为什么越忙的人越需要留白？">
+
+      <div class="field-label">参考资料 <small>可选 · 有资料时更不容易编造</small></div>
+      <textarea id="material" maxlength="8000" rows="4"
+        placeholder="粘贴笔记、链接摘要或几条事实。留空则按主题自由写，但会避开不可核实的具体数字。"></textarea>
+      <div class="panel-head" style="margin-top:4px">
+        <span></span><span id="materialCount">0 / 8000</span>
+      </div>
+
+      <div class="grid2">
+        <div>
+          <div class="field-label">文章类型</div>
+          <select id="genre" aria-label="文章类型">
+            <option value="insight" selected>观点</option>
+            <option value="tutorial">教程</option>
+            <option value="story">故事</option>
+            <option value="news">资讯</option>
+            <option value="science">科普</option>
+          </select>
+        </div>
+        <div>
+          <div class="field-label">语气</div>
+          <select id="tone" aria-label="语气">
+            <option value="warm" selected>温暖</option>
+            <option value="professional">专业</option>
+            <option value="calm">克制</option>
+            <option value="light">轻松</option>
+            <option value="sharp">犀利</option>
+          </select>
+        </div>
+      </div>
+      <p class="hint" id="styleHint"></p>
+
+      <div class="field-label">篇幅</div>
+      <div class="seg" id="lengths">
+        <button class="seg-btn" type="button" data-length="short">短 · 3 节</button>
+        <button class="seg-btn on" type="button" data-length="medium">中 · 4～5 节</button>
+        <button class="seg-btn" type="button" data-length="long">长 · 6 节</button>
+      </div>
+
+      <div class="field-label">配图数量 <small id="imageCountHint">含封面 · 最多 6 张</small></div>
+      <div class="grid2">
+        <select id="imageCount" aria-label="配图数量（含封面）">
+          <option value="1">1 张（仅封面）</option>
+          <option value="2">2 张（封面+1）</option>
+          <option value="3" selected>3 张（封面+2）</option>
+          <option value="4">4 张（封面+3）</option>
+          <option value="5">5 张（封面+4）</option>
+          <option value="6">6 张（封面+5）</option>
+        </select>
+        <select id="imageStyle" aria-label="配图风格">
+          <option value="illustration" selected>插画</option>
+          <option value="photo">摄影</option>
+          <option value="watercolor">水彩</option>
+          <option value="minimal">极简</option>
+          <option value="3d">3D 渲染</option>
+          <option value="notion">Notion 信息图</option>
+          <option value="comic">漫画信息图</option>
+        </select>
+      </div>
+      <p class="hint" id="imageStyleHint"></p>
+
+      <div class="field-label">图片模型</div>
+      <select id="imageModel" aria-label="图片模型"></select>
+
+      <div class="actions">
+        <button class="btn primary wide" id="outlineBtn" type="button">先生成大纲</button>
+      </div>
+      <p class="cost" id="quota">正在读取额度…</p>
+      <p class="privacy">主题和资料会发送给文本模型，配图会发送给火山方舟。
+        先生成大纲不会产生图片费用；确认后才会写正文和出图。图片默认保留 7 天。</p>
+    </aside>
+
+    <section class="viewer">
+      <div class="viewer-head">
+        <div><b>预览与导出</b> <span id="jobMeta">还没有任务</span></div>
+        <div class="view-actions">
+          <button class="btn mini" id="refreshBtn" type="button">刷新</button>
+        </div>
+      </div>
+      <div class="viewer-body" id="resultBody">
+        <div class="empty" id="resultEmpty">
+          <span class="ico" aria-hidden="true">📝</span>
+          <b>先写一个主题，生成大纲</b>
+          <span>大纲可以改标题、要点和画面想法。确认后再逐节写正文，并按所选数量生成封面与内文配图。</span>
+        </div>
+      </div>
+      <div class="progress" id="progress" hidden>
+        <span class="spin" aria-hidden="true"></span>
+        <span class="bar"><i id="progressBar"></i></span>
+        <span id="progressText">排队中…</span>
+      </div>
+      <div class="stage-tip" id="stageTip" hidden></div>
+      <div class="job-error" id="jobError" hidden></div>
+    </section>
+
+    <aside class="history-card" aria-label="最近文章">
+      <div class="section-head">
+        <b>最近文章</b>
+        <span class="hist-tools">
+          <span id="historyCount"></span>
+          <button class="hist-fold" id="histFold" type="button"
+            aria-expanded="true" aria-controls="historyList" title="收起最近文章">›</button>
+        </span>
+      </div>
+      <div class="history-list" id="historyList">
+        <div class="history-empty">还没有生成记录</div>
+      </div>
+    </aside>
+  </div>
+
+  <section class="ideas" id="ideasView" role="tabpanel" aria-labelledby="tabIdeas" hidden>
+    <p class="ideas-lead">先在这里找方向。长文体裁（公众号长文、技术博客、知乎回答、复盘）的选题
+      可以点「用这个选题开写」，会直接切到「写作」并带入主题、文章类型和参考资料，不会自动产生模型费用。</p>
+
+    <div class="wi-card">
+      <div class="wi-card-h">给我一点线索</div>
+      <div class="wi-card-sub">想到什么写什么。写不出来就空着，直接点按钮。</div>
+      <label class="wi-f" for="wiSeed">我正在做 / 关心的事</label>
+      <textarea id="wiSeed" placeholder="例：在做一个内部工具，天天被同事问同样的问题"></textarea>
+      <label class="wi-f" for="wiAudience">想写给谁看</label>
+      <input type="text" id="wiAudience" placeholder="例：刚入行的产品经理">
+      <label class="wi-f" for="wiTrigger">最近让我有反应的一件事</label>
+      <textarea id="wiTrigger" placeholder="例：会上提的方案被否了，理由只有一句「不太合适」"
+        style="min-height:64px"></textarea>
+      <label class="wi-f">体裁（可多选，不选就都行）</label>
+      <div class="wi-chips" id="wiForms"></div>
+      <label class="wi-f">味道（可多选，不选就都行）</label>
+      <div class="wi-chips" id="wiFlavors"></div>
+      <label class="wi-f">出几个</label>
+      <div class="wi-chips" id="wiNums">
+        <button class="wi-chip" type="button" data-n="6">6 个</button>
+        <button class="wi-chip on" type="button" data-n="8">8 个</button>
+      </div>
+      <div class="wi-btn-row">
+        <button class="btn primary" id="wiGo" type="button">给我一批选题</button>
+        <button class="btn" id="wiClear" type="button">清空</button>
+      </div>
+      <div class="wi-note" id="wiNote" role="status" aria-live="polite"></div>
+    </div>
+
+    <div class="wi-card" id="wiHintCard">
+      <div class="wi-card-h">没头绪就先挑一句</div>
+      <div class="wi-chips" id="wiHints"></div>
+    </div>
+
+    <div id="wiListWrap"></div>
+    <div id="wiPackWrap"></div>
+    <div id="wiMineWrap"></div>
+  </section>
+</main>
+
+<button class="hist-reopen" id="histReopen" type="button" aria-controls="historyList">
+  最近文章
+</button>
+
+<div class="refine-tools" id="refineTools" hidden>
+  <button type="button" data-refine="polish">润色</button>
+  <button type="button" data-refine="expand">扩展</button>
+</div>
+
+<div class="refine-mask" id="refineMask" hidden>
+  <div class="refine-dialog" role="dialog" aria-modal="true"
+    aria-labelledby="refineTitle" aria-describedby="refineNote">
+    <div class="refine-head">
+      <div class="refine-head-text">
+        <b id="refineTitle">润色选中文字</b>
+        <span id="refineMeta"></span>
+      </div>
+      <button class="refine-close" id="refineClose" type="button" aria-label="关闭">×</button>
+    </div>
+    <div class="refine-body">
+      <div class="refine-block">
+        <span>原文</span>
+        <p id="refineOriginal"></p>
+      </div>
+      <div class="refine-block">
+        <span id="refineResultLabel">AI 结果</span>
+        <p class="result" id="refineResult"></p>
+      </div>
+      <p class="refine-note" id="refineNote"></p>
+    </div>
+    <div class="refine-actions">
+      <button class="btn" id="refineCancel" type="button">取消</button>
+      <button class="btn gold" id="refineApply" type="button" disabled>应用到正文</button>
+    </div>
+  </div>
+</div>
+
+<div class="status" id="status" role="status" aria-live="polite"></div>
+<script type="module" src="/static/article.js"></script>
+<script type="module" src="/static/article-ideas.js"></script>
+<script src="/static/focus-widget.js" defer></script>
+</body>
+</html>
