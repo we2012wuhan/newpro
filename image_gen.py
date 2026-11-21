@@ -369,6 +369,24 @@ def _ark_generate(prompt: str, size: str, model: str = '') -> bytes:
     raise ImageGenError('火山方舟没有返回图片地址')
 
 
+def generate_image_bytes(prompt: str, ratio: str = '16:9', resolution: str = '2K',
+                         model: str = '', style: str = 'none',
+                         negative: str = '') -> tuple[bytes, str]:
+    """给其他工具复用的一次性出图：组合提示词 -> 调方舟 -> (图片字节, 扩展名)。
+
+    不落盘、不记额度、不创建任务；调用方自己负责保存和计费。
+    """
+    content = _compose_prompt(str(prompt or '').strip(), style,
+                              str(negative or '').strip())
+    if not content:
+        raise ImageGenError('图片提示词不能为空')
+    spec = RATIOS.get(str(ratio or '16:9').strip()) or RATIOS['16:9']
+    quality = str(resolution or '2K').strip().upper()
+    size = spec.get(quality) or spec['2K']
+    data = _ark_generate(content, size, model or model_config.ark_image_model())
+    return data, _image_ext(data)
+
+
 def _save_image(user: str, job_id: str, name: str, data: bytes) -> None:
     directory = _job_dir(user, job_id)
     directory.mkdir(parents=True, exist_ok=True)

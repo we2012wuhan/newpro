@@ -130,6 +130,51 @@ SCHEMA = (
     """,
     "CREATE INDEX IF NOT EXISTS idx_podcast_usage_user ON podcast_usage(user, created_at)",
     """
+    CREATE TABLE IF NOT EXISTS article_jobs(
+        id               TEXT PRIMARY KEY,
+        user             TEXT NOT NULL,
+        topic            TEXT NOT NULL,
+        material         TEXT NOT NULL DEFAULT '',
+        genre            TEXT NOT NULL DEFAULT 'insight',
+        tone             TEXT NOT NULL DEFAULT 'warm',
+        length           TEXT NOT NULL DEFAULT 'medium',
+        title            TEXT NOT NULL DEFAULT '',
+        summary          TEXT NOT NULL DEFAULT '',
+        outline          TEXT NOT NULL DEFAULT '{}',
+        sections         TEXT NOT NULL DEFAULT '[]',
+        images           TEXT NOT NULL DEFAULT '[]',
+        status           TEXT NOT NULL DEFAULT 'queued',
+        stage            TEXT NOT NULL DEFAULT 'queued',
+        progress         INTEGER NOT NULL DEFAULT 0,
+        total_sections   INTEGER NOT NULL DEFAULT 0,
+        done_sections    INTEGER NOT NULL DEFAULT 0,
+        total_images     INTEGER NOT NULL DEFAULT 0,
+        done_images      INTEGER NOT NULL DEFAULT 0,
+        image_count      INTEGER NOT NULL DEFAULT 0,
+        image_style      TEXT NOT NULL DEFAULT 'illustration',
+        image_model      TEXT NOT NULL DEFAULT '',
+        model            TEXT NOT NULL DEFAULT '',
+        body_chars       INTEGER NOT NULL DEFAULT 0,
+        warning          TEXT NOT NULL DEFAULT '',
+        error            TEXT NOT NULL DEFAULT '',
+        created_at       TEXT NOT NULL,
+        started_at       TEXT NOT NULL DEFAULT '',
+        finished_at      TEXT NOT NULL DEFAULT ''
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_article_jobs_user ON article_jobs(user, created_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_article_jobs_status ON article_jobs(status, created_at)",
+    """
+    CREATE TABLE IF NOT EXISTS article_usage(
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        job_id     TEXT NOT NULL UNIQUE,
+        user       TEXT NOT NULL,
+        images     INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_article_usage_user ON article_usage(user, created_at)",
+    """
     CREATE TABLE IF NOT EXISTS book_cache(
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         source     TEXT NOT NULL,
@@ -1120,6 +1165,221 @@ def podcast_job_expired(user: str, before: str) -> list:
     finally:
         conn.close()
     return [_podcast_job_row(row) for row in rows]
+
+
+# ---------------------------------------------------------------
+# article_jobs：AI 文章写作任务（/article）
+#   大纲由用户确认后才建任务；正文按节生成，配图逐张落盘。
+#   和 podcast_jobs 一样用 BEGIN IMMEDIATE 原子领取，避免重复计费。
+# ---------------------------------------------------------------
+_ARTICLE_JOB_FIELDS = {
+    'status', 'stage', 'progress', 'total_sections', 'done_sections',
+    'total_images', 'done_images', 'title', 'summary', 'outline', 'sections',
+    'images', 'body_chars', 'warning', 'error', 'image_model', 'model',
+    'started_at', 'finished_at',
+}
+_ARTICLE_JSON_FIELDS = {'outline', 'sections', 'images'}
+
+
+def _article_job_row(row) -> dict:
+    data = dict(row)
+    for key, fallback in (('outline', {}), ('sections', []), ('images', [])):
+        try:
+            value = json.loads(data.get(key) or ('{}' if key == 'outline' else '[]'))
+        except ValueError:
+            value = fallback
+        if key == 'outline':
+            data[key] = value if isinstance(value, dict) else {}
+        else:
+            data[key] = value if isinstance(value, list) else []
+    return data
+
+
+def article_job_add(user: str, topic: str, material: str, genre: str, tone: str,
+                    length: str, image_count: int, image_style: str,
+                    image_model: str, model: str, outline: dict,
+                    total_images: int) -> dict:
+    job_id = uuid.uuid4().hex
+    created = now_str()
+    outline = outline if isinstance(outline, dict) else {}
+    sections = outline.get('sections') if isinstance(outline.get('sections'), list) else []
+    total_sections = len(sections)
+    title = str(outline.get('title') or '').strip()[:120]
+    summary = str(outline.get('summary') or '').strip()[:300]
+    conn = connect()
+    try:
+        conn.execute(
+            'INSERT INTO article_jobs(id, user, topic, material, genre, tone, length, '
+            'title, summary, outline, sections, images, status, stage, progress, '
+            'total_sections, done_sections, total_images, done_images, image_count, '
+            'image_style, image_model, model, body_chars, warning, error, created_at, '
+            'started_at, finished_at) '
+            "VALUES (?,?,?,?,?,?,?,?,?,?,'[]','[]','queued','queued',0,?,0,?,0,?,?,?,?,0,'','',?,'','')",
+            (job_id, user, topic, material, genre, tone, length, title, summary,
+             json.dumps(outline, ensure_ascii=False), total_sections,
+             int(total_images), int(image_count), image_style, image_model, model,
+             created))
+        # 额度单独记一笔：删除任务、过期清理都不会让当天额度回血。
+        conn.execute(
+            'INSERT INTO article_usage(job_id, user, images, created_at) VALUES(?,?,?,?)',
+            (job_id, user, int(total_images), created))
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+    return {
+        'id': job_id, 'user': user, 'topic': topic, 'material': material,
+        'genre': genre, 'tone': tone, 'length': length, 'title': title,
+        'summary': summary, 'outline': outline, 'sections': [], 'images': [],
+        'status': 'queued', 'stage': 'queued', 'progress': 0,
+        'total_sections': total_sections, 'done_sections': 0,
+        'total_images': int(total_images), 'done_images': 0,
+        'image_count': int(image_count), 'image_style': image_style,
+        'image_model': image_model, 'model': model, 'body_chars': 0,
+        'warning': '', 'error': '', 'created_at': created,
+        'started_at': '', 'finished_at': '',
+    }
+
+
+def article_job_get(user: str, job_id: str):
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT * FROM article_jobs WHERE id = ? AND user = ?',
+                     (str(job_id), user))
+    finally:
+        conn.close()
+    return _article_job_row(rows[0]) if rows else None
+
+
+def article_job_list(user: str, limit: int = 20) -> list:
+    limit = max(1, min(int(limit or 20), 100))
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT * FROM article_jobs WHERE user = ? '
+                           'ORDER BY rowid DESC LIMIT ?', (user, limit))
+    finally:
+        conn.close()
+    return [_article_job_row(row) for row in rows]
+
+
+def article_job_claim_next():
+    """原子领取最早的一条 queued 任务；没有就返回 None。"""
+    conn = connect()
+    try:
+        conn.execute('BEGIN IMMEDIATE')
+        row = conn.execute(
+            "SELECT * FROM article_jobs WHERE status = 'queued' "
+            'ORDER BY rowid ASC LIMIT 1').fetchone()
+        if not row:
+            conn.rollback()
+            return None
+        started = now_str()
+        conn.execute(
+            "UPDATE article_jobs SET status = 'running', stage = 'writing', "
+            'started_at = ? WHERE id = ?', (started, row['id']))
+        conn.commit()
+        data = _article_job_row(row)
+        data['status'] = 'running'
+        data['stage'] = 'writing'
+        data['started_at'] = started
+        return data
+    except sqlite3.OperationalError as exc:
+        try:
+            conn.rollback()
+        except sqlite3.Error:
+            pass
+        raise StorageUnavailable('领取任务失败：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def article_job_update(job_id: str, fields: dict) -> int:
+    sets, args = [], []
+    for key, value in (fields or {}).items():
+        if key not in _ARTICLE_JOB_FIELDS:
+            continue
+        if key in _ARTICLE_JSON_FIELDS:
+            fallback = {} if key == 'outline' else []
+            if key == 'outline':
+                value = json.dumps(value if isinstance(value, dict) else {}, ensure_ascii=False)
+            else:
+                value = json.dumps(value if isinstance(value, list) else [], ensure_ascii=False)
+        sets.append(key + ' = ?')
+        args.append(value)
+    if not sets:
+        return 0
+    args.append(str(job_id))
+    conn = connect()
+    try:
+        cur = conn.execute('UPDATE article_jobs SET ' + ', '.join(sets) + ' WHERE id = ?', args)
+        conn.commit()
+        return cur.rowcount
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('更新失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def article_job_delete(user: str, job_id: str) -> int:
+    conn = connect()
+    try:
+        cur = conn.execute('DELETE FROM article_jobs WHERE id = ? AND user = ?',
+                           (str(job_id), user))
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def article_job_delete_finished(user: str, job_id: str) -> int:
+    conn = connect()
+    try:
+        cur = conn.execute(
+            "DELETE FROM article_jobs WHERE id = ? AND user = ? "
+            "AND status NOT IN ('queued', 'running')",
+            (str(job_id), user))
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def article_job_images_since(user: str, since: str) -> int:
+    """某用户从 since 起预定了多少张图；读 usage，删任务不会回血。"""
+    conn = connect()
+    try:
+        row = conn.execute(
+            'SELECT COALESCE(SUM(images), 0) AS n FROM article_usage '
+            'WHERE user = ? AND created_at >= ?', (user, since)).fetchone()
+        return int(row['n'] or 0)
+    finally:
+        conn.close()
+
+
+def article_job_recover_running(message: str) -> int:
+    conn = connect()
+    try:
+        cur = conn.execute(
+            "UPDATE article_jobs SET status = 'failed', stage = 'failed', error = ?, "
+            'finished_at = ? WHERE status = '
+            "'running'", (message, now_str()))
+        conn.commit()
+        return cur.rowcount
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('恢复任务失败：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def article_job_expired(user: str, before: str) -> list:
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT * FROM article_jobs WHERE user = ? AND created_at < ? '
+                           'ORDER BY rowid ASC', (user, before))
+    finally:
+        conn.close()
+    return [_article_job_row(row) for row in rows]
 
 
 # ---------------------------------------------------------------

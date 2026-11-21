@@ -28,6 +28,7 @@
 | `image_studio.py` | 图片工坊（页面在 `/image-studio`：Canvas 本地压缩到指定 KB、裁剪 / 旋转 / 翻转、九宫格切图打包 ZIP、9 张照片拼成一张方图；图片不上传、不入库，SQLite 只保存处理参数方案，支持 `?r=<id>` 深链） |
 | `image_gen.py` | AI 文生图（页面在 `/image-gen`：提示词 + 模式 / 风格 + 比例 + 数量交给火山方舟 Seedream 生成；支持 Notion 黄色手绘信息图和竖版三格手绘漫画信息图预设；任务异步排队、页面轮询，图片落在数据卷 `generated/` 下，默认保留 7 天；支持下载和经 IndexedDB 接力到图片工坊继续处理。注意它和图片工坊不同：提示词会上传第三方，生成图也会落盘） |
 | `podcast.py` | AI 双人播客（页面在 `/podcast`：写主题、可选粘贴参考资料、选 3 / 5 / 8 分钟和风格；一次模型调用写出 A/B 交替的完整逐字稿，再用女声小唯 + 男声刘飞两把火山 TTS 音色逐段合成，ffmpeg 拼成一条 MP3 并做响度归一；后台单线程排队、页面轮询进度，可播放、下载 MP3 和文字稿。主题与逐字稿会上传第三方，音频默认保留 7 天） |
+| `article_writer.py` | AI 文章写作（页面在 `/article`：输入主题，先出可编辑大纲，确认后逐节写正文，再用火山方舟 Seedream Flash 生成封面和内文配图；后台单线程排队、页面轮询进度；导出网页版、公众号内联样式版、Markdown 和带图片的 ZIP。公众号只做复制正文 + 图片包，不接发布 API、不自动上传图片；主题、资料和正文会上传第三方，图片默认保留 7 天） |
 | `media_library.py` | 影音库（页面在 `/media`：通过内网的 OpenList / AList 只读浏览阿里云盘里的音乐和视频，文件夹导航、搜索、收藏、断点续播；`/media/stream` 代理 Range 请求，媒体文件不落本地盘，只在 SQLite `media_state` 里存收藏和播放进度） |
 | `sleep_tool.py` | 睡前打烊（页面在 `/sleep`：只播放你上传的音频；文件保存到数据卷，电脑和手机共用；支持 20—60 分钟定时、平滑淡出、全黑睡眠屏和 SQLite 声音预设） |
 | `beat_em_up.py` | 夜巷清场（页面在 `/beat-em-up`：原创横向卷轴清版格斗第一关，含纵深移动、拳脚连击、两类敌人、Boss、三段街口、镜头跟随、程序化音效和手机虚拟摇杆；无外部游戏引擎和美术素材依赖） |
@@ -106,6 +107,7 @@ python video_downloader.py
 - `http://127.0.0.1:8000/image-studio` **图片工坊**：浏览器本地压缩到目标 KB、裁剪旋转翻转、九宫格切图 ZIP、9 张照片拼成一张方图；图片不上传，参数方案存 SQLite
 - `http://127.0.0.1:8000/image-gen` **AI 文生图**：写提示词，调用火山方舟 Seedream 生成图片；任务异步排队、页面轮询，生成图存服务端 7 天，可下载，也可一键接力到图片工坊继续处理（注意：提示词会上传第三方）
 - `http://127.0.0.1:8000/podcast` **AI 双人播客**：写一个主题（可附参考资料），选时长和风格，模型先写完整对谈稿，再用男女两把音色合成并拼成一条 MP3，可播放、下载音频和文字稿（注意：主题与逐字稿会上传第三方）
+- `http://127.0.0.1:8000/article` **AI 文章写作**：给一个主题先生成可编辑大纲，确认后逐节写正文并生成封面和内文配图；可预览网页 / 公众号排版、复制公众号正文、下载 HTML / Markdown / 图片 ZIP（注意：主题、资料和正文会上传第三方；公众号图片需手动上传）
 - `http://127.0.0.1:8000/media` **影音库**：只读浏览阿里云盘里的音乐和视频，可进文件夹、搜索、收藏、断点续播；需要先按下方「影音库」一节启动 OpenList 并配置阿里云盘存储
 - `http://127.0.0.1:8000/sleep` **睡前打烊**：上传自己的音频，定时淡出并进入全黑睡眠屏
 - `http://127.0.0.1:8000/beat-em-up` **夜巷清场**：原创横版清版格斗，穿过三个街口并击败 Boss
@@ -205,7 +207,7 @@ python video_downloader.py
 
 ## 模型配置（本地 .env / 线上环境变量）
 
-所有需要大模型或第三方 Key 的页面（`/ai-chart`、`/design-assistant`、`/buy-helper`、`/bill-analysis`、`/study-assistant`、`/ocr`、`/writing-ideas`、`/opc`、`/judgement-trainer`、`/reading-practice`）
+所有需要大模型或第三方 Key 的页面（`/ai-chart`、`/design-assistant`、`/buy-helper`、`/bill-analysis`、`/study-assistant`、`/ocr`、`/writing-ideas`、`/article`、`/opc`、`/judgement-trainer`、`/reading-practice`）
 都不再让用户手填 Key，统一由服务端读取。读取顺序：**真实环境变量 > 项目根目录 `.env` > 代码默认值**。
 
 本地开发：
@@ -249,13 +251,16 @@ cp .env.example .env     # Windows: copy .env.example .env
 | `VOLC_TTS_SPEED` | 否 | 语速，默认 `1.0`（可用范围 0.2 ~ 3.0） |
 | `VOLC_ASR_API_KEY` | 否 | 语音输入（识别）用的火山引擎 Key。不填就复用 `VOLC_TTS_API_KEY`；两个都没填时麦克风会提示「服务端没配识别 Key」 |
 | `VOLC_ASR_RESOURCE_ID` | 否 | 识别资源 ID，默认 `volc.bigasr.sauc.duration`（大模型流式语音识别 / 小时版）。同一个账号里不同识别能力是分开开通的，开通哪个填哪个；服务端还会自动在 `volc.bigasr.auc_turbo`、`volc.bigasr.auc` 之间兜底试 |
-| `ARK_API_KEY` | 否（只影响 `/image-gen`） | 火山方舟的 API Key，文生图用。**不能复用语音合成的 `VOLC_TTS_API_KEY`**，要去方舟控制台单独创建；不填时页面会明确提示缺 Key |
+| `ARK_API_KEY` | 否（只影响 `/image-gen`、`/article`） | 火山方舟的 API Key，文生图和文章配图用。**不能复用语音合成的 `VOLC_TTS_API_KEY`**，要去方舟控制台单独创建；不填时页面会明确提示缺 Key |
 | `ARK_BASE_URL` | 否 | 方舟接口地址，默认北京区 `https://ark.cn-beijing.volces.com/api/v3` |
 | `ARK_IMAGE_MODEL` | 否 | 默认图片模型 ID，默认 `doubao-seedream-5-0-pro-260628`；页面下拉框里可以随时切换 |
 | `ARK_IMAGE_MODELS` | 否 | 页面上可切换的模型清单，逗号分隔，格式 `模型ID` 或 `模型ID\|显示名\|备注`。不填用内置清单：5.0 Pro / 5.0 Flash / 4.5 / 4.0；模型下线时改这里即可，不用动代码 |
 | `IMAGE_GEN_DAILY_LIMIT` | 否 | 每天最多请求多少张图（按张累加，失败任务也算），默认 `40`。这是防误点和账单失控的保险丝，不是服务商配额 |
 | `IMAGE_GEN_TTL_DAYS` | 否 | 生成图和任务记录保留天数，默认 `7`；过期后在下一次访问时清理 |
 | `IMAGE_GEN_DIR` | 否 | 生成图落盘目录，默认是数据库同级的 `generated/`（Docker 里就在数据卷内） |
+| `ARTICLE_DAILY_IMAGES` | 否 | `/article` 每天最多生成多少张配图（封面 + 内文，按任务创建时预留），默认 `24`；删除任务不返还额度 |
+| `ARTICLE_TTL_DAYS` | 否 | 文章任务、正文和配图保留天数，默认 `7`；过期后在下一次访问时清理 |
+| `ARTICLE_DIR` | 否 | 文章配图落盘目录，默认是数据库同级的 `generated/article/`（Docker 里就在数据卷内） |
 | `ALIST_USERNAME` / `ALIST_PASSWORD` | 否（只影响 `/media`） | OpenList（原 AList）后台的登录账号和密码；`ALIST_PASSWORD` 不填时影音库会明确提示未配置。建议单独建一个只读账号，不要直接用管理员 |
 | `ALIST_URL` | 否 | OpenList 的服务地址。Docker 里默认 `http://alist:5244`（compose 里已经给 app 设了默认值）；本地调试改成 `http://127.0.0.1:5244` |
 | `ALIST_ROOT` | 否 | 只暴露 OpenList 的这个虚拟目录及其子目录，默认 `/`。例：`/阿里云盘/我的影音`；设置后页面和接口都出不去这个范围 |
@@ -478,6 +483,24 @@ cp .env.example .env     # Windows: copy .env.example .env
 - 默认选中 `ARK_IMAGE_MODEL`（默认 `doubao-seedream-5-0-pro-260628`）；模型 ID 和可用尺寸会随方舟迭代变化，以控制台为准。要增删下拉框选项改 `ARK_IMAGE_MODELS`，不用动代码；
 - 「继续编辑」用同源 IndexedDB 在页面之间传图，生成图不会为了编辑再上传一次服务器；
 - 后台队列假设**单进程**（仓库里的 Dockerfile 就是 `uvicorn --workers 1`）。如果以后改成多 worker，需要先给任务领取/重启恢复加分布式协调，否则多个进程会互相把正在跑的任务标成中断。
+
+## AI 文章写作
+
+打开 `http://127.0.0.1:8000/article`：
+
+1. 写主题，可选粘贴参考资料，选文章类型、语气、篇幅、配图数量（含封面）和风格；
+2. 先点「先生成大纲」：这一步只调用文本模型，返回标题、导语和每节要点，**不生成图片、不落库**，可以直接改；
+3. 确认大纲后点「生成文章和配图」：后台逐节写正文，再用 Seedream Flash（不在允许清单时回退全局默认模型）生成所选总配图数（含 1 张封面，内文图每节最多 1 张），页面轮询进度；
+4. 完成后可切「网页版 / 公众号版 / Markdown」预览，复制公众号正文，或下载 HTML、Markdown、带图片和说明的 ZIP。
+
+说明：
+
+- 公众号 V1 只做**复制正文 + 图片包**：正文是内联样式、不含脚本和外部 CSS；图片不会自动上传，ZIP 里的 `README.txt` 写了手动上传和替换占位图的步骤，工具也不会自动发布；
+- 复制公众号正文用占位符代替图片，避免公众号抓不到同源鉴权图片；无法使用富文本剪贴板时回退到隐藏可编辑区复制，再不行就下载 ZIP；
+- 主题、参考资料和正文会发给文本模型，配图提示词会发给火山方舟；导出的文章图片落在数据卷 `generated/article/`，默认保留 7 天；
+- 每日配图额度按任务创建时预留（含失败图片），删任务不会返还；单篇最多 6 张总配图（含 1 张封面，内文图每节最多 1 张）；
+- 某一张配图失败不会丢正文，任务仍完成并显示「部分配图没有生成成功」；正文完全失败才标失败，已完成章节会保留；
+- 后台同样是单进程队列；服务重启时残留的 running 任务标失败，不自动重跑，避免重复计费。
 
 ## 影音库（阿里云盘，只读）
 

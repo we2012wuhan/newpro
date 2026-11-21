@@ -83,6 +83,8 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .t-ask .go{background:linear-gradient(135deg,#b4693f,#4c5aa8);box-shadow:0 8px 20px rgba(120,100,180,.32)}
 .tool.t-wi:hover{border-color:rgba(255,180,84,.55);box-shadow:0 24px 52px rgba(255,180,84,.2)}
 .t-wi .go{background:linear-gradient(135deg,#ffb454,#f59e0b);box-shadow:0 8px 20px rgba(255,180,84,.32)}
+.tool.t-art:hover{border-color:rgba(15,118,110,.58);box-shadow:0 24px 52px rgba(15,118,110,.22)}
+.t-art .go{background:linear-gradient(135deg,#0f766e,#b7791f);box-shadow:0 8px 20px rgba(15,118,110,.3)}
 .tool.t-rm:hover{border-color:rgba(185,166,240,.6);box-shadow:0 24px 52px rgba(124,107,176,.28)}
 .tool.t-mpt:hover{border-color:rgba(248,113,113,.6);box-shadow:0 24px 52px rgba(220,80,80,.28)}
 .tool.t-opc:hover{border-color:rgba(20,184,166,.55);box-shadow:0 24px 52px rgba(13,148,136,.26)}
@@ -781,6 +783,14 @@ body.is-dragging .tool:not(.dragging){transition:none}
       <div class="t-info">
         <h3>写作选题</h3>
         <p class="desc">想写东西，但脑子里是空的？给一点线索（甚至什么都不给），一次出一批能直接开写的选题；挑中一个再拆成标题、结构、证据齐备的启动包。</p>
+        <span class="go">立即打开</span>
+      </div>
+    </a>
+    <a class="tool t-art" data-cat="content" href="/article">
+      <div class="t-icon">📝</div>
+      <div class="t-info">
+        <h3>AI 文章写作</h3>
+        <p class="desc">给一个主题，先出可编辑大纲；确认后逐节写正文，再用便宜的 Seedream Flash 生成封面和内文配图。可预览网页版、复制公众号正文，或下载带图片的 ZIP。</p>
         <span class="go">立即打开</span>
       </div>
     </a>

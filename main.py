@@ -134,6 +134,11 @@ app.include_router(image_gen_router)
 from podcast import router as podcast_router  # noqa: E402
 app.include_router(podcast_router)
 
+# AI 文章写作：主题 -> 可编辑大纲 -> 逐节正文 + Seedream 配图 -> 网页/公众号/Markdown。
+# 页面在 /article；公众号只提供复制正文和图片 ZIP，不接发布 API。
+from article_writer import router as article_writer_router  # noqa: E402
+app.include_router(article_writer_router)
+
 # 影音库：只读浏览阿里云盘里的音乐 / 视频。
 # AList/OpenList 作为内网文件网关，浏览器只见 /media/stream 代理；收藏和续播写 SQLite。
 # 页面在 /media，未配置 ALIST_PASSWORD 时页面会给出配置提示。

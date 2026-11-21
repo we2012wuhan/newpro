@@ -52,6 +52,7 @@ TOOL_META = {
     'trip': {'name': '出行攻略（旧）', 'ico': '🗺️', 'href': '/trip', 'deep': False},
     '3d-lab': {'name': '3D 小作品实验室', 'ico': '🧊', 'href': '/3d-lab', 'deep': False},
     'sleep': {'name': '睡前打烊', 'ico': '🌙', 'href': '/sleep', 'deep': False},
+    'article': {'name': 'AI 文章写作', 'ico': '📝', 'href': '/article', 'deep': False},
 }
 
 _FALLBACK = (
@@ -131,6 +132,9 @@ def _excerpt(tool: str, payload: dict) -> str:
     if tool == 'sleep':
         return (_text(payload.get('audio_title')) or '我的音频') + \
             ' · %s 分钟' % (payload.get('duration') or 30)
+    if tool == 'article':
+        return _text(payload.get('title')) or _text(payload.get('summary')) \
+            or _text(payload.get('topic'))
     return ''
 
 
@@ -204,6 +208,12 @@ def _status(tool: str, payload: dict) -> dict:
         if payload.get('status') == 'abandoned':
             return {'tracked': False, 'open': False, 'label': '中断 · %s 分钟' % minutes}
         return {'tracked': False, 'open': False, 'label': '完成 · %s 分钟' % minutes}
+    if tool == 'article':
+        label = '%s 字 · %s 张图' % (payload.get('bodyChars') or 0,
+                                     payload.get('images') or 0)
+        if payload.get('warning'):
+            label += ' · 配图有缺失'
+        return {'tracked': False, 'open': False, 'label': label}
     return {'tracked': False, 'open': False, 'label': ''}
 
 
@@ -379,6 +389,15 @@ def _detail(tool: str, payload: dict) -> list:
         add('生成数量', _count(payload.get('files')), 8)
         add('模型', payload.get('model'), 60)
         add('部分失败', payload.get('error'), 120)
+    elif tool == 'article':
+        add('标题', payload.get('title'), 80)
+        add('题材', {'insight': '观点', 'tutorial': '教程', 'story': '故事',
+                     'news': '资讯', 'science': '科普'}.get(payload.get('genre')),
+            20)
+        add('字数', payload.get('bodyChars'), 8)
+        add('章节', payload.get('sections'), 8)
+        add('配图', payload.get('images'), 8)
+        add('提醒', payload.get('warning'), 160)
     return out
 
 
