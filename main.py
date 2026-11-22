@@ -260,12 +260,6 @@ app.include_router(writing_ideas_router)
 from predict_diary import router as predict_diary_router  # noqa: E402
 app.include_router(predict_diary_router)
 
-# 附加功能：内耗拆解（工作上的糟心事反复想 -> 先花 90 秒把身体拉回来 -> AI 把一团拆成一条条 ->
-# 分成「我能动的 / 动不了的」-> 落成一件今天就能做的事；数据只存浏览器，服务端不存）
-# 浏览器访问 http://127.0.0.1:8000/rumination 即可使用。
-from rumination import router as rumination_router  # noqa: E402
-app.include_router(rumination_router)
-
 # 附加功能：OPC 资讯（一人公司 / 独立开发：按主题搜 GitHub 上值得看的项目，AI 翻成人话；
 # GitHub Token 与模型 Key 都从环境变量取，页面上不用填）
 # 浏览器访问 http://127.0.0.1:8000/opc 即可使用。

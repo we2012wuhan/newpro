@@ -83,8 +83,6 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .t-ask .go{background:linear-gradient(135deg,#b4693f,#4c5aa8);box-shadow:0 8px 20px rgba(120,100,180,.32)}
 .tool.t-art:hover{border-color:rgba(15,118,110,.58);box-shadow:0 24px 52px rgba(15,118,110,.22)}
 .t-art .go{background:linear-gradient(135deg,#0f766e,#b7791f);box-shadow:0 8px 20px rgba(15,118,110,.3)}
-.tool.t-rm:hover{border-color:rgba(185,166,240,.6);box-shadow:0 24px 52px rgba(124,107,176,.28)}
-.tool.t-mpt:hover{border-color:rgba(248,113,113,.6);box-shadow:0 24px 52px rgba(220,80,80,.28)}
 .tool.t-opc:hover{border-color:rgba(20,184,166,.55);box-shadow:0 24px 52px rgba(13,148,136,.26)}
 .t-opc .go{background:linear-gradient(135deg,#14b8a6,#115e59);box-shadow:0 8px 20px rgba(20,184,166,.3)}
 .tool.t-rd:hover{border-color:rgba(176,137,104,.6);box-shadow:0 24px 52px rgba(138,90,59,.26)}
@@ -663,6 +661,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">进入小镇</span>
       </div>
     </a>
+    <!-- 抖音下载器暂不展示：解析接口受抖音风控影响，先隐藏入口，代码和路由保留。
     <a class="tool t-dy" data-cat="content" href="/douyin-download">
       <div class="t-icon">🎬</div>
       <div class="t-info">
@@ -671,6 +670,7 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
+    -->
     <a class="tool t-media" data-cat="content" href="/media">
       <div class="t-icon">🎧</div>
       <div class="t-info">
@@ -784,28 +784,12 @@ body.is-dragging .tool:not(.dragging){transition:none}
         <span class="go">立即打开</span>
       </div>
     </a>
-    <a class="tool t-rm" data-cat="think" href="/rumination">
-      <div class="t-icon">🫧</div>
-      <div class="t-info">
-        <h3>内耗拆解</h3>
-        <p class="desc">因为工作上的事反复想、越想越难受时打开。先花 90 秒把身体拉回来，再让 AI 把那团东西拆成一条条，分成「我能动的」和「动不了的」，最后落成一件今天就能做的事。</p>
-        <span class="go">立即打开</span>
-      </div>
-    </a>
     <a class="tool t-voice" data-cat="content" href="/voice-chat">
       <div class="t-icon">🎙️</div>
       <div class="t-info">
         <h3>实时语音对话</h3>
         <p class="desc">点一下就开口说话，豆包实时语音边听边答、可以随时打断；静默 30 秒自动挂断防跑钱。</p>
         <span class="go">立即打开</span>
-      </div>
-    </a>
-    <a class="tool t-mpt" data-cat="content" href="https://turbo.jiangxinyu1688.com/" target="_blank" rel="noopener noreferrer">
-      <div class="t-icon">🎬</div>
-      <div class="t-info">
-        <h3>MoneyPrinterTurbo</h3>
-        <p class="desc">输入一个主题或关键词，自动生成文案、匹配素材、配音加字幕，最后合成一条短视频。</p>
-        <span class="go">立即打开 ↗</span>
       </div>
     </a>
     <a class="tool t-opc" data-cat="content" href="/opc">
