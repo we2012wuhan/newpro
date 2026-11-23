@@ -139,6 +139,11 @@ app.include_router(podcast_router)
 from article_writer import router as article_writer_router  # noqa: E402
 app.include_router(article_writer_router)
 
+# 视频小工具：上传一段视频，复用 imageio-ffmpeg 已带的 ffmpeg 做截取 / GIF / 音频 /
+# 抽帧 / 九宫格 / 压缩。不新增依赖；素材按账号隔离，任务走 SQLite 串行队列。
+from video_tools import router as video_tools_router  # noqa: E402
+app.include_router(video_tools_router)
+
 # 影音库：只读浏览阿里云盘里的音乐 / 视频。
 # AList/OpenList 作为内网文件网关，浏览器只见 /media/stream 代理；收藏和续播写 SQLite。
 # 页面在 /media，未配置 ALIST_PASSWORD 时页面会给出配置提示。

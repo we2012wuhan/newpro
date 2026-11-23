@@ -5,11 +5,15 @@
 # 什么都不给也能出一批。生成走大模型；没配 Key 时用内置的「角度 × 素材」
 # 配方兜底，照样能出结构化选题，不会白屏。
 #
-# 两条接口：
-#   POST /writing-ideas/api/ideas    出一批选题（默认 8 个）
-#   POST /writing-ideas/api/develop  把其中一个深挖成「写作启动包」
+# 接口：
+#   POST   /writing-ideas/api/ideas          出一批选题（默认 8 个）
+#   POST   /writing-ideas/api/develop         把其中一个深挖成「写作启动包」
+#   GET    /writing-ideas/api/history         最近生成过的选题批次
+#   GET    /writing-ideas/api/history/{id}    某一批的完整内容
+#   DELETE /writing-ideas/api/history/{id}    删除某一批（只删自己的）
 #
-# 数据都留在浏览器 localStorage（wr_ 前缀），后端不落库。
+# 输入草稿和手动收藏仍留在浏览器 localStorage（wr_ 前缀）；每次成功生成的一批
+# 选题会写进 SQLite 的 history 表（tool='writing-ideas'），换浏览器也能回看。
 #
 # 后面想继续强化，几个现成的方向：
 #   - 选题日历：把选题按「什么时候适合发」排开，避免攒一堆不写
@@ -23,6 +27,8 @@ import requests
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.concurrency import run_in_threadpool
+
+import storage
 
 try:
     from model_config import llm_body, llm_endpoint, llm_key, llm_model
@@ -43,6 +49,13 @@ router = APIRouter()
 
 MAX_IDEAS = 8
 MAX_TITLE = 40
+TOOL = 'writing-ideas'
+HISTORY_LIMIT = 30
+
+
+def _user(request):
+    """LoginGate 中间件把登录用户名写在这里；没登录根本走不到路由。"""
+    return getattr(request.state, 'user', '') or ''
 
 # =========================================================
 # 选项：体裁与味道，前后端共用一份，前端只负责显示
@@ -535,9 +548,66 @@ def _recipe_pack(idea, ctx, note):
 
 
 # =========================================================
+# 历史记录
+# =========================================================
+def _history_record(user, ctx, n, ideas, source, note):
+    """成功出题后自动记一批。存完整选题，回看时不用再调模型。"""
+    if not user or not ideas:
+        return None
+    payload = {
+        'seed': ctx['seed'],
+        'audience': ctx['audience'],
+        'trigger': ctx['trigger'],
+        'forms': ctx['forms'],
+        'flavors': ctx['flavors'],
+        'n': n,
+        'source': source,
+        'note': note,
+        'count': len(ideas),
+        'ideas': ideas,
+    }
+    title = ideas[0].get('title') or ctx['seed'] or ctx['trigger'] or '一批选题'
+    try:
+        return storage.add_record(TOOL, user, title, payload)
+    except storage.StorageUnavailable:
+        # 历史记不上不该拖累出题，用户仍然能拿到这一批。
+        return None
+
+
+def _history_item(row):
+    """列表只给摘要，完整选题等点开时再取，避免一次拉回太多 JSON。"""
+    payload = row.get('payload') if isinstance(row.get('payload'), dict) else {}
+    ideas = payload.get('ideas') if isinstance(payload.get('ideas'), list) else []
+    try:
+        count = int(payload.get('count') or len(ideas))
+    except (TypeError, ValueError):
+        count = len(ideas)
+    return {
+        'id': row.get('id'),
+        'title': row.get('title') or '',
+        'created_at': row.get('created_at') or '',
+        'count': count,
+        'source': payload.get('source') or '',
+        'seed': _clip(payload.get('seed'), 120),
+        'audience': _clip(payload.get('audience'), 120),
+        'trigger': _clip(payload.get('trigger'), 120),
+    }
+
+
+def _owned_record(user, rid):
+    """只认本工具的记录，避免拿别的工具的 id 误删。"""
+    row = storage.get_record(user, rid)
+    if not row or row.get('tool') != TOOL:
+        return None
+    return row
+
+
+# =========================================================
 # 两个动作
 # =========================================================
-def _ideas(payload):
+def _ideas(payload, user=''):
+    if not isinstance(payload, dict):
+        payload = {}
     ctx = _clean_ctx(payload)
     try:
         n = int(payload.get('n') or MAX_IDEAS)
@@ -549,8 +619,12 @@ def _ideas(payload):
     if not ideas:
         source = 'recipe'
         ideas, note = _recipe_ideas(ctx, n, note or '这次用内置配方出题')
-    return JSONResponse({'ok': True, 'source': source, 'note': note,
-                         'count': len(ideas), 'ideas': ideas})
+    record = _history_record(user, ctx, n, ideas, source, note)
+    body = {'ok': True, 'source': source, 'note': note,
+            'count': len(ideas), 'ideas': ideas}
+    if record:
+        body['historyId'] = record['id']
+    return JSONResponse(body)
 
 
 def _develop(payload):
@@ -594,7 +668,7 @@ async def writing_ideas_api(request: Request):
     except Exception:
         payload = {}
     # 调大模型是同步阻塞请求，放线程池里跑，别堵住事件循环
-    return await run_in_threadpool(_ideas, payload)
+    return await run_in_threadpool(_ideas, payload, _user(request))
 
 
 @router.post('/writing-ideas/api/develop')
@@ -604,6 +678,61 @@ async def writing_develop_api(request: Request):
     except Exception:
         payload = {}
     return await run_in_threadpool(_develop, payload)
+
+
+@router.get('/writing-ideas/api/history')
+async def writing_history_api(request: Request):
+    user = _user(request)
+    if not user:
+        return JSONResponse({'ok': False, 'message': '登录状态已失效，请重新登录',
+                             'items': []}, status_code=401)
+    try:
+        rows = await run_in_threadpool(storage.list_records, TOOL, user, HISTORY_LIMIT)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'message': str(exc), 'items': []},
+                            status_code=503)
+    return JSONResponse({'ok': True, 'items': [_history_item(row) for row in rows]})
+
+
+@router.get('/writing-ideas/api/history/{rid}')
+async def writing_history_item_api(rid: int, request: Request):
+    user = _user(request)
+    if not user:
+        return JSONResponse({'ok': False, 'message': '登录状态已失效，请重新登录'},
+                            status_code=401)
+    try:
+        row = await run_in_threadpool(_owned_record, user, rid)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=503)
+    if not row:
+        return JSONResponse({'ok': False, 'message': '找不到这条选题记录'},
+                            status_code=404)
+    payload = row.get('payload') if isinstance(row.get('payload'), dict) else {}
+    return JSONResponse({'ok': True, 'id': row['id'], 'title': row.get('title') or '',
+                         'created_at': row.get('created_at') or '',
+                         'payload': payload})
+
+
+@router.delete('/writing-ideas/api/history/{rid}')
+async def writing_history_delete_api(rid: int, request: Request):
+    user = _user(request)
+    if not user:
+        return JSONResponse({'ok': False, 'message': '登录状态已失效，请重新登录'},
+                            status_code=401)
+
+    def _delete():
+        if not _owned_record(user, rid):
+            return 0
+        return storage.delete_record(user, rid)
+
+    try:
+        deleted = await run_in_threadpool(_delete)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=503)
+    if not deleted:
+        return JSONResponse({'ok': False, 'message': '找不到这条选题记录'},
+                            status_code=404)
+    return JSONResponse({'ok': True, 'deleted': deleted})
 
 
 if __name__ == '__main__':

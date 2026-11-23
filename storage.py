@@ -175,6 +175,60 @@ SCHEMA = (
     """,
     "CREATE INDEX IF NOT EXISTS idx_article_usage_user ON article_usage(user, created_at)",
     """
+    CREATE TABLE IF NOT EXISTS video_uploads(
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        user          TEXT NOT NULL,
+        original_name TEXT NOT NULL DEFAULT '',
+        stored_name   TEXT NOT NULL,
+        size          INTEGER NOT NULL DEFAULT 0,
+        duration      REAL NOT NULL DEFAULT 0,
+        width         INTEGER NOT NULL DEFAULT 0,
+        height        INTEGER NOT NULL DEFAULT 0,
+        fps           REAL NOT NULL DEFAULT 0,
+        video_codec   TEXT NOT NULL DEFAULT '',
+        audio_codec   TEXT NOT NULL DEFAULT '',
+        has_audio     INTEGER NOT NULL DEFAULT 0,
+        mime          TEXT NOT NULL DEFAULT 'application/octet-stream',
+        probe         TEXT NOT NULL DEFAULT '{}',
+        created_at    TEXT NOT NULL,
+        last_used_at  TEXT NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_video_uploads_user ON video_uploads(user, id DESC)",
+    """
+    CREATE TABLE IF NOT EXISTS video_jobs(
+        id            TEXT PRIMARY KEY,
+        user          TEXT NOT NULL,
+        upload_id     INTEGER NOT NULL,
+        kind          TEXT NOT NULL,
+        params        TEXT NOT NULL DEFAULT '{}',
+        status        TEXT NOT NULL DEFAULT 'queued',
+        stage         TEXT NOT NULL DEFAULT 'queued',
+        progress      INTEGER NOT NULL DEFAULT 0,
+        note          TEXT NOT NULL DEFAULT '',
+        outputs       TEXT NOT NULL DEFAULT '[]',
+        primary_index INTEGER NOT NULL DEFAULT 0,
+        output_size   INTEGER NOT NULL DEFAULT 0,
+        error         TEXT NOT NULL DEFAULT '',
+        created_at    TEXT NOT NULL,
+        started_at    TEXT NOT NULL DEFAULT '',
+        finished_at   TEXT NOT NULL DEFAULT ''
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_video_jobs_user ON video_jobs(user, created_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_video_jobs_status ON video_jobs(status, created_at)",
+    "CREATE INDEX IF NOT EXISTS idx_video_jobs_upload ON video_jobs(upload_id)",
+    """
+    CREATE TABLE IF NOT EXISTS video_usage(
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        job_id     TEXT NOT NULL UNIQUE,
+        user       TEXT NOT NULL,
+        kind       TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_video_usage_user ON video_usage(user, created_at)",
+    """
     CREATE TABLE IF NOT EXISTS book_cache(
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         source     TEXT NOT NULL,
@@ -1380,6 +1434,366 @@ def article_job_expired(user: str, before: str) -> list:
     finally:
         conn.close()
     return [_article_job_row(row) for row in rows]
+
+
+# ---------------------------------------------------------------
+# video_uploads / video_jobs：视频小工具（/video-tools）
+#   素材上传一次，多个任务复用同一份源文件；删除素材会级联删它的任务。
+#   任务和用量同一事务写入，删除任务/素材都不会让当天额度回血。
+# ---------------------------------------------------------------
+_VIDEO_JOB_FIELDS = {
+    'status', 'stage', 'progress', 'note', 'outputs', 'primary_index',
+    'output_size', 'error', 'started_at', 'finished_at',
+}
+
+
+def _video_upload_row(row) -> dict:
+    data = dict(row)
+    try:
+        probe = json.loads(data.get('probe') or '{}')
+    except ValueError:
+        probe = {}
+    data['probe'] = probe if isinstance(probe, dict) else {}
+    data['has_audio'] = 1 if data.get('has_audio') else 0
+    return data
+
+
+def _video_job_row(row) -> dict:
+    data = dict(row)
+    try:
+        params = json.loads(data.get('params') or '{}')
+    except ValueError:
+        params = {}
+    try:
+        outputs = json.loads(data.get('outputs') or '[]')
+    except ValueError:
+        outputs = []
+    data['params'] = params if isinstance(params, dict) else {}
+    data['outputs'] = outputs if isinstance(outputs, list) else []
+    return data
+
+
+def video_upload_add(user: str, original_name: str, stored_name: str, size: int,
+                     probe: dict) -> dict:
+    probe = probe if isinstance(probe, dict) else {}
+    created = now_str()
+    try:
+        duration = round(float(probe.get('duration') or 0), 3)
+    except (TypeError, ValueError):
+        duration = 0.0
+    try:
+        width = max(0, int(probe.get('width') or 0))
+    except (TypeError, ValueError):
+        width = 0
+    try:
+        height = max(0, int(probe.get('height') or 0))
+    except (TypeError, ValueError):
+        height = 0
+    try:
+        fps = round(float(probe.get('fps') or 0), 3)
+    except (TypeError, ValueError):
+        fps = 0.0
+    video_codec = str(probe.get('video_codec') or '')[:40]
+    audio_codec = str(probe.get('audio_codec') or '')[:40]
+    has_audio = 1 if probe.get('has_audio') else 0
+    mime = str(probe.get('mime') or 'application/octet-stream')[:80]
+    conn = connect()
+    try:
+        cur = conn.execute(
+            'INSERT INTO video_uploads(user, original_name, stored_name, size, duration, '
+            'width, height, fps, video_codec, audio_codec, has_audio, mime, probe, '
+            'created_at, last_used_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+            (user, str(original_name or '')[:160], stored_name, int(size), duration,
+             width, height, fps, video_codec, audio_codec, has_audio, mime,
+             json.dumps(probe, ensure_ascii=False), created, created))
+        conn.commit()
+        upload_id = int(cur.lastrowid)
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+    return {
+        'id': upload_id, 'user': user, 'original_name': str(original_name or '')[:160],
+        'stored_name': stored_name, 'size': int(size), 'duration': duration,
+        'width': width, 'height': height, 'fps': fps, 'video_codec': video_codec,
+        'audio_codec': audio_codec, 'has_audio': has_audio, 'mime': mime,
+        'probe': probe, 'created_at': created, 'last_used_at': created,
+    }
+
+
+def video_upload_get(user: str, upload_id):
+    try:
+        upload_id = int(upload_id)
+    except (TypeError, ValueError):
+        return None
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT * FROM video_uploads WHERE id = ? AND user = ?',
+                     (upload_id, user))
+    finally:
+        conn.close()
+    return _video_upload_row(rows[0]) if rows else None
+
+
+def video_upload_list(user: str, limit: int = 10) -> list:
+    limit = max(1, min(int(limit or 10), 50))
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT * FROM video_uploads WHERE user = ? '
+                           'ORDER BY id DESC LIMIT ?', (user, limit))
+    finally:
+        conn.close()
+    return [_video_upload_row(row) for row in rows]
+
+
+def video_upload_count(user: str) -> int:
+    conn = connect()
+    try:
+        row = conn.execute('SELECT COUNT(*) AS n FROM video_uploads WHERE user = ?',
+                           (user,)).fetchone()
+        return int(row['n'] or 0)
+    finally:
+        conn.close()
+
+
+def video_upload_delete(user: str, upload_id) -> dict:
+    """删除素材；还有排队/运行中的任务时返回 busy，否则级联删任务行。"""
+    try:
+        upload_id = int(upload_id)
+    except (TypeError, ValueError):
+        return {'result': 'missing', 'upload': None, 'jobs': []}
+    conn = connect()
+    try:
+        conn.execute('BEGIN IMMEDIATE')
+        row = conn.execute('SELECT * FROM video_uploads WHERE id = ? AND user = ?',
+                           (upload_id, user)).fetchone()
+        if not row:
+            conn.rollback()
+            return {'result': 'missing', 'upload': None, 'jobs': []}
+        jobs = _rows(conn, 'SELECT * FROM video_jobs WHERE upload_id = ? AND user = ?',
+                     (upload_id, user))
+        if any(job.get('status') in ('queued', 'running') for job in jobs):
+            conn.rollback()
+            return {'result': 'busy', 'upload': _video_upload_row(row), 'jobs': []}
+        conn.execute('DELETE FROM video_jobs WHERE upload_id = ? AND user = ?',
+                     (upload_id, user))
+        conn.execute('DELETE FROM video_uploads WHERE id = ? AND user = ?',
+                     (upload_id, user))
+        conn.commit()
+        return {'result': 'ok', 'upload': _video_upload_row(row),
+                'jobs': [_video_job_row(job) for job in jobs]}
+    except sqlite3.OperationalError as exc:
+        try:
+            conn.rollback()
+        except sqlite3.Error:
+            pass
+        raise StorageUnavailable('删除素材失败：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def video_job_add(user: str, upload_id, kind: str, params: dict):
+    try:
+        upload_id = int(upload_id)
+    except (TypeError, ValueError):
+        return None
+    job_id = uuid.uuid4().hex
+    created = now_str()
+    params = params if isinstance(params, dict) else {}
+    conn = connect()
+    try:
+        conn.execute('BEGIN IMMEDIATE')
+        row = conn.execute('SELECT id FROM video_uploads WHERE id = ? AND user = ?',
+                           (upload_id, user)).fetchone()
+        if not row:
+            conn.rollback()
+            return None
+        conn.execute(
+            'INSERT INTO video_jobs(id, user, upload_id, kind, params, status, stage, '
+            "progress, note, outputs, primary_index, output_size, error, created_at, "
+            "started_at, finished_at) VALUES(?,?,?,?,?,'queued','queued',0,'','[]',0,0,'',?,'','')",
+            (job_id, user, upload_id, kind, json.dumps(params, ensure_ascii=False), created))
+        conn.execute(
+            'INSERT INTO video_usage(job_id, user, kind, created_at) VALUES(?,?,?,?)',
+            (job_id, user, kind, created))
+        conn.execute('UPDATE video_uploads SET last_used_at = ? WHERE id = ? AND user = ?',
+                     (created, upload_id, user))
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        try:
+            conn.rollback()
+        except sqlite3.Error:
+            pass
+        raise StorageUnavailable('创建视频任务失败：%s' % exc) from exc
+    finally:
+        conn.close()
+    return {
+        'id': job_id, 'user': user, 'upload_id': upload_id, 'kind': kind,
+        'params': params, 'status': 'queued', 'stage': 'queued', 'progress': 0,
+        'note': '', 'outputs': [], 'primary_index': 0, 'output_size': 0,
+        'error': '', 'created_at': created, 'started_at': '', 'finished_at': '',
+    }
+
+
+def video_job_get(user: str, job_id: str):
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT * FROM video_jobs WHERE id = ? AND user = ?',
+                     (str(job_id), user))
+    finally:
+        conn.close()
+    return _video_job_row(rows[0]) if rows else None
+
+
+def video_job_list(user: str, limit: int = 20) -> list:
+    limit = max(1, min(int(limit or 20), 100))
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT * FROM video_jobs WHERE user = ? '
+                           'ORDER BY rowid DESC LIMIT ?', (user, limit))
+    finally:
+        conn.close()
+    return [_video_job_row(row) for row in rows]
+
+
+def video_jobs_for_upload(user: str, upload_id) -> list:
+    try:
+        upload_id = int(upload_id)
+    except (TypeError, ValueError):
+        return []
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT * FROM video_jobs WHERE upload_id = ? AND user = ? '
+                           'ORDER BY rowid DESC', (upload_id, user))
+    finally:
+        conn.close()
+    return [_video_job_row(row) for row in rows]
+
+
+def video_job_claim_next():
+    """原子领取最早的一条 queued 任务；素材已被删除的孤儿任务不会被领取。"""
+    conn = connect()
+    try:
+        conn.execute('BEGIN IMMEDIATE')
+        row = conn.execute(
+            'SELECT j.* FROM video_jobs j JOIN video_uploads u '
+            'ON u.id = j.upload_id AND u.user = j.user '
+            "WHERE j.status = 'queued' ORDER BY j.rowid ASC LIMIT 1").fetchone()
+        if not row:
+            conn.rollback()
+            return None
+        started = now_str()
+        conn.execute(
+            "UPDATE video_jobs SET status = 'running', stage = 'running', "
+            'started_at = ? WHERE id = ?', (started, row['id']))
+        conn.commit()
+        data = _video_job_row(row)
+        data['status'] = 'running'
+        data['stage'] = 'running'
+        data['started_at'] = started
+        return data
+    except sqlite3.OperationalError as exc:
+        try:
+            conn.rollback()
+        except sqlite3.Error:
+            pass
+        raise StorageUnavailable('领取视频任务失败：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def video_job_update(job_id: str, fields: dict) -> int:
+    sets, args = [], []
+    for key, value in (fields or {}).items():
+        if key not in _VIDEO_JOB_FIELDS:
+            continue
+        if key == 'outputs':
+            value = json.dumps(value if isinstance(value, list) else [], ensure_ascii=False)
+        sets.append(key + ' = ?')
+        args.append(value)
+    if not sets:
+        return 0
+    args.append(str(job_id))
+    conn = connect()
+    try:
+        cur = conn.execute('UPDATE video_jobs SET ' + ', '.join(sets) + ' WHERE id = ?', args)
+        conn.commit()
+        return cur.rowcount
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('更新视频任务失败：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def video_job_delete_finished(user: str, job_id: str) -> int:
+    conn = connect()
+    try:
+        cur = conn.execute(
+            'DELETE FROM video_jobs WHERE id = ? AND user = ? '
+            "AND status NOT IN ('queued', 'running')",
+            (str(job_id), user))
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def video_job_active_count(user: str) -> int:
+    conn = connect()
+    try:
+        row = conn.execute(
+            "SELECT COUNT(*) AS n FROM video_jobs WHERE user = ? "
+            "AND status IN ('queued', 'running')", (user,)).fetchone()
+        return int(row['n'] or 0)
+    finally:
+        conn.close()
+
+
+def video_job_jobs_since(user: str, since: str) -> int:
+    """某用户从 since 起提交了多少个视频任务；读 usage，删任务不会回血。"""
+    conn = connect()
+    try:
+        row = conn.execute(
+            'SELECT COUNT(*) AS n FROM video_usage WHERE user = ? AND created_at >= ?',
+            (user, since)).fetchone()
+        return int(row['n'] or 0)
+    finally:
+        conn.close()
+
+
+def video_job_recover_running(message: str) -> int:
+    conn = connect()
+    try:
+        cur = conn.execute(
+            "UPDATE video_jobs SET status = 'failed', stage = 'failed', error = ?, "
+            "finished_at = ? WHERE status = 'running'", (message, now_str()))
+        conn.commit()
+        return cur.rowcount
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('恢复视频任务失败：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def video_job_expired(user: str, before: str) -> list:
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT * FROM video_jobs WHERE user = ? AND created_at < ? '
+                           "AND status NOT IN ('queued', 'running') "
+                           'ORDER BY rowid ASC', (user, before))
+    finally:
+        conn.close()
+    return [_video_job_row(row) for row in rows]
+
+
+def video_upload_expired(user: str, before: str) -> list:
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT * FROM video_uploads WHERE user = ? AND last_used_at < ? '
+                           'ORDER BY id ASC', (user, before))
+    finally:
+        conn.close()
+    return [_video_upload_row(row) for row in rows]
 
 
 # ---------------------------------------------------------------

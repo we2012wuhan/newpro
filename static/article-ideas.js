@@ -2,9 +2,11 @@
  * AI 文章写作 · 选题页签
  * =======================
  * 从「写作选题」搬进 /article 的「选题」页签，保持原有 localStorage 数据
- * （wr_draft / wr_saved）。两个接口不变：
+ * （wr_draft / wr_saved）。接口：
  *   POST /writing-ideas/api/ideas
  *   POST /writing-ideas/api/develop
+ * 每次成功出题还会在服务端留一条历史（tool='writing-ideas'），
+ * 页面底部的「最近选题」可以回看、恢复当时的输入并删除。
  *
  * 和旧页面的区别：
  *   - 长文体裁的「用这个选题开写」不再跳转页面，直接调用
@@ -68,8 +70,9 @@
   var state = {
     forms: [], flavors: [], n: 8,
     ideas: [], source: '', pack: null, packIdea: null, packSource: '',
-    busy: false
+    history: [], busy: false
   };
+  var historySeq = 0;
 
   function $(id) { return document.getElementById(id); }
   function esc(s) {
@@ -90,6 +93,30 @@
       return;
     }
     try { console.log(msg); } catch (e) {}
+  }
+
+  function jsonApi(path, options) {
+    options = options || {};
+    var headers = Object.assign({ Accept: 'application/json' }, options.headers || {});
+    return fetch(BASE + path, Object.assign({ credentials: 'same-origin' }, options, {
+      headers: headers
+    })).then(function (r) {
+      var ct = r.headers.get('content-type') || '';
+      if (ct.indexOf('json') < 0) throw new Error('登录状态可能已失效，刷新页面重新登录');
+      return r.json().then(function (d) {
+        if (!r.ok || (d && d.ok === false)) {
+          var err = new Error((d && (d.message || d.detail)) || ('请求失败（HTTP ' + r.status + '）'));
+          err.status = r.status;
+          throw err;
+        }
+        return d;
+      });
+    });
+  }
+
+  function formatAt(value) {
+    var text = String(value || '');
+    return text.length >= 16 ? text.slice(5, 16) : text;
   }
 
   function setNote(html, isErr) {
@@ -197,6 +224,7 @@
       var hintCard = $('wiHintCard');
       if (hintCard) hintCard.hidden = true;
       renderIdeas();
+      loadHistory();
       setNote('');
     }).catch(function (e) {
       setNote(esc(e && e.message ? e.message : '生成失败，再试一次'), true);
@@ -460,6 +488,119 @@
     });
   }
 
+  /* ---------- 最近选题（服务端历史） ---------- */
+  function renderHistory() {
+    var recs = state.history || [];
+    var w = $('wiHistoryWrap');
+    if (!w) return;
+    var head = '<div class="wi-sec-head"><b>最近选题（' + recs.length + '）</b>'
+      + '<span class="wi-badge">自动记录 · 最近 30 批</span></div>';
+    if (!recs.length) {
+      w.innerHTML = head + '<div class="wi-empty"><b>还没有生成记录</b>'
+        + '生成一批选题后会自动记在这里，换浏览器、换设备也还在。</div>';
+      return;
+    }
+    w.innerHTML = head + recs.map(function (r, i) {
+      var meta = [
+        (r.count || 0) + ' 个',
+        r.source === 'recipe' ? '内置配方' : (r.source ? '模型' : ''),
+        formatAt(r.created_at)
+      ].filter(Boolean).join(' · ');
+      var ctx = r.seed ? ('线索：' + r.seed)
+        : (r.trigger ? ('最近：' + r.trigger)
+          : (r.audience ? ('写给：' + r.audience) : '没填线索'));
+      return '<div class="wi-mine-item">'
+        + '<div class="wi-mine-t">' + esc(r.title || '一批选题') + '</div>'
+        + '<div class="wi-mine-m"><span>' + esc(meta) + '</span></div>'
+        + '<div class="wi-hist-ctx" title="' + esc(ctx) + '">' + esc(ctx) + '</div>'
+        + '<div class="wi-actions">'
+        + '<button class="wi-iconbtn primary" type="button" data-whopen="' + i + '">打开这一批</button>'
+        + '<button class="wi-iconbtn danger" type="button" data-whdel="' + i + '">删除</button>'
+        + '</div></div>';
+    }).join('');
+
+    Array.prototype.forEach.call(w.querySelectorAll('[data-whopen]'), function (b) {
+      b.onclick = function () { openHistory(recs[+b.getAttribute('data-whopen')]); };
+    });
+    Array.prototype.forEach.call(w.querySelectorAll('[data-whdel]'), function (b) {
+      b.onclick = function () { deleteHistory(recs[+b.getAttribute('data-whdel')]); };
+    });
+  }
+
+  function loadHistory() {
+    var w = $('wiHistoryWrap');
+    if (!w) return;
+    var seq = ++historySeq;
+    w.innerHTML = '<div class="wi-sec-head"><b>最近选题</b>'
+      + '<span class="wi-badge">自动记录</span></div>'
+      + '<div class="wi-empty">正在读记录…</div>';
+    return jsonApi('/writing-ideas/api/history').then(function (d) {
+      if (seq !== historySeq) return;        // 后发的请求已经覆盖了这一屏
+      state.history = d.items || [];
+      renderHistory();
+    }).catch(function (e) {
+      if (seq !== historySeq) return;
+      state.history = [];
+      w.innerHTML = '<div class="wi-sec-head"><b>最近选题</b>'
+        + '<span class="wi-badge">自动记录</span></div>'
+        + '<div class="wi-empty">' + esc(e && e.message ? e.message : '记录加载失败') + '</div>';
+    });
+  }
+
+  function openHistory(rec) {
+    if (!rec || state.busy) return;
+    state.busy = true;
+    setNote('<span class="spin"></span> 正在打开历史记录…');
+    jsonApi('/writing-ideas/api/history/' + encodeURIComponent(rec.id)).then(function (d) {
+      var p = d.payload || {};
+      var ideas = Array.isArray(p.ideas) ? p.ideas : [];
+      if (!ideas.length) throw new Error('这条记录里没有可恢复的选题');
+      var formKeys = FORMS.map(function (x) { return x.k; });
+      var flavorKeys = FLAVORS.map(function (x) { return x.k; });
+      state.ideas = ideas;
+      state.source = p.source || '';
+      state.forms = (p.forms || []).filter(function (k) { return formKeys.indexOf(k) >= 0; });
+      state.flavors = (p.flavors || []).filter(function (k) { return flavorKeys.indexOf(k) >= 0; });
+      state.n = p.n === 6 ? 6 : 8;
+      state.pack = null;
+      state.packIdea = null;
+      state.packSource = '';
+      $('wiSeed').value = p.seed || '';
+      $('wiAudience').value = p.audience || '';
+      $('wiTrigger').value = p.trigger || '';
+      saveDraft();
+      renderChips();
+      renderNums();
+      renderPack();
+      var hintCard = $('wiHintCard');
+      if (hintCard) hintCard.hidden = true;
+      renderIdeas();
+      setNote(p.note ? esc(p.note) : '已打开历史记录里的这一批选题。');
+      var target = $('wiListWrap');
+      if (target && target.scrollIntoView) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }).catch(function (e) {
+      setNote(esc(e && e.message ? e.message : '打开失败，再试一次'), true);
+    }).then(function () {
+      state.busy = false;
+    });
+  }
+
+  function deleteHistory(rec) {
+    if (!rec) return;
+    if (!window.confirm('删除这条选题记录？已经复制或收进「我的选题」的内容不受影响。\n\n'
+      + (rec.title || '一批选题'))) return;
+    jsonApi('/writing-ideas/api/history/' + encodeURIComponent(rec.id), { method: 'DELETE' })
+      .then(function () {
+        toast('已删除');
+        return loadHistory();
+      })
+      .catch(function (e) {
+        toast(e && e.message ? e.message : '删除失败', 'err');
+      });
+  }
+
   /* ---------- 文本输出 ---------- */
   function ideaMd(it) {
     var L = ['## ' + (it.title || '')];
@@ -584,4 +725,5 @@
   renderChips();
   renderNums();
   renderMine();
+  loadHistory();
 })();

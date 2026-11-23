@@ -53,6 +53,8 @@ TOOL_META = {
     '3d-lab': {'name': '3D 小作品实验室', 'ico': '🧊', 'href': '/3d-lab', 'deep': False},
     'sleep': {'name': '睡前打烊', 'ico': '🌙', 'href': '/sleep', 'deep': False},
     'article': {'name': 'AI 文章写作', 'ico': '📝', 'href': '/article', 'deep': False},
+    'video-tools': {'name': '视频小工具', 'ico': '🎬', 'href': '/video-tools', 'deep': False},
+    'writing-ideas': {'name': '写作选题', 'ico': '💡', 'href': '/article?tab=ideas', 'deep': False},
 }
 
 _FALLBACK = (
@@ -135,6 +137,12 @@ def _excerpt(tool: str, payload: dict) -> str:
     if tool == 'article':
         return _text(payload.get('title')) or _text(payload.get('summary')) \
             or _text(payload.get('topic'))
+    if tool == 'writing-ideas':
+        return _text(payload.get('seed')) or _text(payload.get('trigger')) \
+            or _text(payload.get('audience'))
+    if tool == 'video-tools':
+        return ((_text(payload.get('uploadName'), 60) or '视频') + ' · ' +
+                (_text(payload.get('kindLabel'), 20) or '视频处理'))
     return ''
 
 
@@ -213,6 +221,21 @@ def _status(tool: str, payload: dict) -> dict:
                                      payload.get('images') or 0)
         if payload.get('warning'):
             label += ' · 配图有缺失'
+        return {'tracked': False, 'open': False, 'label': label}
+    if tool == 'writing-ideas':
+        count = payload.get('count')
+        if not count:
+            count = _count(payload.get('ideas'))
+        return {'tracked': False, 'open': False, 'label': '%s 个选题' % count}
+    if tool == 'video-tools':
+        outputs = payload.get('outputs') if isinstance(payload.get('outputs'), list) else []
+        label = '%s 个产物' % len(outputs)
+        try:
+            size = int(payload.get('outputSize') or 0)
+        except (TypeError, ValueError):
+            size = 0
+        if size > 0:
+            label += ' · %.1f MB' % (size / 1048576.0)
         return {'tracked': False, 'open': False, 'label': label}
     return {'tracked': False, 'open': False, 'label': ''}
 
@@ -398,6 +421,40 @@ def _detail(tool: str, payload: dict) -> list:
         add('章节', payload.get('sections'), 8)
         add('配图', payload.get('images'), 8)
         add('提醒', payload.get('warning'), 160)
+    elif tool == 'writing-ideas':
+        add('线索', payload.get('seed'))
+        add('写给谁', payload.get('audience'), 80)
+        add('触发', payload.get('trigger'))
+        add('出题方式', '内置配方' if payload.get('source') == 'recipe' else '模型')
+        add('选题数', payload.get('count'), 8)
+    elif tool == 'video-tools':
+        add('素材', payload.get('uploadName'), 60)
+        add('操作', payload.get('kindLabel'), 20)
+        params = payload.get('params') if isinstance(payload.get('params'), dict) else {}
+        kind = payload.get('kind')
+        if kind == 'clip':
+            add('起止', '%s – %s 秒' % (params.get('start'), params.get('end')), 30)
+            add('方式', '快速复制' if params.get('mode') == 'fast' else '精确重编码', 20)
+        elif kind == 'gif':
+            add('起点 / 时长', '%s / %s 秒' % (
+                params.get('start'), params.get('duration')), 30)
+            add('宽度 / 帧率', '%s px / %s fps' % (
+                params.get('width'), params.get('fps')), 30)
+        elif kind == 'audio':
+            add('格式', str(params.get('format') or '').upper(), 10)
+        elif kind == 'frames':
+            times = params.get('times') if isinstance(params.get('times'), list) else []
+            add('时间点', ', '.join(str(t) for t in times), 100)
+        elif kind == 'contact':
+            add('规模', params.get('grid'), 10)
+        elif kind == 'compress':
+            add('画质', {'small': '更小', 'balanced': '均衡',
+                         'clear': '更清晰'}.get(params.get('quality')), 10)
+            add('分辨率上限', '%sp' % params.get('cap'), 10)
+        add('大小', payload.get('size'), 8)
+        outputs = payload.get('outputs') if isinstance(payload.get('outputs'), list) else []
+        add('产物', '、'.join(_text(x.get('name'), 40) for x in outputs
+                              if isinstance(x, dict)), 200)
     return out
 
 

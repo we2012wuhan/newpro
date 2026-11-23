@@ -117,6 +117,8 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .t-town .go{background:linear-gradient(135deg,#0f9f8f,#38bdf8);box-shadow:0 8px 20px rgba(15,159,143,.32)}
 .tool.t-fc:hover{border-color:rgba(226,86,74,.62);box-shadow:0 24px 52px rgba(216,66,60,.26)}
 .t-fc .go{background:linear-gradient(135deg,#f0705f,#d8423c);box-shadow:0 8px 20px rgba(216,66,60,.32)}
+.tool.t-video:hover{border-color:rgba(14,165,233,.62);box-shadow:0 24px 52px rgba(2,132,199,.26)}
+.t-video .go{background:linear-gradient(135deg,#0284c7,#14b8a6);box-shadow:0 8px 20px rgba(2,132,199,.32)}
 .search-col{position:relative;display:flex;flex-direction:column;align-items:stretch;flex:1;max-width:780px;min-width:260px;margin-left:auto}
 .search-box{position:relative;width:100%}
 .search-box .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none;font-size:15px}
@@ -781,6 +783,14 @@ body.is-dragging .tool:not(.dragging){transition:none}
       <div class="t-info">
         <h3>AI 文章写作</h3>
         <p class="desc">没灵感先在「选题」页签出一批能开写的方向，挑中直接切到「写作」；也可以直接给主题，先出可编辑大纲，再逐节写正文并用 Seedream Flash 配图。可复制公众号正文或下载 ZIP。</p>
+        <span class="go">立即打开</span>
+      </div>
+    </a>
+    <a class="tool t-video" data-cat="content" href="/video-tools">
+      <div class="t-icon">🎬</div>
+      <div class="t-info">
+        <h3>视频小工具</h3>
+        <p class="desc">上传一次视频，就能反复截取片段、转 GIF、提取音频（含转写用 WAV）、抽帧或九宫格、压缩瘦身。处理全在本机完成，不传第三方。</p>
         <span class="go">立即打开</span>
       </div>
     </a>
