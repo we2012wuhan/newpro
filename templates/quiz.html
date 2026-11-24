@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>出题小工具 · 我的工具箱</title>
+<style>
+  :root {
+    --bg: #efece4;
+    --paper: #fffdf8;
+    --ink: #23201b;
+    --ink-soft: #454037;
+    --muted: #7a7366;
+    --line: #ddd6c7;
+    --line-strong: #bdb3a0;
+    --accent: #9e3b2e;
+    --accent-dark: #7c2d23;
+    --accent-soft: #f8ece8;
+    --ok: #2c6a45;
+    --ok-soft: #eef5ee;
+    --bad: #9e3b2e;
+    --bad-soft: #fbf0ed;
+    --chip: #f4efe4;
+    --radius: 4px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { color-scheme: light; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button, input, textarea { font: inherit; }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .wrap {
+    width: 100%;
+    max-width: 940px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  /* ---------- 顶部 ---------- */
+  .masthead {
+    border-top: 4px solid var(--ink);
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+  }
+  .masthead .wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 18px;
+    padding-top: 13px;
+    padding-bottom: 13px;
+    flex-wrap: wrap;
+  }
+  .back {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .back:hover { color: var(--accent); }
+  .brand {
+    font-family: "Noto Serif SC", "Songti SC", SimSun, Georgia, serif;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: .04em;
+  }
+  .tagline {
+    color: var(--muted);
+    font-size: 13px;
+    margin-right: auto;
+  }
+  .model-state {
+    font-size: 12px;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 2px 10px;
+    white-space: nowrap;
+  }
+  .model-state.is-off { color: var(--bad); border-color: #dcc0b8; background: var(--bad-soft); }
+
+  /* ---------- 纸张 ---------- */
+  main.wrap { padding-bottom: 56px; }
+
+  .sheet, .paper {
+    background: var(--paper);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    margin-top: 26px;
+    padding: 30px 34px;
+  }
+  .paper { margin-top: 20px; }
+
+  h1, h2, h3, p { margin: 0; }
+
+  .setup-head { margin-bottom: 24px; }
+  .setup-head h1 {
+    font-family: "Noto Serif SC", "Songti SC", SimSun, Georgia, serif;
+    font-size: 26px;
+    letter-spacing: .02em;
+  }
+  .setup-head p { color: var(--muted); margin-top: 4px; font-size: 14px; }
+
+  .field { display: block; margin-bottom: 18px; }
+  .field > span, legend {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    margin-bottom: 7px;
+  }
+
+  input[type="text"], textarea {
+    width: 100%;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: #fff;
+    color: var(--ink);
+    padding: 10px 12px;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input[type="text"]::placeholder, textarea::placeholder { color: #a59d8e; }
+  input[type="text"]:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(158, 59, 46, .12);
+  }
+  textarea { resize: vertical; min-height: 120px; line-height: 1.65; }
+
+  .material { margin-bottom: 18px; }
+  .material summary {
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    padding: 4px 0;
+  }
+  .material summary::marker { color: var(--accent); }
+  .material[open] summary { margin-bottom: 8px; }
+  .char-count { margin-top: 5px; font-size: 12px; color: var(--muted); text-align: right; }
+
+  fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+  fieldset + fieldset { margin-top: 18px; }
+  .row2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+    margin-bottom: 18px;
+  }
+  .row2 fieldset + fieldset { margin-top: 0; }
+
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .pill {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background: #fff;
+    padding: 7px 13px;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--ink-soft);
+    user-select: none;
+    transition: border-color .12s, background .12s, color .12s;
+  }
+  .pill:hover { border-color: var(--ink-soft); }
+  .pill input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .pill:has(input:checked) {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent-dark);
+  }
+  .pill:has(input:checked) span { font-weight: 600; }
+  .pill:has(input:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .pill .tick { font-size: 11px; opacity: 0; }
+  .pill:has(input:checked) .tick { opacity: 1; }
+
+  .hint-line { font-size: 12px; color: var(--muted); margin-top: 8px; }
+
+  .primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid var(--ink);
+    background: var(--ink);
+    color: #fff;
+    border-radius: var(--radius);
+    padding: 10px 20px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .primary:hover { background: #3a352c; }
+  .primary:disabled { opacity: .45; cursor: not-allowed; }
+
+  .ghost {
+    border: 1px solid var(--line-strong);
+    background: transparent;
+    color: var(--ink-soft);
+    border-radius: var(--radius);
+    padding: 7px 13px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .ghost:hover { border-color: var(--ink); color: var(--ink); }
+  .ghost.small { padding: 4px 10px; font-size: 12px; }
+  .ghost.danger { border-color: var(--bad); color: var(--bad); background: var(--bad-soft); }
+
+  .msg {
+    min-height: 20px;
+    font-size: 13px;
+    color: var(--bad);
+    margin: 8px 0 10px;
+  }
+
+  /* ---------- 试卷 ---------- */
+  .paper-head, .result-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    padding-bottom: 14px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .paper-head h2, .result-head h2 {
+    font-family: "Noto Serif SC", "Songti SC", SimSun, Georgia, serif;
+    font-size: 22px;
+    line-height: 1.4;
+  }
+  .paper-meta, .score-meta, .eyebrow {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 4px;
+  }
+  .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+
+  .sheet-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .sheet-dot {
+    width: 33px;
+    height: 33px;
+    border: 1px solid var(--line-strong);
+    border-radius: 50%;
+    background: #fff;
+    color: var(--ink-soft);
+    font-size: 13px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .sheet-dot:hover { border-color: var(--ink); }
+  .sheet-dot.is-answered { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .sheet-dot.is-correct { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .sheet-dot.is-wrong { background: var(--bad); border-color: var(--bad); color: #fff; }
+
+  .q { padding: 22px 0; border-top: 1px solid var(--line); scroll-margin-top: 16px; }
+  .q:first-child { border-top: 0; padding-top: 18px; }
+  .q-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .q-no {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 22px;
+    color: var(--ink);
+    min-width: 34px;
+  }
+  .q-type {
+    font-size: 11px;
+    color: var(--muted);
+    border: 1px solid var(--line-strong);
+    border-radius: 3px;
+    padding: 1px 7px;
+  }
+  .q-tip { font-size: 12px; color: var(--muted); }
+  .q-stem {
+    font-family: "Noto Serif SC", "Songti SC", SimSun, Georgia, serif;
+    font-size: 18px;
+    line-height: 1.8;
+    margin: 9px 0 13px 44px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .options { margin-left: 44px; }
+  .opt {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: #fff;
+    padding: 10px 13px;
+    margin: 7px 0;
+    cursor: pointer;
+    transition: border-color .12s, background .12s;
+  }
+  .opt:hover { border-color: var(--line-strong); background: #fffbf1; }
+  .opt input {
+    margin: 4px 0 0;
+    accent-color: var(--accent);
+    flex: 0 0 auto;
+  }
+  .opt-key {
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 700;
+    color: var(--muted);
+    min-width: 16px;
+  }
+  .opt-text { flex: 1; overflow-wrap: anywhere; }
+  .opt:has(input:checked) { border-color: var(--ink); background: #f8f3e8; }
+
+  .blank-wrap { margin-left: 44px; }
+  .blank-wrap input {
+    max-width: 420px;
+    font-family: "Noto Serif SC", "Songti SC", SimSun, Georgia, serif;
+    font-size: 17px;
+    letter-spacing: .04em;
+  }
+
+  .submitbar {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 10px;
+    padding: 14px 0 4px;
+    border-top: 1px solid var(--line-strong);
+    background: var(--paper);
+    padding-bottom: max(4px, env(safe-area-inset-bottom));
+  }
+  .progress-text { color: var(--muted); font-size: 13px; }
+
+  /* ---------- 判分 ---------- */
+  .score-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .score-line {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-top: 6px;
+  }
+  .score-num {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 42px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .score-percent { color: var(--muted); font-size: 16px; }
+  .score-note { font-size: 13px; color: var(--ink-soft); margin-top: 8px; max-width: 560px; }
+
+  .review { border-top: 1px solid var(--line); padding: 20px 0; }
+  .review:first-child { border-top: 0; }
+  .verdict {
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 3px;
+    padding: 1px 8px;
+  }
+  .verdict.ok { color: var(--ok); background: var(--ok-soft); }
+  .verdict.bad { color: var(--bad); background: var(--bad-soft); }
+  .review .q-stem { margin-bottom: 10px; }
+
+  .result-options { margin-left: 44px; }
+  .result-opt {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: #fff;
+    padding: 8px 12px;
+    margin: 6px 0;
+    color: var(--ink-soft);
+  }
+  .result-opt.is-answer {
+    border-color: var(--ok);
+    background: var(--ok-soft);
+    color: var(--ink);
+  }
+  .result-opt.is-picked {
+    border-color: var(--bad);
+    background: var(--bad-soft);
+    color: var(--ink);
+  }
+  .result-opt.is-answer.is-picked {
+    border-color: var(--ok);
+    background: var(--ok-soft);
+  }
+  .result-opt .tag {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .result-opt.is-answer .tag { color: var(--ok); }
+  .result-opt.is-picked:not(.is-answer) .tag { color: var(--bad); }
+
+  .feedback {
+    margin: 12px 0 0 44px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--line);
+    font-size: 14px;
+    color: var(--ink-soft);
+  }
+  .fb-row { display: flex; gap: 10px; margin: 3px 0; }
+  .fb-label { color: var(--muted); flex: 0 0 68px; font-size: 13px; }
+  .fb-value { flex: 1; overflow-wrap: anywhere; }
+  .fb-value.is-missing { color: var(--bad); }
+  .fb-value.is-right { color: var(--ok); font-weight: 600; }
+  .fb-explain { margin-top: 8px; line-height: 1.75; }
+  .why-title { margin-top: 9px; font-size: 12px; color: var(--muted); }
+  .why-list { list-style: none; margin: 4px 0 0; padding: 0; font-size: 13px; }
+  .why-list li {
+    padding: 3px 0 3px 10px;
+    border-left: 2px solid var(--line);
+    margin: 3px 0;
+  }
+  .why-list b { color: var(--ink); font-family: Georgia, serif; }
+  .point-line { margin-top: 8px; font-size: 12px; color: var(--muted); }
+
+  /* ---------- 历史 ---------- */
+  .history { margin-top: 34px; }
+  .history-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line-strong);
+  }
+  .history-head h2 { font-size: 15px; letter-spacing: .04em; }
+  .history-list { border-bottom: 1px solid var(--line); }
+  .empty-history { padding: 18px 4px; color: var(--muted); font-size: 13px; }
+  .hist-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 11px 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  .hist-row:last-child { border-bottom: 0; }
+  .hist-open {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    cursor: pointer;
+    min-width: 0;
+  }
+  .hist-open:hover .hist-title { color: var(--accent); }
+  .hist-title {
+    display: block;
+    font-weight: 600;
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .hist-meta { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .hist-score {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 16px;
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+  .hist-score.is-empty { font-family: inherit; font-size: 12px; color: var(--muted); }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 26px;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: #fff;
+    font-size: 13px;
+    padding: 9px 18px;
+    border-radius: 999px;
+    z-index: 20;
+    max-width: calc(100vw - 40px);
+    text-align: center;
+  }
+
+  [hidden] { display: none !important; }
+
+  @media (max-width: 680px) {
+    .wrap { padding: 0 14px; }
+    .masthead .wrap { gap: 10px; padding-top: 10px; padding-bottom: 10px; }
+    .tagline { display: none; }
+    .sheet, .paper { padding: 20px 16px; margin-top: 16px; }
+    .setup-head h1 { font-size: 22px; }
+    .row2 { grid-template-columns: 1fr; gap: 16px; }
+    .paper-head, .result-head { flex-direction: column; }
+    .score-actions { justify-content: flex-start; }
+    .q-stem, .options, .blank-wrap, .result-options, .feedback { margin-left: 0; }
+    .q-stem { font-size: 17px; }
+    .q-no { min-width: 28px; font-size: 20px; }
+    .hist-row { grid-template-columns: 1fr auto; }
+    .hist-score { grid-column: 2; grid-row: 1; }
+    .hist-row .ghost { grid-column: 1 / -1; justify-self: start; }
+    .submitbar { padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+    .primary { padding: 10px 16px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; scroll-behavior: auto !important; }
+  }
+
+  @media print {
+    body { background: #fff; }
+    .masthead, .history, .submitbar, .sheet-nav, .score-actions, #newBtn { display: none !important; }
+    .sheet, .paper { border: 0; margin: 0; padding: 0; }
+    .q { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<header class="masthead">
+  <div class="wrap">
+    <a class="back" href="/">← 工具箱</a>
+    <span class="brand">出题</span>
+    <span class="tagline">给一个主题，出一套能判分的题</span>
+    <span class="model-state" id="modelState">模型检查中</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <noscript>
+    <p class="msg">这个页面需要 JavaScript 才能出题和判分。</p>
+  </noscript>
+
+  <section class="sheet" id="setup">
+    <div class="setup-head">
+      <h1>出一套题</h1>
+      <p>先定主题和题型。答案在提交后才揭晓，批改会给到每题的原因。</p>
+    </div>
+
+    <form id="setupForm" novalidate>
+      <label class="field" for="topic">
+        <span>主题 / 知识点</span>
+        <input id="topic" type="text" maxlength="120" autocomplete="off"
+               placeholder="例如：光合作用、初中英语时态、HTTP 缓存">
+      </label>
+
+      <details class="material">
+        <summary>贴一段资料（可选，贴了会优先按资料出题）</summary>
+        <textarea id="material" maxlength="6000" rows="6"
+                  placeholder="课件、笔记、书里的一段……只用于出题，不保存原文"></textarea>
+        <div class="char-count"><span id="materialCount">0</span> / 6000 字</div>
+      </details>
+
+      <fieldset>
+        <legend>题型</legend>
+        <div class="pills" id="typeChoices"></div>
+        <p class="hint-line" id="typeHint">单选、多选、判断、填空可以任意组合。</p>
+      </fieldset>
+
+      <div class="row2">
+        <fieldset>
+          <legend>题量</legend>
+          <div class="pills" id="countChoices"></div>
+        </fieldset>
+        <fieldset>
+          <legend>难度</legend>
+          <div class="pills" id="levelChoices"></div>
+        </fieldset>
+      </div>
+
+      <p class="msg" id="setupMsg" role="alert"></p>
+      <button class="primary" id="generateBtn" type="submit">生成题目</button>
+    </form>
+  </section>
+
+  <section class="paper" id="paper" hidden>
+    <div class="paper-head">
+      <div>
+        <h2 id="paperTitle"></h2>
+        <p class="paper-meta" id="paperMeta"></p>
+      </div>
+      <button class="ghost" id="newBtn" type="button">重新出题</button>
+    </div>
+    <nav class="sheet-nav" id="answerSheet" aria-label="答题卡"></nav>
+    <div id="questions"></div>
+    <p class="msg" id="submitMsg" role="alert"></p>
+    <div class="submitbar">
+      <span class="progress-text" id="progressText">已答 0 / 0</span>
+      <button class="primary" id="submitBtn" type="button">提交判分</button>
+    </div>
+  </section>
+
+  <section class="paper" id="result" hidden>
+    <div class="result-head">
+      <div>
+        <p class="eyebrow">判分结果</p>
+        <div class="score-line">
+          <span class="score-num" id="scoreNum"></span>
+          <span class="score-percent" id="scorePercent"></span>
+        </div>
+        <p class="score-meta" id="scoreMeta"></p>
+        <p class="score-note" id="scoreNote"></p>
+      </div>
+      <div class="score-actions">
+        <button class="ghost" id="retryBtn" type="button">再做一遍</button>
+        <button class="ghost" id="resultNewBtn" type="button">重新出题</button>
+      </div>
+    </div>
+    <div id="reviewList"></div>
+  </section>
+
+  <section class="history">
+    <div class="history-head">
+      <h2>最近出的题</h2>
+      <button class="ghost small" id="refreshHistory" type="button">刷新</button>
+    </div>
+    <div class="history-list" id="historyList"></div>
+  </section>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="/static/auth-guard.js" defer></script>
+<script src="/static/quiz.js" defer></script>
+</body>
+</html>

@@ -144,6 +144,11 @@ app.include_router(article_writer_router)
 from video_tools import router as video_tools_router  # noqa: E402
 app.include_router(video_tools_router)
 
+# 出题小工具：给主题（可选贴资料），按单选 / 多选 / 判断 / 填空出一套题；
+# 答案和解析生成时存 SQLite、不下发前端，提交后本地判分。页面在 /quiz。
+from quiz import router as quiz_router  # noqa: E402
+app.include_router(quiz_router)
+
 # 影音库：只读浏览阿里云盘里的音乐 / 视频。
 # AList/OpenList 作为内网文件网关，浏览器只见 /media/stream 代理；收藏和续播写 SQLite。
 # 页面在 /media，未配置 ALIST_PASSWORD 时页面会给出配置提示。

@@ -54,6 +54,7 @@ TOOL_META = {
     'sleep': {'name': '睡前打烊', 'ico': '🌙', 'href': '/sleep', 'deep': False},
     'article': {'name': 'AI 文章写作', 'ico': '📝', 'href': '/article', 'deep': False},
     'video-tools': {'name': '视频小工具', 'ico': '🎬', 'href': '/video-tools', 'deep': False},
+    'quiz': {'name': '出题小工具', 'ico': '📋', 'href': '/quiz', 'deep': False},
     'writing-ideas': {'name': '写作选题', 'ico': '💡', 'href': '/article?tab=ideas', 'deep': False},
 }
 
@@ -143,6 +144,8 @@ def _excerpt(tool: str, payload: dict) -> str:
     if tool == 'video-tools':
         return ((_text(payload.get('uploadName'), 60) or '视频') + ' · ' +
                 (_text(payload.get('kindLabel'), 20) or '视频处理'))
+    if tool == 'quiz':
+        return _text(payload.get('topic')) or _text(payload.get('title'))
     return ''
 
 
@@ -236,6 +239,17 @@ def _status(tool: str, payload: dict) -> dict:
             size = 0
         if size > 0:
             label += ' · %.1f MB' % (size / 1048576.0)
+        return {'tracked': False, 'open': False, 'label': label}
+    if tool == 'quiz':
+        questions = payload.get('questions') if isinstance(payload.get('questions'), list) else []
+        attempts = payload.get('attempts') if isinstance(payload.get('attempts'), list) else []
+        label = '%s 题' % len(questions)
+        last = attempts[-1] if attempts else {}
+        score = last.get('score') if isinstance(last, dict) else {}
+        if isinstance(score, dict) and score.get('total'):
+            label += ' · 最近 %s/%s' % (score.get('correct'), score.get('total'))
+        else:
+            label += ' · 还没作答'
         return {'tracked': False, 'open': False, 'label': label}
     return {'tracked': False, 'open': False, 'label': ''}
 
@@ -427,6 +441,30 @@ def _detail(tool: str, payload: dict) -> list:
         add('触发', payload.get('trigger'))
         add('出题方式', '内置配方' if payload.get('source') == 'recipe' else '模型')
         add('选题数', payload.get('count'), 8)
+    elif tool == 'quiz':
+        add('主题', payload.get('topic'))
+        add('难度', {'basic': '基础', 'advanced': '进阶'}.get(payload.get('level')), 10)
+        questions = payload.get('questions') if isinstance(payload.get('questions'), list) else []
+        counts = {}
+        for question in questions:
+            if isinstance(question, dict):
+                key = question.get('type')
+                counts[key] = counts.get(key, 0) + 1
+        labels = {'single': '单选', 'multiple': '多选', 'judge': '判断', 'blank': '填空'}
+        add('题型', '、'.join('%s %s' % (labels.get(key, key), n)
+                             for key, n in counts.items()), 60)
+        add('题量', len(questions), 8)
+        attempts = payload.get('attempts') if isinstance(payload.get('attempts'), list) else []
+        if attempts:
+            last = attempts[-1] if isinstance(attempts[-1], dict) else {}
+            score = last.get('score') if isinstance(last.get('score'), dict) else {}
+            if score.get('total'):
+                add('最近成绩', '%s/%s（%s%%）' % (
+                    score.get('correct'), score.get('total'), score.get('percent')), 20)
+            add('作答次数', len(attempts), 8)
+            add('最近作答', last.get('at'), 20)
+        else:
+            add('状态', '还没作答', 20)
     elif tool == 'video-tools':
         add('素材', payload.get('uploadName'), 60)
         add('操作', payload.get('kindLabel'), 20)

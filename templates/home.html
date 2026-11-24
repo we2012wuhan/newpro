@@ -119,6 +119,8 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .t-fc .go{background:linear-gradient(135deg,#f0705f,#d8423c);box-shadow:0 8px 20px rgba(216,66,60,.32)}
 .tool.t-video:hover{border-color:rgba(14,165,233,.62);box-shadow:0 24px 52px rgba(2,132,199,.26)}
 .t-video .go{background:linear-gradient(135deg,#0284c7,#14b8a6);box-shadow:0 8px 20px rgba(2,132,199,.32)}
+.tool.t-quiz:hover{border-color:rgba(180,83,9,.62);box-shadow:0 24px 52px rgba(146,64,14,.24)}
+.t-quiz .go{background:linear-gradient(135deg,#b45309,#d97706);box-shadow:0 8px 20px rgba(146,64,14,.30)}
 .search-col{position:relative;display:flex;flex-direction:column;align-items:stretch;flex:1;max-width:780px;min-width:260px;margin-left:auto}
 .search-box{position:relative;width:100%}
 .search-box .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none;font-size:15px}
@@ -823,6 +825,14 @@ body.is-dragging .tool:not(.dragging){transition:none}
       <div class="t-info">
         <h3>库博学习圈</h3>
         <p class="desc">把一件真实发生过的事走完四段，提炼出一条能用在别处的经验，再变成下次的具体动作去验证。</p>
+        <span class="go">立即打开</span>
+      </div>
+    </a>
+    <a class="tool t-quiz" data-cat="learn" href="/quiz">
+      <div class="t-icon">📋</div>
+      <div class="t-info">
+        <h3>出题小工具</h3>
+        <p class="desc">给一个主题或贴一段资料，按单选 / 多选 / 判断 / 填空出一套题；提交后逐题判分，并说清为什么对、为什么错。答案留在服务端，不提前下发。</p>
         <span class="go">立即打开</span>
       </div>
     </a>
