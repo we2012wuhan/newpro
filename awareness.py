@@ -30,7 +30,7 @@ HISTORY_NAMES = {
     'opc': 'OPC 资讯', 'douyin': '抖音下载器', 'ask-hub': '提问三件套',
     'design-assistant': '页面设计助手', '3d-lab': '3D 小作品实验室',
     'design-sense': '懂点设计', 'sleep': '睡前打烊', 'beat-em-up': '夜巷清场',
-    'video-tools': '视频小工具', 'quiz': '出题小工具',
+    'video-tools': '视频小工具', 'quiz': '出题小工具', 'kanban': '任务看板',
     'trip': '出行攻略（旧）',
 }
 

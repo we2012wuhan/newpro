@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f4f6fb">
+<title>任务看板</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<script src="/static/auth-guard.js"></script>
+<style>
+:root{
+  --acc:#4c5aa8; --acc-l:rgba(76,90,168,.10); --acc-line:rgba(76,90,168,.30);
+  --bg:var(--tb-bg); --card:var(--tb-card); --field:var(--tb-field);
+  --line:var(--tb-line); --line2:var(--tb-line-2);
+  --ink:var(--tb-ink); --text:var(--tb-text); --muted:var(--tb-muted);
+  --ok:var(--tb-ok); --ok-bg:var(--tb-ok-bg); --ok-line:var(--tb-ok-line);
+  --err:var(--tb-err); --err-bg:var(--tb-err-bg); --err-line:var(--tb-err-line);
+  --warn:var(--tb-warn); --warn-bg:var(--tb-warn-bg); --warn-line:var(--tb-warn-line);
+  --info:var(--tb-info);
+  --doing:#b45309; --doing-bg:rgba(245,158,11,.10); --doing-line:rgba(180,83,9,.30);
+  --done:#15803d; --done-bg:rgba(34,197,94,.10); --done-line:rgba(21,128,61,.30);
+}
+[data-theme="dark"]{
+  --acc:#9aa6ff; --acc-l:rgba(154,166,255,.14); --acc-line:rgba(154,166,255,.34);
+  --doing:#fbbf24; --doing-bg:rgba(251,191,36,.10); --doing-line:rgba(251,191,36,.30);
+  --done:#4ade80; --done-bg:rgba(74,222,128,.10); --done-line:rgba(74,222,128,.30);
+}
+*{box-sizing:border-box}
+body{margin:0;color:var(--text);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1280px;margin:0 auto;padding:16px 16px 64px;position:relative;z-index:1}
+.top{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin:4px 0 18px}
+.back{flex:0 0 auto;font-size:13px;color:var(--muted);text-decoration:none;
+  border:1px solid var(--line);background:var(--field);border-radius:999px;
+  padding:10px 14px;line-height:1.2;white-space:nowrap;align-self:flex-start}
+.back:hover{color:var(--ink);border-color:var(--acc-line)}
+.brand{flex:1 1 260px;min-width:0}
+h1{font-size:20px;margin:0;color:var(--ink);display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+h1 .stat{font-size:12.5px;font-weight:400;color:var(--muted);letter-spacing:0}
+.sub{margin:4px 0 0;font-size:13px;color:var(--muted);line-height:1.65}
+.top-actions{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;
+  padding:0 15px;border-radius:11px;border:1px solid var(--line2);background:var(--card);
+  color:var(--text);font-family:inherit;font-size:14px;cursor:pointer;text-decoration:none;
+  transition:background .15s,border-color .15s,color .15s}
+.btn:hover{background:var(--tb-hover);color:var(--ink)}
+.btn:active{opacity:.8}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:var(--tb-acc-on);font-weight:600}
+.btn.primary:hover{filter:brightness(1.05);color:var(--tb-acc-on)}
+.btn.ghost{background:transparent}
+.btn.ghost:hover{background:var(--tb-hover)}
+.btn.sm{min-height:34px;padding:0 11px;font-size:13px;border-radius:9px}
+
+.daybar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 16px;
+  padding:8px 10px;border:1px solid var(--line);border-radius:12px;
+  background:var(--card);box-shadow:var(--tb-glow-soft)}
+.daybar .nav-btn{width:34px;min-width:34px;height:34px;padding:0;display:inline-flex;
+  align-items:center;justify-content:center;border-radius:9px;border:1px solid var(--line2);
+  background:var(--field);color:var(--text);font-family:inherit;font-size:15px;
+  line-height:1;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.daybar .nav-btn:hover{background:var(--tb-hover);color:var(--ink);border-color:var(--acc-line)}
+.daybar input[type=date]{width:auto;min-height:36px;padding:6px 10px;font-size:14px}
+.daybar .btn.sm{min-height:36px}
+.day-hint{font-size:12.5px;color:var(--muted);line-height:1.6}
+.daybar .spacer{flex:1 1 auto}
+
+.board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
+.col{background:var(--card);border:1px solid var(--line);border-radius:16px;
+  box-shadow:var(--tb-glow-soft);display:flex;flex-direction:column;min-height:230px;overflow:hidden}
+.col.status-doing{background:linear-gradient(var(--doing-bg),var(--doing-bg)),var(--card);
+  border-color:var(--doing-line)}
+.col.status-done{background:linear-gradient(var(--done-bg),var(--done-bg)),var(--card);
+  border-color:var(--done-line)}
+.col-head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.status-doing .col-head{border-bottom-color:var(--doing-line)}
+.status-done .col-head{border-bottom-color:var(--done-line)}
+.dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.status-todo .dot{background:#94a3b8}
+.status-doing .dot{background:var(--doing)}
+.status-done .dot{background:var(--done)}
+.col-title{font-size:14px;font-weight:600;color:var(--ink)}
+.status-doing .col-title{color:var(--doing)}
+.status-done .col-title{color:var(--done)}
+.count{font-size:11.5px;color:var(--muted);border:1px solid var(--line);
+  border-radius:999px;padding:1px 8px;background:var(--field);line-height:1.6}
+.col-add{margin-left:auto;width:30px;height:30px;padding:0;display:inline-flex;
+  align-items:center;justify-content:center;border-radius:9px;border:1px solid transparent;
+  background:transparent;color:var(--muted);font-size:19px;line-height:1;cursor:pointer}
+.col-add:hover{background:var(--tb-hover);color:var(--ink);border-color:var(--line)}
+.col-body{padding:10px;display:flex;flex-direction:column;gap:9px;flex:1;min-height:150px;
+  transition:background .15s ease}
+.col-body.dragover{background:var(--acc-l);outline:1.5px dashed var(--acc-line);outline-offset:-4px}
+.empty{font-size:12.5px;color:var(--muted);text-align:center;padding:22px 8px;
+  border:1px dashed var(--line);border-radius:11px;line-height:1.7}
+
+.task{position:relative;background:var(--field);border:1px solid var(--line2);
+  border-left:3px solid var(--line2);border-radius:11px;padding:10px 11px 9px;
+  cursor:grab;transition:border-color .15s,box-shadow .15s,opacity .15s}
+.status-doing .task{background:linear-gradient(var(--doing-bg),var(--doing-bg)),var(--field)}
+.status-done .task{background:linear-gradient(var(--done-bg),var(--done-bg)),var(--field)}
+.task:hover{border-color:var(--acc-line);box-shadow:var(--tb-glow-soft)}
+.task:focus-visible{outline:2px solid var(--acc-line);outline-offset:1px}
+.task.dragging{opacity:.45;cursor:grabbing}
+.task.p-high{border-left-color:var(--err)}
+.task.p-low{border-left-color:var(--info)}
+.task h3{font-size:14.5px;font-weight:600;line-height:1.5;color:var(--ink);
+  margin:0;word-break:break-word}
+.task.is-done h3{text-decoration:line-through;color:var(--muted);font-weight:500}
+.task .note{margin:5px 0 0;font-size:12.5px;color:var(--muted);line-height:1.65;
+  white-space:pre-wrap;word-break:break-word;display:-webkit-box;-webkit-line-clamp:4;
+  -webkit-box-orient:vertical;overflow:hidden}
+.task.is-done .note{opacity:.75}
+.meta{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:8px}
+.chip{font-size:11px;line-height:1.7;padding:0 7px;border-radius:999px;
+  border:1px solid var(--line2);color:var(--muted);background:var(--card);white-space:nowrap}
+.chip.pri-high{color:var(--err);border-color:var(--err-line);background:var(--err-bg)}
+.chip.pri-low{color:var(--info);border-color:var(--line2);background:var(--field)}
+.chip.due.late{color:var(--err);border-color:var(--err-line);background:var(--err-bg)}
+.acts{display:flex;align-items:center;justify-content:flex-end;gap:3px;margin-top:8px;
+  opacity:.72;transition:opacity .15s}
+.task:hover .acts,.task:focus-within .acts{opacity:1}
+.icon-btn{min-width:27px;height:27px;padding:0 6px;display:inline-flex;align-items:center;
+  justify-content:center;border-radius:8px;border:1px solid transparent;
+  background:transparent;color:var(--muted);font-family:inherit;font-size:13px;
+  line-height:1;cursor:pointer}
+.icon-btn:hover{background:var(--tb-hover);color:var(--ink);border-color:var(--line)}
+.icon-btn:disabled{opacity:.3;cursor:not-allowed;background:transparent;border-color:transparent}
+.icon-btn.confirm{color:var(--err);border-color:var(--err-line);background:var(--err-bg);
+  width:auto;font-size:12px}
+.loading{padding:40px 10px;text-align:center;color:var(--muted);font-size:13px}
+.board-error{grid-column:1 / -1;padding:22px;text-align:center;color:var(--err);
+  border:1px solid var(--err-line);background:var(--err-bg);border-radius:14px;font-size:13.5px}
+
+dialog{border:1px solid var(--line2);border-radius:16px;background:var(--card);
+  color:var(--text);padding:0;width:min(480px,calc(100vw - 28px));
+  box-shadow:0 24px 60px -20px rgba(0,0,0,.45)}
+dialog::backdrop{background:rgba(15,23,42,.42)}
+[data-theme="dark"] dialog::backdrop{background:rgba(0,0,0,.62)}
+#form{padding:18px}
+#form h2{font-size:16px;margin:0 0 14px;color:var(--ink)}
+.lbl{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 5px}
+.lbl:first-of-type{margin-top:0}
+.req{color:var(--err)}
+input[type=text],input[type=date],textarea,select{width:100%;border:1px solid var(--line2);
+  border-radius:10px;padding:10px 11px;background:var(--field);color:var(--text);
+  font-family:inherit;font-size:14.5px;line-height:1.6;outline:none;min-height:42px}
+textarea{resize:vertical;min-height:88px}
+input:focus,textarea:focus,select:focus{border-color:var(--acc-line);
+  box-shadow:0 0 0 3px var(--acc-l)}
+.row3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.hint{margin:10px 0 0;font-size:12px;color:var(--muted);line-height:1.6}
+.err{margin:12px 0 0;font-size:12.5px;color:var(--err);line-height:1.6}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+
+.toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,12px);z-index:80;
+  max-width:calc(100vw - 32px);padding:9px 15px;border-radius:10px;background:var(--tb-menu-bg);
+  border:1px solid var(--line2);color:var(--text);font-size:13px;line-height:1.6;
+  box-shadow:0 12px 30px -10px rgba(0,0,0,.4);opacity:0;pointer-events:none;
+  transition:opacity .18s ease,transform .18s ease}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast.bad{color:var(--err);border-color:var(--err-line)}
+
+@media (max-width:900px){
+  .board{grid-template-columns:minmax(0,1fr)}
+  .col{min-height:0}
+  .col-body{min-height:96px}
+}
+@media (max-width:520px){
+  .wrap{padding:12px 12px 56px}
+  .top-actions{width:100%;margin-left:0}
+  .top-actions .btn{flex:1}
+  .row3{grid-template-columns:minmax(0,1fr)}
+  .acts{opacity:1}
+  h1{font-size:18px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important}
+}
+</style>
+<script src="/static/quick-ai.js" defer></script>
+<script src="/static/fish-mascot.js" defer></script>
+<script src="/static/usage.js" defer></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="back" href="/">← 工具箱</a>
+    <div class="brand">
+      <h1>任务看板 <span class="stat" id="stat"></span></h1>
+      <p class="sub">每天的任务分开记录：上方切换日期查看当天看板，默认今天。新任务记在选中的日期；拖动卡片换状态，或用 ← → 按钮。</p>
+    </div>
+    <div class="top-actions">
+      <button class="btn primary" id="newBtn" type="button">＋ 新建任务</button>
+      <span class="tb-mount"></span>
+    </div>
+  </header>
+  <div class="daybar">
+    <button class="nav-btn" id="dayPrev" type="button" title="前一天" aria-label="前一天">←</button>
+    <input type="date" id="dayPick" aria-label="查看哪一天的任务">
+    <button class="nav-btn" id="dayNext" type="button" title="后一天" aria-label="后一天">→</button>
+    <button class="btn sm" id="dayToday" type="button">今天</button>
+    <span class="day-hint" id="dayHint"></span>
+  </div>
+  <main class="board" id="board" aria-label="任务看板">
+    <div class="loading">加载中……</div>
+  </main>
+</div>
+
+<dialog id="editor" aria-labelledby="editorTitle">
+  <form id="form" novalidate>
+    <h2 id="editorTitle">新建任务</h2>
+    <label class="lbl" for="fTitle">标题 <span class="req">*</span></label>
+    <input type="text" id="fTitle" maxlength="120" autocomplete="off" placeholder="要做什么？">
+    <label class="lbl" for="fNote">备注</label>
+    <textarea id="fNote" maxlength="1000" placeholder="可留空：补充说明、完成标准、链接……"></textarea>
+    <div class="row3">
+      <div>
+        <label class="lbl" for="fStatus">状态</label>
+        <select id="fStatus"></select>
+      </div>
+      <div>
+        <label class="lbl" for="fPriority">优先级</label>
+        <select id="fPriority"></select>
+      </div>
+      <div>
+        <label class="lbl" for="fDue">截止</label>
+        <input type="date" id="fDue">
+      </div>
+    </div>
+    <p class="hint" id="editorDay"></p>
+    <p class="err" id="fErr" hidden></p>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancelBtn" type="button">取消</button>
+      <button class="btn primary" id="saveBtn" type="submit">保存</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="/static/kanban.js" defer></script>
+<script src="/static/focus-widget.js" defer></script>
+</body>
+</html>

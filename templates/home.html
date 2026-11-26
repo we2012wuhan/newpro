@@ -121,6 +121,10 @@ h1{margin:0;font-size:30px;letter-spacing:1px}
 .t-video .go{background:linear-gradient(135deg,#0284c7,#14b8a6);box-shadow:0 8px 20px rgba(2,132,199,.32)}
 .tool.t-quiz:hover{border-color:rgba(180,83,9,.62);box-shadow:0 24px 52px rgba(146,64,14,.24)}
 .t-quiz .go{background:linear-gradient(135deg,#b45309,#d97706);box-shadow:0 8px 20px rgba(146,64,14,.30)}
+.tool.t-kan:hover{border-color:rgba(139,92,246,.62);box-shadow:0 24px 52px rgba(109,40,217,.26)}
+.t-kan .go{background:linear-gradient(135deg,#8b5cf6,#6366f1);box-shadow:0 8px 20px rgba(109,40,217,.32)}
+.tool.t-note:hover{border-color:rgba(180,83,9,.62);box-shadow:0 24px 52px rgba(146,64,14,.24)}
+.t-note .go{background:linear-gradient(135deg,#b45309,#f59e0b);box-shadow:0 8px 20px rgba(146,64,14,.30)}
 .search-col{position:relative;display:flex;flex-direction:column;align-items:stretch;flex:1;max-width:780px;min-width:260px;margin-left:auto}
 .search-box{position:relative;width:100%}
 .search-box .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none;font-size:15px}
@@ -849,6 +853,22 @@ body.is-dragging .tool:not(.dragging){transition:none}
       <div class="t-info">
         <h3>专注台</h3>
         <p class="desc">从目标拆解器挑一条今天该做的，坐下计时。完成、中断、打断都记下来，实际分钟写回那条动作。</p>
+        <span class="go">立即打开</span>
+      </div>
+    </a>
+    <a class="tool t-kan" data-cat="think" href="/kanban">
+      <div class="t-icon">📌</div>
+      <div class="t-info">
+        <h3>任务看板</h3>
+        <p class="desc">待办 / 进行中 / 已完成三列，一张卡一件任务：写标题、标优先级、设截止日期，拖过去就是换状态。按账号保存，换设备打开还在。</p>
+        <span class="go">立即打开</span>
+      </div>
+    </a>
+    <a class="tool t-note" data-cat="life" href="/notes">
+      <div class="t-icon">📝</div>
+      <div class="t-info">
+        <h3>每日笔记</h3>
+        <p class="desc">随手记一条今天的事、想法或灵感，贴张截图也行。按天归档，能打标签、搜索和翻日期；图片保存在自己的账号里。</p>
         <span class="go">立即打开</span>
       </div>
     </a>

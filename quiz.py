@@ -10,6 +10,10 @@
 #   questions: type/stem/options/answer/accept/explanation/optionWhy/point
 #   attempts : at/answers/correct/score
 #
+# 错题库 / 收藏存 quiz_wrong、quiz_fav（每题一份快照，原题删了还能复习）：
+#   quiz_wrong 在提交判分后自动维护——答错且作答过收录，答对移出；
+#   quiz_fav 由页面上的星标切换。
+#
 # 环境变量沿用 DEEPSEEK_*（见 model_config.py），不新增配置。
 import json
 import re
@@ -480,7 +484,7 @@ def _type_counts(questions):
             for key in TYPE_KEYS if counts.get(key)]
 
 
-def _public_quiz(rid, payload):
+def _public_quiz(rid, payload, favorites=None):
     questions = payload.get('questions') if isinstance(payload.get('questions'), list) else []
     return {
         'id': rid,
@@ -491,6 +495,7 @@ def _public_quiz(rid, payload):
         'createdAt': payload.get('created_at', ''),
         'count': len(questions),
         'typeCounts': _type_counts(questions),
+        'favorites': list(favorites or []),
         'questions': [_public_question(q, i) for i, q in enumerate(questions)],
     }
 
@@ -499,6 +504,82 @@ def _save_quiz(user, quiz):
     payload = dict(quiz)
     rec = storage.add_record(TOOL, user, quiz['title'] or quiz['topic'], payload)
     return rec
+
+
+# ---------------------------------------------------------
+# 错题库 / 收藏
+# ---------------------------------------------------------
+def _snapshot(payload, rid, index, question):
+    """存进错题库 / 收藏的题目快照；原题删掉也能复习。"""
+    return {
+        'quizId': rid,
+        'index': index,
+        'title': payload.get('title') or payload.get('topic', ''),
+        'topic': payload.get('topic', ''),
+        'type': question['type'],
+        'typeLabel': TYPE_LABEL.get(question['type'], question['type']),
+        'stem': question['stem'],
+        'options': [{'key': item['key'], 'text': item['text']}
+                    for item in question.get('options') or []],
+        'answer': list(question.get('answer') or []),
+        'accept': list(question.get('accept') or []),
+        'answerText': _answer_text(question),
+        'explanation': question.get('explanation', ''),
+        'optionWhy': question.get('optionWhy') or {},
+        'point': question.get('point', ''),
+    }
+
+
+def _given_text(question, given):
+    if question.get('type') == 'blank':
+        return _blank_text(given)
+    lookup = {item['key']: item['text'] for item in question.get('options') or []}
+    keys = _given_keys(given, question.get('options') or [])
+    return '；'.join('%s. %s' % (key, lookup.get(key, '')) for key in keys)
+
+
+def _entry_public(row, with_given=False):
+    data = dict(row.get('data') or {})
+    question = {
+        'type': data.get('type', ''),
+        'typeLabel': data.get('typeLabel', ''),
+        'stem': data.get('stem', ''),
+        'options': data.get('options') or [],
+        'answer': data.get('answer') or [],
+        'accept': data.get('accept') or [],
+        'answerText': data.get('answerText', ''),
+        'explanation': data.get('explanation', ''),
+        'optionWhy': data.get('optionWhy') or {},
+        'point': data.get('point', ''),
+    }
+    entry = {
+        'id': row['id'],
+        'quizId': row['quiz_id'],
+        'index': row['q_index'],
+        'title': data.get('title', '') or data.get('topic', ''),
+        'topic': data.get('topic', ''),
+        'at': row.get('updated_at') or row.get('created_at', ''),
+    }
+    entry.update(question)
+    if with_given:
+        given = row.get('given')
+        entry['given'] = given
+        entry['givenText'] = _given_text(question, given)
+    return entry
+
+
+def _question_snapshot(user, quiz_id, index):
+    """优先从原题记录取；原题已删则退回错题库里的快照。"""
+    row = storage.get_record(user, quiz_id)
+    if row and row.get('tool') == TOOL:
+        payload = row.get('payload') if isinstance(row.get('payload'), dict) else {}
+        questions = payload.get('questions') if isinstance(payload.get('questions'), list) else []
+        if 0 <= index < len(questions) and isinstance(questions[index], dict):
+            return _snapshot(payload, quiz_id, index, questions[index])
+    wrong = storage.quiz_wrong_get(user, quiz_id, index)
+    if wrong:
+        return dict(wrong.get('data') or {})
+    return None
 
 
 # ---------------------------------------------------------
@@ -532,6 +613,12 @@ def _blank_match(value, accept):
     if not text:
         return False
     return text in {_norm_text(item) for item in accept}
+
+
+def _answer_empty(given):
+    if isinstance(given, list):
+        return not given
+    return not str(given or '').strip()
 
 
 def _grade_question(question, given):
@@ -725,9 +812,13 @@ def quiz_detail(rid: int, request: Request):
         return JSONResponse({'ok': False, 'msg': '找不到这套题。'}, status_code=404)
     payload = row.get('payload') if isinstance(row.get('payload'), dict) else {}
     attempts = payload.get('attempts') if isinstance(payload.get('attempts'), list) else []
+    try:
+        favorites = storage.quiz_fav_indices(user, row['id'])
+    except storage.StorageUnavailable:
+        favorites = []
     data = {
         'ok': True,
-        'quiz': _public_quiz(row['id'], payload),
+        'quiz': _public_quiz(row['id'], payload, favorites),
         'attempts': [_attempt_summary(attempt, i + 1)
                      for i, attempt in enumerate(attempts)],
     }
@@ -774,6 +865,21 @@ async def quiz_submit(rid: int, request: Request):
         return JSONResponse({'ok': False, 'msg': str(exc)}, status_code=503)
     if not changed:
         return JSONResponse({'ok': False, 'msg': '找不到这套题。'}, status_code=404)
+    # 错题库：答错且真的作答过就收进去；答对则移出。辅助功能失败不影响判分。
+    questions = data.get('questions') if isinstance(data.get('questions'), list) else []
+    for item in result['items']:
+        index = item['index']
+        if not (0 <= index < len(questions)):
+            continue
+        try:
+            if item['correct']:
+                storage.quiz_wrong_drop(user, rid, index)
+            elif not _answer_empty(item['given']):
+                storage.quiz_wrong_put(
+                    user, rid, index,
+                    _snapshot(data, rid, index, questions[index]), item['given'])
+        except storage.StorageUnavailable:
+            pass
     result['at'] = attempt['at']
     result['attemptNo'] = len(attempts)
     return JSONResponse({'ok': True, 'result': result})
@@ -791,6 +897,80 @@ def quiz_delete(rid: int, request: Request):
         return JSONResponse({'ok': False, 'msg': str(exc)}, status_code=503)
     if not changed:
         return JSONResponse({'ok': False, 'msg': '找不到这套题。'}, status_code=404)
+    return JSONResponse({'ok': True})
+
+
+@router.get('/quiz/api/wrong')
+def quiz_wrong_list(request: Request):
+    user = _user(request)
+    try:
+        rows = storage.quiz_wrong_list(user)
+        fav_keys = storage.quiz_fav_keys(user)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'items': [], 'msg': str(exc)}, status_code=503)
+    items = []
+    for row in rows:
+        entry = _entry_public(row, with_given=True)
+        entry['fav'] = (int(row['quiz_id']), int(row['q_index'])) in fav_keys
+        items.append(entry)
+    return JSONResponse({'ok': True, 'items': items})
+
+
+@router.delete('/quiz/api/wrong/{wid}')
+def quiz_wrong_delete(wid: int, request: Request):
+    user = _user(request)
+    try:
+        changed = storage.quiz_wrong_remove(user, wid)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'msg': str(exc)}, status_code=503)
+    if not changed:
+        return JSONResponse({'ok': False, 'msg': '找不到这道错题。'}, status_code=404)
+    return JSONResponse({'ok': True})
+
+
+@router.get('/quiz/api/fav')
+def quiz_fav_list(request: Request):
+    user = _user(request)
+    try:
+        rows = storage.quiz_fav_list(user)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'items': [], 'msg': str(exc)}, status_code=503)
+    return JSONResponse({'ok': True, 'items': [_entry_public(row) for row in rows]})
+
+
+@router.post('/quiz/api/fav/toggle')
+async def quiz_fav_toggle(request: Request):
+    user = _user(request)
+    payload = await _body(request)
+    try:
+        quiz_id = int(payload.get('quizId'))
+        index = int(payload.get('index'))
+    except (TypeError, ValueError, OverflowError):
+        return JSONResponse({'ok': False, 'msg': '题目参数不完整。'}, status_code=400)
+    if quiz_id < 1 or index < 0:
+        return JSONResponse({'ok': False, 'msg': '题目参数不完整。'}, status_code=400)
+    try:
+        if storage.quiz_fav_get(user, quiz_id, index):
+            storage.quiz_fav_drop(user, quiz_id, index)
+            return JSONResponse({'ok': True, 'fav': False})
+        snapshot = _question_snapshot(user, quiz_id, index)
+        if not snapshot:
+            return JSONResponse({'ok': False, 'msg': '找不到这道题。'}, status_code=404)
+        row = storage.quiz_fav_put(user, quiz_id, index, snapshot)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'msg': str(exc)}, status_code=503)
+    return JSONResponse({'ok': True, 'fav': True, 'id': row['id']})
+
+
+@router.delete('/quiz/api/fav/{fid}')
+def quiz_fav_delete(fid: int, request: Request):
+    user = _user(request)
+    try:
+        changed = storage.quiz_fav_remove(user, fid)
+    except storage.StorageUnavailable as exc:
+        return JSONResponse({'ok': False, 'msg': str(exc)}, status_code=503)
+    if not changed:
+        return JSONResponse({'ok': False, 'msg': '找不到这条收藏。'}, status_code=404)
     return JSONResponse({'ok': True})
 
 

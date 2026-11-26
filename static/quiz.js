@@ -20,8 +20,15 @@
     quiz: null,
     answers: {},
     result: null,
+    favorites: {},
+    tab: 'generate',
     view: 'setup',
     busy: false
+  };
+  var TABS = {
+    generate: { btn: 'tabBtnGenerate', panel: 'tabGenerate' },
+    wrong: { btn: 'tabBtnWrong', panel: 'tabWrong' },
+    fav: { btn: 'tabBtnFav', panel: 'tabFav' }
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -32,6 +39,13 @@
   var reviewList = $('reviewList');
   var answerSheet = $('answerSheet');
   var historyList = $('historyList');
+  var genLayout = $('genLayout');
+  var historyRail = $('historyRail');
+  var foldHistory = $('foldHistory');
+  var FOLD_KEY = 'quiz_hist_fold';
+  var historyFolded = false;
+  var wrongList = $('wrongList');
+  var favList = $('favList');
   var generateBtn = $('generateBtn');
   var submitBtn = $('submitBtn');
   var toastTimer = 0;
@@ -97,6 +111,72 @@
     result.hidden = name !== 'result';
   }
 
+  function setTab(name) {
+    if (!TABS[name]) { return; }
+    Object.keys(TABS).forEach(function (key) {
+      var conf = TABS[key];
+      var on = key === name;
+      var btn = $(conf.btn);
+      btn.classList.toggle('is-on', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+      $(conf.panel).hidden = !on;
+    });
+    state.tab = name;
+    if (name === 'wrong') { loadWrong(); }
+    if (name === 'fav') { loadFav(); }
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }
+
+  /* ---------- 收藏 ---------- */
+  function favSet() {
+    if (!(state.favorites instanceof Set)) {
+      state.favorites = new Set((state.quiz && state.quiz.favorites) || []);
+    }
+    return state.favorites;
+  }
+
+  function syncFavorites(quiz) {
+    state.favorites = new Set((quiz && quiz.favorites) || []);
+  }
+
+  function paintStar(btn, on) {
+    btn.textContent = on ? '★' : '☆';
+    btn.classList.toggle('is-on', on);
+    btn.title = on ? '取消收藏' : '收藏';
+    btn.setAttribute('aria-label', btn.title);
+  }
+
+  function makeStar(index) {
+    var btn = el('button', 'icon-btn star');
+    btn.type = 'button';
+    paintStar(btn, favSet().has(index));
+    btn.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleFav(index, btn);
+    });
+    return btn;
+  }
+
+  async function toggleFav(index, btn) {
+    if (!state.quiz || btn.disabled) { return; }
+    btn.disabled = true;
+    try {
+      var data = await api(API + '/fav/toggle', {
+        method: 'POST',
+        body: JSON.stringify({ quizId: state.quiz.id, index: index })
+      });
+      var set = favSet();
+      if (data.fav) { set.add(index); } else { set.delete(index); }
+      state.quiz.favorites = Array.from(set);
+      paintStar(btn, !!data.fav);
+    } catch (err) {
+      if (err.status !== 401) { toast(err.message || '操作失败。'); }
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
   function isEmpty(value) {
     if (Array.isArray(value)) { return value.length === 0; }
     return !value || !String(value).trim();
@@ -159,13 +239,6 @@
     return input ? input.value : '';
   }
 
-  function updateTypeHint() {
-    var count = readTypes().length;
-    setText('typeHint', count
-      ? '已选 ' + count + ' 种题型，题量会尽量平均分配。'
-      : '至少选一种题型。');
-  }
-
   async function loadStatus() {
     try {
       var data = await api(API + '/status');
@@ -195,7 +268,6 @@
       if (data.materialMax) { $('material').maxLength = data.materialMax; }
       if (data.topicMax) { $('topic').maxLength = data.topicMax; }
 
-      updateTypeHint();
       if (!data.ai) {
         generateBtn.disabled = true;
         setText('setupMsg', data.hint || '服务端没有配置模型 Key，暂时不能出题。');
@@ -273,6 +345,7 @@
       .filter(Boolean).join(' · '));
 
     state.answers = loadSaved(quiz.id);
+    syncFavorites(quiz);
 
     answerSheet.textContent = '';
     quiz.questions.forEach(function (question, index) {
@@ -311,6 +384,7 @@
     if (question.type === 'multiple') {
       head.append(el('span', 'q-tip', '可多选'));
     }
+    head.append(makeStar(index));
     card.append(head, el('div', 'q-stem', question.stem));
 
     if (question.type === 'blank') {
@@ -496,6 +570,7 @@
       el('span', 'verdict ' + (item.correct ? 'ok' : 'bad'),
         item.correct ? '正确' : (isEmpty(item.given) ? '未作答' : '错误'))
     );
+    head.append(makeStar(index));
     card.append(head, el('div', 'q-stem', question.stem));
 
     var given = Array.isArray(item.given) ? item.given : (item.given ? [item.given] : []);
@@ -571,6 +646,159 @@
     setText('setupMsg', '');
     setText('submitMsg', '');
     scrollTop();
+  }
+
+  /* ---------- 错题库 / 收藏 ---------- */
+  function emptyBox(text) {
+    return el('div', 'empty-collect', text);
+  }
+
+  async function loadWrong() {
+    wrongList.textContent = '';
+    wrongList.append(emptyBox('加载中…'));
+    try {
+      var data = await api(API + '/wrong');
+      renderCollect(wrongList, data.items || [], 'wrong');
+    } catch (err) {
+      if (err.status === 401) { return; }
+      wrongList.textContent = '';
+      wrongList.append(emptyBox(err.message || '加载失败。'));
+    }
+  }
+
+  async function loadFav() {
+    favList.textContent = '';
+    favList.append(emptyBox('加载中…'));
+    try {
+      var data = await api(API + '/fav');
+      renderCollect(favList, data.items || [], 'fav');
+    } catch (err) {
+      if (err.status === 401) { return; }
+      favList.textContent = '';
+      favList.append(emptyBox(err.message || '加载失败。'));
+    }
+  }
+
+  function renderCollect(box, items, kind) {
+    box.textContent = '';
+    if (!items.length) {
+      box.append(emptyBox(kind === 'wrong' ? '还没有错题。' : '还没有收藏。'));
+      return;
+    }
+    items.forEach(function (item) { box.append(buildCollectItem(item, kind)); });
+  }
+
+  function collectLine(label, value) {
+    var line = el('p', 'collect-line');
+    line.append(el('b', '', label + '：'), document.createTextNode(value));
+    return line;
+  }
+
+  function buildCollectItem(item, kind) {
+    var card = el('article', 'collect-item');
+    var head = el('div', 'collect-head');
+    head.append(el('span', 'collect-source',
+      [item.typeLabel, item.title].filter(Boolean).join(' · ')));
+
+    var actions = el('div', 'collect-actions');
+    var star = el('button', 'icon-btn star');
+    star.type = 'button';
+    paintStar(star, kind === 'fav' || !!item.fav);
+    star.addEventListener('click', function () {
+      if (kind === 'fav') { removeFav(item.id); } else { toggleCollectFav(item, star); }
+    });
+    actions.append(star);
+    if (kind === 'wrong') {
+      actions.append(makeWrongRemove(item.id));
+    }
+    head.append(actions);
+
+    card.append(head, el('div', 'collect-stem', item.stem));
+
+    if (item.type !== 'blank' && (item.options || []).length) {
+      var opts = el('div', 'collect-opts');
+      var picked = Array.isArray(item.given) ? item.given : [];
+      item.options.forEach(function (option) {
+        var row = el('div', 'collect-opt', option.key + '. ' + option.text);
+        if (kind === 'wrong' && picked.indexOf(option.key) >= 0) {
+          row.classList.add('is-picked');
+        }
+        if ((item.answer || []).indexOf(option.key) >= 0) {
+          row.classList.add('is-answer');
+        }
+        opts.append(row);
+      });
+      card.append(opts);
+    }
+
+    if (kind === 'wrong') {
+      card.append(collectLine('你的答案', item.givenText || '未作答'));
+    }
+    card.append(collectLine('正确答案', item.answerText || ''));
+    if (item.explanation) {
+      card.append(el('p', 'collect-explain', item.explanation));
+    }
+    return card;
+  }
+
+  async function toggleCollectFav(item, star) {
+    if (star.disabled) { return; }
+    star.disabled = true;
+    try {
+      var data = await api(API + '/fav/toggle', {
+        method: 'POST',
+        body: JSON.stringify({ quizId: item.quizId, index: item.index })
+      });
+      item.fav = !!data.fav;
+      paintStar(star, item.fav);
+    } catch (err) {
+      if (err.status !== 401) { toast(err.message || '操作失败。'); }
+    } finally {
+      star.disabled = false;
+    }
+  }
+
+  async function removeFav(id) {
+    try {
+      await api(API + '/fav/' + id, { method: 'DELETE' });
+      loadFav();
+    } catch (err) {
+      if (err.status !== 401) { toast(err.message || '操作失败。'); }
+    }
+  }
+
+  function makeWrongRemove(id) {
+    var btn = el('button', 'ghost small', '移除');
+    btn.type = 'button';
+    var armed = false;
+    var timer = 0;
+    btn.addEventListener('click', async function () {
+      if (!armed) {
+        armed = true;
+        btn.textContent = '确认';
+        btn.classList.add('danger');
+        timer = setTimeout(function () {
+          armed = false;
+          btn.textContent = '移除';
+          btn.classList.remove('danger');
+        }, 3200);
+        return;
+      }
+      clearTimeout(timer);
+      btn.disabled = true;
+      try {
+        await api(API + '/wrong/' + id, { method: 'DELETE' });
+        loadWrong();
+      } catch (err) {
+        if (err.status === 401) { return; }
+        btn.disabled = false;
+        btn.textContent = '移除';
+        btn.classList.remove('danger');
+        armed = false;
+        toast(err.message || '删除失败。');
+      }
+    });
+    return btn;
   }
 
   /* ---------- 历史 ---------- */
@@ -650,12 +878,27 @@
     });
   }
 
+  function applyHistoryFold(folded, persist) {
+    historyFolded = !!folded;
+    genLayout.classList.toggle('is-folded', historyFolded);
+    historyRail.hidden = !historyFolded;
+    historyRail.setAttribute('aria-expanded', historyFolded ? 'false' : 'true');
+    foldHistory.textContent = historyFolded ? '‹' : '›';
+    foldHistory.setAttribute('aria-expanded', historyFolded ? 'false' : 'true');
+    foldHistory.setAttribute('aria-label', historyFolded ? '展开记录' : '收起记录');
+    foldHistory.title = historyFolded ? '展开记录' : '收起记录';
+    if (persist) {
+      try { localStorage.setItem(FOLD_KEY, historyFolded ? '1' : '0'); } catch (e) { /* 隐私模式 */ }
+    }
+  }
+
   async function openQuiz(id) {
     try {
       var data = await api(API + '/quizzes/' + id);
       state.quiz = data.quiz;
       state.result = data.lastResult || null;
       state.answers = {};
+      syncFavorites(data.quiz);
       if (state.result) {
         renderResult(data.quiz, state.result, (data.attempts || []).length);
         showView('result');
@@ -672,6 +915,9 @@
 
   /* ---------- 事件绑定 ---------- */
   function bind() {
+    $('tabBtnGenerate').addEventListener('click', function () { setTab('generate'); });
+    $('tabBtnWrong').addEventListener('click', function () { setTab('wrong'); });
+    $('tabBtnFav').addEventListener('click', function () { setTab('fav'); });
     $('setupForm').addEventListener('submit', function (event) {
       event.preventDefault();
       generate();
@@ -679,13 +925,17 @@
     $('material').addEventListener('input', function () {
       setText('materialCount', $('material').value.length);
     });
-    $('typeChoices').addEventListener('change', updateTypeHint);
     questions.addEventListener('input', onAnswerChange);
     submitBtn.addEventListener('click', submitQuiz);
     $('retryBtn').addEventListener('click', retry);
     $('newBtn').addEventListener('click', resetToSetup);
     $('resultNewBtn').addEventListener('click', resetToSetup);
     $('refreshHistory').addEventListener('click', loadHistory);
+    foldHistory.addEventListener('click', function () { applyHistoryFold(!historyFolded, true); });
+    historyRail.addEventListener('click', function () { applyHistoryFold(false, true); });
+    var folded = false;
+    try { folded = localStorage.getItem(FOLD_KEY) === '1'; } catch (e) { folded = false; }
+    applyHistoryFold(folded, false);
   }
 
   function boot() {

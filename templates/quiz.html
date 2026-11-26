@@ -3,14 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#efece4">
 <title>出题小工具 · 我的工具箱</title>
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<script src="/static/theme.js"></script>
 <style>
   :root {
     --bg: #efece4;
     --paper: #fffdf8;
+    --field: #ffffff;
+    --tint: #fffbf1;
+    --tint-on: #f8f3e8;
     --ink: #23201b;
     --ink-soft: #454037;
     --muted: #7a7366;
+    --placeholder: #a59d8e;
     --line: #ddd6c7;
     --line-strong: #bdb3a0;
     --accent: #9e3b2e;
@@ -20,13 +27,42 @@
     --ok-soft: #eef5ee;
     --bad: #9e3b2e;
     --bad-soft: #fbf0ed;
+    --bad-line: #dcc0b8;
     --chip: #f4efe4;
+    --solid-ink: #ffffff;
+    --btn-hover: #3a352c;
     --radius: 4px;
+  }
+
+  [data-theme="dark"] {
+    --bg: #14110d;
+    --paper: #1c1813;
+    --field: #17130f;
+    --tint: #241f18;
+    --tint-on: #2d261d;
+    --ink: #ece4d5;
+    --ink-soft: #cfc4b1;
+    --muted: #9d9382;
+    --placeholder: #7f7666;
+    --line: #35302a;
+    --line-strong: #514a3f;
+    --accent: #e08a75;
+    --accent-dark: #f0a48f;
+    --accent-soft: #33201a;
+    --ok: #86cfa5;
+    --ok-soft: #16261c;
+    --bad: #e08a75;
+    --bad-soft: #2c1a16;
+    --bad-line: #5b382f;
+    --chip: #262119;
+    --solid-ink: #191510;
+    --btn-hover: #f5ecdc;
   }
 
   * { box-sizing: border-box; }
 
   html { color-scheme: light; }
+  [data-theme="dark"] { color-scheme: dark; }
 
   body {
     margin: 0;
@@ -47,7 +83,7 @@
 
   .wrap {
     width: 100%;
-    max-width: 940px;
+    max-width: 1120px;
     margin: 0 auto;
     padding: 0 20px;
   }
@@ -79,12 +115,8 @@
     font-weight: 700;
     letter-spacing: .04em;
   }
-  .tagline {
-    color: var(--muted);
-    font-size: 13px;
-    margin-right: auto;
-  }
   .model-state {
+    margin-left: auto;
     font-size: 12px;
     color: var(--muted);
     border: 1px solid var(--line);
@@ -92,7 +124,24 @@
     padding: 2px 10px;
     white-space: nowrap;
   }
-  .model-state.is-off { color: var(--bad); border-color: #dcc0b8; background: var(--bad-soft); }
+  .model-state.is-off { color: var(--bad); border-color: var(--bad-line); background: var(--bad-soft); }
+  .tb-mount { display: inline-flex; align-items: center; }
+  .tb-tbtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    padding: 4px 11px;
+    font-size: 12px;
+    line-height: 1.5;
+    cursor: pointer;
+  }
+  .tb-tbtn:hover { border-color: var(--ink); color: var(--ink); }
+  .tb-tbtn .tb-ico { font-size: 13px; line-height: 1; }
+  .tb-tbtn .tb-txt { white-space: nowrap; }
 
   /* ---------- 纸张 ---------- */
   main.wrap { padding-bottom: 56px; }
@@ -108,14 +157,6 @@
 
   h1, h2, h3, p { margin: 0; }
 
-  .setup-head { margin-bottom: 24px; }
-  .setup-head h1 {
-    font-family: "Noto Serif SC", "Songti SC", SimSun, Georgia, serif;
-    font-size: 26px;
-    letter-spacing: .02em;
-  }
-  .setup-head p { color: var(--muted); margin-top: 4px; font-size: 14px; }
-
   .field { display: block; margin-bottom: 18px; }
   .field > span, legend {
     display: block;
@@ -129,12 +170,12 @@
     width: 100%;
     border: 1px solid var(--line-strong);
     border-radius: var(--radius);
-    background: #fff;
+    background: var(--field);
     color: var(--ink);
     padding: 10px 12px;
     transition: border-color .15s, box-shadow .15s;
   }
-  input[type="text"]::placeholder, textarea::placeholder { color: #a59d8e; }
+  input[type="text"]::placeholder, textarea::placeholder { color: var(--placeholder); }
   input[type="text"]:focus, textarea:focus {
     outline: none;
     border-color: var(--accent);
@@ -173,7 +214,7 @@
     gap: 6px;
     border: 1px solid var(--line-strong);
     border-radius: 999px;
-    background: #fff;
+    background: var(--field);
     padding: 7px 13px;
     font-size: 14px;
     cursor: pointer;
@@ -202,8 +243,6 @@
   .pill .tick { font-size: 11px; opacity: 0; }
   .pill:has(input:checked) .tick { opacity: 1; }
 
-  .hint-line { font-size: 12px; color: var(--muted); margin-top: 8px; }
-
   .primary {
     display: inline-flex;
     align-items: center;
@@ -211,14 +250,14 @@
     gap: 8px;
     border: 1px solid var(--ink);
     background: var(--ink);
-    color: #fff;
+    color: var(--solid-ink);
     border-radius: var(--radius);
     padding: 10px 20px;
     font-weight: 600;
     cursor: pointer;
     transition: background .15s;
   }
-  .primary:hover { background: #3a352c; }
+  .primary:hover { background: var(--btn-hover); }
   .primary:disabled { opacity: .45; cursor: not-allowed; }
 
   .ghost {
@@ -255,16 +294,10 @@
     font-size: 22px;
     line-height: 1.4;
   }
-  .paper-meta, .score-meta, .eyebrow {
+  .paper-meta, .score-meta {
     color: var(--muted);
     font-size: 13px;
     margin-top: 4px;
-  }
-  .eyebrow {
-    text-transform: uppercase;
-    letter-spacing: .12em;
-    font-size: 11px;
-    margin-bottom: 4px;
   }
 
   .sheet-nav {
@@ -279,20 +312,21 @@
     height: 33px;
     border: 1px solid var(--line-strong);
     border-radius: 50%;
-    background: #fff;
+    background: var(--field);
     color: var(--ink-soft);
     font-size: 13px;
     cursor: pointer;
     line-height: 1;
   }
   .sheet-dot:hover { border-color: var(--ink); }
-  .sheet-dot.is-answered { background: var(--ink); border-color: var(--ink); color: #fff; }
-  .sheet-dot.is-correct { background: var(--ok); border-color: var(--ok); color: #fff; }
-  .sheet-dot.is-wrong { background: var(--bad); border-color: var(--bad); color: #fff; }
+  .sheet-dot.is-answered { background: var(--ink); border-color: var(--ink); color: var(--solid-ink); }
+  .sheet-dot.is-correct { background: var(--ok); border-color: var(--ok); color: var(--solid-ink); }
+  .sheet-dot.is-wrong { background: var(--bad); border-color: var(--bad); color: var(--solid-ink); }
 
   .q { padding: 22px 0; border-top: 1px solid var(--line); scroll-margin-top: 16px; }
   .q:first-child { border-top: 0; padding-top: 18px; }
   .q-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .q-head .star { margin-left: auto; }
   .q-no {
     font-family: Georgia, "Times New Roman", serif;
     font-size: 22px;
@@ -323,13 +357,13 @@
     gap: 10px;
     border: 1px solid var(--line);
     border-radius: var(--radius);
-    background: #fff;
+    background: var(--field);
     padding: 10px 13px;
     margin: 7px 0;
     cursor: pointer;
     transition: border-color .12s, background .12s;
   }
-  .opt:hover { border-color: var(--line-strong); background: #fffbf1; }
+  .opt:hover { border-color: var(--line-strong); background: var(--tint); }
   .opt input {
     margin: 4px 0 0;
     accent-color: var(--accent);
@@ -342,7 +376,7 @@
     min-width: 16px;
   }
   .opt-text { flex: 1; overflow-wrap: anywhere; }
-  .opt:has(input:checked) { border-color: var(--ink); background: #f8f3e8; }
+  .opt:has(input:checked) { border-color: var(--ink); background: var(--tint-on); }
 
   .blank-wrap { margin-left: 44px; }
   .blank-wrap input {
@@ -404,7 +438,7 @@
     gap: 10px;
     border: 1px solid var(--line);
     border-radius: var(--radius);
-    background: #fff;
+    background: var(--field);
     padding: 8px 12px;
     margin: 6px 0;
     color: var(--ink-soft);
@@ -455,25 +489,117 @@
   .why-list b { color: var(--ink); font-family: Georgia, serif; }
   .point-line { margin-top: 8px; font-size: 12px; color: var(--muted); }
 
-  /* ---------- 历史 ---------- */
-  .history { margin-top: 34px; }
+  /* ---------- 页签 ---------- */
+  .tabs {
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+  }
+  .tabs .wrap { display: flex; gap: 2px; }
+  .tab {
+    appearance: none;
+    background: none;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    padding: 11px 14px;
+    color: var(--muted);
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab.is-on {
+    color: var(--ink);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* ---------- 错题库 / 收藏 ---------- */
+  .collect { margin: 26px 0; }
+  .collect.sheet { padding: 8px 24px; }
+  .collect-item { padding: 15px 2px; border-bottom: 1px solid var(--line); }
+  .collect-item:last-child { border-bottom: 0; }
+  .collect-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .collect-source {
+    flex: 1;
+    min-width: 0;
+    color: var(--muted);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .collect-actions { display: flex; align-items: center; gap: 2px; }
+  .icon-btn {
+    appearance: none;
+    background: none;
+    border: 0;
+    padding: 2px 5px;
+    color: var(--muted);
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .icon-btn:hover { color: var(--accent); }
+  .icon-btn.is-on { color: var(--accent); }
+  .collect-stem {
+    margin: 6px 0 8px;
+    font-family: "Noto Serif SC", "Songti SC", SimSun, Georgia, serif;
+    font-size: 16px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .collect-opts { display: grid; gap: 2px; font-size: 13px; color: var(--ink-soft); }
+  .collect-opt.is-picked { color: var(--bad); }
+  .collect-opt.is-answer { color: var(--ok); font-weight: 600; }
+  .collect-line { margin-top: 7px; font-size: 13px; color: var(--muted); }
+  .collect-line b { color: var(--ink-soft); font-weight: 600; }
+  .collect-explain {
+    margin-top: 7px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--ink-soft);
+    overflow-wrap: anywhere;
+  }
+  .empty-collect { padding: 26px 4px; color: var(--muted); font-size: 13px; }
+
+  /* ---------- 出题记录（右侧，可折叠） ---------- */
+  .gen-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 24px;
+    align-items: start;
+  }
+  .gen-main { min-width: 0; }
+
+  .history {
+    margin-top: 26px;
+    padding: 13px 15px 6px;
+    background: var(--paper);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    position: sticky;
+    top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+  }
   .history-head {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--line-strong);
   }
   .history-head h2 { font-size: 15px; letter-spacing: .04em; }
+  .history-actions { display: flex; align-items: center; gap: 2px; }
+  .fold-btn { font-size: 15px; padding: 2px 6px; }
   .history-list { border-bottom: 1px solid var(--line); }
   .empty-history { padding: 18px 4px; color: var(--muted); font-size: 13px; }
   .hist-row {
     display: grid;
-    grid-template-columns: 1fr auto auto;
-    gap: 12px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 8px;
     align-items: center;
-    padding: 11px 4px;
+    padding: 10px 2px;
     border-bottom: 1px solid var(--line);
   }
   .hist-row:last-child { border-bottom: 0; }
@@ -505,6 +631,27 @@
     white-space: nowrap;
   }
   .hist-score.is-empty { font-family: inherit; font-size: 12px; color: var(--muted); }
+  .hist-row .ghost { grid-column: 1 / -1; justify-self: start; }
+
+  .history-rail {
+    margin-top: 26px;
+    align-self: start;
+    position: sticky;
+    top: 16px;
+    width: 40px;
+    padding: 12px 0;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--paper);
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: .12em;
+    writing-mode: vertical-rl;
+    cursor: pointer;
+  }
+  .history-rail:hover { color: var(--ink); border-color: var(--ink); }
+  .gen-layout.is-folded { grid-template-columns: minmax(0, 1fr) 40px; }
+  .gen-layout.is-folded .history { display: none; }
 
   .toast {
     position: fixed;
@@ -512,7 +659,7 @@
     bottom: 26px;
     transform: translateX(-50%);
     background: var(--ink);
-    color: #fff;
+    color: var(--solid-ink);
     font-size: 13px;
     padding: 9px 18px;
     border-radius: 999px;
@@ -523,23 +670,31 @@
 
   [hidden] { display: none !important; }
 
+  @media (max-width: 1080px) {
+    .gen-layout, .gen-layout.is-folded { grid-template-columns: minmax(0, 1fr); }
+    .gen-layout.is-folded .history { display: block; }
+    .gen-layout.is-folded .history-list { display: none; }
+    .history { position: static; max-height: none; }
+    .history-rail { display: none !important; }
+  }
+
   @media (max-width: 680px) {
     .wrap { padding: 0 14px; }
     .masthead .wrap { gap: 10px; padding-top: 10px; padding-bottom: 10px; }
-    .tagline { display: none; }
     .sheet, .paper { padding: 20px 16px; margin-top: 16px; }
-    .setup-head h1 { font-size: 22px; }
     .row2 { grid-template-columns: 1fr; gap: 16px; }
     .paper-head, .result-head { flex-direction: column; }
     .score-actions { justify-content: flex-start; }
     .q-stem, .options, .blank-wrap, .result-options, .feedback { margin-left: 0; }
     .q-stem { font-size: 17px; }
     .q-no { min-width: 28px; font-size: 20px; }
-    .hist-row { grid-template-columns: 1fr auto; }
-    .hist-score { grid-column: 2; grid-row: 1; }
-    .hist-row .ghost { grid-column: 1 / -1; justify-self: start; }
     .submitbar { padding-bottom: max(10px, env(safe-area-inset-bottom)); }
     .primary { padding: 10px 16px; }
+    .tab { padding: 10px 12px; }
+  }
+
+  @media (max-width: 520px) {
+    .tb-tbtn .tb-txt { display: none; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -547,8 +702,22 @@
   }
 
   @media print {
+    html[data-theme="dark"] {
+      color-scheme: light;
+      --bg: #fff;
+      --paper: #fff;
+      --field: #fff;
+      --ink: #000;
+      --ink-soft: #333;
+      --muted: #666;
+      --line: #ccc;
+      --line-strong: #999;
+      --solid-ink: #fff;
+    }
     body { background: #fff; }
-    .masthead, .history, .submitbar, .sheet-nav, .score-actions, #newBtn { display: none !important; }
+    .gen-layout { display: block; }
+    .masthead, .tabs, .history, .history-rail, .collect-actions, .submitbar, .sheet-nav,
+    .score-actions, #newBtn { display: none !important; }
     .sheet, .paper { border: 0; margin: 0; padding: 0; }
     .q { break-inside: avoid; }
   }
@@ -559,101 +728,128 @@
   <div class="wrap">
     <a class="back" href="/">← 工具箱</a>
     <span class="brand">出题</span>
-    <span class="tagline">给一个主题，出一套能判分的题</span>
     <span class="model-state" id="modelState">模型检查中</span>
+    <span class="tb-mount"></span>
   </div>
 </header>
 
+<nav class="tabs" role="tablist" aria-label="出题小工具">
+  <div class="wrap">
+    <button class="tab is-on" id="tabBtnGenerate" type="button" role="tab"
+            aria-selected="true" aria-controls="tabGenerate" data-tab="generate">出题</button>
+    <button class="tab" id="tabBtnWrong" type="button" role="tab"
+            aria-selected="false" aria-controls="tabWrong" data-tab="wrong">错题库</button>
+    <button class="tab" id="tabBtnFav" type="button" role="tab"
+            aria-selected="false" aria-controls="tabFav" data-tab="fav">收藏</button>
+  </div>
+</nav>
+
 <main class="wrap">
   <noscript>
-    <p class="msg">这个页面需要 JavaScript 才能出题和判分。</p>
+    <p class="msg">这个页面需要 JavaScript。</p>
   </noscript>
 
-  <section class="sheet" id="setup">
-    <div class="setup-head">
-      <h1>出一套题</h1>
-      <p>先定主题和题型。答案在提交后才揭晓，批改会给到每题的原因。</p>
-    </div>
+  <div class="tab-panel" id="tabGenerate" role="tabpanel" aria-labelledby="tabBtnGenerate">
+    <div class="gen-layout" id="genLayout">
+    <div class="gen-main">
+    <section class="sheet" id="setup">
+      <form id="setupForm" novalidate>
+        <label class="field" for="topic">
+          <span>主题</span>
+          <input id="topic" type="text" maxlength="120" autocomplete="off"
+                 placeholder="例如：光合作用、初中英语时态、HTTP 缓存">
+        </label>
 
-    <form id="setupForm" novalidate>
-      <label class="field" for="topic">
-        <span>主题 / 知识点</span>
-        <input id="topic" type="text" maxlength="120" autocomplete="off"
-               placeholder="例如：光合作用、初中英语时态、HTTP 缓存">
-      </label>
+        <details class="material">
+          <summary>资料（可选）</summary>
+          <textarea id="material" maxlength="6000" rows="6"
+                    placeholder="课件、笔记、书里的一段……只用于出题，不保存原文"></textarea>
+          <div class="char-count"><span id="materialCount">0</span> / 6000 字</div>
+        </details>
 
-      <details class="material">
-        <summary>贴一段资料（可选，贴了会优先按资料出题）</summary>
-        <textarea id="material" maxlength="6000" rows="6"
-                  placeholder="课件、笔记、书里的一段……只用于出题，不保存原文"></textarea>
-        <div class="char-count"><span id="materialCount">0</span> / 6000 字</div>
-      </details>
-
-      <fieldset>
-        <legend>题型</legend>
-        <div class="pills" id="typeChoices"></div>
-        <p class="hint-line" id="typeHint">单选、多选、判断、填空可以任意组合。</p>
-      </fieldset>
-
-      <div class="row2">
         <fieldset>
-          <legend>题量</legend>
-          <div class="pills" id="countChoices"></div>
+          <legend>题型</legend>
+          <div class="pills" id="typeChoices"></div>
         </fieldset>
-        <fieldset>
-          <legend>难度</legend>
-          <div class="pills" id="levelChoices"></div>
-        </fieldset>
-      </div>
 
-      <p class="msg" id="setupMsg" role="alert"></p>
-      <button class="primary" id="generateBtn" type="submit">生成题目</button>
-    </form>
-  </section>
-
-  <section class="paper" id="paper" hidden>
-    <div class="paper-head">
-      <div>
-        <h2 id="paperTitle"></h2>
-        <p class="paper-meta" id="paperMeta"></p>
-      </div>
-      <button class="ghost" id="newBtn" type="button">重新出题</button>
-    </div>
-    <nav class="sheet-nav" id="answerSheet" aria-label="答题卡"></nav>
-    <div id="questions"></div>
-    <p class="msg" id="submitMsg" role="alert"></p>
-    <div class="submitbar">
-      <span class="progress-text" id="progressText">已答 0 / 0</span>
-      <button class="primary" id="submitBtn" type="button">提交判分</button>
-    </div>
-  </section>
-
-  <section class="paper" id="result" hidden>
-    <div class="result-head">
-      <div>
-        <p class="eyebrow">判分结果</p>
-        <div class="score-line">
-          <span class="score-num" id="scoreNum"></span>
-          <span class="score-percent" id="scorePercent"></span>
+        <div class="row2">
+          <fieldset>
+            <legend>题量</legend>
+            <div class="pills" id="countChoices"></div>
+          </fieldset>
+          <fieldset>
+            <legend>难度</legend>
+            <div class="pills" id="levelChoices"></div>
+          </fieldset>
         </div>
-        <p class="score-meta" id="scoreMeta"></p>
-        <p class="score-note" id="scoreNote"></p>
-      </div>
-      <div class="score-actions">
-        <button class="ghost" id="retryBtn" type="button">再做一遍</button>
-        <button class="ghost" id="resultNewBtn" type="button">重新出题</button>
-      </div>
-    </div>
-    <div id="reviewList"></div>
-  </section>
 
-  <section class="history">
-    <div class="history-head">
-      <h2>最近出的题</h2>
-      <button class="ghost small" id="refreshHistory" type="button">刷新</button>
+        <p class="msg" id="setupMsg" role="alert"></p>
+        <button class="primary" id="generateBtn" type="submit">生成题目</button>
+      </form>
+    </section>
+
+    <section class="paper" id="paper" hidden>
+      <div class="paper-head">
+        <div>
+          <h2 id="paperTitle"></h2>
+          <p class="paper-meta" id="paperMeta"></p>
+        </div>
+        <button class="ghost" id="newBtn" type="button">重新出题</button>
+      </div>
+      <nav class="sheet-nav" id="answerSheet" aria-label="答题卡"></nav>
+      <div id="questions"></div>
+      <p class="msg" id="submitMsg" role="alert"></p>
+      <div class="submitbar">
+        <span class="progress-text" id="progressText">已答 0 / 0</span>
+        <button class="primary" id="submitBtn" type="button">提交判分</button>
+      </div>
+    </section>
+
+    <section class="paper" id="result" hidden>
+      <div class="result-head">
+        <div>
+          <div class="score-line">
+            <span class="score-num" id="scoreNum"></span>
+            <span class="score-percent" id="scorePercent"></span>
+          </div>
+          <p class="score-meta" id="scoreMeta"></p>
+          <p class="score-note" id="scoreNote"></p>
+        </div>
+        <div class="score-actions">
+          <button class="ghost" id="retryBtn" type="button">再做一遍</button>
+          <button class="ghost" id="resultNewBtn" type="button">重新出题</button>
+        </div>
+      </div>
+      <div id="reviewList"></div>
+    </section>
+
     </div>
-    <div class="history-list" id="historyList"></div>
-  </section>
+
+    <aside class="history" id="historyPanel">
+      <div class="history-head">
+        <h2>最近出的题</h2>
+        <div class="history-actions">
+          <button class="ghost small" id="refreshHistory" type="button">刷新</button>
+          <button class="icon-btn fold-btn" id="foldHistory" type="button"
+                  aria-expanded="true" aria-controls="historyList" aria-label="收起记录"
+                  title="收起记录">›</button>
+        </div>
+      </div>
+      <div class="history-list" id="historyList"></div>
+    </aside>
+
+    <button class="history-rail" id="historyRail" type="button" aria-expanded="false"
+            aria-controls="historyList" title="展开记录" hidden>出题记录</button>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tabWrong" role="tabpanel" aria-labelledby="tabBtnWrong" hidden>
+    <div class="sheet collect" id="wrongList"></div>
+  </div>
+
+  <div class="tab-panel" id="tabFav" role="tabpanel" aria-labelledby="tabBtnFav" hidden>
+    <div class="sheet collect" id="favList"></div>
+  </div>
 </main>
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>

@@ -27,6 +27,7 @@ import re
 import sqlite3
 import time
 import uuid
+from datetime import date, timedelta
 from pathlib import Path
 
 _BASE_DIR = Path(__file__).resolve().parent
@@ -406,6 +407,61 @@ SCHEMA = (
         PRIMARY KEY(day, service)
     )
     """,
+    # ---- 出题小工具（/quiz）的错题库与收藏：每题一份快照，不依赖原记录 ----
+    """
+    CREATE TABLE IF NOT EXISTS quiz_wrong(
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        user       TEXT NOT NULL,
+        quiz_id    INTEGER NOT NULL,
+        q_index    INTEGER NOT NULL,
+        data       TEXT NOT NULL DEFAULT '{}',
+        given      TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )
+    """,
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_quiz_wrong_key ON quiz_wrong(user, quiz_id, q_index)",
+    "CREATE INDEX IF NOT EXISTS idx_quiz_wrong_user ON quiz_wrong(user, updated_at DESC, id DESC)",
+    """
+    CREATE TABLE IF NOT EXISTS quiz_fav(
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        user       TEXT NOT NULL,
+        quiz_id    INTEGER NOT NULL,
+        q_index    INTEGER NOT NULL,
+        data       TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL
+    )
+    """,
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_quiz_fav_key ON quiz_fav(user, quiz_id, q_index)",
+    "CREATE INDEX IF NOT EXISTS idx_quiz_fav_user ON quiz_fav(user, id DESC)",
+    # ---- 每日笔记（/notes）：条目按天归档；图片本体落盘，这里只存元数据 ----
+    """
+    CREATE TABLE IF NOT EXISTS daily_notes(
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        user       TEXT NOT NULL,
+        day        TEXT NOT NULL,
+        content    TEXT NOT NULL DEFAULT '',
+        tags       TEXT NOT NULL DEFAULT '[]',
+        tags_text  TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_daily_notes_user_day ON daily_notes(user, day DESC, id DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_daily_notes_user_time ON daily_notes(user, created_at DESC, id DESC)",
+    """
+    CREATE TABLE IF NOT EXISTS daily_note_images(
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        note_id     INTEGER NOT NULL,
+        user        TEXT NOT NULL,
+        stored_name TEXT NOT NULL,
+        mime        TEXT NOT NULL,
+        bytes       INTEGER NOT NULL DEFAULT 0,
+        created_at  TEXT NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_daily_note_images_note ON daily_note_images(note_id, id)",
+    "CREATE INDEX IF NOT EXISTS idx_daily_note_images_user ON daily_note_images(user, id)",
 )
 
 
@@ -2431,3 +2487,494 @@ def map_quota_today() -> dict:
     finally:
         conn.close()
     return {'date': day, 'services': {row['service']: int(row['count'] or 0) for row in rows}}
+
+
+# ---------------------------------------------------------------
+# quiz_wrong / quiz_fav：出题小工具的错题库与收藏
+#   每题存一份快照，原题被删也还能复习；按 user 隔离。
+# ---------------------------------------------------------------
+QUIZ_COLLECT_MAX = 300
+
+
+def _quiz_entry_row(row) -> dict:
+    data = dict(row)
+    try:
+        data['data'] = json.loads(data.get('data') or '{}')
+    except ValueError:
+        data['data'] = {}
+    if 'given' in data:
+        try:
+            data['given'] = json.loads(data.get('given') or '[]')
+        except ValueError:
+            data['given'] = ''
+    return data
+
+
+def _quiz_prune(conn, table: str, user: str):
+    conn.execute(
+        'DELETE FROM %s WHERE user = ? AND id NOT IN ('
+        'SELECT id FROM %s WHERE user = ? ORDER BY id DESC LIMIT ?)' % (table, table),
+        (user, user, QUIZ_COLLECT_MAX))
+
+
+def quiz_wrong_put(user: str, quiz_id: int, q_index: int, data: dict, given) -> dict:
+    blob = json.dumps(data or {}, ensure_ascii=False)
+    given_blob = json.dumps(given, ensure_ascii=False)
+    now = now_str()
+    conn = connect()
+    try:
+        conn.execute(
+            'INSERT INTO quiz_wrong(user, quiz_id, q_index, data, given, created_at, updated_at) '
+            'VALUES (?,?,?,?,?,?,?) '
+            'ON CONFLICT(user, quiz_id, q_index) DO UPDATE SET '
+            'data = excluded.data, given = excluded.given, updated_at = excluded.updated_at',
+            (user, int(quiz_id), int(q_index), blob, given_blob, now, now))
+        _quiz_prune(conn, 'quiz_wrong', user)
+        row = conn.execute(
+            'SELECT id, quiz_id, q_index, data, given, created_at, updated_at '
+            'FROM quiz_wrong WHERE user = ? AND quiz_id = ? AND q_index = ?',
+            (user, int(quiz_id), int(q_index))).fetchone()
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+    return _quiz_entry_row(row)
+
+
+def quiz_wrong_drop(user: str, quiz_id: int, q_index: int) -> int:
+    conn = connect()
+    try:
+        cur = conn.execute(
+            'DELETE FROM quiz_wrong WHERE user = ? AND quiz_id = ? AND q_index = ?',
+            (user, int(quiz_id), int(q_index)))
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def quiz_wrong_remove(user: str, rid: int) -> int:
+    conn = connect()
+    try:
+        cur = conn.execute('DELETE FROM quiz_wrong WHERE id = ? AND user = ?',
+                           (int(rid), user))
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def quiz_wrong_get(user: str, quiz_id: int, q_index: int):
+    conn = connect()
+    try:
+        row = conn.execute(
+            'SELECT id, quiz_id, q_index, data, given, created_at, updated_at '
+            'FROM quiz_wrong WHERE user = ? AND quiz_id = ? AND q_index = ?',
+            (user, int(quiz_id), int(q_index))).fetchone()
+    finally:
+        conn.close()
+    return _quiz_entry_row(row) if row else None
+
+
+def quiz_wrong_list(user: str, limit: int = QUIZ_COLLECT_MAX) -> list:
+    limit = max(1, min(int(limit or QUIZ_COLLECT_MAX), QUIZ_COLLECT_MAX))
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT id, quiz_id, q_index, data, given, created_at, updated_at '
+                           'FROM quiz_wrong WHERE user = ? ORDER BY updated_at DESC, id DESC LIMIT ?',
+                     (user, limit))
+    finally:
+        conn.close()
+    return [_quiz_entry_row(row) for row in rows]
+
+
+def quiz_fav_get(user: str, quiz_id: int, q_index: int):
+    conn = connect()
+    try:
+        row = conn.execute(
+            'SELECT id, quiz_id, q_index, data, created_at '
+            'FROM quiz_fav WHERE user = ? AND quiz_id = ? AND q_index = ?',
+            (user, int(quiz_id), int(q_index))).fetchone()
+    finally:
+        conn.close()
+    return _quiz_entry_row(row) if row else None
+
+
+def quiz_fav_put(user: str, quiz_id: int, q_index: int, data: dict) -> dict:
+    blob = json.dumps(data or {}, ensure_ascii=False)
+    conn = connect()
+    try:
+        conn.execute(
+            'INSERT INTO quiz_fav(user, quiz_id, q_index, data, created_at) VALUES (?,?,?,?,?) '
+            'ON CONFLICT(user, quiz_id, q_index) DO NOTHING',
+            (user, int(quiz_id), int(q_index), blob, now_str()))
+        _quiz_prune(conn, 'quiz_fav', user)
+        row = conn.execute(
+            'SELECT id, quiz_id, q_index, data, created_at '
+            'FROM quiz_fav WHERE user = ? AND quiz_id = ? AND q_index = ?',
+            (user, int(quiz_id), int(q_index))).fetchone()
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+    return _quiz_entry_row(row)
+
+
+def quiz_fav_drop(user: str, quiz_id: int, q_index: int) -> int:
+    conn = connect()
+    try:
+        cur = conn.execute(
+            'DELETE FROM quiz_fav WHERE user = ? AND quiz_id = ? AND q_index = ?',
+            (user, int(quiz_id), int(q_index)))
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def quiz_fav_remove(user: str, rid: int) -> int:
+    conn = connect()
+    try:
+        cur = conn.execute('DELETE FROM quiz_fav WHERE id = ? AND user = ?',
+                           (int(rid), user))
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def quiz_fav_list(user: str, limit: int = QUIZ_COLLECT_MAX) -> list:
+    limit = max(1, min(int(limit or QUIZ_COLLECT_MAX), QUIZ_COLLECT_MAX))
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT id, quiz_id, q_index, data, created_at '
+                           'FROM quiz_fav WHERE user = ? ORDER BY id DESC LIMIT ?',
+                     (user, limit))
+    finally:
+        conn.close()
+    return [_quiz_entry_row(row) for row in rows]
+
+
+def quiz_fav_indices(user: str, quiz_id: int) -> list:
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT q_index FROM quiz_fav WHERE user = ? AND quiz_id = ? '
+                           'ORDER BY q_index', (user, int(quiz_id)))
+    finally:
+        conn.close()
+    return [int(row['q_index']) for row in rows]
+
+
+def quiz_fav_keys(user: str) -> set:
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT quiz_id, q_index FROM quiz_fav WHERE user = ?', (user,))
+    finally:
+        conn.close()
+    return {(int(row['quiz_id']), int(row['q_index'])) for row in rows}
+
+
+# ---------------------------------------------------------------
+# daily_notes / daily_note_images：每日笔记（/notes）
+#   每条记录是一段带时间的文字，可附图片；day 是归档用的 YYYY-MM-DD。
+#   tags 存 JSON 给前端，tags_text 存换行分隔的索引给搜索 / 精确筛选用。
+#   图片本体由 daily_notes.py 写到 data/notes/，这里只管元数据。
+# ---------------------------------------------------------------
+def _daily_tags_parts(tags) -> tuple:
+    """标签去重并折成一行，同时生成 JSON 和搜索索引。"""
+    clean, seen = [], set()
+    for raw in (tags or []):
+        text = ' '.join(str(raw or '').split())
+        if not text:
+            continue
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        clean.append(text)
+    blob = json.dumps(clean, ensure_ascii=False)
+    index = '\n' + '\n'.join(clean) + '\n' if clean else ''
+    return clean, blob, index
+
+
+def _daily_note_row(row) -> dict:
+    data = dict(row)
+    try:
+        tags = json.loads(data.get('tags') or '[]')
+    except ValueError:
+        tags = []
+    data['tags'] = [str(t) for t in tags if str(t).strip()] if isinstance(tags, list) else []
+    data.pop('tags_text', None)
+    return data
+
+
+def daily_note_add(user: str, day: str, content: str, tags) -> dict:
+    clean, blob, index = _daily_tags_parts(tags)
+    now = now_str()
+    conn = connect()
+    try:
+        cur = conn.execute(
+            'INSERT INTO daily_notes(user, day, content, tags, tags_text, created_at, updated_at) '
+            'VALUES (?,?,?,?,?,?,?)',
+            (user, day, content, blob, index, now, now))
+        conn.commit()
+        rid = cur.lastrowid
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+    return {'id': rid, 'user': user, 'day': day, 'content': content, 'tags': clean,
+            'created_at': now, 'updated_at': now}
+
+
+def daily_note_get(user: str, note_id) -> dict | None:
+    conn = connect()
+    try:
+        row = conn.execute(
+            'SELECT id, user, day, content, tags, created_at, updated_at '
+            'FROM daily_notes WHERE id = ? AND user = ?', (int(note_id), user)).fetchone()
+    finally:
+        conn.close()
+    return _daily_note_row(row) if row else None
+
+
+def daily_note_list(user: str, day: str = '', q: str = '', tag: str = '',
+                    limit: int = 300) -> list:
+    limit = max(1, min(int(limit or 300), 500))
+    sql = ('SELECT id, user, day, content, tags, created_at, updated_at '
+           'FROM daily_notes WHERE user = ?')
+    args = [user]
+    if day:
+        sql += ' AND day = ?'
+        args.append(day)
+    q = (q or '').strip()
+    if q:
+        like = '%' + q + '%'
+        sql += ' AND (content LIKE ? OR tags_text LIKE ?)'
+        args.extend([like, like])
+    tag = (tag or '').strip()
+    if tag:
+        sql += ' AND tags_text LIKE ?'
+        args.append('%\n' + tag + '\n%')
+    sql += ' ORDER BY day DESC, created_at DESC, id DESC LIMIT ?'
+    args.append(limit)
+    conn = connect()
+    try:
+        rows = _rows(conn, sql, args)
+    finally:
+        conn.close()
+    return [_daily_note_row(row) for row in rows]
+
+
+def daily_note_update(user: str, note_id, day: str, content: str, tags) -> int:
+    clean, blob, index = _daily_tags_parts(tags)
+    conn = connect()
+    try:
+        cur = conn.execute(
+            'UPDATE daily_notes SET day = ?, content = ?, tags = ?, tags_text = ?, updated_at = ? '
+            'WHERE id = ? AND user = ?',
+            (day, content, blob, index, now_str(), int(note_id), user))
+        conn.commit()
+        return cur.rowcount
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('更新失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def daily_note_delete(user: str, note_id) -> int:
+    conn = connect()
+    try:
+        conn.execute('DELETE FROM daily_note_images WHERE note_id = ? AND user = ?',
+                     (int(note_id), user))
+        cur = conn.execute('DELETE FROM daily_notes WHERE id = ? AND user = ?',
+                           (int(note_id), user))
+        conn.commit()
+        return cur.rowcount
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('删除失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def daily_note_days(user: str, limit: int = 90) -> list:
+    limit = max(1, min(int(limit or 90), 365))
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT day, COUNT(*) AS count FROM daily_notes '
+                           'WHERE user = ? GROUP BY day ORDER BY day DESC LIMIT ?',
+                     (user, limit))
+    finally:
+        conn.close()
+    return [{'day': row['day'], 'count': int(row['count'] or 0)} for row in rows]
+
+
+def daily_note_streak(user: str, today: str = '') -> dict:
+    """连续记录天数：当前链允许从今天或昨天开始，未来日期不计。"""
+    try:
+        anchor = date.fromisoformat(str(today or ''))
+    except ValueError:
+        anchor = date.today()
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT DISTINCT day FROM daily_notes WHERE user = ?', (user,))
+    finally:
+        conn.close()
+    seen = set()
+    for row in rows:
+        try:
+            day = date.fromisoformat(str(row.get('day') or ''))
+        except ValueError:
+            continue
+        if day <= anchor:
+            seen.add(day)
+    if not seen:
+        return {'current': 0, 'longest': 0, 'last': ''}
+    ordered = sorted(seen)
+    longest = run = 1
+    for prev, cur in zip(ordered, ordered[1:]):
+        run = run + 1 if (cur - prev).days == 1 else 1
+        if run > longest:
+            longest = run
+    cursor = anchor if anchor in seen else anchor - timedelta(days=1)
+    current = 0
+    while cursor in seen:
+        current += 1
+        cursor -= timedelta(days=1)
+    return {'current': current, 'longest': longest, 'last': ordered[-1].isoformat()}
+
+
+def daily_note_count(user: str) -> int:
+    conn = connect()
+    try:
+        return int(conn.execute('SELECT COUNT(*) FROM daily_notes WHERE user = ?',
+                                (user,)).fetchone()[0])
+    finally:
+        conn.close()
+
+
+def daily_note_tags(user: str, limit: int = 80) -> list:
+    """最近 2000 条里出现过的标签，按使用次数排序。"""
+    limit = max(1, min(int(limit or 80), 200))
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT tags_text FROM daily_notes WHERE user = ? '
+                           'ORDER BY id DESC LIMIT 2000', (user,))
+    finally:
+        conn.close()
+    counts = {}
+    for row in rows:
+        for tag in str(row.get('tags_text') or '').split('\n'):
+            tag = tag.strip()
+            if tag:
+                counts[tag] = counts.get(tag, 0) + 1
+    ordered = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    return [{'name': name, 'count': count} for name, count in ordered[:limit]]
+
+
+def daily_note_image_add(user: str, note_id, stored_name: str, mime: str, size: int) -> dict:
+    now = now_str()
+    conn = connect()
+    try:
+        cur = conn.execute(
+            'INSERT INTO daily_note_images(note_id, user, stored_name, mime, bytes, created_at) '
+            'VALUES (?,?,?,?,?,?)',
+            (int(note_id), user, stored_name, mime, int(size), now))
+        conn.commit()
+        return {'id': cur.lastrowid, 'note_id': int(note_id), 'stored_name': stored_name,
+                'mime': mime, 'bytes': int(size), 'created_at': now}
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def daily_note_images_add(user: str, note_id, items) -> list:
+    """一次插入多张图，失败时整批回滚。"""
+    now = now_str()
+    rows = []
+    conn = connect()
+    try:
+        for item in (items or []):
+            cur = conn.execute(
+                'INSERT INTO daily_note_images(note_id, user, stored_name, mime, bytes, created_at) '
+                'VALUES (?,?,?,?,?,?)',
+                (int(note_id), user, item['stored_name'], item['mime'],
+                 int(item['bytes']), now))
+            rows.append({'id': cur.lastrowid, 'note_id': int(note_id),
+                         'stored_name': item['stored_name'], 'mime': item['mime'],
+                         'bytes': int(item['bytes']), 'created_at': now})
+        conn.commit()
+        return rows
+    except sqlite3.OperationalError as exc:
+        conn.rollback()
+        raise StorageUnavailable('写入失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def daily_note_image_list(user: str, note_id) -> list:
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT id, note_id, user, stored_name, mime, bytes, created_at '
+                           'FROM daily_note_images WHERE note_id = ? AND user = ? '
+                           'ORDER BY id ASC', (int(note_id), user))
+    finally:
+        conn.close()
+    return rows
+
+
+def daily_note_image_groups(user: str, note_ids) -> dict:
+    """一次取多条记录的图片，列表页避免每条记录查一次库。"""
+    ids = [int(note_id) for note_id in (note_ids or [])]
+    if not ids:
+        return {}
+    marks = ','.join('?' for _ in ids)
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT id, note_id, user, stored_name, mime, bytes, created_at '
+                           'FROM daily_note_images WHERE user = ? AND note_id IN (%s) '
+                           'ORDER BY id ASC' % marks, [user] + ids)
+    finally:
+        conn.close()
+    groups = {}
+    for row in rows:
+        groups.setdefault(int(row['note_id']), []).append(row)
+    return groups
+
+
+def daily_note_image_get(user: str, image_id) -> dict | None:
+    conn = connect()
+    try:
+        row = conn.execute(
+            'SELECT id, note_id, user, stored_name, mime, bytes, created_at '
+            'FROM daily_note_images WHERE id = ? AND user = ?',
+            (int(image_id), user)).fetchone()
+    finally:
+        conn.close()
+    return dict(row) if row else None
+
+
+def daily_note_image_delete(user: str, image_id) -> int:
+    conn = connect()
+    try:
+        cur = conn.execute('DELETE FROM daily_note_images WHERE id = ? AND user = ?',
+                           (int(image_id), user))
+        conn.commit()
+        return cur.rowcount
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('删除失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def daily_note_image_total(user: str) -> int:
+    conn = connect()
+    try:
+        row = conn.execute('SELECT COALESCE(SUM(bytes), 0) AS total FROM daily_note_images '
+                           'WHERE user = ?', (user,)).fetchone()
+    finally:
+        conn.close()
+    return int(row['total'] or 0) if row else 0

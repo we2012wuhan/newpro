@@ -55,6 +55,7 @@ TOOL_META = {
     'article': {'name': 'AI 文章写作', 'ico': '📝', 'href': '/article', 'deep': False},
     'video-tools': {'name': '视频小工具', 'ico': '🎬', 'href': '/video-tools', 'deep': False},
     'quiz': {'name': '出题小工具', 'ico': '📋', 'href': '/quiz', 'deep': False},
+    'kanban': {'name': '任务看板', 'ico': '📌', 'href': '/kanban', 'deep': False},
     'writing-ideas': {'name': '写作选题', 'ico': '💡', 'href': '/article?tab=ideas', 'deep': False},
 }
 
@@ -146,6 +147,10 @@ def _excerpt(tool: str, payload: dict) -> str:
                 (_text(payload.get('kindLabel'), 20) or '视频处理'))
     if tool == 'quiz':
         return _text(payload.get('topic')) or _text(payload.get('title'))
+    if tool == 'kanban':
+        return _text(payload.get('note')) or {
+            'todo': '待办', 'doing': '进行中', 'done': '已完成',
+        }.get(payload.get('status'), '任务')
     return ''
 
 
@@ -251,6 +256,10 @@ def _status(tool: str, payload: dict) -> dict:
         else:
             label += ' · 还没作答'
         return {'tracked': False, 'open': False, 'label': label}
+    if tool == 'kanban':
+        status = payload.get('status')
+        return {'tracked': True, 'open': status != 'done',
+                'label': {'todo': '待办', 'doing': '进行中', 'done': '已完成'}.get(status, '待办')}
     return {'tracked': False, 'open': False, 'label': ''}
 
 
@@ -465,6 +474,14 @@ def _detail(tool: str, payload: dict) -> list:
             add('最近作答', last.get('at'), 20)
         else:
             add('状态', '还没作答', 20)
+    elif tool == 'kanban':
+        add('状态', {'todo': '待办', 'doing': '进行中', 'done': '已完成'}.get(
+            payload.get('status')), 8)
+        add('优先级', {'high': '高', 'normal': '中', 'low': '低'}.get(
+            payload.get('priority')), 8)
+        add('截止', payload.get('due'), 20)
+        add('备注', payload.get('note'))
+        add('更新时间', payload.get('updatedAt'), 20)
     elif tool == 'video-tools':
         add('素材', payload.get('uploadName'), 60)
         add('操作', payload.get('kindLabel'), 20)

@@ -149,6 +149,16 @@ app.include_router(video_tools_router)
 from quiz import router as quiz_router  # noqa: E402
 app.include_router(quiz_router)
 
+# 任务看板：待办 / 进行中 / 已完成三列，任务按账号存 SQLite（tool='kanban'）。
+# 页面在 /kanban；不做多项目、子任务和协作，只解决「现在该做什么」。
+from kanban import router as kanban_router  # noqa: E402
+app.include_router(kanban_router)
+
+# 每日笔记：按天记录文字 / 标签 / 图片，页面在 /notes。
+# 图片本体落盘（data/notes/），SQLite 只存元数据；只有用户主动删除才会消失。
+from daily_notes import router as daily_notes_router  # noqa: E402
+app.include_router(daily_notes_router)
+
 # 影音库：只读浏览阿里云盘里的音乐 / 视频。
 # AList/OpenList 作为内网文件网关，浏览器只见 /media/stream 代理；收藏和续播写 SQLite。
 # 页面在 /media，未配置 ALIST_PASSWORD 时页面会给出配置提示。

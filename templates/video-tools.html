@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<title>视频小工具</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script>try{if(localStorage.getItem('tb_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<script src="/static/theme.js"></script>
+<script src="/static/particles.js"></script>
+<script src="/static/auth-guard.js"></script>
+<style>
+:root{
+  --acc:#0f766e; --acc-d:#115e59; --acc-l:#e7f6f3; --acc-line:#b9e3dc;
+  --gold:#b7791f; --gold-l:#fbf3e2; --gold-line:#ecd6ab;
+  --ink:#1f2a2e; --text:#4b5a60; --muted:#7d8b90;
+  --bg:#f6f3ea; --card:#fffdf8; --line:#e5dfd0; --soft:#f3eee2; --field:#fffcf5;
+  --ok:#237a57; --ok-l:#eaf7f0; --ok-line:#c7e9d8;
+  --err:#b8404a; --err-l:#fcedef; --err-line:#edced2;
+  --sh:0 22px 54px -38px rgba(60,50,32,.36);
+  --top:rgba(246,243,234,.92);
+}
+[data-theme="dark"]{
+  --acc:#5eead4; --acc-d:#99f6e4; --acc-l:#102b28; --acc-line:#1f5b54;
+  --gold:#e7b96a; --gold-l:#2b2314; --gold-line:#5b4721;
+  --ink:#eef4f2; --text:#c4d1ce; --muted:#8ea19d;
+  --bg:#0e1415; --card:#161d1e; --line:#2a3536; --soft:#1c2526; --field:#121a1b;
+  --ok:#7ed7aa; --ok-l:#12271d; --ok-line:#28513a;
+  --err:#ffa1a8; --err-l:#2b171a; --err-line:#572b31;
+  --sh:0 22px 56px -30px rgba(0,0,0,.86);
+  --top:rgba(14,20,21,.93);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg)}
+body{color:var(--text);font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(circle at 12% 0%,rgba(183,121,31,.10),transparent 32%),
+    radial-gradient(circle at 92% 8%,rgba(15,118,110,.08),transparent 30%)}
+button,input,select,textarea{font:inherit}
+[hidden]{display:none!important}
+.topbar{position:sticky;top:0;z-index:30;background:var(--top);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line)}
+.topbar-in{max-width:1320px;margin:0 auto;padding:11px 18px;display:flex;align-items:center;gap:12px}
+.mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none;
+  color:#fff;font-weight:800;font-size:16px;background:linear-gradient(135deg,#0f766e,#b7791f);
+  box-shadow:0 9px 24px -12px rgba(15,118,110,.9)}
+.brand-text{min-width:0}
+.ttl{font-size:16px;font-weight:720;color:var(--ink);line-height:1.35}
+.sub{font-size:11.5px;color:var(--muted)}
+.top-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.tb-mount{display:inline-flex;align-items:center}
+.back{min-height:38px;display:inline-flex;align-items:center;color:var(--muted);text-decoration:none;
+  border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 14px;
+  font-size:12.5px;white-space:nowrap}
+.back:hover{color:var(--ink);border-color:var(--acc-line)}
+.wrap{max-width:1320px;margin:0 auto;padding:20px 18px calc(46px + env(safe-area-inset-bottom))}
+.studio{--side-w:320px;display:grid;
+  grid-template-columns:minmax(0,var(--side-w)) minmax(0,1fr) minmax(250px,292px);
+  grid-template-areas:"panel viewer history";gap:14px;align-items:start}
+.panel,.viewer,.history-card{min-width:0;background:var(--card);border:1px solid var(--line);
+  border-radius:18px;box-shadow:var(--sh)}
+.panel{grid-area:panel;padding:15px;position:sticky;top:72px;max-height:calc(100vh - 90px);
+  overflow:auto;overscroll-behavior:contain}
+.viewer{grid-area:viewer;overflow:hidden;min-height:480px}
+.history-card{grid-area:history;padding:12px;position:sticky;top:72px;
+  max-height:calc(100vh - 90px);overflow:auto;overscroll-behavior:contain}
+.panel-head,.viewer-head{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  flex-wrap:wrap}
+.panel-head b,.viewer-head b{font-size:13px;font-weight:720;color:var(--ink)}
+.panel-head span,.viewer-head span{font-size:11px;color:var(--muted)}
+.banner{padding:10px 12px;border:1px solid var(--err-line);background:var(--err-l);color:var(--err);
+  border-radius:10px;font-size:12px;line-height:1.6;margin-bottom:12px}
+.banner.info{border-color:var(--gold-line);background:var(--gold-l);color:var(--gold)}
+.drop{margin-top:11px;border:1.5px dashed var(--line);border-radius:14px;background:var(--field);
+  padding:22px 14px;text-align:center;cursor:pointer;transition:border-color .18s,background .18s}
+.drop:hover,.drop.over{border-color:var(--acc-line);background:var(--acc-l)}
+.drop .drop-ico{font-size:26px;line-height:1;color:var(--acc);font-weight:300}
+.drop .drop-t{margin-top:7px;font-size:13px;font-weight:650;color:var(--ink)}
+.drop .drop-s{margin-top:3px;font-size:11px;color:var(--muted);line-height:1.55}
+.up-progress{display:flex;align-items:center;gap:9px;margin-top:11px;font-size:11px;color:var(--muted)}
+.up-progress .bar{flex:1;height:6px;border-radius:99px;background:var(--line);overflow:hidden}
+.up-progress .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#0f766e,#b7791f);
+  transition:width .2s ease}
+.upload-list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.upload-item{display:flex;gap:8px;align-items:center;border:1px solid var(--line);
+  background:var(--field);border-radius:11px;padding:7px}
+.upload-item.on{border-color:var(--acc);background:var(--acc-l)}
+.upload-thumb{width:46px;height:46px;border-radius:8px;flex:none;display:grid;place-items:center;
+  color:#fff;font-size:15px;background:linear-gradient(145deg,#0f766e,#b7791f)}
+.upload-main{flex:1;min-width:0;cursor:pointer;text-align:left;border:0;background:transparent;
+  padding:1px;color:inherit}
+.upload-main b{display:block;font-size:12px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;font-weight:650}
+.upload-main span{display:block;font-size:10.5px;color:var(--muted);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+.upload-del,.job-del{flex:none;width:28px;height:28px;border:1px solid var(--line);border-radius:8px;
+  background:var(--card);color:var(--muted);cursor:pointer;line-height:1}
+.upload-del:hover,.job-del:hover{color:var(--err);border-color:var(--err-line);background:var(--err-l)}
+.empty-soft{padding:16px 12px;text-align:center;font-size:11.5px;color:var(--muted);
+  border:1px dashed var(--line);border-radius:10px;line-height:1.7}
+.privacy{margin:13px 0 0;padding-top:11px;border-top:1px dashed var(--line);
+  font-size:10.5px;color:var(--muted);line-height:1.7}
+.viewer-head{padding:11px 14px;border-bottom:1px solid var(--line)}
+.viewer-body{padding:14px}
+.asset-info{display:flex;flex-wrap:wrap;gap:6px 16px;padding:10px 14px;
+  border-bottom:1px solid var(--line);background:var(--soft);font-size:11.5px;color:var(--muted)}
+.asset-info span{display:inline-flex;align-items:baseline;gap:5px}
+.asset-info b{font-size:12px;color:var(--ink);font-weight:650}
+.kind-tabs{display:flex;gap:7px;flex-wrap:wrap;padding:12px 14px 0}
+.kind-tab{min-height:34px;padding:0 13px;border:1px solid var(--line);border-radius:999px;
+  background:var(--field);color:var(--text);font-size:12.5px;cursor:pointer;white-space:nowrap}
+.kind-tab:hover{border-color:var(--acc-line);color:var(--acc)}
+.kind-tab.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc);font-weight:650}
+.kind-hint{margin:8px 14px 0;font-size:11px;color:var(--muted);line-height:1.6}
+.kind-form{animation:fade-up .22s ease-out both}
+@keyframes fade-up{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.field-label{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin:13px 0 6px;font-size:12px;font-weight:650;color:var(--text)}
+.field-label small{font-weight:400;color:var(--muted)}
+input[type=number],input[type=text],select{width:100%;min-height:38px;padding:6px 10px;
+  border:1px solid var(--line);border-radius:11px;background:var(--field);color:var(--ink);
+  outline:none;font-size:13px}
+input[type=number]:focus,input[type=text]:focus,select:focus{border-color:var(--acc-line);
+  box-shadow:0 0 0 3px rgba(15,118,110,.12)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg{display:flex;gap:8px;flex-wrap:wrap}
+.seg-btn{min-height:38px;padding:0 13px;border:1px solid var(--line);border-radius:11px;
+  background:var(--field);color:var(--text);font-size:12.5px;cursor:pointer}
+.seg-btn:hover{border-color:var(--acc-line);color:var(--acc)}
+.seg-btn.on{border-color:var(--acc);background:var(--acc-l);color:var(--acc);font-weight:650}
+.hint{margin:7px 0 0;font-size:11px;color:var(--muted);line-height:1.65}
+.actions{margin-top:14px;display:flex;gap:8px;align-items:center}
+.btn{min-height:38px;padding:0 15px;border-radius:10px;border:1px solid var(--line);
+  background:var(--card);color:var(--text);font-size:12.5px;cursor:pointer;white-space:nowrap;
+  text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:5px}
+.btn:hover{border-color:var(--acc-line);color:var(--acc)}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:650}
+.btn.primary:hover{background:var(--acc-d);border-color:var(--acc-d);color:#fff}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn.wide{width:100%;min-height:44px;font-size:13.5px}
+.progress{display:flex;align-items:center;gap:9px;margin-top:12px;padding:9px 11px;
+  border:1px solid var(--line);border-radius:10px;background:var(--soft);
+  font-size:11.5px;color:var(--muted)}
+.progress .bar{flex:1;height:6px;border-radius:99px;background:var(--line);overflow:hidden}
+.progress .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#0f766e,#b7791f);
+  transition:width .25s ease}
+.job-error{margin-top:12px;padding:9px 11px;border:1px solid var(--err-line);
+  background:var(--err-l);color:var(--err);border-radius:9px;font-size:11.5px;line-height:1.6}
+.result{margin-top:14px;border-top:1px dashed var(--line);padding-top:14px}
+.result-empty{padding:34px 16px;display:flex;flex-direction:column;align-items:center;gap:6px;
+  text-align:center;color:var(--muted);font-size:12.5px}
+.result-empty b{font-size:15px;color:var(--ink)}
+.result-empty .ico{font-size:34px;line-height:1}
+.result-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  margin-bottom:10px}
+.result-head b{font-size:13px;color:var(--ink)}
+.result-head span{font-size:11px;color:var(--muted)}
+.note-box{margin:0 0 11px;padding:8px 11px;border:1px solid var(--gold-line);background:var(--gold-l);
+  color:var(--gold);border-radius:9px;font-size:11.5px;line-height:1.65}
+.result-media{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:8px;
+  display:flex;justify-content:center}
+.result-media video,.result-media img{max-width:100%;max-height:440px;border-radius:8px;
+  display:block;background:#000}
+.result-media img{background:var(--card)}
+.result-media audio{width:100%}
+.result-files{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.file-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);
+  background:var(--field);border-radius:999px;padding:6px 12px;font-size:11.5px;color:var(--text);
+  text-decoration:none;max-width:100%}
+.file-chip:hover{border-color:var(--acc-line);color:var(--acc)}
+.file-chip b{font-weight:650;color:var(--ink);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;max-width:220px}
+.file-chip small{color:var(--muted);flex:none}
+.history-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.history-empty{padding:18px 12px;text-align:center;font-size:11.5px;color:var(--muted);
+  border:1px dashed var(--line);border-radius:10px;line-height:1.7}
+.history-item{display:flex;gap:8px;align-items:center;border:1px solid var(--line);
+  background:var(--field);border-radius:11px;padding:6px}
+.history-thumb{width:40px;height:40px;border-radius:8px;flex:none;display:grid;place-items:center;
+  color:#fff;font-size:14px;background:linear-gradient(145deg,#0f766e,#b7791f)}
+.history-thumb.bad{background:var(--err-l);color:var(--err)}
+.history-main{flex:1;min-width:0;cursor:pointer;text-align:left;border:0;background:transparent;
+  padding:2px;color:inherit}
+.history-main b{display:block;font-size:12px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;font-weight:650}
+.history-main span{display:block;font-size:10.5px;color:var(--muted);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+.stage-pill{display:inline-block;margin-left:5px;padding:0 6px;border-radius:99px;
+  background:var(--soft);color:var(--muted);font-size:10px}
+.stage-pill.run{background:var(--gold-l);color:var(--gold)}
+.stage-pill.ok{background:var(--ok-l);color:var(--ok)}
+.stage-pill.bad{background:var(--err-l);color:var(--err)}
+.status{position:fixed;left:50%;bottom:20px;z-index:60;max-width:calc(100% - 32px);
+  padding:8px 14px;border-radius:999px;background:#1f2a44;color:#fff;font-size:12px;
+  transform:translate(-50%,16px);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;
+  box-shadow:0 12px 30px -16px rgba(0,0,0,.6)}
+.status.show{opacity:1;transform:translate(-50%,0)}
+.status.err{background:#8f2f3b}
+@media(max-width:1180px){
+  .studio{--side-w:290px;
+    grid-template-columns:minmax(0,var(--side-w)) minmax(0,1fr) minmax(240px,262px)}
+}
+@media(max-width:1080px){
+  .studio{grid-template-columns:minmax(0,1fr);grid-template-areas:"panel" "history" "viewer"}
+  .panel,.history-card{position:static;max-height:none}
+  .history-list{flex-direction:row;overflow-x:auto;padding-bottom:4px;
+    scroll-snap-type:x proximity;overscroll-behavior-x:contain}
+  .history-item{flex:0 0 270px;scroll-snap-align:start}
+}
+@media(max-width:640px){
+  .topbar-in{padding:9px 12px}
+  .wrap{padding:14px 12px calc(38px + env(safe-area-inset-bottom))}
+  .back span{display:none}
+  .tb-mount{display:none}
+  .brand-text .sub{display:none}
+  .grid2{grid-template-columns:1fr}
+  .history-item{flex-basis:235px}
+  .kind-tabs{padding:10px 12px 0}
+  .kind-tab{min-height:32px;padding:0 11px;font-size:12px}
+  .viewer-body{padding:12px}
+  .result-media video,.result-media img{max-height:320px}
+}
+@media(prefers-reduced-motion:reduce){
+  .status,.progress .bar i,.up-progress .bar i{transition:none}
+  .kind-form{animation:none}
+}
+</style>
+<script src="/static/quick-ai.js" defer></script>
+<script src="/static/fish-mascot.js" defer></script>
+<script src="/static/usage.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="mark" aria-hidden="true">影</div>
+    <div class="brand-text">
+      <div class="ttl">视频小工具</div>
+      <div class="sub">上传一次 · 截取 · 转 GIF · 提取音频 · 抽帧 · 压缩</div>
+    </div>
+    <div class="top-actions">
+      <span class="tb-mount"></span>
+      <a class="back" href="/">← <span>返回工具箱</span></a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="studio">
+    <aside class="panel" aria-label="视频素材">
+      <div id="banner" class="banner" hidden></div>
+      <div class="panel-head">
+        <b>视频素材</b>
+        <span id="uploadCount">0 / 3</span>
+      </div>
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="上传视频">
+        <div class="drop-ico" aria-hidden="true">＋</div>
+        <div class="drop-t">点击或拖入视频</div>
+        <div class="drop-s" id="dropHint">MP4 / MOV / MKV，单个最大 300 MB</div>
+        <input type="file" id="fileInput"
+          accept="video/*,.mkv,.m4v,.mov,.avi,.flv,.wmv,.ts,.mts,.3gp" hidden>
+      </div>
+      <div class="up-progress" id="upProgress" hidden>
+        <span class="bar"><i id="upBar"></i></span>
+        <span id="upText">上传中…</span>
+      </div>
+      <div class="upload-list" id="uploadList">
+        <div class="empty-soft">还没有素材，先传一个视频。</div>
+      </div>
+      <p class="privacy">素材按账号隔离，只存在这台服务器上；2 天后自动清理。
+        视频不会上传到第三方，处理全部在本机完成。</p>
+    </aside>
+
+    <section class="viewer" aria-label="视频处理">
+      <div class="viewer-head">
+        <b id="viewerTitle">先选一个素材</b>
+        <span id="viewerSub">上传一次，多种处理复用</span>
+      </div>
+
+      <div class="asset-info" id="assetInfo" hidden>
+        <span><b id="infoDuration">—</b></span>
+        <span><b id="infoSize">—</b></span>
+        <span><b id="infoRes">—</b></span>
+        <span><b id="infoFps">—</b></span>
+        <span><b id="infoCodec">—</b></span>
+        <span><b id="infoAudio">—</b></span>
+      </div>
+
+      <div class="kind-tabs" id="kindTabs" role="tablist" aria-label="处理方式" hidden></div>
+      <div class="kind-hint" id="kindHint" hidden></div>
+
+      <div class="viewer-body">
+        <div class="forms" id="forms" hidden>
+          <div class="kind-form" data-kind="clip" hidden>
+            <div class="grid2">
+              <div>
+                <div class="field-label">开始（秒）</div>
+                <input type="number" id="clipStart" min="0" step="0.1" value="0" inputmode="decimal">
+              </div>
+              <div>
+                <div class="field-label">结束（秒）</div>
+                <input type="number" id="clipEnd" min="0" step="0.1" value="5" inputmode="decimal">
+              </div>
+            </div>
+            <div class="field-label">截取方式</div>
+            <div class="seg" data-seg="clipMode">
+              <button class="seg-btn on" type="button" data-val="fast">快速（关键帧）</button>
+              <button class="seg-btn" type="button" data-val="precise">精确重编码</button>
+            </div>
+            <p class="hint" id="clipHint">快速模式几乎瞬时，但起点会落在最近的关键帧；
+              精确模式逐帧对齐，会慢一些。</p>
+          </div>
+
+          <div class="kind-form" data-kind="gif" hidden>
+            <div class="grid2">
+              <div>
+                <div class="field-label">开始（秒）</div>
+                <input type="number" id="gifStart" min="0" step="0.1" value="0" inputmode="decimal">
+              </div>
+              <div>
+                <div class="field-label">时长（秒）<small>1–10</small></div>
+                <input type="number" id="gifDuration" min="1" max="10" step="0.5" value="3"
+                  inputmode="decimal">
+              </div>
+            </div>
+            <div class="field-label">宽度</div>
+            <div class="seg" data-seg="gifWidth">
+              <button class="seg-btn on" type="button" data-val="480">480</button>
+              <button class="seg-btn" type="button" data-val="640">640</button>
+            </div>
+            <div class="field-label">帧率</div>
+            <div class="seg" data-seg="gifFps">
+              <button class="seg-btn" type="button" data-val="12">12 fps</button>
+              <button class="seg-btn on" type="button" data-val="15">15 fps</button>
+            </div>
+            <p class="hint">自动生成 256 色调色板，比普通转换更干净；时长越长文件越大。</p>
+          </div>
+
+          <div class="kind-form" data-kind="audio" hidden>
+            <div class="field-label">音频格式</div>
+            <div class="seg" data-seg="audioFormat">
+              <button class="seg-btn on" type="button" data-val="m4a">m4a</button>
+              <button class="seg-btn" type="button" data-val="mp3">mp3</button>
+              <button class="seg-btn" type="button" data-val="wav">WAV 16k</button>
+            </div>
+            <p class="hint">m4a 能直接复制原始 AAC 音轨，几乎不损失；WAV 是 16k 单声道，
+              适合给语音转写用。</p>
+          </div>
+
+          <div class="kind-form" data-kind="frames" hidden>
+            <div class="field-label">时间点（秒）<small>1–9 个，逗号分隔</small></div>
+            <input type="text" id="framesTimes" placeholder="例如：1, 5, 12.5"
+              value="1, 5" inputmode="decimal" autocomplete="off">
+            <p class="hint">每个时间点抓一张 JPG；两张以上会自动打包成 ZIP。</p>
+          </div>
+
+          <div class="kind-form" data-kind="contact" hidden>
+            <div class="field-label">拼图规模</div>
+            <div class="seg" data-seg="contactGrid">
+              <button class="seg-btn on" type="button" data-val="3x3">3 × 3（9 帧）</button>
+              <button class="seg-btn" type="button" data-val="4x4">4 × 4（16 帧）</button>
+            </div>
+            <p class="hint">均匀取帧拼成一张总览图，用来快速扫完长视频。</p>
+          </div>
+
+          <div class="kind-form" data-kind="compress" hidden>
+            <div class="field-label">画质档位</div>
+            <div class="seg" data-seg="compressQuality">
+              <button class="seg-btn" type="button" data-val="small">更小</button>
+              <button class="seg-btn on" type="button" data-val="balanced">均衡</button>
+              <button class="seg-btn" type="button" data-val="clear">更清晰</button>
+            </div>
+            <div class="field-label">分辨率上限</div>
+            <div class="seg" data-seg="compressCap">
+              <button class="seg-btn on" type="button" data-val="720">720p</button>
+              <button class="seg-btn" type="button" data-val="1080">1080p</button>
+            </div>
+            <p class="hint">不会把低分辨率视频放大；源视频最多 10 分钟，处理时间会长一些。</p>
+          </div>
+
+          <div class="actions">
+            <button class="btn primary wide" id="runBtn" type="button">开始处理</button>
+          </div>
+        </div>
+
+        <div class="progress" id="progress" hidden>
+          <span class="bar"><i id="progressBar"></i></span>
+          <span id="progressText">排队中…</span>
+        </div>
+        <div class="job-error" id="jobError" hidden></div>
+
+        <div class="result" id="result">
+          <div class="result-empty" id="resultEmpty">
+            <div class="ico" aria-hidden="true">🎬</div>
+            <b>结果会出现在这里</b>
+            <span>选一个素材，再挑一种处理方式。</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="history-card" aria-label="最近任务">
+      <div class="panel-head">
+        <b>最近任务</b>
+        <span id="historyCount"></span>
+      </div>
+      <div class="history-list" id="jobList">
+        <div class="history-empty">还没有处理记录</div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<div class="status" id="status" role="status" aria-live="polite"></div>
+<script type="module" src="/static/video-tools.js"></script>
+<script src="/static/focus-widget.js" defer></script>
+</body>
+</html>
