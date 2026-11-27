@@ -14,6 +14,7 @@
     count: '5',
     level: 'basic'
   };
+  var HISTORY_PAGE_SIZE = 10;
 
   var state = {
     meta: null,
@@ -23,7 +24,10 @@
     favorites: {},
     tab: 'generate',
     view: 'setup',
-    busy: false
+    busy: false,
+    historyPage: 1,
+    historyPages: 1,
+    historyTotal: 0
   };
   var TABS = {
     generate: { btn: 'tabBtnGenerate', panel: 'tabGenerate' },
@@ -39,6 +43,7 @@
   var reviewList = $('reviewList');
   var answerSheet = $('answerSheet');
   var historyList = $('historyList');
+  var historyPager = $('historyPager');
   var genLayout = $('genLayout');
   var historyRail = $('historyRail');
   var foldHistory = $('foldHistory');
@@ -321,7 +326,7 @@
       state.result = null;
       renderPaper();
       showView('paper');
-      loadHistory();
+      loadHistory(1);
       scrollTop();
     } catch (err) {
       if (err.status === 401) { return; }
@@ -696,9 +701,18 @@
 
   function buildCollectItem(item, kind) {
     var card = el('article', 'collect-item');
+
+    // 左侧标出来自哪套题，题多的时候一眼能对上。
+    var origin = el('div', 'collect-origin');
+    origin.append(el('span', 'collect-origin-label', '出自'));
+    origin.append(el('span', 'collect-origin-title',
+      item.title || item.topic || '未命名试卷'));
+    var number = (typeof item.index === 'number' ? item.index : 0) + 1;
+    origin.append(el('span', 'collect-origin-meta',
+      [item.typeLabel, '第 ' + number + ' 题'].filter(Boolean).join(' · ')));
+
+    var main = el('div', 'collect-main');
     var head = el('div', 'collect-head');
-    head.append(el('span', 'collect-source',
-      [item.typeLabel, item.title].filter(Boolean).join(' · ')));
 
     var actions = el('div', 'collect-actions');
     var star = el('button', 'icon-btn star');
@@ -712,8 +726,7 @@
       actions.append(makeWrongRemove(item.id));
     }
     head.append(actions);
-
-    card.append(head, el('div', 'collect-stem', item.stem));
+    main.append(head, el('div', 'collect-stem', item.stem));
 
     if (item.type !== 'blank' && (item.options || []).length) {
       var opts = el('div', 'collect-opts');
@@ -728,16 +741,17 @@
         }
         opts.append(row);
       });
-      card.append(opts);
+      main.append(opts);
     }
 
     if (kind === 'wrong') {
-      card.append(collectLine('你的答案', item.givenText || '未作答'));
+      main.append(collectLine('你的答案', item.givenText || '未作答'));
     }
-    card.append(collectLine('正确答案', item.answerText || ''));
+    main.append(collectLine('正确答案', item.answerText || ''));
     if (item.explanation) {
-      card.append(el('p', 'collect-explain', item.explanation));
+      main.append(el('p', 'collect-explain', item.explanation));
     }
+    card.append(origin, main);
     return card;
   }
 
@@ -802,15 +816,49 @@
   }
 
   /* ---------- 历史 ---------- */
-  async function loadHistory() {
+  async function loadHistory(page) {
+    var want = parseInt(page, 10);
+    if (!isFinite(want) || want < 1) { want = state.historyPage || 1; }
     try {
-      var data = await api(API + '/quizzes');
+      var data = await api(API + '/quizzes?page=' + want + '&pageSize=' + HISTORY_PAGE_SIZE);
+      state.historyPage = data.page || 1;
+      state.historyPages = data.pages || 1;
+      state.historyTotal = data.total || 0;
       renderHistory(data.items || []);
+      renderHistoryPager(data);
     } catch (err) {
       if (err.status === 401) { return; }
       historyList.textContent = '';
       historyList.append(el('div', 'empty-history', err.message || '历史加载失败。'));
+      historyPager.hidden = true;
     }
+  }
+
+  function renderHistoryPager(data) {
+    historyPager.textContent = '';
+    var pages = data.pages || 1;
+    if (!data.total || pages <= 1) {
+      historyPager.hidden = true;
+      return;
+    }
+    historyPager.hidden = false;
+
+    var prev = el('button', 'ghost small', '‹');
+    prev.type = 'button';
+    prev.disabled = !data.hasPrev;
+    prev.title = '上一页';
+    prev.addEventListener('click', function () { loadHistory(state.historyPage - 1); });
+
+    var next = el('button', 'ghost small', '›');
+    next.type = 'button';
+    next.disabled = !data.hasNext;
+    next.title = '下一页';
+    next.addEventListener('click', function () { loadHistory(state.historyPage + 1); });
+
+    var label = el('span', 'history-page-label',
+      '第 ' + data.page + ' / ' + pages + ' 页 · 共 ' + data.total + ' 套');
+
+    historyPager.append(prev, label, next);
   }
 
   function renderHistory(items) {
@@ -930,7 +978,7 @@
     $('retryBtn').addEventListener('click', retry);
     $('newBtn').addEventListener('click', resetToSetup);
     $('resultNewBtn').addEventListener('click', resetToSetup);
-    $('refreshHistory').addEventListener('click', loadHistory);
+    $('refreshHistory').addEventListener('click', function () { loadHistory(); });
     foldHistory.addEventListener('click', function () { applyHistoryFold(!historyFolded, true); });
     historyRail.addEventListener('click', function () { applyHistoryFold(false, true); });
     var folded = false;

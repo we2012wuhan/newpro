@@ -6,14 +6,19 @@
 #
 #   GET    /notes                         页面
 #   GET    /notes/api/status              额度、日期列表、标签、限制
-#   GET    /notes/api/notes               按天 / 搜索 / 标签筛选
+#   GET    /notes/api/month               某个月的每日记录条数（月历热力图）
+#   GET    /notes/api/notes               按天 / 搜索 / 标签 / 重要程度筛选
 #   GET    /notes/api/notes/{id}          单条
 #   POST   /notes/api/notes               新建（multipart，文字 + 图片）
 #   PUT    /notes/api/notes/{id}          编辑（multipart，可增删图片）
 #   DELETE /notes/api/notes/{id}          删除
 #   GET    /notes/api/images/{id}         登录后读取图片
+#   GET    /notes/api/analysis            查看日/周/月分析统计和缓存
+#   POST   /notes/api/analysis            生成日/周/月分析（用户主动触发）
+#   DELETE /notes/api/analysis            删除某周期的分析缓存
 #
 # 数据：daily_notes / daily_note_images 在 SQLite；图片本体在 data/notes/。
+# AI 分析表和提示词在 notes_analysis.py，只有点击生成时才会发送笔记文字。
 # 图片只认 JPEG / PNG / WebP / GIF，按文件头判断，不信扩展名。
 # 不做自动过期删除——日记是长期数据，只有用户主动删才会消失。
 from __future__ import annotations
@@ -28,10 +33,11 @@ import uuid
 from datetime import date
 from pathlib import Path
 
-from fastapi import APIRouter, File, Form, Request, UploadFile
+from fastapi import APIRouter, Body, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
 
+import notes_analysis
 import storage
 
 router = APIRouter()
@@ -41,6 +47,7 @@ _BASE_DIR = Path(__file__).resolve().parent
 _TEMPLATE_FILE = _BASE_DIR / 'templates' / 'notes.html'
 _STORED_RE = re.compile(r'^[0-9a-f]{32}\.(?:jpg|png|webp|gif)$')
 _TMP_RE = re.compile(r'^[0-9a-f]{32}$')
+_MONTH_RE = re.compile(r'^(\d{4})-(0[1-9]|1[0-2])$')
 _CHUNK = 1024 * 1024
 
 CONTENT_MAX = 10000
@@ -48,6 +55,8 @@ TAGS_MAX = 10
 TAG_MAX = 20
 IMAGES_PER_NOTE = 9
 LIST_LIMIT = 300
+IMPORTANCE_LEVELS = ('普通', '重要', '关键')
+IMPORTANCE_MAX = len(IMPORTANCE_LEVELS) - 1
 
 IMAGE_TYPES = (
     ('image/jpeg', '.jpg'),
@@ -123,6 +132,22 @@ def _clean_day(value, fallback: str = '') -> str:
     if parsed.year < 1970 or parsed.year > 2100:
         raise NoteError('日期超出可记录范围。')
     return parsed.isoformat()
+
+
+def _clean_importance(value, fallback: int = 0) -> int:
+    """重要程度：0 普通、1 重要、2 关键；空值用 fallback。"""
+    if value is None:
+        return fallback
+    text = str(value).strip()
+    if not text:
+        return fallback
+    try:
+        level = int(text)
+    except ValueError:
+        raise NoteError('重要程度参数不对。')
+    if level < 0 or level > IMPORTANCE_MAX:
+        raise NoteError('重要程度只能是 普通 / 重要 / 关键。')
+    return level
 
 
 def _parse_tags(raw) -> list:
@@ -208,6 +233,7 @@ def _note_out(note: dict, images) -> dict:
         'day': note.get('day') or '',
         'content': note.get('content') or '',
         'tags': list(note.get('tags') or []),
+        'importance': int(note.get('importance') or 0),
         'createdAt': note.get('created_at') or '',
         'updatedAt': note.get('updated_at') or '',
         'images': [
@@ -228,6 +254,7 @@ def _meta() -> dict:
         'tagsMax': TAGS_MAX,
         'tagMax': TAG_MAX,
         'imagesPerNote': IMAGES_PER_NOTE,
+        'importanceLevels': list(IMPORTANCE_LEVELS),
         'imageMaxBytes': _image_max_bytes(),
         'totalBytes': _total_max_bytes(),
         'imageTypes': [mime for mime, _ in IMAGE_TYPES],
@@ -386,13 +413,71 @@ def notes_days(request: Request) -> JSONResponse:
     return JSONResponse({'ok': True, 'days': days})
 
 
+@router.get('/notes/api/month')
+def notes_month(request: Request, month: str = '') -> JSONResponse:
+    """某个月的每日记录条数，给左侧月历热力图用。"""
+    text = str(month or '').strip() or date.today().strftime('%Y-%m')
+    match = _MONTH_RE.match(text)
+    if not match or not (1970 <= int(match.group(1)) <= 2100):
+        return _error('月份格式不对，用 YYYY-MM。', 400)
+    try:
+        days = storage.daily_note_month(_user(request), text)
+    except storage.StorageUnavailable as exc:
+        return _error(str(exc), 503)
+    return JSONResponse({'ok': True, 'month': text, 'days': days})
+
+
+@router.get('/notes/api/analysis')
+def notes_analysis_view(request: Request, period: str = 'day', date: str = '') -> JSONResponse:
+    """只读：返回当前周期的统计和已有缓存，不调用模型。"""
+    try:
+        data = notes_analysis.build_view(_user(request), period, date)
+    except notes_analysis.AnalysisError as exc:
+        return _error(str(exc), exc.status)
+    except storage.StorageUnavailable as exc:
+        return _error(str(exc), 503)
+    return JSONResponse(data)
+
+
+@router.post('/notes/api/analysis')
+def notes_analysis_generate(request: Request,
+                            payload: dict | None = Body(default=None)) -> JSONResponse:
+    """生成分析：只有用户点击时才调用模型。"""
+    payload = payload or {}
+    period = str(payload.get('period') or 'day').strip()
+    anchor = str(payload.get('date') or '').strip()
+    force = bool(payload.get('force'))
+    try:
+        data = notes_analysis.generate(_user(request), period, anchor, force=force)
+    except notes_analysis.AnalysisError as exc:
+        return _error(str(exc), exc.status)
+    except storage.StorageUnavailable as exc:
+        return _error(str(exc), 503)
+    return JSONResponse(data)
+
+
+@router.delete('/notes/api/analysis')
+def notes_analysis_delete(request: Request, period: str = 'day', date: str = '') -> JSONResponse:
+    try:
+        removed = notes_analysis.delete(_user(request), period, date)
+    except notes_analysis.AnalysisError as exc:
+        return _error(str(exc), exc.status)
+    except storage.StorageUnavailable as exc:
+        return _error(str(exc), 503)
+    return JSONResponse({'ok': True, 'removed': int(removed or 0)})
+
+
 @router.get('/notes/api/notes')
 def notes_list(request: Request, day: str = '', q: str = '', tag: str = '',
-               limit: int = LIST_LIMIT) -> JSONResponse:
+               level: str = '', limit: int = LIST_LIMIT) -> JSONResponse:
     user = _user(request)
     try:
         day = _clean_day(day) if str(day or '').strip() else ''
-        rows = storage.daily_note_list(user, day=day, q=q, tag=tag, limit=limit)
+        level_value = _clean_importance(level, -1) if str(level or '').strip() else None
+        if level_value == -1:
+            raise NoteError('重要程度参数不对。')
+        rows = storage.daily_note_list(user, day=day, q=q, tag=tag, limit=limit,
+                                       level=level_value)
         groups = storage.daily_note_image_groups(user, [row['id'] for row in rows])
     except NoteError as exc:
         return _error(str(exc), exc.status)
@@ -422,6 +507,7 @@ async def notes_create(
     content: str = Form(''),
     day: str = Form(''),
     tags: str = Form('[]'),
+    importance: str = Form('0'),
     images: list[UploadFile] | None = File(default=None),
 ) -> JSONResponse:
     user = _user(request)
@@ -438,13 +524,14 @@ async def notes_create(
         text = _clean_content(content)
         note_day = _clean_day(day, time.strftime('%Y-%m-%d'))
         clean_tags = _parse_tags(tags)
+        level = _clean_importance(importance)
         used = storage.daily_note_image_total(user)
         budget = _total_max_bytes() - used
         tmp, staged = await _stage_uploads(files, budget)
         if not text and not staged:
             raise NoteError('写点什么，或者至少加一张图。')
 
-        note = storage.daily_note_add(user, note_day, text, clean_tags)
+        note = storage.daily_note_add(user, note_day, text, clean_tags, level)
         note_id = note['id']
         moved = await run_in_threadpool(_move_staged, user, note_id, staged)
         item = _note_out(note, moved)
@@ -477,6 +564,7 @@ async def notes_update(
     content: str | None = Form(default=None),
     day: str | None = Form(default=None),
     tags: str | None = Form(default=None),
+    importance: str | None = Form(default=None),
     removeImages: str = Form(''),
     images: list[UploadFile] | None = File(default=None),
 ) -> JSONResponse:
@@ -493,6 +581,7 @@ async def notes_update(
         text = _clean_content(content) if content is not None else note.get('content', '')
         note_day = _clean_day(day, note.get('day') or '') if day is not None else note.get('day', '')
         clean_tags = _parse_tags(tags) if tags is not None else list(note.get('tags') or [])
+        level = _clean_importance(importance, int(note.get('importance') or 0))
         remove_ids = _parse_remove_ids(removeImages)
         by_id = {int(row['id']): row for row in current}
         if any(image_id not in by_id for image_id in remove_ids):
@@ -510,7 +599,7 @@ async def notes_update(
         tmp, staged = await _stage_uploads(new_files, budget)
 
         moved = await run_in_threadpool(_move_staged, user, note_id, staged)
-        affected = storage.daily_note_update(user, note_id, note_day, text, clean_tags)
+        affected = storage.daily_note_update(user, note_id, note_day, text, clean_tags, level)
         if not affected:
             raise NoteError('找不到这条笔记。', 404)
         _remove_images(user, note_id, removed)

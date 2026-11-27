@@ -443,6 +443,7 @@ SCHEMA = (
         content    TEXT NOT NULL DEFAULT '',
         tags       TEXT NOT NULL DEFAULT '[]',
         tags_text  TEXT NOT NULL DEFAULT '',
+        importance INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
     )
@@ -462,6 +463,37 @@ SCHEMA = (
     """,
     "CREATE INDEX IF NOT EXISTS idx_daily_note_images_note ON daily_note_images(note_id, id)",
     "CREATE INDEX IF NOT EXISTS idx_daily_note_images_user ON daily_note_images(user, id)",
+    # ---- 每日笔记的 AI 分析：按周期缓存，笔记改动后靠 input_hash 判断是否过期 ----
+    """
+    CREATE TABLE IF NOT EXISTS note_analyses(
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        user        TEXT NOT NULL,
+        period      TEXT NOT NULL,
+        period_key  TEXT NOT NULL,
+        start_day   TEXT NOT NULL,
+        end_day     TEXT NOT NULL,
+        input_hash  TEXT NOT NULL,
+        note_count  INTEGER NOT NULL DEFAULT 0,
+        truncated   INTEGER NOT NULL DEFAULT 0,
+        model       TEXT NOT NULL DEFAULT '',
+        result      TEXT NOT NULL DEFAULT '{}',
+        created_at  TEXT NOT NULL,
+        updated_at  TEXT NOT NULL
+    )
+    """,
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_note_analyses_key ON note_analyses(user, period, period_key)",
+    "CREATE INDEX IF NOT EXISTS idx_note_analyses_user_time ON note_analyses(user, updated_at DESC)",
+    """
+    CREATE TABLE IF NOT EXISTS note_analysis_usage(
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        user       TEXT NOT NULL,
+        day        TEXT NOT NULL,
+        period     TEXT NOT NULL,
+        period_key TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_note_analysis_usage_user_day ON note_analysis_usage(user, day)",
 )
 
 
@@ -481,6 +513,13 @@ def now_str() -> str:
     return time.strftime('%Y-%m-%d %H:%M:%S')
 
 
+def _ensure_columns(conn: sqlite3.Connection) -> None:
+    """老库补列：CREATE TABLE IF NOT EXISTS 不会给已有表加新字段。"""
+    columns = {row[1] for row in conn.execute('PRAGMA table_info(daily_notes)')}
+    if 'importance' not in columns:
+        conn.execute('ALTER TABLE daily_notes ADD COLUMN importance INTEGER NOT NULL DEFAULT 0')
+
+
 def connect() -> sqlite3.Connection:
     """开一条短连接，顺手把库建好。"""
     global _ready
@@ -498,6 +537,7 @@ def connect() -> sqlite3.Connection:
         if not _ready:
             for sql in SCHEMA:
                 conn.execute(sql)
+            _ensure_columns(conn)
             conn.commit()
             _ready = True
     except sqlite3.Error as exc:
@@ -757,6 +797,46 @@ def list_records(tool: str, user: str = '', limit: int = 50) -> list:
         args.append(user)
     sql += ' ORDER BY id DESC LIMIT ?'
     args.append(limit)
+    conn = connect()
+    try:
+        rows = _rows(conn, sql, args)
+    finally:
+        conn.close()
+    for row in rows:
+        try:
+            row['payload'] = json.loads(row['payload'] or '{}')
+        except ValueError:
+            row['payload'] = {}
+    return rows
+
+
+def count_records(tool: str, user: str = '') -> int:
+    """某工具（某账号）一共存过多少条，给分页用。"""
+    sql = 'SELECT COUNT(*) FROM history WHERE tool = ?'
+    args = [tool]
+    if user:
+        sql += ' AND user = ?'
+        args.append(user)
+    conn = connect()
+    try:
+        row = conn.execute(sql, args).fetchone()
+    finally:
+        conn.close()
+    return int(row[0]) if row else 0
+
+
+def list_records_page(tool: str, user: str = '', limit: int = 10,
+                      offset: int = 0) -> list:
+    """list_records 的分页版：按 id 倒序取一段。"""
+    limit = max(1, min(int(limit or 10), 100))
+    offset = max(0, int(offset or 0))
+    sql = 'SELECT id, tool, user, title, payload, created_at FROM history WHERE tool = ?'
+    args = [tool]
+    if user:
+        sql += ' AND user = ?'
+        args.append(user)
+    sql += ' ORDER BY id DESC LIMIT ? OFFSET ?'
+    args.extend([limit, offset])
     conn = connect()
     try:
         rows = _rows(conn, sql, args)
@@ -2706,19 +2786,24 @@ def _daily_note_row(row) -> dict:
     except ValueError:
         tags = []
     data['tags'] = [str(t) for t in tags if str(t).strip()] if isinstance(tags, list) else []
+    try:
+        data['importance'] = max(0, min(2, int(data.get('importance') or 0)))
+    except (TypeError, ValueError):
+        data['importance'] = 0
     data.pop('tags_text', None)
     return data
 
 
-def daily_note_add(user: str, day: str, content: str, tags) -> dict:
+def daily_note_add(user: str, day: str, content: str, tags, importance: int = 0) -> dict:
     clean, blob, index = _daily_tags_parts(tags)
+    importance = max(0, min(2, int(importance or 0)))
     now = now_str()
     conn = connect()
     try:
         cur = conn.execute(
-            'INSERT INTO daily_notes(user, day, content, tags, tags_text, created_at, updated_at) '
-            'VALUES (?,?,?,?,?,?,?)',
-            (user, day, content, blob, index, now, now))
+            'INSERT INTO daily_notes(user, day, content, tags, tags_text, importance, '
+            'created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)',
+            (user, day, content, blob, index, importance, now, now))
         conn.commit()
         rid = cur.lastrowid
     except sqlite3.OperationalError as exc:
@@ -2726,14 +2811,14 @@ def daily_note_add(user: str, day: str, content: str, tags) -> dict:
     finally:
         conn.close()
     return {'id': rid, 'user': user, 'day': day, 'content': content, 'tags': clean,
-            'created_at': now, 'updated_at': now}
+            'importance': importance, 'created_at': now, 'updated_at': now}
 
 
 def daily_note_get(user: str, note_id) -> dict | None:
     conn = connect()
     try:
         row = conn.execute(
-            'SELECT id, user, day, content, tags, created_at, updated_at '
+            'SELECT id, user, day, content, tags, importance, created_at, updated_at '
             'FROM daily_notes WHERE id = ? AND user = ?', (int(note_id), user)).fetchone()
     finally:
         conn.close()
@@ -2741,9 +2826,9 @@ def daily_note_get(user: str, note_id) -> dict | None:
 
 
 def daily_note_list(user: str, day: str = '', q: str = '', tag: str = '',
-                    limit: int = 300) -> list:
+                    limit: int = 300, level=None) -> list:
     limit = max(1, min(int(limit or 300), 500))
-    sql = ('SELECT id, user, day, content, tags, created_at, updated_at '
+    sql = ('SELECT id, user, day, content, tags, importance, created_at, updated_at '
            'FROM daily_notes WHERE user = ?')
     args = [user]
     if day:
@@ -2758,6 +2843,9 @@ def daily_note_list(user: str, day: str = '', q: str = '', tag: str = '',
     if tag:
         sql += ' AND tags_text LIKE ?'
         args.append('%\n' + tag + '\n%')
+    if level is not None:
+        sql += ' AND importance = ?'
+        args.append(max(0, min(2, int(level))))
     sql += ' ORDER BY day DESC, created_at DESC, id DESC LIMIT ?'
     args.append(limit)
     conn = connect()
@@ -2768,14 +2856,16 @@ def daily_note_list(user: str, day: str = '', q: str = '', tag: str = '',
     return [_daily_note_row(row) for row in rows]
 
 
-def daily_note_update(user: str, note_id, day: str, content: str, tags) -> int:
+def daily_note_update(user: str, note_id, day: str, content: str, tags,
+                      importance: int = 0) -> int:
     clean, blob, index = _daily_tags_parts(tags)
+    importance = max(0, min(2, int(importance or 0)))
     conn = connect()
     try:
         cur = conn.execute(
-            'UPDATE daily_notes SET day = ?, content = ?, tags = ?, tags_text = ?, updated_at = ? '
-            'WHERE id = ? AND user = ?',
-            (day, content, blob, index, now_str(), int(note_id), user))
+            'UPDATE daily_notes SET day = ?, content = ?, tags = ?, tags_text = ?, '
+            'importance = ?, updated_at = ? WHERE id = ? AND user = ?',
+            (day, content, blob, index, importance, now_str(), int(note_id), user))
         conn.commit()
         return cur.rowcount
     except sqlite3.OperationalError as exc:
@@ -2799,6 +2889,125 @@ def daily_note_delete(user: str, note_id) -> int:
         conn.close()
 
 
+def daily_note_range(user: str, start_day: str, end_day: str, limit: int = 3000) -> list:
+    """按日期区间取笔记，给日 / 周 / 月分析用；时间正序方便模型阅读。"""
+    limit = max(1, min(int(limit or 3000), 5000))
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT id, user, day, content, tags, importance, created_at, updated_at '
+                           'FROM daily_notes WHERE user = ? AND day >= ? AND day <= ? '
+                           'ORDER BY day ASC, created_at ASC, id ASC LIMIT ?',
+                     (user, start_day, end_day, limit))
+    finally:
+        conn.close()
+    return [_daily_note_row(row) for row in rows]
+
+
+def daily_note_image_period_total(user: str, start_day: str, end_day: str) -> dict:
+    """区间内的图片总数和有图笔记数，不返回图片内容。"""
+    conn = connect()
+    try:
+        row = conn.execute(
+            'SELECT COUNT(*) AS total, COUNT(DISTINCT i.note_id) AS notes '
+            'FROM daily_note_images i JOIN daily_notes n '
+            'ON n.id = i.note_id AND n.user = i.user '
+            'WHERE n.user = ? AND n.day >= ? AND n.day <= ?',
+            (user, start_day, end_day)).fetchone()
+    finally:
+        conn.close()
+    return {'total': int(row['total'] or 0) if row else 0,
+            'notes': int(row['notes'] or 0) if row else 0}
+
+
+def _note_analysis_row(row) -> dict:
+    data = dict(row)
+    try:
+        result = json.loads(data.get('result') or '{}')
+    except ValueError:
+        result = {}
+    data['result'] = result if isinstance(result, dict) else {}
+    data['truncated'] = bool(data.get('truncated'))
+    return data
+
+
+def note_analysis_get(user: str, period: str, period_key: str) -> dict | None:
+    conn = connect()
+    try:
+        row = conn.execute(
+            'SELECT id, user, period, period_key, start_day, end_day, input_hash, '
+            'note_count, truncated, model, result, created_at, updated_at '
+            'FROM note_analyses WHERE user = ? AND period = ? AND period_key = ?',
+            (user, period, period_key)).fetchone()
+    finally:
+        conn.close()
+    return _note_analysis_row(row) if row else None
+
+
+def note_analysis_save(user: str, period: str, period_key: str, start_day: str,
+                       end_day: str, input_hash: str, note_count: int,
+                       truncated: bool, model: str, result: dict) -> dict:
+    now = now_str()
+    payload = json.dumps(result if isinstance(result, dict) else {},
+                         ensure_ascii=False)
+    conn = connect()
+    try:
+        conn.execute(
+            'INSERT INTO note_analyses(user, period, period_key, start_day, end_day, '
+            'input_hash, note_count, truncated, model, result, created_at, updated_at) '
+            'VALUES (?,?,?,?,?,?,?,?,?,?,?,?) '
+            'ON CONFLICT(user, period, period_key) DO UPDATE SET '
+            'start_day = excluded.start_day, end_day = excluded.end_day, '
+            'input_hash = excluded.input_hash, note_count = excluded.note_count, '
+            'truncated = excluded.truncated, model = excluded.model, '
+            'result = excluded.result, updated_at = excluded.updated_at',
+            (user, period, period_key, start_day, end_day, input_hash,
+             int(note_count or 0), 1 if truncated else 0, model, payload, now, now))
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('写入分析失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+    return note_analysis_get(user, period, period_key) or {}
+
+
+def note_analysis_delete(user: str, period: str, period_key: str) -> int:
+    conn = connect()
+    try:
+        cur = conn.execute(
+            'DELETE FROM note_analyses WHERE user = ? AND period = ? AND period_key = ?',
+            (user, period, period_key))
+        conn.commit()
+        return cur.rowcount
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('删除分析失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def note_analysis_usage_add(user: str, day: str, period: str, period_key: str) -> None:
+    conn = connect()
+    try:
+        conn.execute(
+            'INSERT INTO note_analysis_usage(user, day, period, period_key, created_at) '
+            'VALUES (?,?,?,?,?)',
+            (user, day, period, period_key, now_str()))
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        raise StorageUnavailable('记录分析额度失败（文件系统只读？）：%s' % exc) from exc
+    finally:
+        conn.close()
+
+
+def note_analysis_usage_count(user: str, day: str) -> int:
+    conn = connect()
+    try:
+        return int(conn.execute(
+            'SELECT COUNT(*) FROM note_analysis_usage WHERE user = ? AND day = ?',
+            (user, day)).fetchone()[0])
+    finally:
+        conn.close()
+
+
 def daily_note_days(user: str, limit: int = 90) -> list:
     limit = max(1, min(int(limit or 90), 365))
     conn = connect()
@@ -2806,6 +3015,27 @@ def daily_note_days(user: str, limit: int = 90) -> list:
         rows = _rows(conn, 'SELECT day, COUNT(*) AS count FROM daily_notes '
                            'WHERE user = ? GROUP BY day ORDER BY day DESC LIMIT ?',
                      (user, limit))
+    finally:
+        conn.close()
+    return [{'day': row['day'], 'count': int(row['count'] or 0)} for row in rows]
+
+
+def daily_note_month(user: str, month: str) -> list:
+    """某个月每天的记录条数；month 形如 2026-11。"""
+    text = str(month or '')
+    start = text + '-01'
+    year = int(text[:4])
+    mon = int(text[5:7])
+    if mon == 12:
+        end = '%04d-01-01' % (year + 1)
+    else:
+        end = '%04d-%02d-01' % (year, mon + 1)
+    conn = connect()
+    try:
+        rows = _rows(conn, 'SELECT day, COUNT(*) AS count FROM daily_notes '
+                           'WHERE user = ? AND day >= ? AND day < ? '
+                           'GROUP BY day ORDER BY day',
+                     (user, start, end))
     finally:
         conn.close()
     return [{'day': row['day'], 'count': int(row['count'] or 0)} for row in rows]

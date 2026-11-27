@@ -49,7 +49,8 @@ WHY_MAX = 200
 POINT_MAX = 80
 BLANK_MAX = 60
 ACCEPT_MAX = 6
-HISTORY_MAX = 30
+HISTORY_PAGE = 10
+HISTORY_PAGE_MAX = 50
 ATTEMPT_MAX = 20
 
 TYPES = (
@@ -791,14 +792,27 @@ async def quiz_generate(request: Request):
 
 
 @router.get('/quiz/api/quizzes')
-def quiz_list(request: Request):
+def quiz_list(request: Request, page: int = 1, pageSize: int = HISTORY_PAGE):
     user = _user(request)
+    size = max(1, min(int(pageSize or HISTORY_PAGE), HISTORY_PAGE_MAX))
     try:
-        rows = storage.list_records(TOOL, user, HISTORY_MAX)
+        total = storage.count_records(TOOL, user)
+        pages = (total + size - 1) // size if total else 1
+        page = max(1, min(int(page or 1), pages))
+        rows = storage.list_records_page(TOOL, user, size, (page - 1) * size)
     except storage.StorageUnavailable as exc:
         return JSONResponse({'ok': False, 'items': [], 'msg': str(exc)}, status_code=503)
     items = [_summary(row) for row in rows]
-    return JSONResponse({'ok': True, 'items': items})
+    return JSONResponse({
+        'ok': True,
+        'items': items,
+        'page': page,
+        'pageSize': size,
+        'pages': pages,
+        'total': total,
+        'hasPrev': page > 1,
+        'hasNext': page < pages,
+    })
 
 
 @router.get('/quiz/api/quizzes/{rid}')

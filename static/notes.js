@@ -1,10 +1,14 @@
 (function () {
   'use strict';
 
+  var LEVEL_NAMES = ['普通', '重要', '关键'];
+
   var state = {
     day: todayStr(),
+    view: 'notes',
     q: '',
     tag: '',
+    level: '',
     status: null,
     limits: {
       contentMax: 10000,
@@ -20,13 +24,22 @@
     light: null,
     saving: false,
     loadSeq: 0,
+    hmMonth: '',
+    hmSeq: 0,
     searchTimer: 0,
     draftTimer: 0,
     draftHintTimer: 0,
-    toastTimer: 0
+    toastTimer: 0,
+    analysis: {
+      period: 'day',
+      date: todayStr(),
+      data: null,
+      loading: false,
+      generating: false,
+      error: '',
+      seq: 0
+    }
   };
-
-  var HM_WEEKS = 12;
 
   function $(id) {
     return document.getElementById(id);
@@ -41,6 +54,16 @@
 
   function pad(n) {
     return n < 10 ? '0' + n : String(n);
+  }
+
+  function levelName(value) {
+    var index = Number(value);
+    return LEVEL_NAMES[index] || LEVEL_NAMES[0];
+  }
+
+  function syncLevelSelect() {
+    var select = $('levelSelect');
+    if (select) select.setAttribute('data-level', select.value || '0');
   }
 
   function todayStr() {
@@ -75,6 +98,23 @@
     return dayStr(d);
   }
 
+  function monthOf(text) {
+    var value = String(text || '');
+    return /^\d{4}-\d{2}/.test(value) ? value.slice(0, 7) : '';
+  }
+
+  function shiftMonth(month, delta) {
+    if (!/^\d{4}-\d{2}$/.test(month)) return monthOf(todayStr());
+    var total = Number(month.slice(0, 4)) * 12 + Number(month.slice(5, 7)) - 1 + delta;
+    var year = Math.floor(total / 12);
+    var mon = ((total % 12) + 12) % 12 + 1;
+    return year + '-' + pad(mon);
+  }
+
+  function monthLabel(month) {
+    return Number(month.slice(0, 4)) + '年' + Number(month.slice(5, 7)) + '月';
+  }
+
   function weekdayName(d) {
     return ['日', '一', '二', '三', '四', '五', '六'][d.getUTCDay()];
   }
@@ -96,6 +136,43 @@
     var now = new Date();
     var prefix = d.getUTCFullYear() === now.getFullYear() ? '' : d.getUTCFullYear() + '/';
     return prefix + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate());
+  }
+
+  function periodName(period) {
+    return period === 'week' ? '周' : period === 'month' ? '月' : '日';
+  }
+
+  function analysisAnchorLabel(period, anchor) {
+    var d = parseDay(anchor);
+    if (!d) return dayLong(anchor);
+    if (period === 'month') {
+      return d.getUTCFullYear() + '年' + (d.getUTCMonth() + 1) + '月';
+    }
+    if (period === 'week') {
+      var start = new Date(d.getTime());
+      start.setUTCDate(start.getUTCDate() - ((start.getUTCDay() + 6) % 7));
+      var end = new Date(start.getTime());
+      end.setUTCDate(end.getUTCDate() + 6);
+      var head = start.getUTCFullYear() + '年' +
+        (start.getUTCMonth() + 1) + '月' + start.getUTCDate() + '日';
+      var tail = end.getUTCFullYear() === start.getUTCFullYear()
+        ? (end.getUTCMonth() + 1) + '月' + end.getUTCDate() + '日'
+        : end.getUTCFullYear() + '年' + (end.getUTCMonth() + 1) + '月' + end.getUTCDate() + '日';
+      return head + ' - ' + tail;
+    }
+    return dayLong(anchor);
+  }
+
+  function shiftPeriod(period, anchor, delta) {
+    var d = parseDay(anchor);
+    if (!d) return todayStr();
+    if (period === 'month') {
+      d.setUTCDate(1);
+      d.setUTCMonth(d.getUTCMonth() + delta);
+      return dayStr(d);
+    }
+    d.setUTCDate(d.getUTCDate() + (period === 'week' ? delta * 7 : delta));
+    return dayStr(d);
   }
 
   function formatBytes(bytes) {
@@ -232,28 +309,7 @@
     box.textContent = '图片 ' + formatBytes(data.usedBytes) + ' / ' + formatBytes(data.totalBytes);
   }
 
-  function renderDays(days) {
-    var box = $('dayList');
-    box.textContent = '';
-    days = days || [];
-    $('dayCount').textContent = days.length ? days.length + ' 天' : '';
-    if (!days.length) {
-      box.appendChild(el('div', 'side-empty', '还没有记录，从今天开始吧。'));
-      return;
-    }
-    days.forEach(function (item) {
-      var button = el('button', 'day-item' + (item.day === state.day ? ' on' : ''));
-      button.type = 'button';
-      button.title = dayLong(item.day);
-      button.setAttribute('data-day', item.day);
-      button.appendChild(el('span', 'd', dayShort(item.day)));
-      button.appendChild(el('span', 'n', String(item.count || 0)));
-      button.addEventListener('click', function () { selectDay(item.day); });
-      box.appendChild(button);
-    });
-  }
-
-  // 左侧热力图：最近 12 个自然周，记录越多颜色越深。
+  // 左侧月历热力图：一个月一个网格，记录越多颜色越深。
   function heatLevel(count) {
     if (count >= 5) return 4;
     if (count >= 3) return 3;
@@ -262,21 +318,54 @@
     return 0;
   }
 
-  function renderHeatmap(days) {
+  function loadHeatmap(month) {
+    month = /^\d{4}-\d{2}$/.test(String(month || '')) ? month
+      : (state.hmMonth || monthOf(state.day) || monthOf(todayStr()));
+    state.hmMonth = month;
+    var seq = ++state.hmSeq;
+    return api('/notes/api/month?month=' + encodeURIComponent(month)).then(function (data) {
+      if (seq !== state.hmSeq) return;
+      renderHeatmap(data.days || [], data.month || month);
+    }).catch(function () {
+      if (seq !== state.hmSeq) return;
+      renderHeatmap([], month);
+    });
+  }
+
+  function renderHeatmap(days, month) {
     var grid = $('heatmap');
     if (!grid) return;
+    if (!/^\d{4}-\d{2}$/.test(String(month || ''))) {
+      month = state.hmMonth || monthOf(state.day) || monthOf(todayStr());
+    }
+    state.hmMonth = month;
     var counts = {};
     (days || []).forEach(function (item) {
       if (item && isDay(item.day)) counts[item.day] = Number(item.count || 0);
     });
     var today = todayStr();
-    var todayDate = parseDay(today);
-    var mondayOffset = todayDate ? (todayDate.getUTCDay() + 6) % 7 : 0;
-    var start = shiftDay(today, -(mondayOffset + (HM_WEEKS - 1) * 7));
+    var year = Number(month.slice(0, 4));
+    var mon = Number(month.slice(5, 7));
+    var lead = (new Date(Date.UTC(year, mon - 1, 1, 12)).getUTCDay() + 6) % 7;
+    var total = new Date(Date.UTC(year, mon, 0, 12)).getUTCDate();
+    var rows = Math.ceil((lead + total) / 7);
+
+    $('hmMonth').textContent = monthLabel(month);
+    var current = monthOf(today);
+    $('hmNext').disabled = month >= current;
+    $('hmPrev').disabled = month <= '1970-01';
+
     grid.textContent = '';
-    grid.setAttribute('aria-label', dayShort(start) + ' 至 ' + dayShort(today) + ' 的每日记录热力图');
-    for (var i = 0; i < HM_WEEKS * 7; i++) {
-      var day = shiftDay(start, i);
+    grid.setAttribute('aria-label', monthLabel(month) + '每日记录数量');
+    for (var i = 0; i < rows * 7; i++) {
+      var num = i - lead + 1;
+      if (num < 1 || num > total) {
+        var blank = document.createElement('span');
+        blank.className = 'hm-cell is-blank';
+        grid.appendChild(blank);
+        continue;
+      }
+      var day = month + '-' + pad(num);
       var count = counts[day] || 0;
       var level = heatLevel(count);
       var future = day > today;
@@ -287,10 +376,11 @@
       cell.setAttribute('data-level', String(level));
       cell.setAttribute('data-count', String(count));
       cell.disabled = future;
+      cell.textContent = String(num);
       cell.title = dayLong(day) + (future ? ' · 还没到' : ' · ' + (count ? count + ' 条记录' : '没有记录'));
       cell.setAttribute('aria-label', cell.title);
       cell.addEventListener('click', function () {
-        selectDay(this.getAttribute('data-day'));
+        onHeatmapDay(this.getAttribute('data-day'));
       });
       grid.appendChild(cell);
     }
@@ -298,10 +388,16 @@
   }
 
   function markActiveHeatmap() {
+    var active = state.view === 'analysis' ? state.analysis.date : state.day;
     var cells = document.querySelectorAll('.hm-cell[data-day]');
     Array.prototype.forEach.call(cells, function (cell) {
-      cell.classList.toggle('is-sel', cell.getAttribute('data-day') === state.day);
+      cell.classList.toggle('is-sel', cell.getAttribute('data-day') === active);
     });
+  }
+
+  function onHeatmapDay(day) {
+    if (state.view === 'analysis') selectAnalysisDay(day);
+    else selectDay(day);
   }
 
   function renderTags(tags) {
@@ -324,13 +420,6 @@
     });
   }
 
-  function markActiveDay() {
-    var items = document.querySelectorAll('.day-item');
-    Array.prototype.forEach.call(items, function (item) {
-      item.classList.toggle('on', item.getAttribute('data-day') === state.day);
-    });
-  }
-
   function applySearchMode() {
     var on = !!(state.q || state.tag);
     $('layout').classList.toggle('search-mode', on);
@@ -343,7 +432,24 @@
     var parts = [];
     if (state.q) parts.push('文字 “' + state.q + '”');
     if (state.tag) parts.push('标签 “' + state.tag + '”');
+    if (state.level !== '') parts.push('重要程度 “' + levelName(state.level) + '”');
     $('searchText').textContent = '正在搜索 ' + parts.join(' + ');
+  }
+
+  function renderLevelFilter() {
+    var box = $('levelFilter');
+    if (!box) return;
+    Array.prototype.forEach.call(box.querySelectorAll('button'), function (button) {
+      button.classList.toggle('on', button.getAttribute('data-level') === state.level);
+    });
+  }
+
+  function setLevel(value) {
+    value = String(value == null ? '' : value);
+    if (value === state.level) return;
+    state.level = value;
+    renderLevelFilter();
+    loadNotes();
   }
 
   function renderStreak(streak) {
@@ -374,12 +480,10 @@
     return api('/notes/api/status?today=' + encodeURIComponent(todayStr())).then(function (data) {
       state.status = data;
       applyLimits(data);
-      renderDays(data.days || []);
-      renderHeatmap(data.days || []);
+      loadHeatmap(state.hmMonth);
       renderStreak(data.streak || {});
       renderTags(data.tags || []);
       renderUsage(data);
-      $('stat').textContent = data.total ? '共 ' + data.total + ' 条记录' : '';
     });
   }
 
@@ -406,6 +510,7 @@
     var seq = ++state.loadSeq;
     var searching = !!(state.q || state.tag);
     var url = '/notes/api/notes?limit=300';
+    if (state.level !== '') url += '&level=' + encodeURIComponent(state.level);
     if (searching) {
       if (state.q) url += '&q=' + encodeURIComponent(state.q);
       if (state.tag) url += '&tag=' + encodeURIComponent(state.tag);
@@ -431,10 +536,11 @@
     var title = dayLong(state.day);
     $('dayTitle').textContent = title;
     if (!search && state.notes.length) {
-      $('dayTitle').appendChild(el('small', '', state.notes.length + ' 条'));
+      var count = state.notes.length + ' 条';
+      if (state.level !== '') count += ' · ' + levelName(state.level);
+      $('dayTitle').appendChild(el('small', '', count));
     }
     $('composerTitle').textContent = (state.day === todayStr() ? '今天' : dayShort(state.day)) + ' · 写一条';
-    markActiveDay();
     markActiveHeatmap();
   }
 
@@ -446,12 +552,26 @@
     if (!state.notes.length) {
       var empty = el('div', 'empty');
       if (search) {
-        empty.appendChild(el('div', '', '没有找到匹配的记录。'));
+        var miss = state.level !== ''
+          ? '没有找到「' + levelName(state.level) + '」的匹配记录。'
+          : '没有找到匹配的记录。';
+        empty.appendChild(el('div', '', miss));
         var clear = el('button', 'btn sm ghost', '清除筛选');
         clear.type = 'button';
         clear.style.marginTop = '10px';
-        clear.addEventListener('click', clearSearch);
+        clear.addEventListener('click', function () {
+          state.level = '';
+          renderLevelFilter();
+          clearSearch();
+        });
         empty.appendChild(clear);
+      } else if (state.level !== '') {
+        empty.appendChild(el('div', '', '这一天没有「' + levelName(state.level) + '」的记录。'));
+        var all = el('button', 'btn sm ghost', '显示全部');
+        all.type = 'button';
+        all.style.marginTop = '10px';
+        all.addEventListener('click', function () { setLevel(''); });
+        empty.appendChild(all);
       } else {
         empty.appendChild(el('div', '', '这一天还没有记录。'));
         var write = el('button', 'btn sm', '写第一条');
@@ -481,6 +601,10 @@
     head.appendChild(el('span', 'note-time', String(note.createdAt || '').slice(11, 16)));
     if (note.updatedAt && note.createdAt && note.updatedAt !== note.createdAt) {
       head.appendChild(el('span', 'note-edited', '已编辑'));
+    }
+    var importance = Number(note.importance || 0);
+    if (importance > 0) {
+      head.appendChild(el('span', 'note-level lv' + importance, levelName(importance)));
     }
     var actions = el('div', 'note-actions');
     var edit = el('button', 'act', '编辑');
@@ -565,7 +689,10 @@
       return;
     }
     persistDraft();
+    var targetMonth = monthOf(day);
+    var monthChanged = targetMonth !== state.hmMonth;
     state.day = day;
+    state.hmMonth = targetMonth;
     state.q = '';
     state.tag = '';
     $('searchInput').value = '';
@@ -574,6 +701,7 @@
     applySearchMode();
     updateURLDay(day);
     updateDayHeader();
+    if (monthChanged) loadHeatmap(targetMonth);
     renderTags(state.status ? state.status.tags || [] : []);
     loadNotes();
   }
@@ -620,7 +748,9 @@
       if (!raw) return null;
       var data = JSON.parse(raw);
       if (!data || typeof data !== 'object') return null;
-      return { text: String(data.text || ''), tags: String(data.tags || '') };
+      var level = String(data.level == null ? '0' : data.level);
+      if (!/^[0-2]$/.test(level)) level = '0';
+      return { text: String(data.text || ''), tags: String(data.tags || ''), level: level };
     } catch (e) {
       return null;
     }
@@ -630,6 +760,8 @@
     var data = readDraft(day);
     $('noteText').value = data ? data.text : '';
     $('tagInput').value = data ? data.tags : '';
+    $('levelSelect').value = data ? data.level : '0';
+    syncLevelSelect();
     if (data && (data.text || data.tags)) {
       showDraftHint('已恢复草稿');
     } else {
@@ -641,11 +773,12 @@
   function persistDraft() {
     var text = $('noteText').value;
     var tags = $('tagInput').value;
+    var level = $('levelSelect').value || '0';
     try {
       if (!text.trim() && !tags.trim()) {
         localStorage.removeItem(draftKey(state.day));
       } else {
-        localStorage.setItem(draftKey(state.day), JSON.stringify({ text: text, tags: tags }));
+        localStorage.setItem(draftKey(state.day), JSON.stringify({ text: text, tags: tags, level: level }));
         showDraftHint('已自动保存草稿');
       }
     } catch (e) {
@@ -882,6 +1015,7 @@
     form.append('content', text);
     form.append('day', state.day);
     form.append('tags', JSON.stringify(tags));
+    form.append('importance', $('levelSelect').value || '0');
     state.queue.forEach(function (item, index) {
       form.append('images', item.blob, item.name || ('image-' + (index + 1) + '.webp'));
     });
@@ -893,6 +1027,8 @@
     }).then(function () {
       $('noteText').value = '';
       $('tagInput').value = '';
+      $('levelSelect').value = '0';
+      syncLevelSelect();
       clearQueue();
       removeDraft(state.day);
       $('draftHint').classList.remove('show');
@@ -954,6 +1090,7 @@
     state.edit = ed;
     $('editText').value = note.content || '';
     $('editDay').value = note.day || state.day;
+    $('editImportance').value = String(note.importance || 0);
     $('editTags').value = (note.tags || []).join(' ');
     $('editErr').hidden = true;
     $('editErr').textContent = '';
@@ -1083,6 +1220,7 @@
     form.append('content', text);
     form.append('day', day);
     form.append('tags', JSON.stringify(tags));
+    form.append('importance', $('editImportance').value || '0');
     form.append('removeImages', JSON.stringify(removeIds));
     ed.newItems.forEach(function (item, index) {
       form.append('images', item.blob, item.name || ('image-' + (index + 1) + '.webp'));
@@ -1144,6 +1282,639 @@
     $('lightImg').removeAttribute('src');
   }
 
+  // ---------------- AI 分析 ----------------
+  function syncAnalysisPeriods() {
+    var buttons = document.querySelectorAll('#analysisPeriods button');
+    Array.prototype.forEach.call(buttons, function (button) {
+      button.classList.toggle('on', button.getAttribute('data-period') === state.analysis.period);
+    });
+  }
+
+  function resetDeleteButton() {
+    var button = $('analysisDelete');
+    if (!button) return;
+    button.disabled = false;
+    button.removeAttribute('data-armed');
+    button.classList.remove('confirm');
+    button.textContent = '删除结果';
+  }
+
+  function analysisText(data) {
+    var a = data && data.analysis;
+    if (!a) return '';
+    var lines = [data.label + ' · ' + (data.periodName || periodName(data.period))];
+    if (a.headline) lines.push('', a.headline);
+    if (a.summary) lines.push('', a.summary);
+    if (a.strengths && a.strengths.length) {
+      lines.push('', '【做得好的地方】');
+      a.strengths.forEach(function (item) {
+        lines.push('- ' + item.title +
+          (item.evidence ? '：' + item.evidence : '') +
+          (item.day ? '（' + item.day + '）' : ''));
+      });
+    }
+    if (a.gaps && a.gaps.length) {
+      lines.push('', '【不足与卡点】');
+      a.gaps.forEach(function (item) {
+        lines.push('- ' + item.title +
+          (item.evidence ? '：' + item.evidence : '') +
+          (item.impact ? '（影响：' + item.impact + '）' : ''));
+      });
+    }
+    if (a.improvements && a.improvements.length) {
+      lines.push('', '【怎么改进】');
+      a.improvements.forEach(function (item) {
+        lines.push('- ' + item.action +
+          (item.how ? '：' + item.how : '') +
+          (item.why ? '（依据：' + item.why + '）' : ''));
+      });
+    }
+    var plan = a.nextPlan || {};
+    if (plan.focus || (plan.adjustments && plan.adjustments.length) ||
+        (plan.actions && plan.actions.length)) {
+      lines.push('', '【下一步计划' + (plan.label ? ' · ' + plan.label : '') + '】');
+      if (plan.focus) lines.push('重点：' + plan.focus);
+      (plan.adjustments || []).forEach(function (item) { lines.push('- ' + item); });
+      (plan.actions || []).forEach(function (item, index) {
+        lines.push((index + 1) + '. ' + item.action +
+          (item.when ? ' · ' + item.when : '') +
+          (item.why ? '（依据：' + item.why + '）' : ''));
+      });
+    }
+    if (a.connections && a.connections.length) {
+      lines.push('', '【与过去记录的关联】');
+      a.connections.forEach(function (item) {
+        lines.push('- ' + (item.currentDay || '') + ' ' + (item.current || '') +
+          ' ↔ ' + (item.pastDay || '') + ' ' + (item.past || '') +
+          (item.relation ? '；关联：' + item.relation : '') +
+          (item.suggestion ? '；可以怎么用：' + item.suggestion : ''));
+      });
+    }
+    if (a.highlights && a.highlights.length) {
+      lines.push('', '【值得回看】');
+      a.highlights.forEach(function (item) {
+        lines.push('- ' + (item.day ? item.day + ' ' : '') + (item.title || '') +
+          (item.detail ? '：' + item.detail : ''));
+      });
+    }
+    if (a.themes && a.themes.length) {
+      lines.push('', '【主题】');
+      a.themes.forEach(function (item) {
+        lines.push('- ' + item.name + (item.count ? '（' + item.count + '）' : '') +
+          (item.note ? '：' + item.note : ''));
+      });
+    }
+    if (a.blockers && a.blockers.length) {
+      lines.push('', '【卡点】');
+      a.blockers.forEach(function (item) { lines.push('- ' + item); });
+    }
+    if (a.patterns && a.patterns.length) {
+      lines.push('', '【反复出现的模式】');
+      a.patterns.forEach(function (item) { lines.push('- ' + item); });
+    }
+    if (a.suggestions && a.suggestions.length) {
+      lines.push('', '【建议】');
+      a.suggestions.forEach(function (item, index) {
+        lines.push((index + 1) + '. ' + item.action +
+          (item.why ? '（' + item.why + '）' : '') +
+          (item.when ? ' · ' + item.when : ''));
+      });
+    }
+    if (a.questions && a.questions.length) {
+      lines.push('', '【可以继续想】');
+      a.questions.forEach(function (item) { lines.push('- ' + item); });
+    }
+    return lines.join('\n');
+  }
+
+  function analysisStat(label, value) {
+    var box = el('div', 'an-stat');
+    box.appendChild(el('b', '', value));
+    box.appendChild(el('span', '', label));
+    return box;
+  }
+
+  function analysisSection(title, children) {
+    var section = el('div', 'an-section');
+    section.appendChild(el('h3', '', title));
+    (children || []).forEach(function (node) { section.appendChild(node); });
+    return section;
+  }
+
+  function analysisList(title, items) {
+    if (!items || !items.length) return null;
+    var list = el('ul', 'an-list');
+    items.forEach(function (item) { list.appendChild(el('li', '', item)); });
+    return analysisSection(title, [list]);
+  }
+
+  function renderAnalysisBody() {
+    var box = $('analysisBody');
+    var data = state.analysis.data;
+    box.textContent = '';
+
+    if (state.analysis.error && !data) {
+      var error = el('div', 'errorbox');
+      error.appendChild(el('div', '', state.analysis.error));
+      var retry = el('button', 'btn sm', '重试');
+      retry.type = 'button';
+      retry.style.marginTop = '8px';
+      retry.addEventListener('click', loadAnalysis);
+      error.appendChild(retry);
+      box.appendChild(error);
+      return;
+    }
+    if (state.analysis.loading && !data) {
+      box.appendChild(el('div', 'an-loading', '正在读取这段记录……'));
+      return;
+    }
+    if (!data) {
+      box.appendChild(el('div', 'an-empty', '选择周期后点「生成分析」。'));
+      return;
+    }
+
+    if (data.meta && data.meta.stale) {
+      var notice = el('div', 'an-notice');
+      notice.appendChild(el('span', '', '这期间笔记有新增或修改，当前显示的是上次的分析。'));
+      var refresh = el('button', 'btn sm', '重新分析');
+      refresh.type = 'button';
+      refresh.disabled = !data.aiReady ||
+        !!(data.quota && Number(data.quota.remaining || 0) <= 0) ||
+        !!(data.stats && !data.stats.textCount);
+      refresh.addEventListener('click', function () { generateAnalysis(true); });
+      notice.appendChild(refresh);
+      box.appendChild(notice);
+    }
+    if (data.analysis && data.analysis.degraded) {
+      box.appendChild(el('div', 'an-notice',
+        '模型这次返回的不是标准结构，下面按纯文本展示；可以重新分析一次。'));
+    }
+    if (data.coverage && data.coverage.truncated) {
+      var coverage = data.coverage;
+      box.appendChild(el('div', 'an-notice',
+        '记录比较多，这次只选了 ' + Number(coverage.included || 0) + ' / ' +
+        Number(coverage.total || 0) + ' 条文字记录交给模型；结论可能没覆盖全部内容。'));
+    }
+    if (data.coverage && data.coverage.history && data.coverage.history.available) {
+      var historyCoverage = data.coverage.history;
+      box.appendChild(el('div', 'an-notice',
+        '关联检索：从 ' + Number(historyCoverage.available || 0) +
+        ' 条更早的文字记录中选了 ' + Number(historyCoverage.included || 0) +
+        ' 条可能相关的候选交给模型。'));
+    }
+
+    if (!data.analysis) {
+      var empty = el('div', 'an-empty');
+      if (!data.aiReady) {
+        empty.appendChild(el('b', '', '服务端还没有配置文本模型'));
+        empty.appendChild(el('div', '', data.missingHint ||
+          '在服务端配置 DEEPSEEK_API_KEY 后即可使用分析。'));
+      } else if (!data.stats || !data.stats.textCount) {
+        empty.appendChild(el('b', '', '这个周期还没有文字记录'));
+        empty.appendChild(el('div', '', '先写一点内容，再回来生成分析。图片只会统计数量，不读取内容。'));
+      } else {
+        empty.appendChild(el('b', '', '还没有生成' + periodName(data.period) + '分析'));
+        empty.appendChild(el('div', '',
+          '生成时会把这段时间的笔记文字发送给模型，图片只统计数量。结果只保存在自己的账号里。'));
+        var make = el('button', 'btn primary sm', '生成' + periodName(data.period) + '分析');
+        make.type = 'button';
+        make.addEventListener('click', function () { generateAnalysis(false); });
+        empty.appendChild(make);
+      }
+      box.appendChild(empty);
+      return;
+    }
+
+    var a = data.analysis;
+    box.appendChild(el('h2', 'an-headline', a.headline || '这段记录的分析'));
+    if (a.summary) box.appendChild(el('p', 'an-summary', a.summary));
+
+    var stats = data.stats || {};
+    var statsBox = el('div', 'an-stats');
+    statsBox.appendChild(analysisStat('条记录', Number(stats.noteCount || 0)));
+    statsBox.appendChild(analysisStat('有记录天数', Number(stats.activeDays || 0)));
+    statsBox.appendChild(analysisStat('重要 / 关键',
+      Number((stats.importance && stats.importance.important) || 0) + ' / ' +
+      Number((stats.importance && stats.importance.critical) || 0)));
+    statsBox.appendChild(analysisStat('图片', Number(stats.imageCount || 0)));
+    box.appendChild(statsBox);
+
+    if (stats.daily && stats.daily.length > 1) {
+      var chart = el('div', 'an-chart');
+      var max = 1;
+      stats.daily.forEach(function (item) { max = Math.max(max, Number(item.count || 0)); });
+      stats.daily.forEach(function (item) {
+        var count = Number(item.count || 0);
+        var bar = el('span', 'an-chart-bar' + (count ? '' : ' zero'));
+        bar.style.height = count ? Math.max(8, Math.round(count / max * 100)) + '%' : '2px';
+        bar.title = item.day + ' · ' + count + ' 条';
+        bar.setAttribute('aria-hidden', 'true');
+        chart.appendChild(bar);
+      });
+      box.appendChild(chart);
+    }
+
+    if (stats.tags && stats.tags.length) {
+      var tags = el('div', 'an-tags');
+      stats.tags.forEach(function (item) {
+        tags.appendChild(el('span', 'an-tag', '#' + item.name + ' ' + item.count));
+      });
+      box.appendChild(tags);
+    }
+
+    if (a.strengths && a.strengths.length) {
+      var strengths = el('div', '');
+      a.strengths.forEach(function (item) {
+        var card = el('div', 'an-highlight');
+        var head = el('div', 'an-highlight-head');
+        if (item.day) head.appendChild(el('span', 'an-day', item.day));
+        head.appendChild(el('span', 'an-highlight-title', item.title || '做得好的地方'));
+        card.appendChild(head);
+        if (item.evidence) card.appendChild(el('div', 'an-highlight-detail', '依据：' + item.evidence));
+        strengths.appendChild(card);
+      });
+      box.appendChild(analysisSection('做得好的地方', [strengths]));
+    }
+
+    if (a.gaps && a.gaps.length) {
+      var gaps = el('div', '');
+      a.gaps.forEach(function (item) {
+        var card = el('div', 'an-highlight');
+        card.appendChild(el('span', 'an-highlight-title', item.title || '不足或卡点'));
+        if (item.evidence) card.appendChild(el('div', 'an-highlight-detail', '依据：' + item.evidence));
+        if (item.impact) card.appendChild(el('div', 'an-suggest-why', '影响：' + item.impact));
+        gaps.appendChild(card);
+      });
+      box.appendChild(analysisSection('不足与卡点', [gaps]));
+    }
+
+    if (a.improvements && a.improvements.length) {
+      var improvements = el('div', '');
+      a.improvements.forEach(function (item) {
+        var card = el('div', 'an-suggest');
+        card.appendChild(el('div', 'an-suggest-action', item.action));
+        if (item.how) card.appendChild(el('div', 'an-suggest-how', '做法：' + item.how));
+        if (item.why) card.appendChild(el('div', 'an-suggest-why', '依据：' + item.why));
+        improvements.appendChild(card);
+      });
+      box.appendChild(analysisSection('怎么改进', [improvements]));
+    }
+
+    var plan = a.nextPlan || {};
+    if (plan.focus || (plan.adjustments && plan.adjustments.length) ||
+        (plan.actions && plan.actions.length)) {
+      var planBox = el('div', '');
+      if (plan.focus) {
+        var focus = el('div', 'an-next-focus');
+        focus.appendChild(el('span', 'an-next-label', plan.label || '下一步'));
+        focus.appendChild(document.createTextNode(' ' + plan.focus));
+        planBox.appendChild(focus);
+      }
+      if (plan.adjustments && plan.adjustments.length) {
+        var adjustList = el('ul', 'an-list');
+        plan.adjustments.forEach(function (item) { adjustList.appendChild(el('li', '', item)); });
+        planBox.appendChild(adjustList);
+      }
+      (plan.actions || []).forEach(function (item) {
+        var card = el('div', 'an-suggest');
+        var action = el('div', 'an-suggest-action', item.action);
+        if (item.when) action.appendChild(el('span', 'an-when', item.when));
+        card.appendChild(action);
+        if (item.why) card.appendChild(el('div', 'an-suggest-why', '依据：' + item.why));
+        planBox.appendChild(card);
+      });
+      box.appendChild(analysisSection('下一步计划', [planBox]));
+    }
+
+    if (a.connections && a.connections.length) {
+      var connections = el('div', '');
+      a.connections.forEach(function (item) {
+        var card = el('div', 'an-conn');
+        var head = el('div', 'an-conn-head');
+        if (item.currentDay) head.appendChild(el('span', 'an-day', '当前 ' + item.currentDay));
+        if (item.pastDay) head.appendChild(el('span', 'an-day', '过去 ' + item.pastDay));
+        card.appendChild(head);
+        if (item.current) {
+          var currentRow = el('div', 'an-conn-row');
+          currentRow.appendChild(el('span', 'an-conn-key', '当前'));
+          currentRow.appendChild(el('span', 'an-conn-text', item.current));
+          card.appendChild(currentRow);
+        }
+        if (item.past) {
+          var pastRow = el('div', 'an-conn-row');
+          pastRow.appendChild(el('span', 'an-conn-key', '过去'));
+          pastRow.appendChild(el('span', 'an-conn-text', item.past));
+          card.appendChild(pastRow);
+        }
+        if (item.relation) card.appendChild(el('div', 'an-conn-relation', '关联：' + item.relation));
+        if (item.suggestion) {
+          card.appendChild(el('div', 'an-conn-suggest', '可以怎么用：' + item.suggestion));
+        }
+        connections.appendChild(card);
+      });
+      box.appendChild(analysisSection('与过去记录的关联', [connections]));
+    }
+
+    if (a.highlights && a.highlights.length) {
+      var highlights = el('div', '');
+      a.highlights.forEach(function (item) {
+        var card = el('div', 'an-highlight');
+        var head = el('div', 'an-highlight-head');
+        if (item.day) head.appendChild(el('span', 'an-day', item.day));
+        if (item.title) head.appendChild(el('span', 'an-highlight-title', item.title));
+        var level = Number(item.importance || 0);
+        if (level > 0) head.appendChild(el('span', 'note-level lv' + level, levelName(level)));
+        card.appendChild(head);
+        if (item.detail) card.appendChild(el('div', 'an-highlight-detail', item.detail));
+        highlights.appendChild(card);
+      });
+      box.appendChild(analysisSection('值得回看', [highlights]));
+    }
+
+    if (a.themes && a.themes.length) {
+      var themes = el('div', '');
+      a.themes.forEach(function (item) {
+        var row = el('div', 'an-theme');
+        row.appendChild(el('span', 'an-theme-name', item.name));
+        if (item.count) row.appendChild(el('span', 'an-theme-count', item.count + ' 次'));
+        if (item.note) row.appendChild(el('span', 'an-theme-note', item.note));
+        themes.appendChild(row);
+      });
+      box.appendChild(analysisSection('主题', [themes]));
+    }
+
+    var blockers = analysisList('卡点', a.blockers);
+    if (blockers) box.appendChild(blockers);
+    var patterns = analysisList('反复出现的模式', a.patterns);
+    if (patterns) box.appendChild(patterns);
+
+    if (a.suggestions && a.suggestions.length) {
+      var suggestions = el('div', '');
+      a.suggestions.forEach(function (item) {
+        var card = el('div', 'an-suggest');
+        var action = el('div', 'an-suggest-action', item.action);
+        if (item.when) action.appendChild(el('span', 'an-when', item.when));
+        card.appendChild(action);
+        if (item.why) card.appendChild(el('div', 'an-suggest-why', item.why));
+        suggestions.appendChild(card);
+      });
+      box.appendChild(analysisSection('下一步', [suggestions]));
+    }
+
+    var questions = analysisList('可以继续想', a.questions);
+    if (questions) box.appendChild(questions);
+
+    box.appendChild(el('div', 'an-foot',
+      '分析由模型根据你主动发送的笔记文字生成，可能有偏差；图片只统计数量，没有读取内容。' +
+      '结果只保存在自己的账号里，可随时删除。'));
+  }
+
+  function renderAnalysis() {
+    syncAnalysisPeriods();
+    $('analysisDate').value = state.analysis.date;
+    var data = state.analysis.data;
+    $('analysisTitle').textContent = data && data.label
+      ? data.label
+      : analysisAnchorLabel(state.analysis.period, state.analysis.date);
+
+    var meta = [];
+    if (state.analysis.loading) meta.push('正在读取……');
+    if (state.analysis.generating) meta.push('正在阅读记录并分析……');
+    if (data && data.stats) {
+      meta.push(Number(data.stats.noteCount || 0) + ' 条记录');
+      meta.push('有记录 ' + Number(data.stats.activeDays || 0) + ' 天');
+    }
+    if (data && data.meta && data.meta.partial) {
+      meta.push('阶段性分析 · 截至 ' + String(data.meta.asOf || '').slice(5));
+    }
+    if (data && data.meta && data.meta.generatedAt) {
+      meta.push('上次生成 ' + String(data.meta.generatedAt).slice(0, 16));
+    }
+    if (data && data.quota) {
+      meta.push('今日剩余 ' + Number(data.quota.remaining || 0) + ' / ' +
+        Number(data.quota.dailyLimit || 0) + ' 次');
+    }
+    $('analysisMeta').textContent = meta.join(' · ');
+
+    var hasAnalysis = !!(data && data.analysis);
+    $('analysisAsk').hidden = !hasAnalysis;
+    $('analysisCopy').hidden = !hasAnalysis;
+    $('analysisDelete').hidden = !hasAnalysis;
+    $('analysisGenerate').textContent = state.analysis.generating
+      ? '分析中…' : (hasAnalysis ? '重新分析' : '生成分析');
+    $('analysisGenerate').disabled = state.analysis.loading ||
+      state.analysis.generating ||
+      !!(data && !data.aiReady) ||
+      !!(data && data.quota && Number(data.quota.remaining || 0) <= 0) ||
+      !!(data && data.stats && !data.stats.textCount);
+
+    document.querySelectorAll('#viewSwitch button').forEach(function (button) {
+      var on = button.getAttribute('data-view') === state.view;
+      button.classList.toggle('on', on);
+      button.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    markActiveHeatmap();
+    renderAnalysisBody();
+  }
+
+  function loadAnalysis() {
+    var seq = ++state.analysis.seq;
+    state.analysis.loading = true;
+    state.analysis.error = '';
+    renderAnalysis();
+    var url = '/notes/api/analysis?period=' + encodeURIComponent(state.analysis.period) +
+      '&date=' + encodeURIComponent(state.analysis.date);
+    return api(url).then(function (data) {
+      if (seq !== state.analysis.seq) return;
+      state.analysis.data = data;
+      state.analysis.loading = false;
+      resetDeleteButton();
+      renderAnalysis();
+    }).catch(function (err) {
+      if (seq !== state.analysis.seq) return;
+      state.analysis.loading = false;
+      state.analysis.data = null;
+      state.analysis.error = err.message || '分析加载失败。';
+      renderAnalysis();
+    });
+  }
+
+  function generateAnalysis(force) {
+    if (state.analysis.loading || state.analysis.generating) return;
+    state.analysis.generating = true;
+    state.analysis.error = '';
+    renderAnalysis();
+    api('/notes/api/analysis', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        period: state.analysis.period,
+        date: state.analysis.date,
+        force: !!force
+      })
+    }).then(function (data) {
+      state.analysis.generating = false;
+      state.analysis.data = data;
+      resetDeleteButton();
+      renderAnalysis();
+      toast((data.meta && data.meta.message) || '分析完成。');
+    }).catch(function (err) {
+      state.analysis.generating = false;
+      renderAnalysis();
+      toast(err.message || '分析失败。', true);
+    });
+  }
+
+  function copyAnalysis() {
+    var text = analysisText(state.analysis.data);
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        toast('分析已复制。');
+      }).catch(function () {
+        toast('复制失败，请手动选择文字。', true);
+      });
+      return;
+    }
+    var area = document.createElement('textarea');
+    area.value = text;
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    try {
+      document.execCommand('copy');
+      toast('分析已复制。');
+    } catch (e) {
+      toast('复制失败，请手动选择文字。', true);
+    }
+    document.body.removeChild(area);
+  }
+
+  function askAnalysis() {
+    var data = state.analysis.data;
+    var a = data && data.analysis;
+    if (!a) return;
+    if (!window.TBQuickAI || typeof window.TBQuickAI.open !== 'function') {
+      toast('全站 AI 助手还没加载好，稍后再试。', true);
+      return;
+    }
+    var lines = ['我有一份' + periodName(data.period) + '的笔记分析（' + data.label + '）：'];
+    if (a.headline) lines.push('结论：' + a.headline);
+    if (a.summary) lines.push('总结：' + a.summary);
+    if (a.strengths && a.strengths.length) {
+      lines.push('做得好的地方：');
+      a.strengths.forEach(function (item) {
+        lines.push('- ' + (item.title || '') + (item.evidence ? '：' + item.evidence : ''));
+      });
+    }
+    if (a.gaps && a.gaps.length) {
+      lines.push('不足与卡点：');
+      a.gaps.forEach(function (item) {
+        lines.push('- ' + (item.title || '') + (item.evidence ? '：' + item.evidence : ''));
+      });
+    }
+    if (a.improvements && a.improvements.length) {
+      lines.push('改进方向：');
+      a.improvements.forEach(function (item) {
+        lines.push('- ' + (item.action || '') + (item.how ? '：' + item.how : ''));
+      });
+    }
+    var plan = a.nextPlan || {};
+    if (plan.focus || (plan.actions && plan.actions.length)) {
+      lines.push('下一步计划' + (plan.label ? '（' + plan.label + '）' : '') + '：');
+      if (plan.focus) lines.push('重点：' + plan.focus);
+      (plan.actions || []).forEach(function (item, index) {
+        lines.push((index + 1) + '. ' + (item.action || '') +
+          (item.when ? '（' + item.when + '）' : ''));
+      });
+    }
+    if (a.connections && a.connections.length) {
+      lines.push('与过去记录的关联：');
+      a.connections.forEach(function (item) {
+        lines.push('- ' + (item.currentDay || '') + ' ↔ ' + (item.pastDay || '') +
+          '：' + (item.relation || ''));
+      });
+    }
+    lines.push('请基于这些结论，帮我把下一步排个优先级，指出我可能忽略的地方，' +
+      '再补充一些我没注意到的、当前和过去记录之间的联系。');
+    window.TBQuickAI.open(lines.join('\n').slice(0, 2500));
+  }
+
+  function deleteAnalysis() {
+    var data = state.analysis.data;
+    if (!data || !data.analysis) return;
+    var button = $('analysisDelete');
+    if (button.getAttribute('data-armed') !== '1') {
+      button.setAttribute('data-armed', '1');
+      button.classList.add('confirm');
+      button.textContent = '确认删除';
+      setTimeout(resetDeleteButton, 3200);
+      return;
+    }
+    button.disabled = true;
+    button.textContent = '删除中…';
+    var url = '/notes/api/analysis?period=' + encodeURIComponent(state.analysis.period) +
+      '&date=' + encodeURIComponent(state.analysis.date);
+    api(url, { method: 'DELETE' }).then(function () {
+      toast('这份分析已删除。');
+      state.analysis.data = null;
+      return loadAnalysis();
+    }).catch(function (err) {
+      resetDeleteButton();
+      toast(err.message || '删除失败。', true);
+    });
+  }
+
+  function setAnalysisPeriod(period) {
+    if (period !== 'day' && period !== 'week' && period !== 'month') return;
+    if (state.analysis.period === period) return;
+    state.analysis.period = period;
+    state.analysis.data = null;
+    state.analysis.error = '';
+    syncAnalysisPeriods();
+    loadAnalysis();
+  }
+
+  function setAnalysisDate(day) {
+    if (!isDay(day)) return;
+    if (state.analysis.date === day && state.analysis.data) {
+      $('analysisDate').value = day;
+      return;
+    }
+    state.analysis.date = day;
+    state.analysis.data = null;
+    state.analysis.error = '';
+    $('analysisDate').value = day;
+    var targetMonth = monthOf(day);
+    if (targetMonth !== state.hmMonth) {
+      state.hmMonth = targetMonth;
+      loadHeatmap(targetMonth);
+    }
+    markActiveHeatmap();
+    loadAnalysis();
+  }
+
+  function selectAnalysisDay(day) {
+    setAnalysisDate(day);
+  }
+
+  function switchView(view) {
+    if (view !== 'notes' && view !== 'analysis') return;
+    if (state.view === view) return;
+    if (state.view === 'notes') persistDraft();
+    state.view = view;
+    document.body.classList.toggle('view-analysis', view === 'analysis');
+    $('analysisView').hidden = view !== 'analysis';
+    if (view === 'analysis') {
+      $('analysisDate').value = state.analysis.date;
+      markActiveHeatmap();
+      loadAnalysis();
+    } else {
+      updateDayHeader();
+    }
+  }
+
   // ---------------- 初始化与事件 ----------------
   function bindEvents() {
     $('saveBtn').addEventListener('click', saveNew);
@@ -1154,6 +1925,15 @@
     $('tagInput').addEventListener('input', function () {
       scheduleDraft();
       updateSaveState();
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#levelFilter button'), function (button) {
+      button.addEventListener('click', function () {
+        setLevel(button.getAttribute('data-level') || '');
+      });
+    });
+    $('levelSelect').addEventListener('change', function () {
+      syncLevelSelect();
+      scheduleDraft();
     });
     $('imgBtn').addEventListener('click', function () { $('fileInput').click(); });
     $('fileInput').addEventListener('change', function () {
@@ -1196,7 +1976,18 @@
 
     $('prevDay').addEventListener('click', function () { selectDay(shiftDay(state.day, -1)); });
     $('nextDay').addEventListener('click', function () { selectDay(shiftDay(state.day, 1)); });
-    $('todayBtn').addEventListener('click', function () { selectDay(todayStr()); });
+    $('hmPrev').addEventListener('click', function () {
+      var month = shiftMonth(state.hmMonth || monthOf(todayStr()), -1);
+      if (month >= '1970-01') loadHeatmap(month);
+    });
+    $('hmNext').addEventListener('click', function () {
+      var month = shiftMonth(state.hmMonth || monthOf(todayStr()), 1);
+      if (month <= monthOf(todayStr())) loadHeatmap(month);
+    });
+    $('todayBtn').addEventListener('click', function () {
+      if (state.view === 'analysis') setAnalysisDate(todayStr());
+      else selectDay(todayStr());
+    });
     $('dayInput').addEventListener('change', function () {
       if (isDay(this.value)) selectDay(this.value);
       else this.value = state.day;
@@ -1244,6 +2035,36 @@
       $('lightImg').removeAttribute('src');
     });
 
+    Array.prototype.forEach.call(document.querySelectorAll('#viewSwitch button'), function (button) {
+      button.addEventListener('click', function () {
+        switchView(button.getAttribute('data-view'));
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#analysisPeriods button'), function (button) {
+      button.addEventListener('click', function () {
+        setAnalysisPeriod(button.getAttribute('data-period'));
+      });
+    });
+    $('analysisPrev').addEventListener('click', function () {
+      setAnalysisDate(shiftPeriod(state.analysis.period, state.analysis.date, -1));
+    });
+    $('analysisNext').addEventListener('click', function () {
+      setAnalysisDate(shiftPeriod(state.analysis.period, state.analysis.date, 1));
+    });
+    $('analysisToday').addEventListener('click', function () {
+      setAnalysisDate(todayStr());
+    });
+    $('analysisDate').addEventListener('change', function () {
+      if (isDay(this.value)) setAnalysisDate(this.value);
+      else this.value = state.analysis.date;
+    });
+    $('analysisGenerate').addEventListener('click', function () {
+      generateAnalysis(!!(state.analysis.data && state.analysis.data.analysis));
+    });
+    $('analysisAsk').addEventListener('click', askAnalysis);
+    $('analysisCopy').addEventListener('click', copyAnalysis);
+    $('analysisDelete').addEventListener('click', deleteAnalysis);
+
     window.addEventListener('beforeunload', persistDraft);
     window.addEventListener('popstate', function () {
       var day = readURLDay();
@@ -1272,10 +2093,15 @@
 
   function init() {
     state.day = readURLDay() || todayStr();
+    state.hmMonth = monthOf(state.day);
+    state.analysis.date = state.day;
     bindEvents();
+    renderLevelFilter();
     $('dayInput').value = state.day;
+    $('analysisDate').value = state.analysis.date;
     updateURLDay(state.day);
     updateDayHeader();
+    renderAnalysis();
     loadDraft(state.day);
     updateSaveState();
     applySearchMode();

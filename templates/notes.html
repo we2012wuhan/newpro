@@ -74,48 +74,154 @@ h1 .streak{font-size:12px;font-weight:600;letter-spacing:0;color:var(--acc);
   box-shadow:var(--tb-glow-soft);padding:13px}
 .panel-title{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.02em;
   display:flex;align-items:center;justify-content:space-between;margin:0 0 8px}
-.day-list{display:flex;flex-direction:column;gap:4px;max-height:380px;overflow:auto;padding-right:2px}
-.day-item{display:flex;align-items:center;gap:8px;width:100%;border:1px solid transparent;
-  background:transparent;color:var(--text);border-radius:10px;padding:8px 9px;cursor:pointer;
-  font-size:13.5px;text-align:left;line-height:1.3}
-.day-item:hover{background:var(--tb-hover);color:var(--ink)}
-.day-item.on{background:var(--acc-l);border-color:var(--acc-line);color:var(--ink);font-weight:600}
-.day-item .d{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.day-item .n{font-size:11px;color:var(--muted);background:var(--field);border:1px solid var(--line);
-  border-radius:999px;padding:0 6px;line-height:1.7;flex:0 0 auto}
-.day-item.on .n{color:var(--acc);border-color:var(--acc-line);background:var(--card)}
 .side-empty{font-size:12.5px;color:var(--muted);padding:8px 4px;line-height:1.6}
 .tag-cloud{display:flex;flex-wrap:wrap;gap:5px}
 .tag-btn{border:1px solid var(--line);background:var(--field);color:var(--muted);border-radius:999px;
   padding:3px 9px;font-size:12px;line-height:1.6;cursor:pointer}
 .tag-btn:hover{color:var(--ink);border-color:var(--acc-line)}
 .tag-btn.on{color:var(--acc);border-color:var(--acc-line);background:var(--acc-l)}
-.hm-panel .panel-title{margin-bottom:9px}
-.hm-hint{font-weight:400;letter-spacing:0}
-.hm-wrap{display:flex;align-items:flex-start;gap:5px}
-.hm-days{display:grid;grid-template-rows:repeat(7,10px);row-gap:3px;flex:0 0 auto;
-  width:10px;text-align:center;font-size:9px;line-height:10px;color:var(--muted)}
-.hm-grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,10px);
-  row-gap:3px;column-gap:3px;flex:1 1 auto;min-width:0}
-.hm-cell{width:10px;height:10px;padding:0;border:0;border-radius:2px;
-  background:var(--hm-0);cursor:pointer;transition:box-shadow .12s,filter .12s}
-.hm-cell[data-level="1"],.hm-key[data-level="1"]{background:var(--hm-1)}
-.hm-cell[data-level="2"],.hm-key[data-level="2"]{background:var(--hm-2)}
-.hm-cell[data-level="3"],.hm-key[data-level="3"]{background:var(--hm-3)}
-.hm-cell[data-level="4"],.hm-key[data-level="4"]{background:var(--hm-4)}
+.level-filter{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap}
+.level-filter button{border:1px solid var(--line);background:var(--field);color:var(--muted);
+  border-radius:999px;padding:4px 11px;font-size:12.5px;line-height:1.6;cursor:pointer;min-height:31px}
+.level-filter button:hover{color:var(--ink);border-color:var(--acc-line)}
+.level-filter button.on{color:var(--acc-on);background:var(--acc);border-color:var(--acc);font-weight:600}
+.level-filter button.on[data-level="2"]{color:var(--err);background:var(--err-bg);border-color:var(--err-line)}
+.level-select{border:1px solid var(--line2);background:var(--field);color:var(--muted);
+  border-radius:9px;padding:5px 7px;font-size:12.5px;min-height:32px;cursor:pointer;outline:none}
+.level-select:focus{border-color:var(--acc-line);box-shadow:0 0 0 3px var(--acc-l)}
+.level-select[data-level="1"]{color:var(--acc);border-color:var(--acc-line);background:var(--acc-l)}
+.level-select[data-level="2"]{color:var(--err);border-color:var(--err-line);background:var(--err-bg)}
+.hm-head{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:8px}
+.hm-nav{width:24px;height:24px;padding:0;border:1px solid var(--line);border-radius:7px;
+  background:var(--field);color:var(--muted);font-size:14px;line-height:1;cursor:pointer}
+.hm-nav:hover{color:var(--ink);border-color:var(--acc-line)}
+.hm-nav:disabled{opacity:.35;cursor:default}
+.hm-nav:disabled:hover{color:var(--muted);border-color:var(--line)}
+.hm-month{font-size:12.5px;font-weight:600;color:var(--ink-soft);letter-spacing:.02em}
+.hm-week{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;
+  font-size:10px;line-height:1.4;text-align:center;color:var(--muted)}
+.hm-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.hm-cell{display:flex;align-items:center;justify-content:center;aspect-ratio:1;min-width:0;
+  padding:0;border:0;border-radius:6px;background:var(--hm-0);color:var(--muted);
+  font-size:10.5px;line-height:1;font-variant-numeric:tabular-nums;
+  cursor:pointer;transition:box-shadow .12s,filter .12s}
+.hm-cell[data-level="1"]{background:var(--hm-1)}
+.hm-cell[data-level="2"]{background:var(--hm-2)}
+.hm-cell[data-level="3"]{background:var(--hm-3)}
+.hm-cell[data-level="4"]{background:var(--hm-4)}
+.hm-cell[data-level="1"],.hm-cell[data-level="2"]{color:var(--ink)}
+.hm-cell[data-level="3"],.hm-cell[data-level="4"]{color:#fff}
+[data-theme="dark"] .hm-cell[data-level="4"]{color:#08301b}
+.hm-key[data-level="1"]{background:var(--hm-1)}
+.hm-key[data-level="2"]{background:var(--hm-2)}
+.hm-key[data-level="3"]{background:var(--hm-3)}
+.hm-key[data-level="4"]{background:var(--hm-4)}
 .hm-cell.is-today{box-shadow:0 0 0 1px var(--acc-line)}
 .hm-cell.is-sel{outline:2px solid var(--acc);outline-offset:1px}
 .hm-cell.is-future{background:transparent;box-shadow:inset 0 0 0 1px var(--line);cursor:default}
-.hm-cell:not(.is-future):hover{filter:brightness(1.07);box-shadow:0 0 0 1px var(--acc-line)}
+.hm-cell.is-blank{background:transparent;visibility:hidden;pointer-events:none}
+.hm-cell:not(.is-future):not(.is-blank):hover{filter:brightness(1.07);box-shadow:0 0 0 1px var(--acc-line)}
 .hm-foot{display:flex;justify-content:flex-end;margin-top:8px;font-size:10px;color:var(--muted)}
 .hm-legend{display:inline-flex;align-items:center;gap:3px}
 .hm-key{display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--hm-0)}
 .usage{margin-top:auto;font-size:11.5px;color:var(--muted);line-height:1.6}
 .main{min-width:0;display:flex;flex-direction:column;gap:13px}
+[hidden]{display:none!important}
+.view-switch{display:inline-flex;align-self:flex-start;padding:3px;gap:3px;
+  border:1px solid var(--line);border-radius:12px;background:var(--field)}
+.view-switch button{border:0;background:transparent;color:var(--muted);border-radius:9px;
+  padding:7px 15px;font-size:13.5px;line-height:1.2;cursor:pointer;min-height:34px}
+.view-switch button:hover{color:var(--ink)}
+.view-switch button.on{background:var(--card);color:var(--acc);font-weight:600;
+  box-shadow:0 1px 4px rgba(20,25,40,.12)}
+.view-analysis .toolbar,
+.view-analysis .searchbar,
+.view-analysis .daybar,
+.view-analysis .composer,
+.view-analysis #timeline{display:none!important}
+.analysis-view{background:var(--card);border:1px solid var(--line);border-radius:16px;
+  box-shadow:var(--tb-glow-soft);padding:14px;min-height:260px}
+.an-head{display:flex;align-items:center;gap:11px;flex-wrap:wrap;padding-bottom:11px;
+  border-bottom:1px solid var(--line)}
+.period-switch{display:inline-flex;gap:3px;padding:3px;border:1px solid var(--line);
+  border-radius:10px;background:var(--field)}
+.period-switch button{border:0;background:transparent;color:var(--muted);border-radius:7px;
+  padding:6px 13px;font-size:13px;cursor:pointer;min-height:31px}
+.period-switch button.on{background:var(--acc);color:var(--acc-on);font-weight:600}
+.an-nav{display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
+.an-title{font-size:14px;font-weight:600;color:var(--ink);min-width:150px;text-align:center;
+  line-height:1.45}
+.an-nav .date-input{max-width:150px}
+.an-bar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:11px 0}
+.an-meta{font-size:12px;color:var(--muted);line-height:1.55;min-width:0}
+.an-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto}
+.an-actions .btn.confirm{color:var(--err);border-color:var(--err-line);background:var(--err-bg)}
+.an-body{min-width:0}
+.an-empty{text-align:center;padding:34px 14px;border:1px dashed var(--line2);border-radius:13px;
+  color:var(--muted);font-size:13px;line-height:1.8}
+.an-empty b{color:var(--ink);font-weight:600}
+.an-empty .btn{margin-top:12px}
+.an-loading{padding:38px 12px;text-align:center;color:var(--muted);font-size:13px;line-height:1.8}
+.an-notice{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:9px 11px;margin-bottom:11px;
+  border:1px solid var(--acc-line);background:var(--acc-l);color:var(--acc);
+  border-radius:10px;font-size:12.5px;line-height:1.6}
+.an-notice .btn{margin-left:auto}
+.an-headline{font-size:19px;line-height:1.45;color:var(--ink);margin:10px 0 5px}
+.an-summary{font-size:14px;line-height:1.8;color:var(--text);white-space:pre-wrap;
+  margin:0 0 13px;overflow-wrap:anywhere}
+.an-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}
+.an-stat{border:1px solid var(--line);background:var(--field);border-radius:11px;padding:9px 10px}
+.an-stat b{display:block;font-size:18px;line-height:1.2;color:var(--ink);font-variant-numeric:tabular-nums}
+.an-stat span{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+.an-chart{display:flex;align-items:flex-end;gap:2px;height:46px;padding:5px 1px 0;
+  border-bottom:1px solid var(--line);margin:7px 0 11px}
+.an-chart-bar{flex:1 1 0;min-width:2px;min-height:2px;background:var(--hm-3);border-radius:3px 3px 0 0;
+  opacity:.75}
+.an-chart-bar.zero{background:var(--hm-0);min-height:1px;opacity:1}
+.an-tags{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 12px}
+.an-tag{font-size:11.5px;color:var(--muted);background:var(--field);border:1px solid var(--line);
+  border-radius:999px;padding:1px 8px;line-height:1.8}
+.an-section{margin:14px 0 0}
+.an-section h3{font-size:12.5px;letter-spacing:.03em;color:var(--muted);margin:0 0 8px;font-weight:600}
+.an-list{margin:0;padding-left:19px;font-size:13.5px;line-height:1.8;color:var(--text)}
+.an-list li{margin:2px 0}
+.an-highlight{border:1px solid var(--line);border-radius:11px;padding:9px 11px;margin:6px 0;
+  background:var(--field)}
+.an-highlight-head{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.an-highlight-title{font-size:13.5px;font-weight:600;color:var(--ink)}
+.an-day{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.an-highlight-detail{font-size:12.5px;line-height:1.7;color:var(--text);margin-top:3px}
+.an-theme{display:flex;gap:8px;align-items:baseline;padding:5px 0;border-bottom:1px dashed var(--line)}
+.an-theme:last-child{border-bottom:0}
+.an-theme-name{font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap}
+.an-theme-count{font-size:11px;color:var(--muted);white-space:nowrap}
+.an-theme-note{font-size:12.5px;color:var(--text);line-height:1.65;min-width:0}
+.an-suggest{border:1px solid var(--line);border-radius:11px;padding:9px 11px;margin:6px 0;
+  background:var(--field)}
+.an-suggest-action{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.6}
+.an-suggest-why{font-size:12.5px;color:var(--muted);line-height:1.7;margin-top:2px}
+.an-suggest-how{font-size:12.5px;color:var(--text);line-height:1.7;margin-top:3px}
+.an-when{display:inline-block;font-size:11px;color:var(--acc);border:1px solid var(--acc-line);
+  background:var(--acc-l);border-radius:999px;padding:0 7px;margin-left:6px;vertical-align:1px}
+.an-next-focus{font-size:14px;font-weight:600;color:var(--ink);line-height:1.65;
+  padding:9px 11px;border:1px solid var(--acc-line);background:var(--acc-l);border-radius:11px;
+  margin:6px 0 8px}
+.an-next-label{font-size:11px;color:var(--acc);margin-right:6px}
+.an-conn{border:1px solid var(--line);border-radius:11px;padding:9px 11px;margin:6px 0;
+  background:var(--field)}
+.an-conn-head{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:11.5px;
+  color:var(--muted)}
+.an-conn-row{display:flex;gap:6px;font-size:12.5px;line-height:1.7;margin-top:4px}
+.an-conn-key{flex:0 0 auto;color:var(--muted)}
+.an-conn-text{color:var(--ink);overflow-wrap:anywhere}
+.an-conn-relation{margin-top:5px;font-size:12.5px;line-height:1.7;color:var(--acc)}
+.an-conn-suggest{margin-top:2px;font-size:12px;line-height:1.7;color:var(--muted)}
+.an-foot{font-size:11.5px;color:var(--muted);line-height:1.7;margin-top:16px;
+  border-top:1px solid var(--line);padding-top:9px}
 .daybar{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
-.daybar .date-input{border:1px solid var(--line2);background:var(--field);color:var(--text);
+.daybar .date-input,.an-nav .date-input{border:1px solid var(--line2);background:var(--field);color:var(--text);
   border-radius:10px;padding:8px 10px;font-size:13.5px;min-height:38px;outline:none}
-.daybar .date-input:focus{border-color:var(--acc-line);box-shadow:0 0 0 3px var(--acc-l)}
+.daybar .date-input:focus,.an-nav .date-input:focus{border-color:var(--acc-line);box-shadow:0 0 0 3px var(--acc-l)}
 .day-title{font-size:17px;font-weight:600;color:var(--ink);margin-right:auto;line-height:1.45}
 .day-title small{font-size:12.5px;font-weight:400;color:var(--muted);margin-left:7px}
 .iconbtn{min-width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;
@@ -166,6 +272,10 @@ h1 .streak{font-size:12px;font-weight:600;letter-spacing:0;color:var(--acc);
 .note-head{display:flex;align-items:center;gap:8px;min-height:25px}
 .note-time{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .note-edited{font-size:11px;color:var(--muted);margin-left:2px}
+.note-level{font-size:11px;font-weight:600;line-height:18px;padding:0 7px;border-radius:999px;
+  border:1px solid var(--line);color:var(--muted);background:var(--field);white-space:nowrap}
+.note-level.lv1{color:var(--acc);background:var(--acc-l);border-color:var(--acc-line)}
+.note-level.lv2{color:var(--err);background:var(--err-bg);border-color:var(--err-line)}
 .note-actions{margin-left:auto;display:flex;gap:2px;opacity:.6;transition:opacity .15s}
 .note:hover .note-actions,.note:focus-within .note-actions{opacity:1}
 .act{border:1px solid transparent;background:transparent;color:var(--muted);border-radius:7px;
@@ -207,10 +317,10 @@ dialog::backdrop{background:rgba(15,23,42,.45)}
 #editText{width:100%;border:1px solid var(--line2);border-radius:10px;background:var(--field);
   color:var(--text);font-size:14.5px;line-height:1.7;padding:10px 11px;min-height:150px;resize:vertical;outline:none}
 #editText:focus{border-color:var(--acc-line);box-shadow:0 0 0 3px var(--acc-l)}
-.edit-meta{display:grid;grid-template-columns:150px minmax(0,1fr);gap:9px;margin-top:10px}
-.edit-meta input{width:100%;border:1px solid var(--line2);border-radius:10px;background:var(--field);
+.edit-meta{display:grid;grid-template-columns:150px 110px minmax(0,1fr);gap:9px;margin-top:10px}
+.edit-meta input,.edit-meta select{width:100%;border:1px solid var(--line2);border-radius:10px;background:var(--field);
   color:var(--text);font-size:13.5px;padding:9px 10px;min-height:39px;outline:none}
-.edit-meta input:focus{border-color:var(--acc-line);box-shadow:0 0 0 3px var(--acc-l)}
+.edit-meta input:focus,.edit-meta select:focus{border-color:var(--acc-line);box-shadow:0 0 0 3px var(--acc-l)}
 .edit-imgs{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
 .edit-actions{display:flex;align-items:center;gap:8px;margin-top:16px;flex-wrap:wrap}
 .edit-actions .spacer{flex:1}
@@ -238,7 +348,6 @@ dialog::backdrop{background:rgba(15,23,42,.45)}
   .layout{grid-template-columns:minmax(0,1fr)}
   .side{position:static;max-height:none;flex-direction:row;flex-wrap:wrap;gap:10px}
   .side .panel{flex:1 1 240px;min-width:0}
-  .day-list{max-height:150px}
   .usage{margin:0;flex-basis:100%}
   .note-actions{opacity:1}
 }
@@ -253,30 +362,40 @@ dialog::backdrop{background:rgba(15,23,42,.45)}
   .side{gap:8px}
   .side .panel{flex:1 1 100%;padding:9px 10px;min-width:0}
   .panel-title{margin-bottom:6px;font-size:11.5px}
-  .day-list{flex-direction:row;gap:5px;max-height:none;overflow-x:auto;overflow-y:hidden;
-    padding:1px 0 2px;scrollbar-width:none}
-  .day-list::-webkit-scrollbar{display:none}
-  .day-item{width:auto;flex:0 0 auto;padding:5px 9px;font-size:12.5px;
-    border-color:var(--line);background:var(--field)}
-  .day-item .d{flex:0 0 auto}
-  .day-item .n{padding:0 5px}
-  .hm-wrap{gap:7px}
-  .hm-days{grid-template-rows:repeat(7,14px);row-gap:4px;width:12px;
-    font-size:10px;line-height:14px}
-  .hm-grid{grid-template-rows:repeat(7,14px);row-gap:4px;column-gap:4px}
-  .hm-cell,.hm-key{width:14px;height:14px;border-radius:3px}
+  .hm-head{margin-bottom:6px}
+  .hm-grid,.hm-week{gap:3px}
+  .hm-cell{font-size:10px;border-radius:5px}
+  .hm-key{width:12px;height:12px;border-radius:3px}
   .hm-foot{margin-top:8px}
   .usage{margin:0}
   .daybar{gap:6px}
   .day-title{flex:1 1 auto;font-size:16px;margin:0;min-width:0}
   #prevDay{order:1} #dayTitle{order:2} #nextDay{order:3}
   .daybar .date-input{order:4;flex:1 1 100%;width:100%;min-height:36px;font-size:13px}
+  .view-switch{width:100%}
+  .view-switch button{flex:1 1 0}
+  .analysis-view{padding:11px}
+  .an-head{align-items:stretch;gap:8px}
+  .period-switch{width:100%}
+  .period-switch button{flex:1 1 0}
+  .an-nav{width:100%;margin-left:0;justify-content:space-between}
+  .an-title{flex:1 1 auto;min-width:0;font-size:13px}
+  .an-nav .date-input{order:4;flex:1 1 100%;max-width:none;width:100%}
+  .an-bar{gap:7px}
+  .an-actions{width:100%;margin-left:0}
+  .an-actions .btn{flex:1 1 auto}
+  .an-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .an-headline{font-size:17px}
+  .an-chart{height:38px}
   .composer{padding:11px 12px 10px}
   #imgBtn{order:1}
   .composer-row .spacer{order:2}
   #saveBtn{order:3;min-width:64px;min-height:36px}
   .composer-row .tag-input{order:4;flex:1 1 100%;min-width:0}
-  .composer-row .quick{order:5}
+  .composer-row .level-select{order:5}
+  .composer-row .quick{order:6}
+  .level-filter{flex:1 1 100%}
+  .level-filter button{flex:1 1 auto;padding:5px 8px}
   .composer-row .savehint{display:none}
   .note{padding:11px 12px 10px}
   .note-img{width:78px;height:78px}
@@ -295,8 +414,7 @@ dialog::backdrop{background:rgba(15,23,42,.45)}
   <header class="top">
     <a class="back" href="/">← 工具箱</a>
     <div class="brand">
-      <h1>记录 <span class="streak" id="streak" hidden></span><span class="stat" id="stat"></span></h1>
-      <p class="sub">随时记一条，或者贴一张截图。按天归档，图片保存在自己的账号里。</p>
+      <h1>记录 <span class="streak" id="streak" hidden></span></h1>
     </div>
     <div class="top-actions">
       <button class="btn" id="todayBtn" type="button">回到今天</button>
@@ -310,22 +428,26 @@ dialog::backdrop{background:rgba(15,23,42,.45)}
       <input id="searchInput" type="search" autocomplete="off" placeholder="搜索文字或标签">
       <button id="searchClear" type="button" title="清除搜索" aria-label="清除搜索">×</button>
     </div>
+    <div class="level-filter" id="levelFilter" role="group" aria-label="按重要程度筛选">
+      <button type="button" data-level="" class="on">全部</button>
+      <button type="button" data-level="0">普通</button>
+      <button type="button" data-level="1">重要</button>
+      <button type="button" data-level="2">关键</button>
+    </div>
   </div>
 
   <div class="layout" id="layout">
-    <aside class="side" aria-label="日期和标签">
-      <section class="panel">
-        <p class="panel-title">按日期 <span id="dayCount"></span></p>
-        <div class="day-list" id="dayList"><div class="side-empty">加载中……</div></div>
-      </section>
+    <aside class="side" aria-label="记录热力图和标签">
       <section class="panel hm-panel">
-        <p class="panel-title">记录热力 <span class="hm-hint">近 12 周</span></p>
-        <div class="hm-wrap">
-          <div class="hm-days" aria-hidden="true">
-            <span>一</span><span></span><span>三</span><span></span><span>五</span><span></span><span></span>
-          </div>
-          <div class="hm-grid" id="heatmap" role="group" aria-label="最近 12 周每日记录数量"></div>
+        <div class="hm-head">
+          <button class="hm-nav" id="hmPrev" type="button" title="上个月" aria-label="上个月">‹</button>
+          <span class="hm-month" id="hmMonth" aria-live="polite"></span>
+          <button class="hm-nav" id="hmNext" type="button" title="下个月" aria-label="下个月">›</button>
         </div>
+        <div class="hm-week" aria-hidden="true">
+          <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+        </div>
+        <div class="hm-grid" id="heatmap" role="group" aria-label="当月每日记录数量"></div>
         <div class="hm-foot">
           <span class="hm-legend" aria-label="颜色越深记录越多" title="颜色越深记录越多"><i class="hm-key" data-level="0"></i><i class="hm-key" data-level="1"></i><i class="hm-key" data-level="2"></i><i class="hm-key" data-level="3"></i><i class="hm-key" data-level="4"></i></span>
         </div>
@@ -338,6 +460,11 @@ dialog::backdrop{background:rgba(15,23,42,.45)}
     </aside>
 
     <main class="main">
+      <div class="view-switch" id="viewSwitch" role="tablist" aria-label="切换记录或分析">
+        <button type="button" data-view="notes" class="on" role="tab" aria-selected="true">记录</button>
+        <button type="button" data-view="analysis" role="tab" aria-selected="false">AI 分析</button>
+      </div>
+
       <div class="searchbar" id="searchBar">
         <span id="searchText"></span>
         <button class="btn sm ghost" id="searchBack" type="button">返回日期</button>
@@ -361,6 +488,11 @@ dialog::backdrop{background:rgba(15,23,42,.45)}
           <button class="mini" id="imgBtn" type="button">＋ 图片</button>
           <input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden>
           <input class="tag-input" id="tagInput" type="text" autocomplete="off" placeholder="标签：空格或逗号分隔">
+          <select class="level-select" id="levelSelect" aria-label="重要程度" title="重要程度">
+            <option value="0">普通</option>
+            <option value="1">重要</option>
+            <option value="2">关键</option>
+          </select>
           <div class="quick">
             <button type="button" data-tag="工作">工作</button>
             <button type="button" data-tag="生活">生活</button>
@@ -375,6 +507,35 @@ dialog::backdrop{background:rgba(15,23,42,.45)}
       <section class="timeline" id="timeline" aria-live="polite">
         <div class="loading">加载中……</div>
       </section>
+
+      <section class="analysis-view" id="analysisView" hidden aria-label="每日笔记 AI 分析">
+        <div class="an-head">
+          <div class="period-switch" id="analysisPeriods" role="group" aria-label="分析周期">
+            <button type="button" data-period="day" class="on">日</button>
+            <button type="button" data-period="week">周</button>
+            <button type="button" data-period="month">月</button>
+          </div>
+          <div class="an-nav">
+            <button class="iconbtn" id="analysisPrev" type="button" title="上一个周期" aria-label="上一个周期">←</button>
+            <span class="an-title" id="analysisTitle">今天</span>
+            <input class="date-input" id="analysisDate" type="date" aria-label="分析日期">
+            <button class="btn sm ghost" id="analysisToday" type="button">今天</button>
+            <button class="iconbtn" id="analysisNext" type="button" title="下一个周期" aria-label="下一个周期">→</button>
+          </div>
+        </div>
+        <div class="an-bar">
+          <span class="an-meta" id="analysisMeta"></span>
+          <div class="an-actions">
+            <button class="btn primary sm" id="analysisGenerate" type="button">生成分析</button>
+            <button class="btn sm ghost" id="analysisAsk" type="button" hidden>问 AI</button>
+            <button class="btn sm ghost" id="analysisCopy" type="button" hidden>复制</button>
+            <button class="btn sm ghost" id="analysisDelete" type="button" hidden>删除结果</button>
+          </div>
+        </div>
+        <div class="an-body" id="analysisBody">
+          <div class="an-empty">切到「AI 分析」，选好日 / 周 / 月后点「生成分析」。</div>
+        </div>
+      </section>
     </main>
   </div>
 </div>
@@ -385,6 +546,11 @@ dialog::backdrop{background:rgba(15,23,42,.45)}
     <textarea id="editText" maxlength="10000"></textarea>
     <div class="edit-meta">
       <input id="editDay" type="date" aria-label="日期">
+      <select id="editImportance" aria-label="重要程度">
+        <option value="0">普通</option>
+        <option value="1">重要</option>
+        <option value="2">关键</option>
+      </select>
       <input id="editTags" type="text" autocomplete="off" placeholder="标签：空格或逗号分隔">
     </div>
     <div class="edit-imgs" id="editImgs"></div>
